@@ -67,9 +67,9 @@ public final class DukeGame {
     private final String title;
     private final List<UnitText> unitTexts = new ArrayList<>();
     private final List<ThingTemplate> units = new ArrayList<>();
-    private final List<uz.dukeengine.rts.module.Weapon> weapons = new ArrayList<>();
+    private final List<uz.dukeengine.combat.module.Weapon> weapons = new ArrayList<>();
     private final List<uz.dukeengine.rts.player.Upgrade> upgrades = new ArrayList<>();
-    private final List<uz.dukeengine.rts.module.WeaponBonus> weaponBonuses = new ArrayList<>();
+    private final List<uz.dukeengine.combat.module.WeaponBonus> weaponBonuses = new ArrayList<>();
     private final List<GamePlayer> players = new ArrayList<>();
     private final List<Runnable> scenario = new ArrayList<>();
     private final List<Consumer<DukeGame>> startCallbacks = new ArrayList<>();
@@ -155,14 +155,14 @@ public final class DukeGame {
      * The weapons the game's units link by name from their weapon sets — one block a weapon, however many
      * units carry it. Handed to the world when it boots.
      */
-    public DukeGame addWeapons(java.util.Collection<uz.dukeengine.rts.module.Weapon> more) {
+    public DukeGame addWeapons(java.util.Collection<uz.dukeengine.combat.module.Weapon> more) {
         requireNotStarted();
         weapons.addAll(more);
         return this;
     }
 
-    /** The game's weapon bonus table — see {@link uz.dukeengine.rts.module.WeaponBonus}. */
-    public DukeGame addWeaponBonuses(java.util.Collection<uz.dukeengine.rts.module.WeaponBonus> more) {
+    /** The game's weapon bonus table — see {@link uz.dukeengine.combat.module.WeaponBonus}. */
+    public DukeGame addWeaponBonuses(java.util.Collection<uz.dukeengine.combat.module.WeaponBonus> more) {
         requireNotStarted();
         weaponBonuses.addAll(more);
         return this;
@@ -1509,7 +1509,8 @@ public final class DukeGame {
     }
 
     /**
-     * The same, for a command the game declared itself — see {@link #onCommand}.
+     * The same, for an order every side gives — a {@link uz.dukeengine.combat.message.CombatOrder}: a move, an attack,
+     * a stop — or a command the game declared itself — see {@link #onCommand}.
      *
      * <p>Separate from the overload above only so the standard orders keep their
      * exact type; both end up in the same queue, on the same frame boundary, in
@@ -1850,7 +1851,7 @@ public final class DukeGame {
             if (unit == null || unit.getPlayerIndex() != getLocalPlayerIndex()) {
                 continue;
             }
-            var weapon = unit.findModule(uz.dukeengine.rts.module.WeaponUpdate.class);
+            var weapon = unit.findModule(uz.dukeengine.combat.module.WeaponUpdate.class);
             if (weapon == null) {
                 continue;
             }

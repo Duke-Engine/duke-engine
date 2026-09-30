@@ -24,6 +24,7 @@ import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.game.DukeGame;
 import uz.dukeengine.game.view.UnitView;
 import uz.dukeengine.game.view.WorldSnapshot;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * The built-in 2D view and input layer: draws the world snapshot and turns
@@ -234,16 +235,16 @@ public final class GamePanel extends JPanel {
         }
 
         if (enemy != null) {
-            game.postCommand(new GameMessage.AttackObject(local, units, new ObjectId(enemy.id())));
+            game.postCommand(new CombatOrder.AttackObject(local, units, new ObjectId(enemy.id())));
         } else {
-            game.postCommand(new GameMessage.MoveTo(local, units, new Coord3D(wx, wy, 0f)));
+            game.postCommand(new CombatOrder.MoveTo(local, units, new Coord3D(wx, wy, 0f)));
         }
     }
 
     private void stopSelected() {
         var units = selectedIds(game.getSnapshot());
         if (!units.isEmpty()) {
-            game.postCommand(new GameMessage.StopMoving(game.getLocalPlayerIndex(), units));
+            game.postCommand(new CombatOrder.StopMoving(game.getLocalPlayerIndex(), units));
         }
     }
 

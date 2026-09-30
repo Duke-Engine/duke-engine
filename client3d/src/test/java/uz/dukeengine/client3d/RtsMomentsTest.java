@@ -15,7 +15,7 @@ import uz.dukeengine.core.module.DeathType;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.game.view.UnitView;
 import uz.dukeengine.game.view.WorldSnapshot;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.WeaponFired;
 
 /**
  * What an RTS makes a sound for: the moments raised for a real-time strategy game's units, and the two things

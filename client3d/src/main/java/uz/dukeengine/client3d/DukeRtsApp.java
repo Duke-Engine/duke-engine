@@ -49,9 +49,10 @@ import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.game.DukeGame;
 import uz.dukeengine.game.view.UnitView;
 import uz.dukeengine.game.view.WorldSnapshot;
-import uz.dukeengine.rts.event.ShotLanded;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.ShotLanded;
+import uz.dukeengine.combat.event.WeaponFired;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * The 3D presentation of a {@link DukeGame}: renders the simulation with
@@ -3658,14 +3659,14 @@ final class DukeRtsApp extends SimpleApplication {
         @Override
         public void stop(List<Integer> units) {
             if (!units.isEmpty()) {
-                game.postCommand(new GameMessage.StopMoving(game.getLocalPlayerIndex(),
+                game.postCommand(new CombatOrder.StopMoving(game.getLocalPlayerIndex(),
                         units.stream().map(ObjectId::new).toList()));
             }
         }
 
         @Override
         public void move(Map<Integer, Coord3D> destinations) {
-            destinations.forEach((unit, to) -> game.postCommand(new GameMessage.MoveTo(game.getLocalPlayerIndex(),
+            destinations.forEach((unit, to) -> game.postCommand(new CombatOrder.MoveTo(game.getLocalPlayerIndex(),
                     List.of(new ObjectId(unit)), to)));
         }
 
@@ -4349,7 +4350,7 @@ final class DukeRtsApp extends SimpleApplication {
             if (!snapshot.attackable()) {
                 return; // nothing selected may be fired at it: refused, as the pointer already said
             }
-            game.postCommand(new GameMessage.AttackObject(local, units, new ObjectId(enemy.view.id()), forced));
+            game.postCommand(new CombatOrder.AttackObject(local, units, new ObjectId(enemy.view.id()), forced));
             answerOrder("attack", units);
             markOrder(enemy.view.x(), enemy.view.y(), enemy.view.id(), OrderMarkers.Kind.ATTACK);
             // His own orders only. In a game with more than one player at it,
@@ -4378,7 +4379,7 @@ final class DukeRtsApp extends SimpleApplication {
                 game.postCommand(rally);
                 markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
             }
-            case GameMessage.MoveTo move -> {
+            case CombatOrder.MoveTo move -> {
                 if (!move.units().isEmpty()) {
                     game.postCommand(move); // none of them can move: answered as a move all the same, and none sent
                 }
@@ -4410,8 +4411,8 @@ final class DukeRtsApp extends SimpleApplication {
      * move of none of them — answered as a move, sent to nobody — as the reference issues its move whatever the
      * selection ({@code CommandTranslator::evaluateContextCommand}).
      */
-    static GameMessage groundClick(int local, List<uz.dukeengine.game.view.UnitView> own, String word,
-            boolean gameDecides, Vector3f ground) {
+    static uz.dukeengine.core.message.Command groundClick(int local, List<uz.dukeengine.game.view.UnitView> own,
+            String word, boolean gameDecides, Vector3f ground) {
         var steer = groundOrder(local, own.stream().map(unit -> new ObjectId(unit.id())).toList(), word, ground);
         if (steer != null) {
             return steer;
@@ -4420,12 +4421,12 @@ final class DukeRtsApp extends SimpleApplication {
         var movers = own.stream().filter(uz.dukeengine.game.view.UnitView::mobile)
                 .map(unit -> new ObjectId(unit.id())).toList();
         if (!movers.isEmpty()) {
-            return new GameMessage.MoveTo(local, movers, place, true);
+            return new CombatOrder.MoveTo(local, movers, place, true);
         }
         if (rallies(own, gameDecides)) {
             return new GameMessage.SetRallyPoint(local, new ObjectId(own.getFirst().id()), place);
         }
-        return own.isEmpty() || loneStructure(own) ? null : new GameMessage.MoveTo(local, List.of(), place, true);
+        return own.isEmpty() || loneStructure(own) ? null : new CombatOrder.MoveTo(local, List.of(), place, true);
     }
 
     /**

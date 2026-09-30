@@ -17,7 +17,12 @@ import uz.dukeengine.core.thing.Geometry;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.World;
 import uz.dukeengine.rts.RtsTemplate;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.WeaponFired;
+import uz.dukeengine.combat.module.Weapon;
+import uz.dukeengine.combat.module.WeaponSet;
+import uz.dukeengine.combat.module.WeaponSlot;
+import uz.dukeengine.combat.module.WeaponStatus;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * A weapon's wind-up before it fires, and a reach kept once its attack has begun — the reference's {@code

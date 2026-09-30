@@ -24,12 +24,13 @@ import uz.dukeengine.core.network.SessionHalted;
 import uz.dukeengine.core.network.SocketTransport;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.message.CombatOrder;
 
 class NetworkTransportTest {
 
     private static CommandPacket packetFrom(int player) {
         return new CommandPacket(3, player, List.of(
-                new GameMessage.MoveTo(player, List.of(new ObjectId(1)), new Coord3D(9f, 0f, 0f))));
+                new CombatOrder.MoveTo(player, List.of(new ObjectId(1)), new Coord3D(9f, 0f, 0f))));
     }
 
     /** Spin the pump until {@code check} holds, or give up after five seconds. */

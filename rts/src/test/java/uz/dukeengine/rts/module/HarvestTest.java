@@ -18,6 +18,7 @@ import uz.dukeengine.rts.RtsTemplate;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
+import uz.dukeengine.combat.message.CombatOrder;
 
 class HarvestTest {
 
@@ -552,7 +553,7 @@ class HarvestTest {
 
         var away = new Coord3D(450f, 400f, 0f);
         truck.getLocomotor().moveTo(away); // the order, as the engine carries it out
-        harvest.onOrder(new GameMessage.MoveTo(usa, java.util.List.of(truck.getId()), away)); // and then tells it
+        harvest.onOrder(new CombatOrder.MoveTo(usa, java.util.List.of(truck.getId()), away)); // and then tells it
         for (int frame = 0; frame < 700; frame++) {
             logic.update();
         }

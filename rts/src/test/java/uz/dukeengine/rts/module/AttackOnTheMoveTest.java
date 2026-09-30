@@ -12,6 +12,7 @@ import uz.dukeengine.core.player.Relationship;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * Weapons that have to be stood still to use.

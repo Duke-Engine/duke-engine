@@ -8,6 +8,7 @@ import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.network.CommandPacket;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.message.CombatOrder;
 
 class CommandCodecTest {
 
@@ -24,30 +25,30 @@ class CommandCodecTest {
     @Test
     void moveCommandRoundTrips() {
         assertRoundTrips(new CommandPacket(10, 1, List.of(
-                new GameMessage.MoveTo(1, List.of(new ObjectId(3), new ObjectId(5)), new Coord3D(12.5f, -3.25f, 0f)))));
+                new CombatOrder.MoveTo(1, List.of(new ObjectId(3), new ObjectId(5)), new Coord3D(12.5f, -3.25f, 0f)))));
     }
 
     @Test
     void aMoveThatIsThePlayersClickSaysSo() {
         assertRoundTrips(new CommandPacket(10, 1, List.of(
-                new GameMessage.MoveTo(1, List.of(new ObjectId(3), new ObjectId(5)), new Coord3D(12.5f, -3.25f, 0f),
+                new CombatOrder.MoveTo(1, List.of(new ObjectId(3), new ObjectId(5)), new Coord3D(12.5f, -3.25f, 0f),
                         true))));
     }
 
     @Test
     void attackAndStopRoundTrip() {
         assertRoundTrips(new CommandPacket(4, 2, List.of(
-                new GameMessage.AttackObject(2, List.of(new ObjectId(9)), new ObjectId(1)),
-                new GameMessage.StopMoving(2, List.of(new ObjectId(9), new ObjectId(10))))));
+                new CombatOrder.AttackObject(2, List.of(new ObjectId(9)), new ObjectId(1)),
+                new CombatOrder.StopMoving(2, List.of(new ObjectId(9), new ObjectId(10))))));
     }
 
     @Test
     void anAttackSaysItsSourceAndTheSlotItLocksTo() {
         assertRoundTrips(new CommandPacket(4, 2, List.of(
-                new GameMessage.AttackObject(2, List.of(new ObjectId(9)), new ObjectId(1), false,
-                        uz.dukeengine.rts.message.OrderSource.GAME, -1),
-                new GameMessage.AttackObject(2, List.of(new ObjectId(9)), new ObjectId(1), true,
-                        uz.dukeengine.rts.message.OrderSource.PLAYER, 1))));
+                new CombatOrder.AttackObject(2, List.of(new ObjectId(9)), new ObjectId(1), false,
+                        uz.dukeengine.combat.message.OrderSource.GAME, -1),
+                new CombatOrder.AttackObject(2, List.of(new ObjectId(9)), new ObjectId(1), true,
+                        uz.dukeengine.combat.message.OrderSource.PLAYER, 1))));
     }
 
     @Test
@@ -78,15 +79,15 @@ class CommandCodecTest {
                 new GameMessage.GameOrder(2, "PURCHASE_SCIENCE", List.of(), null, null, Long.MIN_VALUE),
                 new GameMessage.GameOrder(2, "", List.of(new ObjectId(1), new ObjectId(2)), null, new ObjectId(9),
                         -1L),
-                new GameMessage.MoveTo(2, List.of(new ObjectId(1)), new Coord3D(5f, 6f, 0f)))));
+                new CombatOrder.MoveTo(2, List.of(new ObjectId(1)), new Coord3D(5f, 6f, 0f)))));
     }
 
     @Test
     void floatBitsArePreserved() {
         float awkward = 0.1f + 0.2f; // not exactly representable
         var packet = new CommandPacket(1, 1, List.of(
-                new GameMessage.MoveTo(1, List.of(new ObjectId(1)), new Coord3D(awkward, 0f, 0f))));
-        var decoded = (GameMessage.MoveTo) CommandCodec.INSTANCE.decode(CommandCodec.INSTANCE.encode(packet)).commands().get(0);
+                new CombatOrder.MoveTo(1, List.of(new ObjectId(1)), new Coord3D(awkward, 0f, 0f))));
+        var decoded = (CombatOrder.MoveTo) CommandCodec.INSTANCE.decode(CommandCodec.INSTANCE.encode(packet)).commands().get(0);
         assertEquals(Float.floatToIntBits(awkward), Float.floatToIntBits(decoded.destination().x()));
     }
 }

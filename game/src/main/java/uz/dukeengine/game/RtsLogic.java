@@ -9,9 +9,10 @@ import java.util.function.Consumer;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import uz.dukeengine.core.message.Command;
 import uz.dukeengine.rts.RtsSimulation;
+import uz.dukeengine.combat.message.CombatOrder;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.core.module.MoveUpdate;
-import uz.dukeengine.rts.module.WeaponUpdate;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * The batteries-included RTS simulation behind {@link DukeGame}.
@@ -112,57 +113,6 @@ final class RtsLogic extends RtsSimulation {
     @Override
     protected void onRtsCommand(GameMessage command) {
         switch (command) {
-            case GameMessage.MoveTo move -> {
-                var movers = new java.util.ArrayList<uz.dukeengine.core.thing.GameObject>();
-                for (var id : move.units()) {
-                    var unit = findObject(id);
-                    if (unit == null || unit.getPlayerIndex() != move.playerIndex()) {
-                        continue; // gone, or not the issuer's unit to command
-                    }
-                    uz.dukeengine.rts.module.Errand.giveUpAll(unit);
-                    var weapon = unit.findModule(WeaponUpdate.class);
-                    if (weapon != null) {
-                        weapon.holdFire(); // an explicit move overrides the current target
-                    }
-                    if (unit.getLocomotor() != null) {
-                        movers.add(unit);
-                    }
-                }
-                getGroupLayout().send(this, movers, move.destination(), move.click());
-                tellOrder(move, move.units(), move.playerIndex());
-            }
-            case GameMessage.AttackObject attack -> {
-                for (var id : attack.units()) {
-                    var unit = findObject(id);
-                    if (unit == null || unit.getPlayerIndex() != attack.playerIndex()) {
-                        continue;
-                    }
-                    uz.dukeengine.rts.module.Errand.giveUpAll(unit);
-                    var weapon = unit.findModule(WeaponUpdate.class);
-                    if (weapon != null) {
-                        attack(weapon, attack);
-                    }
-                }
-                tellOrder(attack, attack.units(), attack.playerIndex()); // weaponless or not
-            }
-            case GameMessage.StopMoving stop -> {
-                for (var id : stop.units()) {
-                    var unit = findObject(id);
-                    if (unit == null || unit.getPlayerIndex() != stop.playerIndex()) {
-                        continue;
-                    }
-                    uz.dukeengine.rts.module.Errand.giveUpAll(unit);
-                    var ai = unit.getLocomotor();
-                    if (ai != null) {
-                        ai.stop();
-                    }
-                    var weapon = unit.findModule(WeaponUpdate.class);
-                    if (weapon != null) {
-                        weapon.holdFire();
-                    }
-                }
-                tellOrder(stop, stop.units(), stop.playerIndex());
-            }
             case GameMessage.QueueProduction order -> {
                 var production = ownProduction(order.factory(), order.playerIndex());
                 var template = getThingFactory().findTemplate(order.unitTemplate());
@@ -217,11 +167,73 @@ final class RtsLogic extends RtsSimulation {
     }
 
     /**
+     * A move, an attack or a stop: every unit named that is the issuer's gives up its errands; a move holds its fire and
+     * is sent by the game's layout as one group, an attack locks and aims its weapon, a stop halts it and holds its
+     * fire. Each told to the units' order listeners after.
+     */
+    @Override
+    protected void onCombatOrder(CombatOrder order) {
+        switch (order) {
+            case CombatOrder.MoveTo move -> {
+                var movers = new java.util.ArrayList<uz.dukeengine.core.thing.GameObject>();
+                for (var id : move.units()) {
+                    var unit = findObject(id);
+                    if (unit == null || unit.getPlayerIndex() != move.playerIndex()) {
+                        continue; // gone, or not the issuer's unit to command
+                    }
+                    uz.dukeengine.combat.module.Errand.giveUpAll(unit);
+                    var weapon = unit.findModule(WeaponUpdate.class);
+                    if (weapon != null) {
+                        weapon.holdFire(); // an explicit move overrides the current target
+                    }
+                    if (unit.getLocomotor() != null) {
+                        movers.add(unit);
+                    }
+                }
+                getGroupLayout().send(this, movers, move.destination(), move.click());
+                tellOrder(move, move.units(), move.playerIndex());
+            }
+            case CombatOrder.AttackObject attack -> {
+                for (var id : attack.units()) {
+                    var unit = findObject(id);
+                    if (unit == null || unit.getPlayerIndex() != attack.playerIndex()) {
+                        continue;
+                    }
+                    uz.dukeengine.combat.module.Errand.giveUpAll(unit);
+                    var weapon = unit.findModule(WeaponUpdate.class);
+                    if (weapon != null) {
+                        attack(weapon, attack);
+                    }
+                }
+                tellOrder(attack, attack.units(), attack.playerIndex()); // weaponless or not
+            }
+            case CombatOrder.StopMoving stop -> {
+                for (var id : stop.units()) {
+                    var unit = findObject(id);
+                    if (unit == null || unit.getPlayerIndex() != stop.playerIndex()) {
+                        continue;
+                    }
+                    uz.dukeengine.combat.module.Errand.giveUpAll(unit);
+                    var ai = unit.getLocomotor();
+                    if (ai != null) {
+                        ai.stop();
+                    }
+                    var weapon = unit.findModule(WeaponUpdate.class);
+                    if (weapon != null) {
+                        weapon.holdFire();
+                    }
+                }
+                tellOrder(stop, stop.units(), stop.playerIndex());
+            }
+        }
+    }
+
+    /**
      * An attack as the reference's dispatch gives one: an attack naming a slot locks the weapon to it until the attack
      * is over ({@code MSG_DO_WEAPON_AT_OBJECT}), any other lets a lock until then go ({@code MSG_DO_ATTACK_OBJECT});
      * an attack refused leaves no lock of its own behind.
      */
-    private static void attack(WeaponUpdate weapon, GameMessage.AttackObject attack) {
+    private static void attack(WeaponUpdate weapon, CombatOrder.AttackObject attack) {
         var until = WeaponUpdate.Lock.TEMPORARILY;
         if (attack.slot() < 0 || !weapon.lock(attack.slot(), until)) {
             weapon.unlock(until);
@@ -246,12 +258,12 @@ final class RtsLogic extends RtsSimulation {
             task.run();
         }
         for (var command = inbox.poll(); command != null; command = inbox.poll()) {
-            if (session != null && command instanceof GameMessage rts) {
-                session.issueLocal(rts); // ships to both peers, applied in lock-step
+            if (session != null && (command instanceof GameMessage || command instanceof CombatOrder)) {
+                session.issueLocal(command); // ships to both peers, applied in lock-step
             } else {
                 if (session != null) {
-                    // The wire codec speaks the RTS set, and applying this one locally
-                    // would desync, so say so loudly — and say what does travel.
+                    // The wire codec speaks the RTS set and the orders every side gives, and applying this
+                    // one locally would desync, so say so loudly — and say what does travel.
                     var unsendable = command;
                     LOG.warning(() -> "game command cannot be sent to peers: "
                             + unsendable.getClass().getName() + "; send it as a GameMessage.GameOrder");

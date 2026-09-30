@@ -19,6 +19,7 @@ import uz.dukeengine.core.network.LineChannel;
 import uz.dukeengine.core.network.NetMessage;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /** A relay that holds no seat: three guests through it, their leaving decided by it, and what it heard a replay. */
 class MultiplayerRelayTest {
@@ -86,7 +87,7 @@ class MultiplayerRelayTest {
         assertEquals(List.of(1, 2, 3), seated.sessions().stream().map(MultiplayerSession::getLocalPlayerIndex).toList(),
                 "seats 1 to 3 are the guests'");
         HostLeavesTest.stepUntil(worlds, 40, System.nanoTime() + 30_000_000_000L);
-        worlds.get(1).game().postCommand(new GameMessage.MoveTo(2, List.of(new ObjectId(2)),
+        worlds.get(1).game().postCommand(new CombatOrder.MoveTo(2, List.of(new ObjectId(2)),
                 new Coord3D(400f, 300f, 0f)));
         HostLeavesTest.stepUntil(worlds, 300, System.nanoTime() + 60_000_000_000L);
         for (int frame = 0; frame < 300; frame++) {

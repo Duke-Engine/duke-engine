@@ -276,7 +276,7 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
      * to work ({@link #workAt}) — the reference's truck, gone idle.
      */
     @Override
-    public void onOrder(uz.dukeengine.rts.message.GameMessage order) {
+    public void onOrder(uz.dukeengine.core.message.Command order) {
         paused = true;
         leaveTheDock();
     }

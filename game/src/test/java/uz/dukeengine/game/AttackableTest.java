@@ -11,8 +11,9 @@ import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.Kind;
 import uz.dukeengine.core.thing.ObjectStatus;
 import uz.dukeengine.rts.message.GameMessage;
-import uz.dukeengine.rts.module.TargetRule;
-import uz.dukeengine.rts.module.WeaponUpdate;
+import uz.dukeengine.combat.module.TargetRule;
+import uz.dukeengine.combat.module.WeaponUpdate;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * The pointer over something the selection cannot hit, and the order that would follow it: the simulation says
@@ -132,7 +133,7 @@ class AttackableTest {
         scene.helicopter().setStatus(ObjectStatus.AIRBORNE);
         var me = game.getLocalPlayerIndex();
 
-        game.postCommand(new GameMessage.AttackObject(me, List.of(scene.tank().getId()), scene.helicopter().getId()));
+        game.postCommand(new CombatOrder.AttackObject(me, List.of(scene.tank().getId()), scene.helicopter().getId()));
         game.runHeadless(2);
 
         assertEquals(null, scene.tank().findModule(WeaponUpdate.class).getTarget(), "refused");

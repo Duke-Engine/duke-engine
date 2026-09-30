@@ -17,7 +17,8 @@ import uz.dukeengine.core.thing.ThingTemplateLoader;
 import uz.dukeengine.rts.RtsTemplate;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.rts.module.RtsModules;
-import uz.dukeengine.rts.module.WeaponUpdate;
+import uz.dukeengine.combat.module.WeaponUpdate;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * The engine's core promise: a simulation is fully determined by its initial
@@ -56,26 +57,32 @@ class DeterminismIntegrationTest {
         }
 
         @Override
-        protected void onRtsCommand(GameMessage command) {
-            switch (command) {
-                case GameMessage.MoveTo move -> forEach(move.units(), unit -> {
+        protected void onCombatOrder(CombatOrder order) {
+            switch (order) {
+                case CombatOrder.MoveTo move -> forEach(move.units(), unit -> {
                     var ai = unit.findModule(MoveUpdate.class);
                     if (ai != null) {
                         ai.moveTo(move.destination());
                     }
                 });
-                case GameMessage.AttackObject attack -> forEach(attack.units(), unit -> {
+                case CombatOrder.AttackObject attack -> forEach(attack.units(), unit -> {
                     var weapon = unit.findModule(WeaponUpdate.class);
                     if (weapon != null) {
                         weapon.attack(attack.target());
                     }
                 });
-                case GameMessage.StopMoving stop -> forEach(stop.units(), unit -> {
+                case CombatOrder.StopMoving stop -> forEach(stop.units(), unit -> {
                     var ai = unit.findModule(MoveUpdate.class);
                     if (ai != null) {
                         ai.stop();
                     }
                 });
+            }
+        }
+
+        @Override
+        protected void onRtsCommand(GameMessage command) {
+            switch (command) {
                 case GameMessage.QueueProduction ignored -> {
                 }
                 case GameMessage.SetRallyPoint ignored -> {
@@ -132,8 +139,8 @@ class DeterminismIntegrationTest {
         defender.setPosition(new Coord3D(50f, 0f, 0f));
 
         // Attacker advances on the defender and opens fire.
-        logic.issueCommand(new GameMessage.MoveTo(a.getIndex(), List.of(attacker.getId()), new Coord3D(45f, 0f, 0f)));
-        logic.issueCommand(new GameMessage.AttackObject(a.getIndex(), List.of(attacker.getId()), defender.getId()));
+        logic.issueCommand(new CombatOrder.MoveTo(a.getIndex(), List.of(attacker.getId()), new Coord3D(45f, 0f, 0f)));
+        logic.issueCommand(new CombatOrder.AttackObject(a.getIndex(), List.of(attacker.getId()), defender.getId()));
         return logic;
     }
 

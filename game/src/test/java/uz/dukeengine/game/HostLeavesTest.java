@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Timeout;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /** The host's machine gone mid-match, and the others playing on: the next player relays, and no frame is lost. */
 class HostLeavesTest {
@@ -171,8 +172,8 @@ class HostLeavesTest {
 
         var guests = List.of(two, three);
         stepUntil(guests, hostWasAt + 30, giveUp);
-        two.game().postCommand(new GameMessage.MoveTo(2, List.of(new ObjectId(2)), new Coord3D(400f, 150f, 0f)));
-        three.game().postCommand(new GameMessage.MoveTo(3, List.of(new ObjectId(3)), new Coord3D(600f, 150f, 0f)));
+        two.game().postCommand(new CombatOrder.MoveTo(2, List.of(new ObjectId(2)), new Coord3D(400f, 150f, 0f)));
+        three.game().postCommand(new CombatOrder.MoveTo(3, List.of(new ObjectId(3)), new Coord3D(600f, 150f, 0f)));
         stepUntil(guests, hostWasAt + PLAYED_AFTER, giveUp);
 
         assertTrue(guests.stream().allMatch(w -> w.frame() >= hostWasAt + PLAYED_AFTER),

@@ -16,6 +16,7 @@ import uz.dukeengine.core.thing.ThingTemplate;
 import uz.dukeengine.core.thing.World;
 import uz.dukeengine.rts.RtsSimulation;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /** What having a physical size means for the RTS rules built on top of it. */
 class SolidWorldTest {

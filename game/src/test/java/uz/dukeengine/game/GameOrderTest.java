@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /** A game's own order travels as the engine's orders do: to every machine, on a frame boundary, into the replay. */
 class GameOrderTest {
@@ -72,11 +73,11 @@ class GameOrderTest {
 
         int me = host.getLocalPlayerIndex();
         // A move, then the order: the order finds its unit already moving.
-        host.postCommand(new GameMessage.MoveTo(me, List.of(FIRST), new Coord3D(400f, 100f, 0f)));
+        host.postCommand(new CombatOrder.MoveTo(me, List.of(FIRST), new Coord3D(400f, 100f, 0f)));
         host.postCommand(order(me, "after the move", FIRST));
         // The order, then a move: the order finds its unit standing.
         host.postCommand(order(me, "before the move", SECOND));
-        host.postCommand(new GameMessage.MoveTo(me, List.of(SECOND), new Coord3D(400f, 160f, 0f)));
+        host.postCommand(new CombatOrder.MoveTo(me, List.of(SECOND), new Coord3D(400f, 160f, 0f)));
         long giveUp = System.nanoTime() + 20_000_000_000L;
         while ((hostHeard.size() < 2 || guestHeard.size() < 2) && System.nanoTime() < giveUp) {
             host.runHeadless(1);

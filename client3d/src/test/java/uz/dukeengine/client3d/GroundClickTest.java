@@ -11,6 +11,7 @@ import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.game.view.UnitView;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * A click on open ground gives a rally point only as the game says: a game that names ground orders decides them, a
@@ -49,14 +50,14 @@ class GroundClickTest {
     void theSameRuleAnsweringNothingForALoneDozerWithAQueueMovesIt() {
         var click = DukeRtsApp.groundClick(LOCAL, List.of(DOZER), null, true, GROUND);
 
-        assertEquals(new GameMessage.MoveTo(LOCAL, List.of(new ObjectId(9)), PLACE, true), click);
+        assertEquals(new CombatOrder.MoveTo(LOCAL, List.of(new ObjectId(9)), PLACE, true), click);
     }
 
     @Test
     void inAGameWithNoRuleALoneDozerIsMovedToo() {
         var click = DukeRtsApp.groundClick(LOCAL, List.of(DOZER), null, false, GROUND);
 
-        assertEquals(new GameMessage.MoveTo(LOCAL, List.of(new ObjectId(9)), PLACE, true), click);
+        assertEquals(new CombatOrder.MoveTo(LOCAL, List.of(new ObjectId(9)), PLACE, true), click);
     }
 
     @Test
@@ -76,7 +77,7 @@ class GroundClickTest {
         assertEquals(Cursors.MOVE, Cursors.situationFor(overOpenGround(DukeRtsApp.groundTakes(both, true), null)));
 
         var click = DukeRtsApp.groundClick(LOCAL, both, null, true, GROUND);
-        assertEquals(new GameMessage.MoveTo(LOCAL, List.of(), PLACE, true), click, "a move of nobody");
+        assertEquals(new CombatOrder.MoveTo(LOCAL, List.of(), PLACE, true), click, "a move of nobody");
         var hint = OrderMark.DEFAULTS.model("models/scmovehint.glb", "SCMoveHint", 40);
         assertTrue(DukeRtsApp.hintsMove(hint, java.util.Set.of(7, 8), both), "the move hint laid");
     }
@@ -93,6 +94,6 @@ class GroundClickTest {
     void aFactoryAndADozerTogetherMoveTheDozerAlone() {
         var click = DukeRtsApp.groundClick(LOCAL, List.of(FACTORY, DOZER), null, false, GROUND);
 
-        assertEquals(new GameMessage.MoveTo(LOCAL, List.of(new ObjectId(9)), PLACE, true), click);
+        assertEquals(new CombatOrder.MoveTo(LOCAL, List.of(new ObjectId(9)), PLACE, true), click);
     }
 }

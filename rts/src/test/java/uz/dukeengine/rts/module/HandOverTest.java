@@ -13,6 +13,7 @@ import uz.dukeengine.core.thing.Geometry;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
 import uz.dukeengine.rts.RtsTemplate;
+import uz.dukeengine.combat.module.ExperienceModule;
 
 /** A side's things handed to an ally mid-match: everything kept for an owner follows them, on every machine alike. */
 class HandOverTest {

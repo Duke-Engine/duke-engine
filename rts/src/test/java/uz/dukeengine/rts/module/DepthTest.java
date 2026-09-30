@@ -16,6 +16,9 @@ import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.module.ExperienceModule;
+import uz.dukeengine.combat.module.WeaponUpdate;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /** Exercises the deeper system behaviours: splash, promotion heal, rally, turn rate. */
 class DepthTest {
@@ -26,14 +29,20 @@ class DepthTest {
         }
 
         @Override
+        protected void onCombatOrder(CombatOrder order) {
+            switch (order) {
+                case CombatOrder.AttackObject a -> a.units().forEach(id ->
+                        findObject(id).findModule(WeaponUpdate.class).attack(a.target()));
+                case CombatOrder.MoveTo m -> m.units().forEach(id ->
+                        findObject(id).findModule(MoveUpdate.class).moveTo(m.destination()));
+                case CombatOrder.StopMoving s -> {
+                }
+            }
+        }
+
+        @Override
         protected void onRtsCommand(GameMessage command) {
             switch (command) {
-                case GameMessage.AttackObject a -> a.units().forEach(id ->
-                        findObject(id).findModule(WeaponUpdate.class).attack(a.target()));
-                case GameMessage.MoveTo m -> m.units().forEach(id ->
-                        findObject(id).findModule(MoveUpdate.class).moveTo(m.destination()));
-                case GameMessage.StopMoving s -> {
-                }
                 case GameMessage.QueueProduction ignored -> {
                 }
                 case GameMessage.SetRallyPoint ignored -> {
@@ -100,7 +109,7 @@ class DepthTest {
         GameObject bystander = spawn(logic, grunt, foe, 13f, 0f); // within 8 of primary
         GameObject distant = spawn(logic, grunt, foe, 30f, 0f);   // outside splash
 
-        logic.issueCommand(new GameMessage.AttackObject(me, java.util.List.of(gun.getId()), primary.getId()));
+        logic.issueCommand(new CombatOrder.AttackObject(me, java.util.List.of(gun.getId()), primary.getId()));
         logic.update();
 
         assertEquals(80f, primary.getBody().getHealth(), 1e-4f);   // direct 20
@@ -134,7 +143,7 @@ class DepthTest {
         attacker.getBody().damage(70f); // wounded to 30
         var victim = spawn(logic, dummy, foe, 5f, 0f);
 
-        logic.issueCommand(new GameMessage.AttackObject(me, java.util.List.of(attacker.getId()), victim.getId()));
+        logic.issueCommand(new CombatOrder.AttackObject(me, java.util.List.of(attacker.getId()), victim.getId()));
         for (int i = 0; i < 5; i++) {
             logic.update();
         }

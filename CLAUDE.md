@@ -12,9 +12,13 @@ games'.
 
 - **`core`** — the base engine. Anything can be built on it: RTS, RPG,
   platformer, roguelike. It knows nothing about any genre.
-- **`rts`** — a **library for making RTS games**, drawing on SAGE for how an RTS
-  is put together. It is not "the Generals layer": it gives every RTS the
-  mechanisms they share and leaves the rules to the game.
+- **`combat`** — what fights, in any game whose things fight: weapons and their
+  bonuses, statuses, experience, healing, shots, auras, closing on a target, and
+  the orders every side gives (move, attack a thing, stop). An RTS and an RPG are
+  both built on it, and it knows neither.
+- **`rts`** — a **library for making RTS games** on `combat`, drawing on SAGE for
+  how an RTS is put together. It is not "the Generals layer": it gives every RTS
+  the mechanisms they share and leaves the rules to the game.
 - **`game`** — the runtime a game boots through: `DukeGame`, its scripts, and
   the wiring that turns data files into a world.
 - **`client3d`** — the 3D client the logic is drawn by. It ships no assets but
@@ -41,40 +45,63 @@ core is pure Java; a render/audio backend comes later.
 - **`core` is genre-neutral.** Any game — RTS, RPG, platformer — is built on it.
   If a name or a rule only makes sense for an RTS (harvesting, build cost,
   rally points, a `MoveTo` command), it does **not** belong in `core`.
-- **`rts` knows no particular game.** It is the RTS library on top of core — the
-  command set, combat, production, economy, vocabulary and save format — but only
-  the parts every RTS shares. A rule one game happens to have is the game's.
-- `skirmish` → `client3d` → `game` → `rts` → `core`. Never the other way; `core`
-  never imports `rts`. A game depends on `kit`, and `kit` on nothing but data.
+- **`combat` knows no side.** What every game whose things fight shares — a
+  weapon, a stun, a heal over time, experience, an aura, the move and attack
+  orders — and nothing only an RTS or only an RPG asks for: a factory's queue is
+  an RTS's, a skill book an RPG's.
+- **`rts` knows no particular game.** It is the RTS library on top of combat —
+  the RTS's command set, production, construction, economy, holds, vocabulary and
+  save format — but only the parts every RTS shares. A rule one game happens to
+  have is the game's.
+- `skirmish` → `client3d` → `game` → `rts` → `combat` → `core`. Never the other
+  way; `core` never imports `combat` or `rts`, and `combat` never imports `rts`. A
+  game depends on `kit`, and `kit` on nothing but data.
+
+**The question to ask before adding to `combat`:** *would an RTS and an RPG both
+need this?* A weapon, a stun, a heal, experience, an aura: both, so `combat`. A
+factory's queue or a harvester's loop: an RTS's, so `rts`.
 
 **The question to ask before adding to `rts`:** *would BFME need this, and
 Warcraft III, and Generals?*
 
 | Candidate | Answer | Where |
 |---|---|---|
-| a unit accumulates experience | all of them | mechanism → `rts` |
+| a unit accumulates experience | every game whose things fight | mechanism → `combat` |
 | four ranks, each +10% damage | Generals only | rule → the game writes it |
 | a building produces units | all of them | mechanism → `rts` |
 | production stalls without power | Generals only | rule → an opt-in module |
 
 The test is not whether something is *useful* but whether it is a **decision**.
-A mechanism carries a question; a rule answers it. `rts` asks, games answer.
+A mechanism carries a question; a rule answers it. `combat` and `rts` ask, games
+answer.
+
+**Seams `combat` offers, to an RTS and an RPG alike** — extend these rather than
+special-casing. A world's arms settings are its `Armoury` (`ArmedWorld.armoury()`):
+the setters named on `RtsSimulation` below are that armoury's, and a world that is
+no RTS's calls them on its own.
+
+| Seam | `combat` supplies | The game supplies |
+|---|---|---|
+| Damage | `DamageModifier`, multiplied by `WeaponUpdate`; `RateOfFireModifier`, which a weapon's every wait is divided by; the weapon bonus table — `WeaponBonus` lines, a word, a kind (damage, range, rate of fire, blast) and a multiplier, every word a thing holds adding what its line adds over 1, as the reference sums them (`DukeGame.addWeaponBonuses`), and a `Weapon`'s own `Bonuses` for that weapon alone; a `Weapon`'s `Affects`, whom its blast hurts (the reference's `RadiusDamageAffects`), and its second ring (`SecondaryDamage` within `SecondaryRadius`); a blast reaching each thing's bounding sphere, and `NOT_SIMILAR` and `SELF` read off what went off (`Shot.wentOffAs`) and what made it (`GameObject.getProducer`); a body's damage scale (`BodyModule.setDamageScale`), after armour but for the damage the game names unresistable (`GameLogic.setUnresistableDamage`) | per-unit bonuses: levels, buffs, ranks — and the words that carry them; whom each blast hurts; what scales a body's damage |
+| Targets | `WeaponUpdate.Data.targets` — the classes a weapon may be fired at; `TargetRule` lines, the first that matches giving a thing its classes; `ObjectStatus.AIRBORNE` for in the air. Acquiring, keeping and an order all ask `canFireAt`, and an order nothing can hit is refused; a thing kept from a side by a `Concealment` module, or not targetable yet (`GameObject.setTargetableFrom`), is no target of that side's; an `AimOffset` on a target throws direct fire off it (`WeaponUpdate.aimPoint`); a thing passed off as none of a side's targets (`Disguise`) taken only by a forced attack (`AttackObject.forced`); how often a weapon with no target looks, each thing on its own clock at its template's rate or the world's, its first wait drawn longer from `World.random()` (`WeaponUpdate.Data.targetScanFrames`, `RtsSimulation.setTargetScanFrames`), and how soon one that falls idle looks (`setIdleTargetScanFrames`) | its class words, its ordered lines (`RtsSimulation.setTargetRules`), and when its aircraft are aloft; who is hidden from whom, and where a shot at a thing is aimed, whom it passes off as what, and how often its weapons look, and how soon an idle one does |
+| Weapons | `Weapon` blocks linked by name from `WeaponSlot`s in `WeaponSet`s; the set chosen by the unit's condition words (`GameObject.setCondition`, `Conditions.bestFit`), the slot per target as the reference chooses it; a clip per weapon (`ClipSize`, `ClipReloadFrames`, `AutoReload`, a `ReloadFrames`..`ReloadFramesMax` delay drawn from `World.random()`), kept across a swap and refilled in part (`WeaponUpdate.refill(share)`); the `DeathType` a weapon's kill deals; a contact weapon, closing until it touches (`Weapon.isContact`); each slot as it stands — fired this frame, between shots, reloading, its weapon, and its clip full and now (`WeaponUpdate.slotsNow`, `SlotNow`); a slot locked by an order until its attack is over or its clip empty (`WeaponUpdate.lock`, `AttackObject.slot`), kept across a change of the set in use only to a set that shares it (`WeaponSet.weaponLockSharedAcrossSets`), and slots only some sources pick by themselves (`WeaponSlot.autoChooseSources`, `OrderSource`); a weapon fired only once its thing's `WeaponAim` modules say it is aimed; a pitch range (`MinTargetPitch`, `MaxTargetPitch`); a least range (`MinimumAttackRange`), a unit too near backing away; a wind-up (`PreAttackFrames`, `PreAttackType`, `WeaponStatus.PRE_ATTACK`) and a reach kept once begun (`LeechRange`) | its weapons (`addWeapons`), its sets and slots, and which words it sets when; which slot an order locks, which sources pick which slots, how its things aim; which sets share a lock, and which weapons show their rounds |
+| Shots in flight | `ProjectileLauncher`, handed a `Shot` (who, which side, which weapon from which slot, the damage) instead of the weapon landing it; `WeaponUpdate.land`, which lands it exactly as an instant hit lands — hit, blast, kill experience, `ShotLanded` | its flight: what carries the shot, how long, and where it comes down |
+| Shots told | `ShotListener`, a shooter's modules told each shot as it is fired and each blow of it as it lands — a hit, a carried shot, each one a blast catches — with what it took after armour and the body's scale (`BodyModule.worthOf`) | what a swing striking or a blow dealt sets off: a lifesteal, a counter |
+| Closing on a target | `PursueUpdate` — an opt-in module that walks a unit into its weapon's range and stops it there, planning a route only when it must (none yet, the target more than a cell away from where it planned to, the route used up) or every `RepathFrames`, staggered by id; a unit walking a move not stopped for a target its weapon picked itself, and letting it go out of range (`WeaponUpdate.isTargetOrdered`); a route to the band its weapon reaches from, a band of cells searched round the target (`Locomotor.moveWithin`, `World.findPathWithin`) | whether a unit closes at all, how far it will stray before letting go, and how often it looks again |
+| Progression | `ExperienceModule` — XP plus a configurable rung table, `LevelWords`, the word a rung puts on the unit, and `LevelHealthBonus`, what a rung makes of the most health, the share kept; a rank set down as well as up (`ExperienceModule.setExperience`) | how many rungs, what each costs and is worth, the word each wears and the health it gives |
+| Auras | `AuraUpdate`, the reference's `PropagandaTowerBehavior`: whom it reaches within its `Radius` along the ground (`Affects`, `Kinds`, `ExceptKinds`), looked at every `PulseFrames`, each holding its `Words` while there and healed its `HealShareEachSecond` from one aura at a time (`BodyModule.healFromOne`); a word given back only where no other aura still holds it; nothing given while its thing is dead, disabled, sold, hidden or in a hold it does not fire from, and all of it taken back then and when the aura is taken off; its `PulseEffect`, and `AuraListener` told each look | whom its auras reach, the words they give and what the words mean; what else a look gives |
+| Orders every side gives | `CombatOrder` — `MoveTo`, `AttackObject`, `StopMoving` — sent, applied on a frame boundary and recorded as every order is, on the wire as they always were (`CombatOrderCodec`, read before a side's own codec); `RtsSimulation.onCombatOrder`, where an RTS applies them | its side's own orders beside them |
+| Sides and holds | `ArmedSide`, a player whose side has a damage bonus of its own; `Hold`, a module saying whether a passenger fires from inside it, as a weapon and an aura ask; whether a computer plays a side, `Player.isComputer` in core | whether its sides have a bonus; its holds |
 
 **Seams `rts` offers so a game can answer without editing the engine** — extend
 these rather than special-casing:
 
 | Seam | `rts` supplies | The game supplies |
 |---|---|---|
-| Damage | `DamageModifier`, multiplied by `WeaponUpdate`; `RateOfFireModifier`, which a weapon's every wait is divided by; the weapon bonus table — `WeaponBonus` lines, a word, a kind (damage, range, rate of fire, blast) and a multiplier, every word a thing holds adding what its line adds over 1, as the reference sums them (`DukeGame.addWeaponBonuses`), and a `Weapon`'s own `Bonuses` for that weapon alone; a `Weapon`'s `Affects`, whom its blast hurts (the reference's `RadiusDamageAffects`), and its second ring (`SecondaryDamage` within `SecondaryRadius`); a blast reaching each thing's bounding sphere, and `NOT_SIMILAR` and `SELF` read off what went off (`Shot.wentOffAs`) and what made it (`GameObject.getProducer`); a body's damage scale (`BodyModule.setDamageScale`), after armour but for the damage the game names unresistable (`GameLogic.setUnresistableDamage`) | per-unit bonuses: levels, buffs, ranks — and the words that carry them; whom each blast hurts; what scales a body's damage |
-| Targets | `WeaponUpdate.Data.targets` — the classes a weapon may be fired at; `TargetRule` lines, the first that matches giving a thing its classes; `ObjectStatus.AIRBORNE` for in the air. Acquiring, keeping and an order all ask `canFireAt`, and an order nothing can hit is refused; a thing kept from a side by a `Concealment` module, or not targetable yet (`GameObject.setTargetableFrom`), is no target of that side's; an `AimOffset` on a target throws direct fire off it (`WeaponUpdate.aimPoint`); a thing passed off as none of a side's targets (`Disguise`) taken only by a forced attack (`AttackObject.forced`); how often a weapon with no target looks, each thing on its own clock at its template's rate or the world's, its first wait drawn longer from `World.random()` (`WeaponUpdate.Data.targetScanFrames`, `RtsSimulation.setTargetScanFrames`), and how soon one that falls idle looks (`setIdleTargetScanFrames`) | its class words, its ordered lines (`RtsSimulation.setTargetRules`), and when its aircraft are aloft; who is hidden from whom, and where a shot at a thing is aimed, whom it passes off as what, and how often its weapons look, and how soon an idle one does |
-| Weapons | `Weapon` blocks linked by name from `WeaponSlot`s in `WeaponSet`s; the set chosen by the unit's condition words (`GameObject.setCondition`, `Conditions.bestFit`), the slot per target as the reference chooses it; a clip per weapon (`ClipSize`, `ClipReloadFrames`, `AutoReload`, a `ReloadFrames`..`ReloadFramesMax` delay drawn from `World.random()`), kept across a swap and refilled in part (`WeaponUpdate.refill(share)`); the `DeathType` a weapon's kill deals; a contact weapon, closing until it touches (`Weapon.isContact`); each slot as it stands — fired this frame, between shots, reloading, its weapon, and its clip full and now (`WeaponUpdate.slotsNow`, `SlotNow`); a slot locked by an order until its attack is over or its clip empty (`WeaponUpdate.lock`, `AttackObject.slot`), kept across a change of the set in use only to a set that shares it (`WeaponSet.weaponLockSharedAcrossSets`), and slots only some sources pick by themselves (`WeaponSlot.autoChooseSources`, `OrderSource`); a weapon fired only once its thing's `WeaponAim` modules say it is aimed; a pitch range (`MinTargetPitch`, `MaxTargetPitch`); a least range (`MinimumAttackRange`), a unit too near backing away; a wind-up (`PreAttackFrames`, `PreAttackType`, `WeaponStatus.PRE_ATTACK`) and a reach kept once begun (`LeechRange`) | its weapons (`addWeapons`), its sets and slots, and which words it sets when; which slot an order locks, which sources pick which slots, how its things aim; which sets share a lock, and which weapons show their rounds |
-| Shots in flight | `ProjectileLauncher`, handed a `Shot` (who, which side, which weapon from which slot, the damage) instead of the weapon landing it; `WeaponUpdate.land`, which lands it exactly as an instant hit lands — hit, blast, kill experience, `ShotLanded` | its flight: what carries the shot, how long, and where it comes down |
 | Running over | `CrushUpdate` (the reference's `CrusherLevel`, with `SquishCollide`'s rule for when) and `Crushable` (`CrushableLevel`), dealing `CRUSH` and the `CRUSHED` death; `ToppleUpdate`, a thing a moving crusher pushes over — falling, dying `TOPPLED`, sinking away | which of its things crush, and how hard each thing is to crush, and which topple, how hard and how |
 | Production | `ProductionGate`, asked by the factory; `ProductionListener` on a factory's modules and `DukeGame.onProduced` told what came out, `ConstructionListener` and `onConstructed` the frame a site is finished, and by whom; an `Exit` — where units are made and first walk in the factory's own frame, a delay between them and a first burst — and a `Door`, a unit made only once it is open (`ProductionUpdate.Data`), the first leg walked through the factory's own walls (`Locomotor.leave`); the words a factory holds while it works (`ProductionUpdate.Data.words`: busy, and made for a while after a unit); a `ProductionReservation` module's say as a unit is queued, told its job called off, and a job's id (`ProductionUpdate.Queued`); a `PowerModule`'s bonus changed while the game runs (`setBonus`); its rally point as it is shown while it is selected (`ProductionUpdate.rallyLine`: from its door through its natural rally point to the rally point, round its footprint's corners where the rally point lies behind the door), and each unit it sends there given ground of its own round it; several doors, a job going out by the one its reservation names (`Doors`, `ProductionReservation.door`, `holdDoorOpen`); the side's price given back at a cancel (`RefundsPriceNow`) | what stalls the line, or nothing; what a new unit or building sets off; its factories' exits and doors, and the words a door and a working factory hold; what a factory refuses at queue time; when its power changes; its doors, and what a cancel gives back |
 | Research | an `Upgrade` with `Frames` and a `Scope` — the side's, which everything it makes later gets, or the researcher's alone — queued beside the units (`ProductionUpdate.Data.researches`, `GameMessage.QueueResearch`, `CancelProduction`), paid when accepted; `UpgradeListener` and `UpgradeCompleted` when done; `RtsSimulation.onResearched` and `DukeGame.onResearched`, told the frame research finishes, after it has taken effect | its upgrades, what each does, and which building researches which; what finished research sets off |
-| Closing on a target | `PursueUpdate` — an opt-in module that walks a unit into its weapon's range and stops it there, planning a route only when it must (none yet, the target more than a cell away from where it planned to, the route used up) or every `RepathFrames`, staggered by id; a unit walking a move not stopped for a target its weapon picked itself, and letting it go out of range (`WeaponUpdate.isTargetOrdered`); a route to the band its weapon reaches from, a band of cells searched round the target (`Locomotor.moveWithin`, `World.findPathWithin`) | whether a unit closes at all, how far it will stray before letting go, and how often it looks again |
 | Gathering | `SupplyModule` piles, `SupplyDepot` marks, `HarvestUpdate` walks the loop, and stands at either end for as long as it is told (`FramesAtDepot`; `FramesPerUnit` with `UnitOfLoad`, a unit an act); `workAt`, one place, a pile or depot it is sent to and goes back to, any other order stopping its work until the next; a load taken only beside the pile and paid only beside the depot, and a flier flying its loop; a harvester that needs a depot keeping its load, waiting by a thing of its side (`NeedsDepot`, `WaitBy`); a harvester's range for one harvester (`HarvestUpdate.setSearchRange`) and the piles it may take (`RtsSimulation.setPileRule`); its stands before its first act and after its last (`FramesBeforeActs`, `FramesAfterActs`); a pile's or a depot's `Dock` — one at a time, the rest waiting in the order of their places, how many may wait, a place to wait at and one to act at (`Dock.Place`, a bone or a point from its middle) | which of its buildings are depots, how much a trip is worth, how far a harvester looks, how long it stands, and where a click sends one, and whether its harvesters need a depot; which piles each harvester may take and how far it looks; its stands; which piles and depots dock one at a time, and where |
-| Progression | `ExperienceModule` — XP plus a configurable rung table, `LevelWords`, the word a rung puts on the unit, and `LevelHealthBonus`, what a rung makes of the most health, the share kept; a rank set down as well as up (`ExperienceModule.setExperience`) | how many rungs, what each costs and is worth, the word each wears and the health it gives |
 | Bodies | `BodyModule` (abstract), `setMaxHealth(most, MaxHealthChange)` — the share kept, the difference added, or the health left; `ActiveBody`'s `ArmorSets`, the best fit to the thing's words its armour | a body that grows, or armours differently; which words armour what |
 | Player bonuses | named bonuses on `RtsPlayer`, multi-effect `Upgrade` | what the names mean |
 | Money | `RtsPlayer`'s books: `deposit` earned, `withdraw` spent, `refund` taken off what was spent, `give` in neither, `handOver` all of it away; `getEarned`, `getSpent`, saved with the side | what it deposits and gives, and what its score counts |
@@ -242,8 +269,11 @@ now and expensive to find after a release.
 
 - `./gradlew build` passes.
 - No new `-Xlint:all` warnings.
-- `core` still compiles with no reference to `rts` (it cannot see it — but
-  check that nothing genre-specific leaked in the other direction either).
+- `core` still compiles with no reference to `combat` or `rts`, and `combat`
+  with none to `rts` (they cannot see them — but check that nothing
+  genre-specific leaked in the other direction either).
+- Nothing new in `combat` is asked by only an RTS or only an RPG: that belongs to
+  `rts`, or to the RPG's side.
 - Nothing new in `rts` answers a question only one game would ask. If it does,
   it belongs behind a seam, with the answer in the game — `skirmish` is where
   this repository's game answers live, and a change that only `skirmish` wants

@@ -6,6 +6,10 @@ import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.rts.RtsSimulation;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.module.Engaging;
+import uz.dukeengine.combat.module.Errand;
+import uz.dukeengine.combat.module.GuardRules;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * An attack-move, as the reference's {@code AIAttackMoveToState} makes one: to a point, and whenever an enemy its

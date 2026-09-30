@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.game.view.MomentWords;
 import uz.dukeengine.game.view.UnitView;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.WeaponFired;
 
 /** The game's words for a thing's moments, held by its view while they last, for its looks to choose by. */
 class MomentWordsTest {
@@ -120,17 +120,17 @@ class MomentWordsTest {
     @Test
     void aSlotWindingUpHoldsItsWindUpWord() {
         var words = new MomentWords(null, null, List.of(), List.of(), List.of(), null, List.of("PREATTACK_A"));
-        var knife = new uz.dukeengine.rts.module.Weapon("Knife", 1f, 40f, 30, 30,
+        var knife = new uz.dukeengine.combat.module.Weapon("Knife", 1f, 40f, 30, 30,
                 uz.dukeengine.core.module.DamageType.NORMAL, 0f, true, List.of(), 0, 0, true,
                 uz.dukeengine.core.module.DeathType.NORMAL, List.of(), List.of(), 0f, 0f, false, -180f, 180f, 0f, 20,
-                uz.dukeengine.rts.module.Weapon.PreAttack.PER_SHOT, false);
-        var sets = List.of(new uz.dukeengine.rts.module.WeaponSet(List.of(),
-                List.of(new uz.dukeengine.rts.module.WeaponSlot("Knife"))));
+                uz.dukeengine.combat.module.Weapon.PreAttack.PER_SHOT, false);
+        var sets = List.of(new uz.dukeengine.combat.module.WeaponSet(List.of(),
+                List.of(new uz.dukeengine.combat.module.WeaponSlot("Knife"))));
         var game = DukeGame.create("moments").loadUnits(DukeGame.STARTER_UNITS).momentWords(words).map(40, 40)
                 .addWeapons(List.of(knife))
                 .addUnits(List.of(uz.dukeengine.rts.RtsTemplate.named("Burton").visionRange(80f)
                         .module(new uz.dukeengine.core.module.ActiveBody.Data(100f))
-                        .module(uz.dukeengine.rts.module.WeaponUpdate.Data.sets(sets)).build()));
+                        .module(uz.dukeengine.combat.module.WeaponUpdate.Data.sets(sets)).build()));
         var me = game.addPlayer("Me", Color.BLUE);
         var them = game.addPlayer("Them", Color.RED);
         game.enemies(me, them).localPlayer(me).spawn("Burton", me, 100f, 100f).spawn("Rifleman", them, 120f, 100f);

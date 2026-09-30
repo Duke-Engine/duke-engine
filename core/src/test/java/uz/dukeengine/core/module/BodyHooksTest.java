@@ -1,6 +1,7 @@
 package uz.dukeengine.core.module;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -172,6 +173,24 @@ class BodyHooksTest {
 
         assertEquals(500f, hive.getBody().getHealth());
         assertEquals(List.of(), world.drainEvents(), "nothing happened, and nothing says it did");
+    }
+
+    @Test
+    void aHealFromOneIsTakenFromOneHealerAtATimeUntilItHasStoppedForItsFrames() {
+        var body = soldier.getBody();
+        body.setHealth(10f);
+        var tower = shooter.getId();
+        var another = new ObjectId(99);
+
+        assertTrue(body.healFromOne(1f, tower, 3), "the first to offer");
+        assertFalse(body.healFromOne(1f, another, 3), "not a second at once");
+        for (int frame = 0; frame < 3; frame++) {
+            world.update();
+        }
+        assertFalse(body.healFromOne(1f, another, 3), "the first holds it three frames after its last heal");
+        world.update();
+        assertTrue(body.healFromOne(1f, another, 3), "and lets it go after");
+        assertEquals(12f, body.getHealth(), 1e-4f);
     }
 
     @Test

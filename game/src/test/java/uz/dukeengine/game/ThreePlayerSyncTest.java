@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Timeout;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * Three machines, one game, over real TCP on localhost.
@@ -95,8 +96,8 @@ class ThreePlayerSyncTest {
 
         // Guests 2 and 3 have no connection to each other; both orders must still
         // reach both worlds, by way of the host. A player's unit carries its number.
-        guestTwo.postCommand(new GameMessage.MoveTo(two, List.of(new ObjectId(two)), new Coord3D(250f, 60f, 0f)));
-        guestThree.postCommand(new GameMessage.MoveTo(three, List.of(new ObjectId(three)), new Coord3D(60f, 250f, 0f)));
+        guestTwo.postCommand(new CombatOrder.MoveTo(two, List.of(new ObjectId(two)), new Coord3D(250f, 60f, 0f)));
+        guestThree.postCommand(new CombatOrder.MoveTo(three, List.of(new ObjectId(three)), new Coord3D(60f, 250f, 0f)));
 
         // Frames, not attempts. A lock-step game that is waiting on a peer takes a
         // turn of runHeadless and advances nothing — which is correct, and which

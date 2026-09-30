@@ -10,6 +10,7 @@ import uz.dukeengine.core.module.ModuleGroups;
 import uz.dukeengine.core.module.UpdateModule;
 import uz.dukeengine.core.player.Relationship;
 import uz.dukeengine.core.thing.GameObject;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * A rechargeable area-effect ability, ported in spirit from SAGE's

@@ -12,7 +12,8 @@ import uz.dukeengine.core.thing.ThingTemplate;
 import uz.dukeengine.rts.RtsSimulation;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.rts.module.RtsModules;
-import uz.dukeengine.rts.module.WeaponUpdate;
+import uz.dukeengine.combat.module.WeaponUpdate;
+import uz.dukeengine.combat.event.WeaponFired;
 
 /** A shot is a moment: reported once when it happens, not for as long as it lasts. */
 class WeaponFiredTest {

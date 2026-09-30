@@ -16,8 +16,12 @@ import uz.dukeengine.core.player.Relationship;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.WeaponFired;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.module.DamageModifier;
+import uz.dukeengine.combat.module.ProjectileLauncher;
+import uz.dukeengine.combat.module.WeaponUpdate;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * A shot that leaves the weapon and arrives later.
@@ -99,7 +103,7 @@ class ProjectileLauncherTest {
 
     /** One shot: the order is applied and the weapon fires in the same frame. */
     private void fireOnce(GameObject attacker, GameObject victim) {
-        logic.issueCommand(new GameMessage.AttackObject(attacker.getPlayerIndex(),
+        logic.issueCommand(new CombatOrder.AttackObject(attacker.getPlayerIndex(),
                 List.of(attacker.getId()), victim.getId()));
         logic.update();
     }

@@ -15,6 +15,7 @@ import uz.dukeengine.core.player.Relationship;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /** A thing kept from a side is no target for it: not acquired, not ordered at, let go the frame it hides. */
 class ConcealmentTest {

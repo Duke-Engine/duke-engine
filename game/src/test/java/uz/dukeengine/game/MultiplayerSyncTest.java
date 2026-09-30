@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.core.thing.ObjectId;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * The multiplayer promise, end to end over real TCP on localhost: two complete
@@ -57,8 +58,8 @@ class MultiplayerSyncTest {
         assertEquals(2, guest.getLocalPlayerIndex(), "guest controls player 2");
 
         // each machine orders ITS OWN unit around — commands cross the wire
-        host.postCommand(new GameMessage.MoveTo(1, List.of(new ObjectId(1)), new Coord3D(150f, 40f, 0f)));
-        guest.postCommand(new GameMessage.MoveTo(2, List.of(new ObjectId(2)), new Coord3D(200f, 80f, 0f)));
+        host.postCommand(new CombatOrder.MoveTo(1, List.of(new ObjectId(1)), new Coord3D(150f, 40f, 0f)));
+        guest.postCommand(new CombatOrder.MoveTo(2, List.of(new ObjectId(2)), new Coord3D(200f, 80f, 0f)));
 
         // Interleaved stepping phase-shifts the two sims by up to a frame, so
         // compare after EACH half-step, whenever the frame counters line up.

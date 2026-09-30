@@ -19,7 +19,7 @@ package uz.dukeengine.core.event;
  * <p>Like {@link uz.dukeengine.core.message.Command}, the engine does not define what
  * a game's events are. It supplies the channel and its own genre-neutral events
  * (an object died); a game posts its own alongside them — see
- * {@code uz.dukeengine.rts.event.WeaponFired}.
+ * {@code uz.dukeengine.combat.event.WeaponFired}.
  */
 public interface WorldEvent {
 

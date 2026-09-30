@@ -15,6 +15,8 @@ import uz.dukeengine.core.player.Relationship;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
+import uz.dukeengine.combat.module.PursueUpdate;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /** What closing on a target costs: a route planned when one is needed, and a crowd of chasers a frame can afford. */
 class PursuitCostTest {

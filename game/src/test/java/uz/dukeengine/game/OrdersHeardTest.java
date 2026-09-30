@@ -12,7 +12,8 @@ import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.rts.module.OrderListener;
-import uz.dukeengine.rts.module.WeaponUpdate;
+import uz.dukeengine.combat.module.WeaponUpdate;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /** A unit's modules told the standard orders it is given — a weaponless one too, which passes them to its spawn. */
 class OrdersHeardTest {
@@ -27,9 +28,9 @@ class OrdersHeardTest {
         }
 
         @Override
-        public void onOrder(GameMessage order) {
+        public void onOrder(uz.dukeengine.core.message.Command order) {
             heard.add(order.getClass().getSimpleName() + " @" + getOwner().getWorld().getFrame());
-            if (order instanceof GameMessage.AttackObject attack) {
+            if (order instanceof CombatOrder.AttackObject attack) {
                 soldier.findModule(WeaponUpdate.class).attack(attack.target());
             }
         }
@@ -52,10 +53,10 @@ class OrdersHeardTest {
         site.addModule(hive);
         var enemy = objects.get(2);
 
-        game.postCommand(new GameMessage.AttackObject(gla.getIndex(), List.of(site.getId()), enemy.getId()));
+        game.postCommand(new CombatOrder.AttackObject(gla.getIndex(), List.of(site.getId()), enemy.getId()));
         game.runHeadless(2);
-        game.postCommand(new GameMessage.MoveTo(gla.getIndex(), List.of(site.getId()), new Coord3D(0f, 0f, 0f)));
-        game.postCommand(new GameMessage.StopMoving(gla.getIndex(), List.of(site.getId())));
+        game.postCommand(new CombatOrder.MoveTo(gla.getIndex(), List.of(site.getId()), new Coord3D(0f, 0f, 0f)));
+        game.postCommand(new CombatOrder.StopMoving(gla.getIndex(), List.of(site.getId())));
         game.runHeadless(2);
 
         assertEquals(List.of("AttackObject", "MoveTo", "StopMoving"),

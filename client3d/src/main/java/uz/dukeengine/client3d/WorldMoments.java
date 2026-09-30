@@ -7,8 +7,8 @@ import com.jme3.math.Vector3f;
 import com.jme3.scene.Spatial;
 import uz.dukeengine.core.event.ObjectDied;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.rts.event.ShotLanded;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.ShotLanded;
+import uz.dukeengine.combat.event.WeaponFired;
 
 /**
  * Where the world's own moments are played — {@code fired.<weapon>}, {@code landed.<weapon>} and {@code

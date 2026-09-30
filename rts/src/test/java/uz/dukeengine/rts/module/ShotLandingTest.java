@@ -20,9 +20,17 @@ import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.Geometry;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.rts.RtsTemplate;
-import uz.dukeengine.rts.event.ShotLanded;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.ShotLanded;
+import uz.dukeengine.combat.event.WeaponFired;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.module.ExperienceModule;
+import uz.dukeengine.combat.module.ProjectileLauncher;
+import uz.dukeengine.combat.module.Shot;
+import uz.dukeengine.combat.module.Weapon;
+import uz.dukeengine.combat.module.WeaponSet;
+import uz.dukeengine.combat.module.WeaponSlot;
+import uz.dukeengine.combat.module.WeaponUpdate;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * A shot a launcher carried lands the way one that hit at once does: the direct hit, the blast, the kill
@@ -96,7 +104,7 @@ class ShotLandingTest {
     }
 
     private void attack(GameObject attacker, GameObject victim, int frames) {
-        logic.issueCommand(new GameMessage.AttackObject(us, List.of(attacker.getId()), victim.getId()));
+        logic.issueCommand(new CombatOrder.AttackObject(us, List.of(attacker.getId()), victim.getId()));
         for (int frame = 0; frame < frames; frame++) {
             logic.update();
             events.addAll(logic.drainEvents());

@@ -11,6 +11,7 @@ import uz.dukeengine.core.module.DamageType;
 import uz.dukeengine.core.player.Relationship;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /** An ejected pilot nobody targets for sixty frames: not acquired, not ordered at, and then a target as any. */
 class ProtectedTest {

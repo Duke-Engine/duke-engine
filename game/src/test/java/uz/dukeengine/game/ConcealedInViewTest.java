@@ -9,7 +9,7 @@ import uz.dukeengine.core.module.Concealment;
 import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectStatus;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.WeaponFired;
 
 /** What each player is shown of a thing kept from some of them, or hidden from all. */
 class ConcealedInViewTest {

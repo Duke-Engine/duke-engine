@@ -3,7 +3,7 @@ package uz.dukeengine.game.script;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.MoveUpdate;
 import uz.dukeengine.rts.player.RtsPlayer;
-import uz.dukeengine.rts.module.WeaponUpdate;
+import uz.dukeengine.combat.module.WeaponUpdate;
 import uz.dukeengine.core.player.Relationship;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.World;
@@ -108,7 +108,7 @@ public abstract class UnitScript {
     protected final void attack(GameObject target) {
         var weapon = unit.findModule(WeaponUpdate.class);
         if (weapon != null) {
-            weapon.attack(target.getId(), false, uz.dukeengine.rts.message.OrderSource.GAME);
+            weapon.attack(target.getId(), false, uz.dukeengine.combat.message.OrderSource.GAME);
         }
     }
 

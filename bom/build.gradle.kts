@@ -4,7 +4,7 @@ plugins {
 
 // Every module of the engine, at one version. A game writes the version once:
 //
-//   implementation(platform("uz.duke-engine:bom:0.7.0"))
+//   implementation(platform("uz.duke-engine:bom:0.8.0"))
 //   implementation("uz.duke-engine:client3d")
 //   implementation("uz.duke-engine:kit")
 //
@@ -13,6 +13,7 @@ plugins {
 dependencies {
     constraints {
         api(project(":core"))
+        api(project(":combat"))
         api(project(":rts"))
         api(project(":game"))
         api(project(":client3d"))

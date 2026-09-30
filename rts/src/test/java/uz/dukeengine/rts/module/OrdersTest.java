@@ -22,6 +22,7 @@ import uz.dukeengine.rts.construction.Selling;
 import uz.dukeengine.rts.event.StructureSold;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.rts.thing.RtsKinds;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /** The everyday orders of an RTS's bar: sell, attack-move, guard, evacuate, exit. */
 class OrdersTest {

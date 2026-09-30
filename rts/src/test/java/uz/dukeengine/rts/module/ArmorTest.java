@@ -18,6 +18,8 @@ import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.module.WeaponUpdate;
+import uz.dukeengine.combat.message.CombatOrder;
 
 class ArmorTest {
 
@@ -141,7 +143,11 @@ class ArmorTest {
         var logic = new RtsSimulation(thingFactory) {
             @Override
             protected void onRtsCommand(GameMessage command) {
-                if (command instanceof GameMessage.AttackObject a) {
+            }
+
+            @Override
+            protected void onCombatOrder(CombatOrder command) {
+                if (command instanceof CombatOrder.AttackObject a) {
                     for (var id : a.units()) {
                         findObject(id).findModule(WeaponUpdate.class).attack(a.target());
                     }
@@ -165,7 +171,7 @@ class ArmorTest {
         tank.setPlayerIndex(foe);
         tank.setPosition(new Coord3D(5f, 0f, 0f));
 
-        logic.issueCommand(new GameMessage.AttackObject(me, java.util.List.of(shooter.getId()), tank.getId()));
+        logic.issueCommand(new CombatOrder.AttackObject(me, java.util.List.of(shooter.getId()), tank.getId()));
         logic.update(); // 20 AP damage * 1.5 armor weakness = 30
         assertEquals(70f, tank.getBody().getHealth(), 1e-4f);
     }

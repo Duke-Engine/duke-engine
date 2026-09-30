@@ -15,11 +15,11 @@ import uz.dukeengine.core.player.Relationship;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.Kind;
 import uz.dukeengine.rts.RtsTemplate;
-import uz.dukeengine.rts.event.WeaponFired;
-import uz.dukeengine.rts.module.Weapon;
-import uz.dukeengine.rts.module.WeaponSet;
-import uz.dukeengine.rts.module.WeaponSlot;
-import uz.dukeengine.rts.module.WeaponUpdate;
+import uz.dukeengine.combat.event.WeaponFired;
+import uz.dukeengine.combat.module.Weapon;
+import uz.dukeengine.combat.module.WeaponSet;
+import uz.dukeengine.combat.module.WeaponSlot;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * A hidden thing's shot shown where the game says: a mine always shows its blast, as does a weapon that says so (the

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * The determinism harness: a real game, recorded and played back, must arrive at
@@ -44,7 +45,7 @@ class ReplayRoundTripTest {
 
         // A scripted attack order: the simulation issues commands of its own, which
         // the replay must not apply on top of the ones it already has recorded.
-        game.everySeconds(2, g -> g.postCommand(new GameMessage.MoveTo(
+        game.everySeconds(2, g -> g.postCommand(new CombatOrder.MoveTo(
                 2, List.of(new ObjectId(7)), new Coord3D(200f, 300f, 0f))));
         return game;
     }

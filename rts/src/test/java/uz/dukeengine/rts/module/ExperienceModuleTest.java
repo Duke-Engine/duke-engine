@@ -10,6 +10,7 @@ import uz.dukeengine.core.module.ActiveBody;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.core.thing.ThingTemplate;
+import uz.dukeengine.combat.module.ExperienceModule;
 
 /**
  * Experience, and a ladder whose shape is the game's to choose.

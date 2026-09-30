@@ -15,7 +15,11 @@ import uz.dukeengine.core.player.Relationship;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.WeaponFired;
+import uz.dukeengine.combat.module.RateOfFireModifier;
+import uz.dukeengine.combat.module.Weapon;
+import uz.dukeengine.combat.module.WeaponStatus;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * A weapon's clip, in frames of 30 a second: 0.1 s is 3 frames, 1.0 s is 30, 2.0 s is 60.

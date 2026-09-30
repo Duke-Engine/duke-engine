@@ -12,13 +12,14 @@ import uz.dukeengine.core.module.DamageType;
 import uz.dukeengine.core.module.DeathType;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.rts.RtsTemplate;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.WeaponFired;
 import uz.dukeengine.rts.message.GameMessage;
-import uz.dukeengine.rts.message.OrderSource;
-import uz.dukeengine.rts.module.Weapon;
-import uz.dukeengine.rts.module.WeaponSet;
-import uz.dukeengine.rts.module.WeaponSlot;
-import uz.dukeengine.rts.module.WeaponUpdate;
+import uz.dukeengine.combat.message.OrderSource;
+import uz.dukeengine.combat.module.Weapon;
+import uz.dukeengine.combat.module.WeaponSet;
+import uz.dukeengine.combat.module.WeaponSlot;
+import uz.dukeengine.combat.module.WeaponUpdate;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * A weapon locked to one slot by an order, and slots only a lock picks — the reference's weapon lock
@@ -34,12 +35,12 @@ class WeaponLockTest {
 
     private record Field(DukeGame game, int me, GameObject sniper, GameObject target, List<String> fired) {
 
-        void order(GameMessage message) {
+        void order(uz.dukeengine.core.message.Command message) {
             game.postCommand(message);
         }
 
         void attack(int slot) {
-            order(new GameMessage.AttackObject(me, List.of(sniper.getId()), target.getId(), false,
+            order(new CombatOrder.AttackObject(me, List.of(sniper.getId()), target.getId(), false,
                     OrderSource.PLAYER, slot));
         }
 
@@ -117,7 +118,7 @@ class WeaponLockTest {
         weapon.unlock(WeaponUpdate.Lock.PERMANENTLY);
         field.attack(0);
         field.run(2);
-        field.order(new GameMessage.MoveTo(field.me(), List.of(field.sniper().getId()),
+        field.order(new CombatOrder.MoveTo(field.me(), List.of(field.sniper().getId()),
                 field.sniper().getPosition()));
         field.run(3);
         assertEquals(-1, weapon.getLockedSlot(), "a move is the end of the attack its lock was for");
@@ -129,7 +130,7 @@ class WeaponLockTest {
         field.attack(-1);
         assertEquals(List.of("Rifle"), field.run(5), "the player's order may not pick the second slot");
 
-        field.order(new GameMessage.AttackObject(field.me(), List.of(field.sniper().getId()),
+        field.order(new CombatOrder.AttackObject(field.me(), List.of(field.sniper().getId()),
                 field.target().getId(), false, OrderSource.GAME, -1));
         assertEquals(List.of("CrewShot"), field.run(5), "the game's may, and it deals more");
     }

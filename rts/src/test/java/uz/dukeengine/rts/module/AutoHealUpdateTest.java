@@ -12,6 +12,7 @@ import uz.dukeengine.core.module.ActiveBody;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
+import uz.dukeengine.combat.module.AutoHealUpdate;
 
 class AutoHealUpdateTest {
 

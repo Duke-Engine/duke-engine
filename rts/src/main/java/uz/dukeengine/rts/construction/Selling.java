@@ -7,9 +7,9 @@ import uz.dukeengine.rts.Buildable;
 import uz.dukeengine.rts.RtsSimulation;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.rts.module.ContainModule;
-import uz.dukeengine.rts.module.Errand;
+import uz.dukeengine.combat.module.Errand;
 import uz.dukeengine.rts.module.ProductionUpdate;
-import uz.dukeengine.rts.module.WeaponUpdate;
+import uz.dukeengine.combat.module.WeaponUpdate;
 import uz.dukeengine.rts.player.RtsPlayer;
 import uz.dukeengine.rts.thing.RtsKinds;
 

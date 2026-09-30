@@ -21,6 +21,7 @@ import uz.dukeengine.rts.RtsSimulation;
 import uz.dukeengine.rts.RtsTemplate;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.rts.module.RtsModules;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * Building in the world, headless: an order, a builder walking, a site rising the frame it arrives and a
@@ -46,10 +47,15 @@ class ConstructionTest {
             switch (command) {
                 case GameMessage.Construct build -> construct(build);
                 case GameMessage.CancelConstruction cancel -> cancelConstruction(cancel);
-                case GameMessage.MoveTo move -> move.units().forEach(id ->
-                        findObject(id).findModule(MoveUpdate.class).moveTo(move.destination()));
                 default -> {
                 }
+            }
+        }
+
+        @Override
+        protected void onCombatOrder(CombatOrder order) {
+            if (order instanceof CombatOrder.MoveTo move) {
+                move.units().forEach(id -> findObject(id).findModule(MoveUpdate.class).moveTo(move.destination()));
             }
         }
 
@@ -273,7 +279,7 @@ class ConstructionTest {
         var scene = scene();
         build(scene, PLACE);
         scene.world().update();
-        scene.world().issueCommand(new GameMessage.MoveTo(scene.player(), List.of(scene.dozer().getId()),
+        scene.world().issueCommand(new CombatOrder.MoveTo(scene.player(), List.of(scene.dozer().getId()),
                 new Coord3D(50f, 50f, 0f)));
         for (int frame = 0; frame < 5; frame++) {
             scene.world().update();
@@ -410,7 +416,7 @@ class ConstructionTest {
         scene.world().update();
         scene.world().update();
 
-        scene.world().issueCommand(new GameMessage.MoveTo(scene.player(), List.of(scene.dozer().getId()),
+        scene.world().issueCommand(new CombatOrder.MoveTo(scene.player(), List.of(scene.dozer().getId()),
                 new Coord3D(100f, 400f, 0f)));
         for (int frame = 0; frame < 60; frame++) {
             scene.world().update();

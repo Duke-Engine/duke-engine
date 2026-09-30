@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.core.thing.ObjectId;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /** The Unity-style promise, verified headlessly: a game in a few lines that runs. */
 class DukeGameTest {
@@ -48,7 +49,7 @@ class DukeGameTest {
         var you = game.addPlayer("You", Color.BLUE);
         game.spawn("Rifleman", you, 0, 0);
 
-        game.onStart(g -> g.postCommand(new GameMessage.MoveTo(
+        game.onStart(g -> g.postCommand(new CombatOrder.MoveTo(
                 you.getIndex(), List.of(new ObjectId(1)), new Coord3D(100f, 0f, 0f))));
         game.runHeadless(60); // 2 seconds at speed 14 → ~28 units of progress
 
@@ -65,7 +66,7 @@ class DukeGameTest {
         game.enemies(you, foe);
         game.spawn("Rifleman", foe, 0, 0); // id 1, owned by the enemy
 
-        game.onStart(g -> g.postCommand(new GameMessage.MoveTo(
+        game.onStart(g -> g.postCommand(new CombatOrder.MoveTo(
                 you.getIndex(), List.of(new ObjectId(1)), new Coord3D(100f, 0f, 0f))));
         game.runHeadless(30);
 
@@ -121,9 +122,9 @@ class DukeGameTest {
         game.spawn("Tank", you, 0, 0);        // id 1
         game.spawn("Barracks", foe, 25, 0);   // id 2, in range
 
-        game.onStart(g -> g.postCommand(new GameMessage.AttackObject(
+        game.onStart(g -> g.postCommand(new CombatOrder.AttackObject(
                 you.getIndex(), List.of(new ObjectId(1)), new ObjectId(2))));
-        game.everySeconds(1, g -> g.postCommand(new GameMessage.MoveTo(
+        game.everySeconds(1, g -> g.postCommand(new CombatOrder.MoveTo(
                 you.getIndex(), List.of(new ObjectId(1)), new Coord3D(0f, 100f, 0f))));
         game.runHeadless(40);
 
