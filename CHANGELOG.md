@@ -108,11 +108,58 @@ game that takes none plays, routes and draws every frame as before, which every 
 - **The fog's and the minimap's pictures** send only the tiles of 64 texels that changed to the card
   (`Renderer.modifyTexture`), the whole picture where most of it did.
 - **The ground streamed** (`Visuals.streamGround`): a kit's floor built a chunk of 16 cells at a time within so many
-  cells of where the camera looks, the nearest first and two a frame, and chunks further off let go — each chunk corner
-  for corner what the whole build makes, its geometry kept about its own corner. A painted map is built whole, as
-  before.
+  cells of where the camera looks, and chunks further off let go — each chunk corner for corner what the whole build
+  makes, its geometry kept about its own corner. A chunk is built a step at a time — its plan, a batch of its pieces,
+  its scenery, one material's merge — for as long as a frame's budget allows, the nearest first, so ground coming into
+  reach is built before it is seen; the camera's own chunk and the eight round it at once, so what is under the camera
+  is never missing. A world whose cells wear looks of their own asks each cell's look as its chunk is built, never the
+  whole world's at once. A painted map is built whole, as before.
+- **The dark kept round the camera**: on a world built round the camera, what the player has seen and sees stays two
+  bits a cell for the whole world, but how brightly each cell is drawn is kept only for a window round where the camera
+  looks, which follows it, and the fog's picture is the picture of that window, laid over the ground a copy after a
+  copy — a place of the ground always its own texel, only the ground coming into the window drawn as it moves, past it
+  drawn never seen. The fog is as sharp as the game's texels a cell (`Fog.texelsPerCell`) whatever the world's size.
+  What changed is counted where it was written, where the whole map was compared with itself every frame; over the
+  whole map every answer is the one the discovery kept whole gave.
+- **The minimap round the hero** (`Visuals.minimapSpan`): the cells round where the camera looks, its picture sliding
+  under it, the things and the view's outline on it where they stand and a click on it where it points; a map no wider
+  than the span, and a game that names none, the whole map as always.
+- **The whole world as a picture** (`Duke3D.worldPicture`), for the game to draw on its canvas where it likes — a map
+  screen, a scroll: at most as many texels a side as it asks, each the most seen of its cells in the minimap's colours,
+  kept from what changed and handed again for each new world.
+- **A haze** (`Visuals.haze`): the ground fades into nothing — the fog's own colour, the window's background — from so
+  many cells round where the camera looks to so many more, so the edge of the ground built round the camera is never
+  seen; round where the camera looks, not the eye, so zooming out fades nothing near the hero.
 - A unit some forty-one thousand units from the origin walks as one beside it, step for step: a float there is a 256th
   of a unit.
+- The water takes the size of a new world's fog picture with the ground: made before the picture took it, it read its
+  dark from the picture's edge on a world's first build.
+
+Measured on this repository's machine, without a card, the client's own work — the dark, its picture, the minimap and
+the ground built round a hero walking 2.4 cells a second: a frame 0.5 ms on a world 1024 cells a side and 0.5 ms on one
+of 4096; its first frame under 0.1 s on either, where the pictures kept whole took 1.8 s on the wider; the dark and the
+minimap laid at load 0.1 s on the wider. A frame's worst there was 12 to 21 ms, most of it the collector of a test's
+small heap; a chunk's largest step is one material's merge, about a millisecond for four hundred pieces once warm.
+
+**Where the next limit lies**, and what lifting it would take:
+
+- **Cells in memory.** The grid keeps every cell in flat arrays — some eleven bytes a cell, and more where movers,
+  zones and scenery are — so a world of 4096 cells a side holds a few hundred megabytes of them, and a cell's index
+  runs out at 46,000 a side. Past that the grid must be kept in chunks and paged from disk by where the awake things
+  and the routes need them; its seams — the change log the sectors keep up with, sight kept in chunks, the ground built
+  a chunk at a time — are the ones that paging would use.
+- **Laying a world.** A world is handed over whole, and its cells are read once when it is laid: the sectors of a world
+  4096 cells a side take about 1.6 s to build, and each pass the client makes over the map's cells at load about 0.1 s.
+  A world generated as it is walked would lay chunks ahead of the hero into a grid kept in chunks; the sectors are
+  already kept current as cells change after load (`PathGrid.changesSince`).
+- **Positions past about 100,000 units.** Positions are floats: at 131,072 a float is a 64th of a unit, and a step
+  there moves by that much. Past it the simulation needs an origin that moves — every position shifted by whole cells
+  at fixed frames, the same on every machine — or positions of more bits; the client already keeps the ground about
+  its chunks' corners, and would draw everything about an origin near the camera.
+- **Routes wider still.** Corner to corner of 4096 cells is about 90 ms, most of it the search over pieces; a world
+  four times as wide wants sectors of sectors.
+- **Who sleeps.** Deciding costs a look at every thing's cell every so many frames — nothing between — which is cheap
+  for thousands and not for hundreds of thousands; the partition could be asked for what stands round each waker instead.
 
 Not measured here: frames a second on a graphics card, which this repository's machine has none of.
 
