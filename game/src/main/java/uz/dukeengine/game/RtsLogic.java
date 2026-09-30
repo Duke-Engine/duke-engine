@@ -5,7 +5,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
-import java.util.function.Consumer;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import uz.dukeengine.core.message.Command;
 import uz.dukeengine.rts.RtsSimulation;
@@ -46,9 +45,6 @@ final class RtsLogic extends RtsSimulation {
      */
     private final Queue<Command> inbox = new ConcurrentLinkedQueue<>();
 
-    /** Where a command outside the RTS set goes, if the game handles any. */
-    private Consumer<Command> gameCommands;
-
     /** Arbitrary work posted from other threads, run on the logic thread. */
     private final Queue<Runnable> tasks = new ConcurrentLinkedQueue<>();
 
@@ -77,20 +73,6 @@ final class RtsLogic extends RtsSimulation {
     /** Thread-safe: post a command from any thread (typically the Swing EDT). */
     void post(Command command) {
         inbox.add(command);
-    }
-
-    /** Install the handler for the game's own commands. */
-    void setGameCommandHandler(Consumer<Command> handler) {
-        this.gameCommands = handler;
-    }
-
-    @Override
-    protected void onOtherCommand(Command command) {
-        if (gameCommands == null) {
-            super.onOtherCommand(command); // no game set declared: still a mistake
-            return;
-        }
-        gameCommands.accept(command);
     }
 
     /** Thread-safe: run {@code task} on the logic thread next frame. */
@@ -162,7 +144,6 @@ final class RtsLogic extends RtsSimulation {
                 uz.dukeengine.rts.module.ContainModule.exit(this, exit);
                 tellOrder(exit, List.of(exit.passenger()), exit.playerIndex());
             }
-            case GameMessage.GameOrder order -> ordered(order);
         }
     }
 
@@ -258,7 +239,8 @@ final class RtsLogic extends RtsSimulation {
             task.run();
         }
         for (var command = inbox.poll(); command != null; command = inbox.poll()) {
-            if (session != null && (command instanceof GameMessage || command instanceof CombatOrder)) {
+            if (session != null && (command instanceof GameMessage || command instanceof CombatOrder
+                    || command instanceof uz.dukeengine.combat.message.GameOrder)) {
                 session.issueLocal(command); // ships to both peers, applied in lock-step
             } else {
                 if (session != null) {
@@ -266,7 +248,7 @@ final class RtsLogic extends RtsSimulation {
                     // one locally would desync, so say so loudly — and say what does travel.
                     var unsendable = command;
                     LOG.warning(() -> "game command cannot be sent to peers: "
-                            + unsendable.getClass().getName() + "; send it as a GameMessage.GameOrder");
+                            + unsendable.getClass().getName() + "; send it as a GameOrder");
                     continue;
                 }
                 issueCommand(command); // applied at the start of the next frame

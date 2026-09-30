@@ -41,7 +41,7 @@ class GroundClickTest {
     void aRuleAnsweringSetRallyPointForAFactoryShowsItsPointerAndSendsItsOrderNotTheClientsOwn() {
         var click = DukeRtsApp.groundClick(LOCAL, List.of(FACTORY), "SetRallyPoint", true, GROUND);
 
-        assertEquals(new GameMessage.GameOrder(LOCAL, "SetRallyPoint", List.of(new ObjectId(7)),
+        assertEquals(new uz.dukeengine.combat.message.GameOrder(LOCAL, "SetRallyPoint", List.of(new ObjectId(7)),
                 new Coord3D(300f, 200f, 0f), null, 0), click);
         assertEquals("SetRallyPoint", Cursors.situationFor(overOpenGround(false, "SetRallyPoint")));
     }

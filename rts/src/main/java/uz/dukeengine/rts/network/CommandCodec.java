@@ -48,6 +48,7 @@ public final class CommandCodec implements PacketCodec {
     private static String encodeCommand(Command command) {
         return switch (command) {
             case CombatOrder order -> CombatOrderCodec.encode(order);
+            case uz.dukeengine.combat.message.GameOrder order -> CombatOrderCodec.encode(order);
             case GameMessage message -> encodeRts(message);
             default -> throw new IllegalArgumentException("not an RTS command: " + command.getClass().getName());
         };
@@ -88,14 +89,6 @@ public final class CommandCodec implements PacketCodec {
             case GameMessage.ExitContainer e -> "EXIT," + e.playerIndex() + "," + e.passenger().value();
             case GameMessage.ResumeConstruction r -> "RESUME," + r.playerIndex() + "," + r.builder().value() + ","
                     + r.site().value();
-            case GameMessage.GameOrder o -> "ORDER," + o.playerIndex() + ","
-                    + java.net.URLEncoder.encode(o.word(), java.nio.charset.StandardCharsets.UTF_8)
-                    + "," + CombatOrderCodec.ids(o.units())
-                    + "," + (o.place() == null ? "" : Float.toString(o.place().x()))
-                    + "," + (o.place() == null ? "" : Float.toString(o.place().y()))
-                    + "," + (o.place() == null ? "" : Float.toString(o.place().z()))
-                    + "," + (o.target() == null ? "" : Integer.toString(o.target().value()))
-                    + "," + o.number();
         };
     }
 
@@ -148,13 +141,6 @@ public final class CommandCodec implements PacketCodec {
             case "EXIT" -> new GameMessage.ExitContainer(player, new ObjectId(Integer.parseInt(parts[2])));
             case "RESUME" -> new GameMessage.ResumeConstruction(player, new ObjectId(Integer.parseInt(parts[2])),
                     new ObjectId(Integer.parseInt(parts[3])));
-            case "ORDER" -> new GameMessage.GameOrder(player,
-                    java.net.URLDecoder.decode(parts[2], java.nio.charset.StandardCharsets.UTF_8),
-                    CombatOrderCodec.parseIds(parts[3]),
-                    parts[4].isEmpty() ? null : new Coord3D(Float.parseFloat(parts[4]), Float.parseFloat(parts[5]),
-                            Float.parseFloat(parts[6])),
-                    parts[7].isEmpty() ? null : new ObjectId(Integer.parseInt(parts[7])),
-                    Long.parseLong(parts[8]));
             default -> throw new IllegalArgumentException("unknown command kind: " + kind);
         };
     }

@@ -99,7 +99,6 @@ class DeterminismIntegrationTest {
                 case GameMessage.Guard guard -> uz.dukeengine.rts.module.GuardOrder.order(this, guard);
                 case GameMessage.Evacuate evacuate -> uz.dukeengine.rts.module.ContainModule.evacuate(this, evacuate);
                 case GameMessage.ExitContainer exit -> uz.dukeengine.rts.module.ContainModule.exit(this, exit);
-                case GameMessage.GameOrder order -> ordered(order);
             }
         }
 

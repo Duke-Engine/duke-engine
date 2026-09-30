@@ -67,8 +67,6 @@ class DepthTest {
                 }
                 case GameMessage.ExitContainer ignored -> {
                 }
-                case GameMessage.GameOrder ignored -> {
-                }
             }
         }
 

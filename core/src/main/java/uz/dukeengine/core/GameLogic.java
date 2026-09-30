@@ -1495,6 +1495,30 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     protected void onCommand(Command command) {
     }
 
+    /** Where a command outside this world's own set goes — see {@link #onOtherCommand}. */
+    private java.util.function.Consumer<Command> otherCommands;
+
+    /**
+     * Hand the commands this world's own set does not know to {@code handler} — what runs the world, which knows the
+     * game's own: on the simulation thread, as each is applied.
+     */
+    public final void onOtherCommands(java.util.function.Consumer<Command> handler) {
+        this.otherCommands = handler;
+    }
+
+    /**
+     * A command this world's own set does not know, which a simulation's {@link #onCommand} passes on: the handler
+     * given {@link #onOtherCommands} hears it, and with none it is a mistake, logged and dropped.
+     */
+    protected void onOtherCommand(Command command) {
+        if (otherCommands == null) {
+            java.util.logging.Logger.getLogger(GameLogic.class.getName())
+                    .warning(() -> "ignoring a command of no set this world knows: " + command.getClass().getName());
+            return;
+        }
+        otherCommands.accept(command);
+    }
+
     /**
      * Tick every object's update modules once, in creation order. Objects
      * created during this pass are not ticked until next frame, so the frame's

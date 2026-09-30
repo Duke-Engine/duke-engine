@@ -9,6 +9,7 @@ import uz.dukeengine.core.network.CommandPacket;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.combat.message.CombatOrder;
+import uz.dukeengine.combat.message.GameOrder;
 
 class CommandCodecTest {
 
@@ -74,11 +75,10 @@ class CommandCodecTest {
     @Test
     void aGamesOwnOrderRoundTripsWhateverItsWordHolds() {
         assertRoundTrips(new CommandPacket(30, 2, List.of(
-                new GameMessage.GameOrder(2, "SPECIAL_POWER:Nuke|at,here;now дўст", List.of(new ObjectId(4)),
+                new GameOrder(2, "SPECIAL_POWER:Nuke|at,here;now дўст", List.of(new ObjectId(4)),
                         new Coord3D(120.5f, 80f, 0f), null, 7L),
-                new GameMessage.GameOrder(2, "PURCHASE_SCIENCE", List.of(), null, null, Long.MIN_VALUE),
-                new GameMessage.GameOrder(2, "", List.of(new ObjectId(1), new ObjectId(2)), null, new ObjectId(9),
-                        -1L),
+                new GameOrder(2, "PURCHASE_SCIENCE", List.of(), null, null, Long.MIN_VALUE),
+                new GameOrder(2, "", List.of(new ObjectId(1), new ObjectId(2)), null, new ObjectId(9), -1L),
                 new CombatOrder.MoveTo(2, List.of(new ObjectId(1)), new Coord3D(5f, 6f, 0f)))));
     }
 

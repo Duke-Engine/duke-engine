@@ -4259,9 +4259,9 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /** The order a click on the ground gives where the game has a word for it ({@code DukeGame.groundOrder}), or null. */
-    static GameMessage.GameOrder groundOrder(int local, List<ObjectId> units, String word, Vector3f ground) {
+    static uz.dukeengine.combat.message.GameOrder groundOrder(int local, List<ObjectId> units, String word, Vector3f ground) {
         return word == null ? null
-                : new GameMessage.GameOrder(local, word, units, new Coord3D(ground.x, ground.z, ground.y), null, 0);
+                : new uz.dukeengine.combat.message.GameOrder(local, word, units, new Coord3D(ground.x, ground.z, ground.y), null, 0);
     }
 
     /** What the last snapshot says of one thing, or null where it said nothing. */
@@ -4328,7 +4328,7 @@ final class DukeRtsApp extends SimpleApplication {
         var enemy = pickUnit();
         if (enemy != null && snapshot.contextOrder() != null) {
             // The order the game said a click on this thing gives — see DukeGame.contextOrder.
-            game.postCommand(new GameMessage.GameOrder(local, snapshot.contextOrder(), units,
+            game.postCommand(new uz.dukeengine.combat.message.GameOrder(local, snapshot.contextOrder(), units,
                     new Coord3D(enemy.view.x(), enemy.view.y(), 0f), new ObjectId(enemy.view.id()), 0));
             switch (visuals.wordMarkFor(snapshot.contextOrder())) {
                 case MARK -> markOrder(enemy.view.x(), enemy.view.y(), enemy.view.id(),
@@ -4368,7 +4368,7 @@ final class DukeRtsApp extends SimpleApplication {
             case null -> {
                 // nothing selected may take it: the pointer already said so
             }
-            case GameMessage.GameOrder steer -> {
+            case uz.dukeengine.combat.message.GameOrder steer -> {
                 game.postCommand(steer); // the game's word for a click here — see DukeGame.groundOrder
                 if (visuals.wordMarkFor(steer.word()) == Visuals.WordMark.MARK) {
                     markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE); // no thing on open ground to flash

@@ -32,8 +32,8 @@ class GameOrderTest {
         return game;
     }
 
-    private static GameMessage.GameOrder order(int player, String word, ObjectId target) {
-        return new GameMessage.GameOrder(player, word, List.of(), new Coord3D(300f, 200f, 0f), target, 42L);
+    private static uz.dukeengine.combat.message.GameOrder order(int player, String word, ObjectId target) {
+        return new uz.dukeengine.combat.message.GameOrder(player, word, List.of(), new Coord3D(300f, 200f, 0f), target, 42L);
     }
 
     /** What a machine heard: which order, on which frame, and whether the move posted beside it had been applied. */

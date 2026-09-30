@@ -30,7 +30,7 @@ public sealed interface GameMessage extends Command
         permits GameMessage.QueueProduction, GameMessage.SetRallyPoint, GameMessage.Construct,
                 GameMessage.CancelConstruction, GameMessage.QueueResearch, GameMessage.CancelProduction,
                 GameMessage.Sell, GameMessage.AttackMove, GameMessage.Guard, GameMessage.Evacuate,
-                GameMessage.ExitContainer, GameMessage.GameOrder, GameMessage.ResumeConstruction {
+                GameMessage.ExitContainer, GameMessage.ResumeConstruction {
 
     /**
      * Ask a production structure to queue one unit of {@code unitTemplate}.
@@ -112,21 +112,5 @@ public sealed interface GameMessage extends Command
      * rises for it as for the one that put it down. Refused while the site's builder works on it.
      */
     record ResumeConstruction(int playerIndex, ObjectId builder, ObjectId site) implements GameMessage {
-    }
-
-    /**
-     * An order the game defined — a special power fired at a place or a thing, a science bought with rank points: the
-     * reference's {@code MSG_DO_SPECIAL_POWER_AT_LOCATION}, {@code MSG_PURCHASE_SCIENCE} and their kind. It travels as
-     * every order here does: posted from any thread, sent to every machine, applied on a frame boundary in the order
-     * it was given, written into a replay. The engine never reads {@code word} or {@code number}; the game hears the
-     * order where it is applied ({@code RtsSimulation.onOrder}) and does what it means there. {@code units} may be
-     * empty, and {@code place} and {@code target} null.
-     */
-    record GameOrder(int playerIndex, String word, List<ObjectId> units, Coord3D place, ObjectId target, long number)
-            implements GameMessage {
-        public GameOrder {
-            java.util.Objects.requireNonNull(word, "word");
-            units = units == null ? List.of() : List.copyOf(units);
-        }
     }
 }

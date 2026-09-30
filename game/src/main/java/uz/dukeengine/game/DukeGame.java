@@ -79,7 +79,7 @@ public final class DukeGame {
     private final List<BiConsumer<uz.dukeengine.core.thing.GameObject, uz.dukeengine.core.thing.GameObject>>
             constructedCallbacks = new ArrayList<>();
     private final List<Consumer<uz.dukeengine.core.thing.GameObject>> soldCallbacks = new ArrayList<>();
-    private final List<Consumer<GameMessage.GameOrder>> orderCallbacks = new ArrayList<>();
+    private final List<Consumer<uz.dukeengine.combat.message.GameOrder>> orderCallbacks = new ArrayList<>();
     private final List<Consumer<uz.dukeengine.core.event.ObjectDied>> diedCallbacks = new ArrayList<>();
     private final List<double[]> intervalSeconds = new ArrayList<>(); // [seconds, callbackIndex]
     private final List<Consumer<DukeGame>> intervalCallbacks = new ArrayList<>();
@@ -520,12 +520,12 @@ public final class DukeGame {
     }
 
     /**
-     * Told every order of the game's own — a {@link GameMessage.GameOrder}, posted with {@link #postCommand} from any
-     * thread — as it is applied: on the simulation thread, on the same frame and in the same order on every machine,
-     * and again when a replay plays it. The game does what the order means there — grants a science, fires a power —
-     * deterministically. The engine never reads its word or its number.
+     * Told every order of the game's own — a {@link uz.dukeengine.combat.message.GameOrder}, posted with
+     * {@link #postCommand} from any thread — as it is applied: on the simulation thread, on the same frame and in the
+     * same order on every machine, and again when a replay plays it. The game does what the order means there — grants
+     * a science, fires a power — deterministically. The engine never reads its word or its number.
      */
-    public DukeGame onOrder(Consumer<GameMessage.GameOrder> listener) {
+    public DukeGame onOrder(Consumer<uz.dukeengine.combat.message.GameOrder> listener) {
         orderCallbacks.add(listener);
         return this;
     }
@@ -1142,7 +1142,6 @@ public final class DukeGame {
         researchedCallbacks.forEach(logic::onResearched);
         checksumParts.forEach(logic::checksumAlso);
         soldCallbacks.forEach(logic::onSold);
-        orderCallbacks.forEach(logic::onOrder);
         diedCallbacks.forEach(logic::onDied);
         client = new RtsClient(logic);
         client.setMomentWords(momentWords);
@@ -1220,9 +1219,7 @@ public final class DukeGame {
         }
         progress.accept(40);
 
-        if (commandHandler != null) {
-            logic.setGameCommandHandler(commandHandler);
-        }
+        logic.onOtherCommands(this::otherCommand);
         // The camera first: a move the game's code orders in a frame takes its first step in the next.
         logic.addTickCallback(camera::step);
         for (var callback : tickCallbacks) {
@@ -1538,18 +1535,33 @@ public final class DukeGame {
      *
      * <p>A command of the game's own class stays on this machine: the wire and the
      * replay speak the RTS set. An order that must reach every machine and every
-     * replay is a {@link GameMessage.GameOrder}, heard through {@link #onOrder}.
+     * replay is a {@link uz.dukeengine.combat.message.GameOrder}, heard through {@link #onOrder}.
      */
     public DukeGame onCommand(Consumer<Command> handler) {
         this.commandHandler = handler;
-        if (logic != null) {
-            logic.setGameCommandHandler(handler);
-        }
         return this;
     }
 
-    /** Held until boot, like every other callback: the simulation exists only then. */
-    private Consumer<Command> commandHandler;
+    /** Asked on the simulation thread as each command of the game's own is applied. */
+    private volatile Consumer<Command> commandHandler;
+
+    /**
+     * A command outside the world's own set, as it is applied: a word order told every {@link #onOrder} watcher, in the
+     * order they were added; one of the game's own told its {@link #onCommand} handler, or logged where it has none.
+     */
+    private void otherCommand(Command command) {
+        switch (command) {
+            case uz.dukeengine.combat.message.GameOrder order -> orderCallbacks.forEach(watcher -> watcher.accept(order));
+            default -> {
+                var handler = commandHandler;
+                if (handler == null) {
+                    LOG.warning(() -> "ignoring a command of no set this game knows: " + command.getClass().getName());
+                    return;
+                }
+                handler.accept(command);
+            }
+        }
+    }
 
     // ---- the command bar ----
 
@@ -1907,7 +1919,7 @@ public final class DukeGame {
      * What a click on the ground means where it is not a move: the reference's
      * {@code MSG_DO_SPECIAL_POWER_OVERRIDE_DESTINATION}, a particle beam or a gunship steered by any click on the
      * ground. Asked as {@link #contextOrder} is, with the point under the pointer where the pointer is on no thing; the
-     * snapshot carries the word, the pointer shows its picture, and the click sends {@code GameMessage.GameOrder(player,
+     * snapshot carries the word, the pointer shows its picture, and the click sends {@code GameOrder(player,
      * word, selection, place, null, 0)} instead of a move. A click on a thing still selects it or gives what
      * {@link #contextOrder} says.
      */
@@ -1939,7 +1951,7 @@ public final class DukeGame {
      * game's to name. Asked on the simulation thread as the snapshot is built, for the thing under the pointer and
      * what the local player has selected — a transport its infantry may board is {@code Enter}, a supply dock its
      * truck works at {@code Dock}. The snapshot carries the word ({@code WorldSnapshot.contextOrder}), the pointer
-     * shows the word's picture, and the click sends {@code GameMessage.GameOrder(player, word, selection, place,
+     * shows the word's picture, and the click sends {@code GameOrder(player, word, selection, place,
      * target, 0)} for the game's {@link #onOrder} to carry out. The engine never reads the word.
      */
     public DukeGame contextOrder(ContextOrder rule) {
