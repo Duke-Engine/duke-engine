@@ -3116,7 +3116,7 @@ final class DukeRtsApp extends SimpleApplication {
             strips.clear(); // a new world lays its own
         }
         terrain.streamWithin(visuals.getStreamGround());
-        terrain.rebuild(builtFrom, currentKit, builtPaint, visuals.getGroundLight(), kitsOfTheCells(builtFrom),
+        terrain.rebuildLooked(builtFrom, currentKit, builtPaint, visuals.getGroundLight(), kitsOfTheCells(builtFrom),
                 game.getMapRecord() instanceof uz.dukeengine.core.map.Dressed dressed ? dressed.scenery()
                         : java.util.List.of());
         fogTintNow = null; // a new world's dark starts in the colour of whatever the camera looks at
@@ -3232,21 +3232,32 @@ final class DukeRtsApp extends SimpleApplication {
         forEveryFogReader(this::tellTheHaze);
     }
 
-    /** The look each cell of the world wears, where its map names looks of its own; null for none. */
-    private Visuals.Theme[] cellLooks;
+    /** The look each cell of the world wears, by the cell's index, where its map names looks of its own; null for none. */
+    private java.util.function.IntFunction<Visuals.Theme> cellLooks;
 
     /**
      * The kit each cell wears where the world's map names looks of its own ({@link uz.dukeengine.core.map.Looked}),
      * each a theme the game registered; null where it names none, so a map of one look is laid as it always was. A name
-     * the game never registered is said once and the cell wears the map's own.
+     * the game never registered is said once and the cell wears the map's own. On a world built round the camera
+     * ({@link Visuals#streamGround}) each cell's look is asked of the map as its ground is built, and as the camera
+     * stands over it, never the whole world's at once.
      */
-    private Tileset[] kitsOfTheCells(uz.dukeengine.core.pathfind.PathGrid grid) {
+    private java.util.function.IntFunction<Tileset> kitsOfTheCells(uz.dukeengine.core.pathfind.PathGrid grid) {
         cellLooks = null;
         if (grid == null || !visuals.hasThemes()
                 || !(game.getMapRecord() instanceof uz.dukeengine.core.map.Looked looked)) {
             return null;
         }
         int width = grid.getWidth();
+        if (visuals.getStreamGround() > 0) {
+            java.util.function.IntFunction<Visuals.Theme> look = cell -> themeNamed(looked.lookAt(cell % width,
+                    cell / width));
+            cellLooks = look;
+            return cell -> {
+                var theme = look.apply(cell);
+                return theme == null ? null : theme.getTiles();
+            };
+        }
         var looks = new Visuals.Theme[width * grid.getHeight()];
         var kits = new Tileset[looks.length];
         boolean any = false;
@@ -3267,8 +3278,20 @@ final class DukeRtsApp extends SimpleApplication {
         if (!any) {
             return null;
         }
-        cellLooks = looks;
-        return kits;
+        cellLooks = cell -> looks[cell];
+        return cell -> kits[cell];
+    }
+
+    /** The theme a map's look names; null for none, and for one the game never registered, said once. */
+    private Visuals.Theme themeNamed(String name) {
+        if (name == null) {
+            return null;
+        }
+        var theme = visuals.getTheme(name);
+        if (theme == null) {
+            warnOnce(name, "look");
+        }
+        return theme;
     }
 
     /** The fog's colour as drawn now, eased toward the colour of the look the camera looks at; null to start afresh. */
@@ -3305,7 +3328,7 @@ final class DukeRtsApp extends SimpleApplication {
         float cell = builtFrom.getCellSize();
         int cx = Math.clamp((int) Math.floor(x / cell), 0, builtFrom.getWidth() - 1);
         int cy = Math.clamp((int) Math.floor(y / cell), 0, builtFrom.getHeight() - 1);
-        return cellLooks[cy * builtFrom.getWidth() + cx];
+        return cellLooks.apply(cy * builtFrom.getWidth() + cx);
     }
 
     /** The dark a look wears: its own, or the map's look's, or the game's fog's. */

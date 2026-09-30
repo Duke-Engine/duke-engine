@@ -97,8 +97,13 @@ class StreamedGroundTest {
 
     /** Whether every chunk of the 6 by 5 map within two of chunk ({@code x}, {@code y}) is built. */
     private static boolean builtWithin(TerrainScene scene, int x, int y) {
-        for (int cy = Math.max(0, y - 2); cy <= Math.min(4, y + 2); cy++) {
-            for (int cx = Math.max(0, x - 2); cx <= Math.min(5, x + 2); cx++) {
+        return builtWithin(scene, x, y, 2);
+    }
+
+    /** Whether every chunk of the 6 by 5 map within {@code rings} of chunk ({@code x}, {@code y}) is built. */
+    private static boolean builtWithin(TerrainScene scene, int x, int y, int rings) {
+        for (int cy = Math.max(0, y - rings); cy <= Math.min(4, y + rings); cy++) {
+            for (int cx = Math.max(0, x - rings); cx <= Math.min(5, x + rings); cx++) {
                 if (!scene.isBuilt(cx, cy)) {
                     return false;
                 }
@@ -158,5 +163,42 @@ class StreamedGroundTest {
     @Test
     void aWoodWhoseRockIsTurnedByItsFacesIsTheWoodBuiltWhole() {
         assertSameFloor(Tileset.create().floor("floor").wall("tree").tileSize(4f).wallFillsRock(true));
+    }
+
+    @Test
+    void aWorldOfTwoLooksAsksOnlyTheCellsItBuildsAndIsTheWorldBuiltWhole() {
+        var grid = rooms();
+        float cell = grid.getCellSize();
+        var masonry = Tileset.create().floor("floor").wall("wall").corner("corner").tileSize(4f);
+        var wood = Tileset.create().floor("moss").wall("tree").tileSize(4f).wallFillsRock(true);
+        java.util.function.IntFunction<Tileset> looks = at -> at % grid.getWidth() < 45 ? masonry : wood;
+        var wholeRoot = new Node("whole");
+        new TerrainScene(wholeRoot, (colour, texture) -> null, true, masonry, new SquareTiles(), true)
+                .rebuildLooked(grid, masonry, null, null, looks, java.util.List.of());
+        var asked = new java.util.BitSet();
+        var streamedRoot = new Node("streamed");
+        var streamed = new TerrainScene(streamedRoot, (colour, texture) -> null, true, masonry, new SquareTiles(), true);
+        streamed.streamWithin(TerrainScene.CHUNK_CELLS);
+        streamed.rebuildLooked(grid, masonry, null, null, at -> {
+            asked.set(at);
+            return looks.apply(at);
+        }, java.util.List.of());
+        assertTrue(asked.isEmpty(), "nothing asked until the camera looks somewhere");
+        for (int frame = 0; frame < 10_000 && !builtWithin(streamed, 2, 1, 1); frame++) {
+            streamed.stream(450f, 250f); // on the seam between the two looks
+        }
+        for (int y = 0; y <= 2; y++) {
+            for (int x = 1; x <= 3; x++) {
+                var expected = corners(chunkAt(wholeRoot, x, y, cell));
+                var actual = corners(chunkAt(streamedRoot, x, y, cell));
+                assertEquals(expected.size(), actual.size(), "chunk " + x + "," + y + ": as many corners");
+                for (int i = 0; i < expected.size(); i++) {
+                    assertTrue(expected.get(i).distance(actual.get(i)) < 1e-3f, "chunk " + x + "," + y + " corner " + i);
+                }
+            }
+        }
+        // The cells of the chunks built, and a margin their plan reads round them: never the whole world.
+        assertTrue(asked.cardinality() < grid.getWidth() * grid.getHeight() / 2,
+                "asked " + asked.cardinality() + " of " + grid.getWidth() * grid.getHeight());
     }
 }

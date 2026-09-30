@@ -876,9 +876,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/DukeRtsApp.java": {
-    "mtime": 1790802646.7605062,
-    "seen": 1790802720.1286955,
-    "ast_hash": "2b2173552e95bd118c061c09c0474110",
+    "mtime": 1790802772.8812764,
+    "seen": 1790802975.3002634,
+    "ast_hash": "2cf8ae4cb0ea37e98af152d7bab98267",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/EdgeScroll.java": {
@@ -1230,9 +1230,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/TerrainScene.java": {
-    "mtime": 1790802059.743852,
-    "seen": 1790802136.519797,
-    "ast_hash": "a8686c238d4860d88ae85db37d76e60f",
+    "mtime": 1790802931.1982396,
+    "seen": 1790802975.3004677,
+    "ast_hash": "73b958364e0d57da23e735d12d12a239",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/TileLayout.java": {
@@ -5664,9 +5664,9 @@
     "semantic_hash": ""
   },
   "client3d/src/test/java/uz/dukeengine/client3d/StreamedGroundTest.java": {
-    "mtime": 1790801898.258263,
-    "seen": 1790802136.520159,
-    "ast_hash": "adb83219e56341aab1a5a5ea8078dcac",
+    "mtime": 1790802794.7608166,
+    "seen": 1790802975.3006704,
+    "ast_hash": "539bab8d49c345f828b9f5d4150ea16e",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/CellSet.java": {

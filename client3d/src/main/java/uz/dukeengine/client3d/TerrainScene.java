@@ -68,10 +68,13 @@ final class TerrainScene {
      */
     private Tileset tileset;
     /**
-     * The kit each cell wears where the map names looks of its own ({@code cy * width + cx}), null for none — a cell
-     * with none, or with a kit that cannot build a floor, wearing the map's.
+     * The kit each cell wears where the map names looks of its own, by its index ({@code cy * width + cx}), null for
+     * none — a cell with none, or with a kit that cannot build a floor, wearing the map's — and null for a map that
+     * names no looks.
      */
-    private Tileset[] cellKits;
+    private java.util.function.IntFunction<Tileset> cellKits;
+    /** How many cells the map laid has, which a cell's index is under. */
+    private int cellCount;
     /** The map's scenery, laid with its ground — see {@link #layScenery}. */
     private java.util.List<? extends uz.dukeengine.core.map.MapScenery> scenery = java.util.List.of();
     /** How scenery is dressed: in the materials its models came with, each kept and made to read the fog. */
@@ -231,8 +234,19 @@ final class TerrainScene {
      */
     void rebuild(PathGrid grid, Tileset kit, GroundPaint paint, Visuals.GroundLight groundLight,
             Tileset[] cellKits, java.util.List<? extends uz.dukeengine.core.map.MapScenery> scenery) {
+        rebuildLooked(grid, kit, paint, groundLight, cellKits == null ? null : cell -> cellKits[cell], scenery);
+    }
+
+    /**
+     * The same, the kit each cell wears asked of {@code kitOfCell} by the cell's index as its ground is laid — on a
+     * world built round the camera, only the cells built, never the whole world's at once.
+     */
+    void rebuildLooked(PathGrid grid, Tileset kit, GroundPaint paint, Visuals.GroundLight groundLight,
+            java.util.function.IntFunction<Tileset> kitOfCell,
+            java.util.List<? extends uz.dukeengine.core.map.MapScenery> scenery) {
         this.scenery = scenery == null ? java.util.List.of() : scenery;
-        this.cellKits = cellKits;
+        this.cellKits = kitOfCell;
+        this.cellCount = grid == null ? 0 : grid.getWidth() * grid.getHeight();
         this.light = groundLight;
         this.tileset = kit != null && kit.isUsable() && tiles != null ? kit : defaultTileset;
         root.detachAllChildren();
@@ -1248,9 +1262,11 @@ final class TerrainScene {
 
     /** The kit a cell wears: its look's, where the map names one that can build a floor, or the map's own. */
     private Tileset kitOf(int cell) {
-        if (cellKits != null && cell >= 0 && cell < cellKits.length && cellKits[cell] != null
-                && cellKits[cell].isUsable()) {
-            return cellKits[cell];
+        if (cellKits != null && cell >= 0 && cell < cellCount) {
+            var kit = cellKits.apply(cell);
+            if (kit != null && kit.isUsable()) {
+                return kit;
+            }
         }
         return tileset;
     }
