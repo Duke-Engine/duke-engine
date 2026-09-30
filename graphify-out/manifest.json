@@ -114,9 +114,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790700149.525275,
-    "seen": 1790700192.6870413,
-    "ast_hash": "6c70bde5c16c901fc1f57c774d19592c",
+    "mtime": 1790773620.2765222,
+    "seen": 1790773675.0752838,
+    "ast_hash": "bc8e4a7a30b6ef7877cab4437d4296bb",
     "semantic_hash": ""
   },
   "CREDITS.md": {
@@ -1254,21 +1254,21 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/UnitBarLook.java": {
-    "mtime": 1790328399.0052776,
-    "seen": 1790687045.0960543,
-    "ast_hash": "82dd7d676257cfd590cd95aa734f2736",
+    "mtime": 1790773585.9939394,
+    "seen": 1790773675.0744622,
+    "ast_hash": "30efc22fd37ac4d3f02c1881b60ce823",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/UnitBarReading.java": {
-    "mtime": 1789983050.7938972,
-    "seen": 1790687045.0960553,
-    "ast_hash": "757992176ac7d99ff797193817eaf05f",
+    "mtime": 1790773585.9939394,
+    "seen": 1790773675.074464,
+    "ast_hash": "475630bba2c92df1521fbeab6b42edbe",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/UnitBars.java": {
-    "mtime": 1790386810.9187734,
-    "seen": 1790687045.0960562,
-    "ast_hash": "68c04302da60a3b70d35a2e08ce3c4c0",
+    "mtime": 1790773585.9951737,
+    "seen": 1790773675.0744653,
+    "ast_hash": "dc557b96bdb4da7071507622dd7c7bb3",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/Visuals.java": {
@@ -1560,9 +1560,9 @@
     "semantic_hash": ""
   },
   "client3d/src/test/java/uz/dukeengine/client3d/UnitBarReadingTest.java": {
-    "mtime": 1789983050.832163,
-    "seen": 1790687045.096202,
-    "ast_hash": "5f46d81ff135910324ada1b944175448",
+    "mtime": 1790773585.9951737,
+    "seen": 1790773675.0746489,
+    "ast_hash": "ccdd5eae31ad42d8f1eac02629e89713",
     "semantic_hash": ""
   },
   "client3d/src/test/java/uz/dukeengine/client3d/UnitBarsTest.java": {
@@ -2952,9 +2952,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1790700149.524275,
-    "seen": 1790700192.6870403,
-    "ast_hash": "f73492fa370f74c9e6942c63877c9bf8",
+    "mtime": 1790773620.274392,
+    "seen": 1790773675.0752826,
+    "ast_hash": "a036d392b2563eb5b539efb139004149",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/data/Paint.java": {
