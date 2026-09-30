@@ -1,4 +1,4 @@
-package uz.dukeengine.game.view;
+package uz.dukeengine.core.view;
 
 /**
  * How a thing's turrets stand, as its game's {@code Turret} has them — the reference's {@code

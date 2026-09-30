@@ -1,6 +1,6 @@
 package uz.dukeengine.game;
 
-import uz.dukeengine.game.view.CameraView;
+import uz.dukeengine.core.view.CameraView;
 
 /**
  * The camera as the game drives it, from its own code on the simulation thread — moved to a point over so many logic

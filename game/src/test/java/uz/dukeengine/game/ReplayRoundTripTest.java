@@ -28,12 +28,12 @@ class ReplayRoundTripTest {
     /** A skirmish that fights, produces and scripts, so the replay has work to do. */
     private static DukeGame newGame() {
         var game = DukeGame.create("replay-test")
-                .loadUnits(DukeGame.STARTER_UNITS)
+                .loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS)
                 .map(60, 40);
         var you = game.addPlayer("You", Color.BLUE);
         var foe = game.addPlayer("Foe", Color.RED);
         game.enemies(you, foe).localPlayer(you);
-        game.money(you, 2000).money(foe, 2000);
+        game.flavour(uz.dukeengine.rts.RtsFlavour.class).money(you::getIndex, 2000).money(foe::getIndex, 2000);
 
         game.spawn("PowerPlant", you, 60, 300)
                 .spawn("Barracks", you, 120, 340)

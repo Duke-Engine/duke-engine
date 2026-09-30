@@ -16,7 +16,7 @@ import com.jme3.scene.Node;
 import com.jme3.scene.shape.Box;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /** A thing kept from some players: see-through and pulsing to its own side, a glow alone to the others. */
 class StealthLookTest {

@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Set;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.game.DukeGame;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /**
  * The client's selection and the game's, kept in step both ways. What the player selects is told to the game — a

@@ -3,7 +3,7 @@ package uz.dukeengine.client3d;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /**
  * On a map whose cells wear looks of their own, a still thing is drawn as the look of the cell it stands on draws it —

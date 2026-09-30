@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 class GameCameraTest {
 
     private static DukeGame watched() {
-        var game = DukeGame.create("camera-test").loadUnits(DukeGame.STARTER_UNITS).map(60, 40);
+        var game = DukeGame.create("camera-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(60, 40);
         game.addPlayer("One", Color.BLUE);
         return game.observe();
     }

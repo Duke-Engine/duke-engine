@@ -13,7 +13,7 @@ import com.jme3.scene.Node;
 import java.util.ArrayList;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.CommandButton;
+import uz.dukeengine.core.view.CommandButton;
 
 /** A power's reticle laid on the ground under an armed aim, in place of the ring, throbbing as the reference's. */
 class GroundDecalTest {

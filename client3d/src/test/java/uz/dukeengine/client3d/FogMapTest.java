@@ -8,7 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.pathfind.MapLoader;
 import uz.dukeengine.core.pathfind.PathGrid;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /**
  * The dark, as a picture of the map rather than a shade per cell.

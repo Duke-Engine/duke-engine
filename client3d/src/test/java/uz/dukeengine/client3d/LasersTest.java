@@ -12,7 +12,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.content.Laser;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.BeamView;
+import uz.dukeengine.core.view.BeamView;
 
 /** A beam the simulation owns, drawn as the reference draws its lasers. */
 class LasersTest {

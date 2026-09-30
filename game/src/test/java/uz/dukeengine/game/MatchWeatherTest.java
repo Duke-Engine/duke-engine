@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.awt.Color;
 import org.junit.jupiter.api.Test;
-import uz.dukeengine.game.view.FallingWeather;
+import uz.dukeengine.core.view.FallingWeather;
 
 /** A weather set for a match: kept by a game with no window, and nothing in the simulation. */
 class MatchWeatherTest {
@@ -14,7 +14,7 @@ class MatchWeatherTest {
             0.1f);
 
     private static DukeGame game() {
-        var game = DukeGame.create("weather").loadUnits(DukeGame.STARTER_UNITS).map(20, 20);
+        var game = DukeGame.create("weather").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(20, 20);
         var me = game.addPlayer("Me", Color.BLUE);
         game.localPlayer(me).spawn("Rifleman", me, 100f, 100f);
         return game;

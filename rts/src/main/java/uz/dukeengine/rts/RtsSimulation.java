@@ -20,10 +20,11 @@ import uz.dukeengine.rts.player.Upgrade;
  * exhaustive {@code switch} over a sealed hierarchy instead of repeating the
  * cast.
  *
- * <p>Anything that is not an RTS command goes to {@link #onOtherCommand}, which
- * by default logs it as input fed to the wrong simulation. That default is
- * usually right — but not always, and a game that overrides it is the reason the
- * hook exists. {@link Command} says a game declares its own command set, and
+ * <p>Anything that is neither an RTS command nor an order every side gives goes to
+ * {@link #onOtherCommand} — a word order ({@code GameOrder}), which what runs the world
+ * tells the game, or a command of the game's own — handed to the handler given
+ * {@link #onOtherCommands}, and logged as input fed to the wrong simulation where there
+ * is none. {@link Command} says a game declares its own command set, and
  * {@link GameMessage} is <em>this library's</em> set, not every set a game built
  * on it could want: a roguelike's "cast the third ability" is not an RTS order
  * and never will be, yet it belongs in the same stream, because that stream is
@@ -82,22 +83,6 @@ public abstract class RtsSimulation extends GameLogic implements uz.dukeengine.c
                 && mover.getPlayerIndex() != other.getPlayerIndex()
                 && getRelationship(mover.getPlayerIndex(), other.getPlayerIndex())
                         != uz.dukeengine.core.player.Relationship.ALLIES;
-    }
-
-    /**
-     * Apply a command that is not part of the RTS set — a command the game built
-     * on this library declared for itself.
-     *
-     * <p>The default assumes there is no such set and says so, because for most
-     * simulations a foreign command really is a mistake and silence would hide it.
-     * A game with commands of its own overrides this and dispatches over its own
-     * sealed hierarchy, exactly as {@link #onRtsCommand} does over this one.
-     *
-     * <p>Whatever it does must be deterministic: this runs inside the frame, from
-     * the same queue, on every peer.
-     */
-    protected void onOtherCommand(Command command) {
-        LOG.warning(() -> "ignoring non-RTS command: " + command.getClass().getName());
     }
 
     private final java.util.List<java.util.function.BiConsumer<uz.dukeengine.core.thing.GameObject,
@@ -455,27 +440,6 @@ public abstract class RtsSimulation extends GameLogic implements uz.dukeengine.c
         }
         post(new uz.dukeengine.rts.event.StructureSold(getFrame(), building.getId(), building.getTemplate().name(),
                 building.getPlayerIndex(), refund, building.getPosition()));
-    }
-
-    // ---- the game's own orders ----
-
-    private final java.util.List<java.util.function.Consumer<uz.dukeengine.rts.message.GameMessage.GameOrder>>
-            orderWatchers = new java.util.ArrayList<>();
-
-    /**
-     * Told every order of the game's own as it is applied — the same frame and the same order on every machine, and
-     * again in a replay — on the simulation thread, where the game does what the order means: grant a science, fire a
-     * power. What it does there must be deterministic, as everything on this thread is.
-     */
-    public final void onOrder(java.util.function.Consumer<uz.dukeengine.rts.message.GameMessage.GameOrder> watcher) {
-        orderWatchers.add(watcher);
-    }
-
-    /** A game's order applied: every watcher told, in the order they were added. */
-    public final void ordered(uz.dukeengine.rts.message.GameMessage.GameOrder order) {
-        for (var watcher : orderWatchers) {
-            watcher.accept(order);
-        }
     }
 
     // ---- weapon bonuses ----

@@ -12,7 +12,7 @@ class HeightInViewTest {
 
     @Test
     void aThingsHeightPitchAndRollReachTheSnapshot() {
-        var game = DukeGame.create("height").loadUnits(DukeGame.STARTER_UNITS).map(70, 45);
+        var game = DukeGame.create("height").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(70, 45);
         var you = game.addPlayer("You", Color.BLUE);
         game.localPlayer(you);
         game.spawn("Rifleman", you, 50f, 50f);

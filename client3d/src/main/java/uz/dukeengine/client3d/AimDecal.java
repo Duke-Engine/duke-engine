@@ -5,7 +5,7 @@ package uz.dukeengine.client3d;
  * RadiusCursorTemplates} ({@code InGameUI.ini}) — a power's own reticle, as wide as twice the aim's radius, following
  * the ground, its opacity throbbing between {@code opacityMin} and {@code opacityMax} once every {@code throbFrames}
  * of the game's frames ({@code OpacityThrobTime}), painted {@code colour} (packed RGB; white leaves it as drawn).
- * Seen only by the player aiming — see {@link Duke3D#aim(uz.dukeengine.game.view.CommandButton, float, String,
+ * Seen only by the player aiming — see {@link Duke3D#aim(uz.dukeengine.core.view.CommandButton, float, String,
  * AimDecal, java.util.function.Consumer)}.
  *
  * @param picture the picture's path, whole from the resource root

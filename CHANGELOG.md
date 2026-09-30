@@ -36,6 +36,55 @@ fight with, under `rts` and, in a later step, `rpg`. The split lands in steps, a
   inheriting them, so a call reads as before.
 - `RtsModules.MODULES` begins with `CombatModules.MODULES`: the words an RTS's files may use are what they were, and
   the aura's.
+- **The views are core's**: the records a frame is shown by moved from `uz.dukeengine.game.view` to
+  `uz.dukeengine.core.view`, each keeping its name — `UnitView`, `WorldSnapshot`, `CommandButton`, `CommandPress`,
+  `RallyView`, `Turrets`, `MomentWords`, `AimAnswer`, `AimMark`, `BeamView`, `StreamView`, `EffectView`, `CameraView`,
+  `FallingWeather` and `ViewRays`. An import to change.
+- **A word order is an order every side gives**: `GameMessage.GameOrder` is `uz.dukeengine.combat.message.GameOrder`,
+  with the same components and the same `ORDER,…` line on the wire. A `switch` over `GameMessage` loses the case.
+  `RtsSimulation.onOrder` and `ordered` are gone: `DukeGame.onOrder` hears word orders as before, and a world run
+  without the runtime hands them, with every command of no set it knows, to `GameLogic.onOtherCommands`. An
+  `RtsSimulation`'s `onOtherCommand` is core's `GameLogic.onOtherCommand`.
+- **The runtime is of no kind**: `game` depends on `combat`, not on `rts`, and runs whatever kind of game it is given.
+  `DukeGame.create(title)` runs on the one kind on the classpath — the RTS library's, for a game with `rts` or
+  `client3d` among its dependencies, so a game's `create` reads as before; one that depended on `game` alone adds
+  `rts` — and `DukeGame.create(title, flavour)` on the one it names. The RTS's own API moved off `DukeGame` onto `uz.dukeengine.rts.RtsFlavour`, which the game makes and
+  names or asks for (`game.flavour(RtsFlavour.class)`):
+
+  | Was, on `DukeGame` | Is, on `RtsFlavour` |
+  |---|---|
+  | `onProduced`, `onConstructed`, `onPlaced`, `onResearched`, `onSold`, `addUpgrades` | the same, chaining on the flavour |
+  | `money(player, amount)` | `money(player::getIndex, amount)` |
+  | `getBuildOptions(factory)`, `BuildOption` | `getBuildOptions(factory, player)`, `RtsFlavour.BuildOption` |
+  | `STARTER_UNITS` | `RtsFlavour.STARTER_UNITS` |
+  | `getLogic()`, an `RtsSimulation` | `logic()`; `DukeGame.getLogic()` answers a `GameLogic` |
+  | `postCommand(GameMessage)` | gone: `DukeGame.postCommand(Command)` takes it |
+
+  A side of the RTS is `RtsPlayer.of(game.getLogic(), index)`, and the world's armoury `Armoury.of(game.getLogic())`.
+  `UnitScript` keeps what any unit does: its `money()`, `productionQueue()`, `trainUnit()` and `setRallyPoint()` are
+  gone, and a script on a factory asks its `ProductionUpdate` and its side's `RtsPlayer` itself. The sessions and the
+  relay speak the classpath kind's wire, and their factories read as before.
+
+### A runtime of no kind
+
+The runtime — `DukeGame`, its sessions, replays, snapshots and scripts — runs a kind of game it does not know, which
+brings what only it knows through core's `Flavour`: its world (`newWorld`), the records its blocks are read into
+(`templates`), its wire and what the wire carries (`codec`, `carries`), its own setup once its players are in
+(`began`), and its parts of the picture (`ViewParts`: whether a thing is a structure and may be picked, what it has
+queued and carries, how far it is built, its turrets and rally point, a side's money and spare power). A library offers
+its kind as a service, and `Flavour.found` is the one on the classpath. What the runtime does each frame on the
+simulation thread — work and orders posted from other threads, the game's per-frame code, the annihilation rule — runs
+where the world's `simulate` is, just before it (`GameLogic.eachFrame`), in the same order as before; commands of no
+set the world knows reach the runtime by `GameLogic.onOtherCommands`. A match's art is planned from the modules whose
+data names what their thing may bring into the world (`Brings`), a factory's build list among them.
+
+### The RTS, a flavour
+
+`RtsFlavour` is the RTS as a kind of game: `RtsLogic` — the RTS world with the standard orders applied, moved into
+`rts` — `RtsTemplate`, `CommandCodec`, the RTS's view parts, and the RTS's own API beside the runtime's: what a factory
+makes and a builder finishes, what research and selling set off, a side's upgrades and starting money, a factory's
+build menu, the starter units, and the RTS world it runs (`logic()`). A callback given it after the match has begun
+reaches the world at once.
 
 ### Combat, a layer of its own
 

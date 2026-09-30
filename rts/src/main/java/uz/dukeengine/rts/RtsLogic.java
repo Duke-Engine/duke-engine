@@ -1,114 +1,25 @@
-package uz.dukeengine.game;
+package uz.dukeengine.rts;
 
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Queue;
-import java.util.Set;
-import java.util.function.Consumer;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import uz.dukeengine.core.message.Command;
-import uz.dukeengine.rts.RtsSimulation;
 import uz.dukeengine.combat.message.CombatOrder;
-import uz.dukeengine.rts.message.GameMessage;
-import uz.dukeengine.core.module.MoveUpdate;
 import uz.dukeengine.combat.module.WeaponUpdate;
+import uz.dukeengine.core.module.MoveUpdate;
+import uz.dukeengine.rts.message.GameMessage;
 
 /**
- * The batteries-included RTS simulation behind {@link DukeGame}.
- *
- * <p>Every hand-rolled {@code GameLogic} subclass in the engine's tests wires the
- * same three commands to the same modules; this class makes that standard RTS
- * routing built in, Unity-style:
+ * The RTS world with the standard orders applied, which {@link RtsFlavour} runs: every hand-rolled simulation in the
+ * engine's tests wires the same orders to the same modules, and this is that routing built in —
  * <ul>
- *   <li>{@code MoveTo} → the unit's {@link MoveUpdate} (pathfinds and walks)</li>
- *   <li>{@code AttackObject} → the unit's {@link WeaponUpdate} (engages)</li>
- *   <li>{@code StopMoving} → halts movement and holds fire</li>
+ *   <li>a move → the units' {@link MoveUpdate}s, placed as one group by the game's layout;</li>
+ *   <li>an attack → their {@link WeaponUpdate}s;</li>
+ *   <li>a stop → halted, holding their fire;</li>
+ *   <li>production, research, construction, selling, attack-moves, guards and holds → the RTS's own modules.</li>
  * </ul>
  *
- * <p>It also accepts commands from other threads (the Swing input layer) through
- * a concurrent inbox drained on the logic thread, runs the game's tick/interval
- * callbacks, and fires a defeat callback when a player who had units loses all
- * of them — the standard annihilation rule.
+ * <p>What runs the world does the rest on its thread each frame ({@code GameLogic.eachFrame}): the orders posted from
+ * other threads, the game's per-frame code, a side's defeat.
  */
-final class RtsLogic extends RtsSimulation {
-
-    private static final java.util.logging.Logger LOG =
-            java.util.logging.Logger.getLogger(RtsLogic.class.getName());
-
-    /**
-     * Commands posted from the UI thread, drained each frame on the logic thread.
-     *
-     * <p>{@link Command} rather than {@link GameMessage}: a game built on this may
-     * declare commands of its own, and they belong in the same queue as the
-     * standard orders — that queue is what makes input land on a frame boundary
-     * and reach the replay log.
-     */
-    private final Queue<Command> inbox = new ConcurrentLinkedQueue<>();
-
-    /** Where a command outside the RTS set goes, if the game handles any. */
-    private Consumer<Command> gameCommands;
-
-    /** Arbitrary work posted from other threads, run on the logic thread. */
-    private final Queue<Runnable> tasks = new ConcurrentLinkedQueue<>();
-
-    /** When set, local commands go over the wire instead of straight in. */
-    private MultiplayerSession session;
-
-    void setSession(MultiplayerSession session) {
-        this.session = session;
-    }
-
-    private final List<Runnable> tickCallbacks = new ArrayList<>();
-    private final List<IntervalCallback> intervalCallbacks = new ArrayList<>();
-
-    private final Set<Integer> everOwnedObjects = new HashSet<>();
-    private final Set<Integer> defeated = new HashSet<>();
-    private DefeatListener defeatListener;
-
-    private record IntervalCallback(int everyFrames, Runnable action) {
-    }
-
-    @FunctionalInterface
-    interface DefeatListener {
-        void onDefeated(int playerIndex);
-    }
-
-    /** Thread-safe: post a command from any thread (typically the Swing EDT). */
-    void post(Command command) {
-        inbox.add(command);
-    }
-
-    /** Install the handler for the game's own commands. */
-    void setGameCommandHandler(Consumer<Command> handler) {
-        this.gameCommands = handler;
-    }
-
-    @Override
-    protected void onOtherCommand(Command command) {
-        if (gameCommands == null) {
-            super.onOtherCommand(command); // no game set declared: still a mistake
-            return;
-        }
-        gameCommands.accept(command);
-    }
-
-    /** Thread-safe: run {@code task} on the logic thread next frame. */
-    void postTask(Runnable task) {
-        tasks.add(task);
-    }
-
-    void addTickCallback(Runnable action) {
-        tickCallbacks.add(action);
-    }
-
-    void addIntervalCallback(int everyFrames, Runnable action) {
-        intervalCallbacks.add(new IntervalCallback(Math.max(1, everyFrames), action));
-    }
-
-    void setDefeatListener(DefeatListener listener) {
-        this.defeatListener = listener;
-    }
+public final class RtsLogic extends RtsSimulation {
 
     @Override
     protected void onRtsCommand(GameMessage command) {
@@ -162,7 +73,6 @@ final class RtsLogic extends RtsSimulation {
                 uz.dukeengine.rts.module.ContainModule.exit(this, exit);
                 tellOrder(exit, List.of(exit.passenger()), exit.playerIndex());
             }
-            case GameMessage.GameOrder order -> ordered(order);
         }
     }
 
@@ -254,60 +164,5 @@ final class RtsLogic extends RtsSimulation {
 
     @Override
     protected void simulate() {
-        for (var task = tasks.poll(); task != null; task = tasks.poll()) {
-            task.run();
-        }
-        for (var command = inbox.poll(); command != null; command = inbox.poll()) {
-            if (session != null && (command instanceof GameMessage || command instanceof CombatOrder)) {
-                session.issueLocal(command); // ships to both peers, applied in lock-step
-            } else {
-                if (session != null) {
-                    // The wire codec speaks the RTS set and the orders every side gives, and applying this
-                    // one locally would desync, so say so loudly — and say what does travel.
-                    var unsendable = command;
-                    LOG.warning(() -> "game command cannot be sent to peers: "
-                            + unsendable.getClass().getName() + "; send it as a GameMessage.GameOrder");
-                    continue;
-                }
-                issueCommand(command); // applied at the start of the next frame
-            }
-        }
-
-        for (var callback : tickCallbacks) {
-            callback.run();
-        }
-        for (var interval : intervalCallbacks) {
-            if (getFrame() > 0 && getFrame() % interval.everyFrames() == 0) {
-                interval.action().run();
-            }
-        }
-
-        checkDefeats();
-    }
-
-    /** Annihilation rule: a player who had objects and now has none is defeated. */
-    private void checkDefeats() {
-        for (var object : getObjects()) {
-            everOwnedObjects.add(object.getPlayerIndex());
-        }
-        if (defeatListener == null) {
-            return;
-        }
-        for (var playerIndex : everOwnedObjects) {
-            if (defeated.contains(playerIndex)) {
-                continue;
-            }
-            boolean anyAlive = false;
-            for (var object : getObjects()) {
-                if (object.getPlayerIndex() == playerIndex && !object.isEffectivelyDead()) {
-                    anyAlive = true;
-                    break;
-                }
-            }
-            if (!anyAlive) {
-                defeated.add(playerIndex);
-                defeatListener.onDefeated(playerIndex);
-            }
-        }
     }
 }

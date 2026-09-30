@@ -13,7 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.StreamView;
+import uz.dukeengine.core.view.StreamView;
 
 /**
  * Streams drawn as ribbons — the reference's {@code W3DProjectileStreamDraw}: one strip of the stream's picture

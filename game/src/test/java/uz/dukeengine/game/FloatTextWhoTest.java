@@ -15,7 +15,7 @@ class FloatTextWhoTest {
 
     /** An American rifleman hidden from China, beside a Chinese one who would otherwise see him; shown to {@code local}. */
     private static DukeGame match(int local) {
-        var game = DukeGame.create("income").loadUnits(DukeGame.STARTER_UNITS).map(70, 45);
+        var game = DukeGame.create("income").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(70, 45);
         var usa = game.addPlayer("USA", Color.BLUE);
         var china = game.addPlayer("China", Color.RED);
         game.enemies(usa, china).localPlayer(local == 1 ? usa : china);

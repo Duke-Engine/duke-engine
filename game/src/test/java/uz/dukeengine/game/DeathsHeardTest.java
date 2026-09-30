@@ -23,7 +23,7 @@ class DeathsHeardTest {
 
     @Test
     void aTankOfTheSecondSideKillingOneOfTheThirdIsHeardOnceWithTheSecondAsItsKiller() {
-        var game = DukeGame.create("deaths-test").loadUnits(DukeGame.STARTER_UNITS).map(80, 40);
+        var game = DukeGame.create("deaths-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(80, 40);
         var one = game.addPlayer("One", Color.BLUE);
         var two = game.addPlayer("Two", Color.RED);
         var three = game.addPlayer("Three", Color.GREEN);
@@ -52,13 +52,14 @@ class DeathsHeardTest {
 
     @Test
     void aBuildingSoldIsNotHeardAsADeath() {
-        var game = DukeGame.create("sold-test").loadUnits(DukeGame.STARTER_UNITS).map(80, 40);
+        var game = DukeGame.create("sold-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(80, 40);
         var one = game.addPlayer("One", Color.BLUE);
         game.localPlayer(one);
         game.spawn("Barracks", one, 200, 200);
         var died = new CopyOnWriteArrayList<ObjectDied>();
         var sold = new CopyOnWriteArrayList<GameObject>();
-        game.onDied(died::add).onSold(sold::add);
+        game.onDied(died::add);
+        game.flavour(uz.dukeengine.rts.RtsFlavour.class).onSold(sold::add);
         game.runHeadless(1);
         var barracks = found(game, "Barracks", 1).getId();
 

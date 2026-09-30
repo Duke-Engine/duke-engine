@@ -6,7 +6,7 @@ import java.awt.Color;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /** The snapshot says of each thing whether it is the viewer's side's, for a look that shows its own side more. */
 class AlliedViewTest {

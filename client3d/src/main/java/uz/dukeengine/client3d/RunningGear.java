@@ -12,7 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import uz.dukeengine.core.GameConstants;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /**
  * A vehicle's running gear as it moves: treads whose picture runs and wheels that roll and steer — the reference's

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.combat.message.CombatOrder;
+import uz.dukeengine.combat.message.GameOrder;
 import uz.dukeengine.combat.message.OrderSource;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.ObjectId;
@@ -29,6 +30,13 @@ class CombatOrderCodecTest {
         for (var order : List.of(move, attack, locked, stop)) {
             assertEquals(order, CombatOrderCodec.decode(CombatOrderCodec.encode(order)));
         }
+    }
+
+    @Test
+    void aGamesOwnOrderIsTheLineItWasItsWordEncoded() {
+        var order = new GameOrder(2, "SPECIAL_POWER:Nuke|at,here", UNITS, new Coord3D(1.5f, 2f, 0f), null, 7L);
+        assertEquals("ORDER,2,SPECIAL_POWER%3ANuke%7Cat%2Chere,3:7,1.5,2.0,0.0,,7", CombatOrderCodec.encode(order));
+        assertEquals(order, CombatOrderCodec.decode(CombatOrderCodec.encode(order)));
     }
 
     @Test

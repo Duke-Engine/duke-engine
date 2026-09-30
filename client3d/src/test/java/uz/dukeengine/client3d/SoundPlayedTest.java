@@ -9,8 +9,8 @@ import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.event.SoundPlayed;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.ObjectId;
-import uz.dukeengine.game.view.UnitView;
-import uz.dukeengine.game.view.WorldSnapshot;
+import uz.dukeengine.core.view.UnitView;
+import uz.dukeengine.core.view.WorldSnapshot;
 
 /**
  * A sound the simulation plays at a thing or a place — the reference's logic calling {@code addAudioEvent}: heard once

@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import uz.dukeengine.game.view.Turrets;
+import uz.dukeengine.core.view.Turrets;
 
 /**
  * Turrets drawn turned and pitched as the simulation has them — the reference's {@code

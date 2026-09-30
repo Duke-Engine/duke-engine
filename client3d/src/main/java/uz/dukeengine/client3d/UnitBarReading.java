@@ -88,7 +88,7 @@ record UnitBarReading(
      * The same, for a creature that may hold a level of its own: the number after {@code levelWord} in the first of
      * its words that begins with it — {@code level:7} — where the game names one; the hero's and the floor's as ever.
      */
-    int levelOn(uz.dukeengine.game.view.UnitView view, String levelWord) {
+    int levelOn(uz.dukeengine.core.view.UnitView view, String levelWord) {
         if (isHero(view.id()) || levelWord == null || levelWord.isEmpty()) {
             return levelOn(view.id());
         }

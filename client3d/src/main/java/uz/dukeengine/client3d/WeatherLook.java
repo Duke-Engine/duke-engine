@@ -40,7 +40,7 @@ public record WeatherLook(String picture, float box, float spacing, float speed,
     }
 
     /** The weather a game set for its match ({@code DukeGame.weather}): squares of its size, one every 1/density. */
-    static WeatherLook of(uz.dukeengine.game.view.FallingWeather weather) {
+    static WeatherLook of(uz.dukeengine.core.view.FallingWeather weather) {
         return weather == null ? null
                 : new WeatherLook(weather.picture(), weather.box(), 1f / weather.density(), weather.speed(),
                         weather.amplitude(), weather.frequencyX(), weather.frequencyY(), 0f, 0f, MOST_SQUARE_PIXELS,

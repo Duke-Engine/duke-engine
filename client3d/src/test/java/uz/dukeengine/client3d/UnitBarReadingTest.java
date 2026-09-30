@@ -171,8 +171,8 @@ class UnitBarReadingTest {
         }
     }
 
-    private static uz.dukeengine.game.view.UnitView creature(int id, String... words) {
-        return new uz.dukeengine.game.view.UnitView(id, "Skeleton", 1, 0f, 0f, 0f, 40f, 40f, false, true, false,
+    private static uz.dukeengine.core.view.UnitView creature(int id, String... words) {
+        return new uz.dukeengine.core.view.UnitView(id, "Skeleton", 1, 0f, 0f, 0f, 40f, 40f, false, true, false,
                 false, -1, 0f, 0f, 0f, false, 0, java.util.List.of(), java.util.List.of(words), 1f, -1);
     }
 

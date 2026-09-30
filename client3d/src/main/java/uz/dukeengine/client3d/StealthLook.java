@@ -12,7 +12,7 @@ import com.jme3.scene.Spatial;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /**
  * How a thing kept from some players looks to those it is not kept from — {@link Visuals#seeThrough} and {@link

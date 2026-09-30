@@ -6,7 +6,7 @@ import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /** A thing drawn at its own height, turned by its facing, pitch and roll — and a ground unit drawn as it was. */
 class UnitPlacementTest {
@@ -59,7 +59,7 @@ class UnitPlacementTest {
     private static UnitView lifted(float lift, float yaw) {
         return new UnitView(1, "Tank", 1, 30f, 40f, 0.7f, 100f, 100f, false, true, false, false, -1, 0f, 0f, 0f,
                 false, 0, List.of(), List.of(), 1f, -1, true, null, true, null, 1, 1f, false, 0f, false,
-                uz.dukeengine.game.view.Turrets.NONE, lift, yaw, uz.dukeengine.core.thing.Corners.LEVEL);
+                uz.dukeengine.core.view.Turrets.NONE, lift, yaw, uz.dukeengine.core.thing.Corners.LEVEL);
     }
 
     @Test

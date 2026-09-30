@@ -1,7 +1,7 @@
 package uz.dukeengine.client3d;
 
 import uz.dukeengine.core.thing.ObjectStatus;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /**
  * The colours of the plain bar over a thing — {@link UnitBarLook.Plain} — chosen per bar from the thing as the client

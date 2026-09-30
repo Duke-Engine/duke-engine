@@ -11,11 +11,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import javax.swing.SwingUtilities;
 import uz.dukeengine.core.GameConstants;
-import uz.dukeengine.rts.RtsSimulation;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.message.Command;
-import uz.dukeengine.rts.message.GameMessage;
-import uz.dukeengine.rts.network.CommandCodec;
 import uz.dukeengine.core.pathfind.MapLoader;
 import uz.dukeengine.core.pathfind.PathGrid;
 import uz.dukeengine.core.player.Relationship;
@@ -25,7 +22,7 @@ import uz.dukeengine.core.thing.ThingTemplateLoader;
 import uz.dukeengine.core.thing.Titled;
 import uz.dukeengine.core.thing.WorldTemplate;
 import uz.dukeengine.game.swing.GameWindow;
-import uz.dukeengine.game.view.WorldSnapshot;
+import uz.dukeengine.core.view.WorldSnapshot;
 
 /**
  * The Unity-style entry point of duke-engine: build a playable RTS in a few
@@ -34,7 +31,7 @@ import uz.dukeengine.game.view.WorldSnapshot;
  *
  * <pre>{@code
  * var game = DukeGame.create("My RTS")
- *         .loadUnits(DukeGame.STARTER_UNITS)
+ *         .loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS)
  *         .map(60, 40);
  *
  * var you = game.addPlayer("USA", Color.CYAN);
@@ -68,18 +65,12 @@ public final class DukeGame {
     private final List<UnitText> unitTexts = new ArrayList<>();
     private final List<ThingTemplate> units = new ArrayList<>();
     private final List<uz.dukeengine.combat.module.Weapon> weapons = new ArrayList<>();
-    private final List<uz.dukeengine.rts.player.Upgrade> upgrades = new ArrayList<>();
     private final List<uz.dukeengine.combat.module.WeaponBonus> weaponBonuses = new ArrayList<>();
     private final List<GamePlayer> players = new ArrayList<>();
     private final List<Runnable> scenario = new ArrayList<>();
     private final List<Consumer<DukeGame>> startCallbacks = new ArrayList<>();
     private final List<Consumer<DukeGame>> tickCallbacks = new ArrayList<>();
-    private final List<BiConsumer<uz.dukeengine.core.thing.GameObject, uz.dukeengine.core.thing.GameObject>>
-            producedCallbacks = new ArrayList<>();
-    private final List<BiConsumer<uz.dukeengine.core.thing.GameObject, uz.dukeengine.core.thing.GameObject>>
-            constructedCallbacks = new ArrayList<>();
-    private final List<Consumer<uz.dukeengine.core.thing.GameObject>> soldCallbacks = new ArrayList<>();
-    private final List<Consumer<GameMessage.GameOrder>> orderCallbacks = new ArrayList<>();
+    private final List<Consumer<uz.dukeengine.combat.message.GameOrder>> orderCallbacks = new ArrayList<>();
     private final List<Consumer<uz.dukeengine.core.event.ObjectDied>> diedCallbacks = new ArrayList<>();
     private final List<double[]> intervalSeconds = new ArrayList<>(); // [seconds, callbackIndex]
     private final List<Consumer<DukeGame>> intervalCallbacks = new ArrayList<>();
@@ -97,9 +88,12 @@ public final class DukeGame {
     private int windowHeight = 720;
     private int maxFps = GameConstants.DEFAULT_MAX_FPS;
 
-    private RtsLogic logic;
-    private RtsClient client;
-    private RtsGameEngine engine;
+    /** The kind of game this is, which makes its world: see {@link #flavour()}. */
+    private final uz.dukeengine.core.Flavour flavour;
+    private uz.dukeengine.core.GameLogic logic;
+    private LogicDriver driver;
+    private MatchClient client;
+    private MatchEngine engine;
     private volatile boolean started;
 
     private MultiplayerSession multiplayer;
@@ -107,13 +101,36 @@ public final class DukeGame {
     private uz.dukeengine.core.replay.ReplayRecorder recorder;
     private uz.dukeengine.core.replay.Replay replay;
 
-    private DukeGame(String title) {
+    private DukeGame(String title, uz.dukeengine.core.Flavour flavour) {
         this.title = title;
+        this.flavour = java.util.Objects.requireNonNull(flavour, "flavour");
     }
 
-    /** Begin building a game. */
+    /** Begin building a game of the kind on the classpath — see {@code Flavour.found}. */
     public static DukeGame create(String title) {
-        return new DukeGame(title);
+        return new DukeGame(title, uz.dukeengine.core.Flavour.found());
+    }
+
+    /** Begin building a game of {@code flavour}'s kind: one made for this game, whose own API it keeps. */
+    public static DukeGame create(String title, uz.dukeengine.core.Flavour flavour) {
+        return new DukeGame(title, flavour);
+    }
+
+    /** The kind of game this is: the flavour that makes its world. */
+    public uz.dukeengine.core.Flavour flavour() {
+        return flavour;
+    }
+
+    /**
+     * The kind of game this is, as {@code kind} — {@code game.flavour(RtsFlavour.class).onProduced(…)} — or an error
+     * where it is of another kind.
+     */
+    public <F extends uz.dukeengine.core.Flavour> F flavour(Class<F> kind) {
+        if (!kind.isInstance(flavour)) {
+            throw new IllegalStateException("this game is of " + flavour.getClass().getName() + ", not "
+                    + kind.getName());
+        }
+        return kind.cast(flavour);
     }
 
     public String getTitle() {
@@ -165,13 +182,6 @@ public final class DukeGame {
     public DukeGame addWeaponBonuses(java.util.Collection<uz.dukeengine.combat.module.WeaponBonus> more) {
         requireNotStarted();
         weaponBonuses.addAll(more);
-        return this;
-    }
-
-    /** The upgrades the game's buildings research by name — {@code ProductionUpdate.Data.researches}. */
-    public DukeGame addUpgrades(java.util.Collection<uz.dukeengine.rts.player.Upgrade> more) {
-        requireNotStarted();
-        upgrades.addAll(more);
         return this;
     }
 
@@ -230,7 +240,7 @@ public final class DukeGame {
      * game is not driving it.
      */
     public void setCameraSeen(float x, float y, float angle) {
-        camera.seen(new uz.dukeengine.game.view.CameraView(x, y, angle, Float.NaN, Float.NaN));
+        camera.seen(new uz.dukeengine.core.view.CameraView(x, y, angle, Float.NaN, Float.NaN));
     }
 
     private final java.util.concurrent.atomic.AtomicReference<uz.dukeengine.core.math.Coord2D> viewMove =
@@ -276,19 +286,19 @@ public final class DukeGame {
         return latestAlert;
     }
 
-    private volatile uz.dukeengine.game.view.ViewRays viewRays;
+    private volatile uz.dukeengine.core.view.ViewRays viewRays;
 
     /**
      * What the player's view covers, as the client last drew it — the eye and the rays through the corners of the
-     * world's part of the window, see {@link uz.dukeengine.game.view.ViewRays} — for a radar of the game's own to
+     * world's part of the window, see {@link uz.dukeengine.core.view.ViewRays} — for a radar of the game's own to
      * outline; null before the client has drawn a frame. From any thread.
      */
-    public uz.dukeengine.game.view.ViewRays viewRays() {
+    public uz.dukeengine.core.view.ViewRays viewRays() {
         return viewRays;
     }
 
     /** What the player's view covers, told by the client from its own thread each frame it draws the world. */
-    public void setViewRays(uz.dukeengine.game.view.ViewRays rays) {
+    public void setViewRays(uz.dukeengine.core.view.ViewRays rays) {
         viewRays = rays;
     }
 
@@ -345,13 +355,7 @@ public final class DukeGame {
      * ({@code Prerequisites.Buildability.ONLY_BY_COMPUTER}).
      */
     public DukeGame computer(GamePlayer player) {
-        scenario.add(() -> logic.getRtsPlayer(player.getIndex()).setComputer(true));
-        return this;
-    }
-
-    /** Give a player starting money: in its balance, neither earned nor spent. */
-    public DukeGame money(GamePlayer player, int amount) {
-        scenario.add(() -> logic.getRtsPlayer(player.getIndex()).give(amount));
+        scenario.add(() -> logic.getPlayerList().getPlayer(player.getIndex()).setComputer(true));
         return this;
     }
 
@@ -445,38 +449,6 @@ public final class DukeGame {
         return this;
     }
 
-    /**
-     * Runs on the simulation thread whenever a factory releases a unit, as {@code (factory, unit)} — the frame it
-     * happens, in the order registered. See {@link uz.dukeengine.rts.RtsSimulation#onProduced}.
-     */
-    public DukeGame onProduced(BiConsumer<uz.dukeengine.core.thing.GameObject,
-            uz.dukeengine.core.thing.GameObject> callback) {
-        producedCallbacks.add(callback);
-        return this;
-    }
-
-    private final List<java.util.function.Consumer<uz.dukeengine.core.thing.GameObject>> placedCallbacks =
-            new ArrayList<>();
-
-    /**
-     * Runs on the simulation thread whenever a building is put down — a site, the frame it is placed — with it, for the
-     * game to clear what it stands over. See {@link uz.dukeengine.rts.RtsSimulation#onPlaced}.
-     */
-    public DukeGame onPlaced(java.util.function.Consumer<uz.dukeengine.core.thing.GameObject> callback) {
-        placedCallbacks.add(callback);
-        return this;
-    }
-
-    /** Runs on the simulation thread whenever a building is finished, as {@code (builder, building)}. */
-    public DukeGame onConstructed(BiConsumer<uz.dukeengine.core.thing.GameObject,
-            uz.dukeengine.core.thing.GameObject> callback) {
-        constructedCallbacks.add(callback);
-        return this;
-    }
-
-    private final List<BiConsumer<uz.dukeengine.core.thing.GameObject, uz.dukeengine.rts.player.Upgrade>>
-            researchedCallbacks = new ArrayList<>();
-
     private final List<java.util.function.LongSupplier> checksumParts = new ArrayList<>();
 
     /**
@@ -486,26 +458,6 @@ public final class DukeGame {
      */
     public DukeGame checksumAlso(java.util.function.LongSupplier part) {
         checksumParts.add(part);
-        return this;
-    }
-
-    /**
-     * Runs on the simulation thread whenever research finishes at a building or a unit, as {@code (researcher,
-     * upgrade)} — the frame it finishes, after the upgrade has taken effect, in the order registered; not for an
-     * upgrade bought at once, nor research called off. See {@link uz.dukeengine.rts.RtsSimulation#onResearched}.
-     */
-    public DukeGame onResearched(BiConsumer<uz.dukeengine.core.thing.GameObject, uz.dukeengine.rts.player.Upgrade>
-            callback) {
-        researchedCallbacks.add(callback);
-        return this;
-    }
-
-    /**
-     * Told when a building its side sold is down and gone — taken down for its worth, not destroyed by an enemy — on
-     * the simulation thread, the frame it goes, its refund paid.
-     */
-    public DukeGame onSold(Consumer<uz.dukeengine.core.thing.GameObject> callback) {
-        soldCallbacks.add(callback);
         return this;
     }
 
@@ -520,12 +472,12 @@ public final class DukeGame {
     }
 
     /**
-     * Told every order of the game's own — a {@link GameMessage.GameOrder}, posted with {@link #postCommand} from any
-     * thread — as it is applied: on the simulation thread, on the same frame and in the same order on every machine,
-     * and again when a replay plays it. The game does what the order means there — grants a science, fires a power —
-     * deterministically. The engine never reads its word or its number.
+     * Told every order of the game's own — a {@link uz.dukeengine.combat.message.GameOrder}, posted with
+     * {@link #postCommand} from any thread — as it is applied: on the simulation thread, on the same frame and in the
+     * same order on every machine, and again when a replay plays it. The game does what the order means there — grants
+     * a science, fires a power — deterministically. The engine never reads its word or its number.
      */
-    public DukeGame onOrder(Consumer<GameMessage.GameOrder> listener) {
+    public DukeGame onOrder(Consumer<uz.dukeengine.combat.message.GameOrder> listener) {
         orderCallbacks.add(listener);
         return this;
     }
@@ -822,7 +774,7 @@ public final class DukeGame {
      */
     public DukeGame recordReplay() {
         requireNotStarted();
-        recorder = new uz.dukeengine.core.replay.ReplayRecorder(CommandCodec.INSTANCE);
+        recorder = new uz.dukeengine.core.replay.ReplayRecorder(flavour.codec());
         return this;
     }
 
@@ -838,7 +790,7 @@ public final class DukeGame {
      */
     public DukeGame playReplay(String replayText) {
         requireNotStarted();
-        replay = uz.dukeengine.core.replay.Replay.parse(replayText, CommandCodec.INSTANCE);
+        replay = uz.dukeengine.core.replay.Replay.parse(replayText, flavour.codec());
         return this;
     }
 
@@ -1015,10 +967,10 @@ public final class DukeGame {
      * Every template this match can ever draw, or {@code null} where there is no match to plan from.
      *
      * <p>What stands in the world once it is assembled, everything those can produce, and what that can
-     * produce in turn — followed through {@code ProductionUpdate}, the one module of the RTS library that
-     * names other templates, so the engine needs no help from the game to follow it. A barracks that
-     * trains riflemen brings the rifleman in; a factory that builds a war factory brings in everything
-     * the war factory builds.
+     * produce in turn — followed through the modules whose data names what they bring
+     * ({@link uz.dukeengine.core.module.Brings}, a factory's build list), so the engine needs no help from
+     * the game to follow it. A barracks that trains riflemen brings the rifleman in; a factory that builds a
+     * war factory brings in everything the war factory builds.
      *
      * <p>Null before {@link #boot}, and for a game that chose no match and did not say it
      * {@link #placesEverythingAtSetup} — a dungeon spawns its monsters floor by floor, long after booting, and
@@ -1045,8 +997,8 @@ public final class DukeGame {
                 continue; // a name nothing answers to draws nothing
             }
             for (var module : template.modules()) {
-                if (module instanceof uz.dukeengine.rts.module.ProductionUpdate.Data line) {
-                    next.addAll(line.builds());
+                if (module instanceof uz.dukeengine.core.module.Brings line) {
+                    next.addAll(line.brings());
                 }
             }
             if (brings != null) {
@@ -1135,16 +1087,12 @@ public final class DukeGame {
             throw new IllegalStateException("add at least one player before starting");
         }
 
-        logic = new RtsLogic();
-        producedCallbacks.forEach(logic::onProduced);
-        constructedCallbacks.forEach(logic::onConstructed);
-        placedCallbacks.forEach(logic::onPlaced);
-        researchedCallbacks.forEach(logic::onResearched);
+        logic = flavour.newWorld();
+        driver = new LogicDriver(logic, flavour);
+        logic.eachFrame(driver);
         checksumParts.forEach(logic::checksumAlso);
-        soldCallbacks.forEach(logic::onSold);
-        orderCallbacks.forEach(logic::onOrder);
         diedCallbacks.forEach(logic::onDied);
-        client = new RtsClient(logic);
+        client = new MatchClient(logic, flavour.views());
         client.setMomentWords(momentWords);
         client.remember(remembers);
         client.keepOutOfSight(keepFrames, keepDeadFrames);
@@ -1153,7 +1101,7 @@ public final class DukeGame {
         client.hearThroughFog(hearsThroughFog);
         client.setAttackable(this::attackableNow);
         client.setContextOrder(this::contextOrderNow);
-        engine = new RtsGameEngine(logic, client);
+        engine = new MatchEngine(logic, client);
         if (recorder != null) {
             logic.setFrameLog(recorder);
         }
@@ -1161,7 +1109,7 @@ public final class DukeGame {
             engine.setReplay(replay);
         }
         if (multiplayer != null) {
-            logic.setSession(multiplayer);   // local commands go over the wire
+            driver.setSession(multiplayer);  // local commands go over the wire
             engine.setSession(multiplayer);  // frames wait for every player's input
             multiplayer.onPlayerLeft(this::announcePlayerLeft);
             multiplayer.onPeerProgress(this::heardProgress);
@@ -1187,16 +1135,20 @@ public final class DukeGame {
         for (var customizer : moduleCustomizers) {
             customizer.accept(logic.getThingFactory().getModuleFactory());
         }
-        var loader = uz.dukeengine.rts.RtsTemplate.register(new ThingTemplateLoader(logic.getThingFactory()));
+        var loader = new ThingTemplateLoader(logic.getThingFactory());
+        flavour.templates(loader);
         for (var customizer : templateCustomizers) {
             customizer.accept(loader);
         }
         for (var template : units) {
             logic.getThingFactory().addTemplate(template);
         }
-        logic.addWeapons(weapons);
-        logic.addUpgrades(upgrades);
-        logic.setWeaponBonuses(weaponBonuses);
+        if (!weapons.isEmpty()) {
+            armoury().addWeapons(weapons);
+        }
+        if (!weaponBonuses.isEmpty()) {
+            armoury().setWeaponBonuses(weaponBonuses);
+        }
         for (var text : unitTexts) {
             loader.load(text.text(), text.source());
         }
@@ -1211,7 +1163,8 @@ public final class DukeGame {
         for (var player : players) {
             player.bind(logic.getPlayerList().addPlayer(player.getName()).getIndex());
         }
-        client.setViewerPlayer(localPlayer == null ? RtsClient.EVERYONE : localPlayer.getIndex());
+        client.setViewerPlayer(localPlayer == null ? MatchClient.EVERYONE : localPlayer.getIndex());
+        flavour.began(logic);
         progress.accept(30);
 
         started = true; // spawn() from here on is immediate
@@ -1220,20 +1173,18 @@ public final class DukeGame {
         }
         progress.accept(40);
 
-        if (commandHandler != null) {
-            logic.setGameCommandHandler(commandHandler);
-        }
+        logic.onOtherCommands(this::otherCommand);
         // The camera first: a move the game's code orders in a frame takes its first step in the next.
-        logic.addTickCallback(camera::step);
+        driver.addTickCallback(camera::step);
         for (var callback : tickCallbacks) {
-            logic.addTickCallback(() -> callback.accept(this));
+            driver.addTickCallback(() -> callback.accept(this));
         }
         for (var interval : intervalSeconds) {
             var callback = intervalCallbacks.get((int) interval[1]);
             int frames = Math.max(1, (int) Math.round(interval[0] * GameConstants.LOGICFRAMES_PER_SECOND));
-            logic.addIntervalCallback(frames, () -> callback.accept(this));
+            driver.addIntervalCallback(frames, () -> callback.accept(this));
         }
-        logic.setDefeatListener(playerIndex -> {
+        driver.setDefeatListener(playerIndex -> {
             var player = playerByIndex(playerIndex);
             if (player != null) {
                 for (var callback : defeatCallbacks) {
@@ -1284,14 +1235,14 @@ public final class DukeGame {
         setBanner("VICTORY");
     }
 
-    private volatile uz.dukeengine.game.view.MomentWords momentWords;
+    private volatile uz.dukeengine.core.view.MomentWords momentWords;
 
     /**
      * Words for its things' moments — moving, attacking, each weapon slot firing, between shots and reloading, a turret
      * turning — added to the words each holds while they last, so its looks choose their model, clip and pieces by them
      * too; the reference's MOVING, FIRING_A and the rest. Null says none, as before.
      */
-    public DukeGame momentWords(uz.dukeengine.game.view.MomentWords words) {
+    public DukeGame momentWords(uz.dukeengine.core.view.MomentWords words) {
         this.momentWords = words;
         if (client != null) {
             client.setMomentWords(words);
@@ -1332,20 +1283,20 @@ public final class DukeGame {
         return this;
     }
 
-    private volatile uz.dukeengine.game.view.FallingWeather weather;
+    private volatile uz.dukeengine.core.view.FallingWeather weather;
 
     /**
-     * The weather falling over the view in this match — see {@link uz.dukeengine.game.view.FallingWeather}; null
+     * The weather falling over the view in this match — see {@link uz.dukeengine.core.view.FallingWeather}; null
      * clears it. Drawing only: nothing in the simulation or the checksum, and a game run without a window keeps it
      * and draws nothing. From any thread.
      */
-    public DukeGame weather(uz.dukeengine.game.view.FallingWeather weather) {
+    public DukeGame weather(uz.dukeengine.core.view.FallingWeather weather) {
         this.weather = weather;
         return this;
     }
 
     /** The weather falling over the view in this match, or null for none. */
-    public uz.dukeengine.game.view.FallingWeather getWeather() {
+    public uz.dukeengine.core.view.FallingWeather getWeather() {
         return weather;
     }
 
@@ -1453,7 +1404,7 @@ public final class DukeGame {
     public DukeGame watch() {
         watching = true;
         if (client != null) {
-            client.setViewerPlayer(RtsClient.EVERYONE);
+            client.setViewerPlayer(MatchClient.EVERYONE);
         }
         return this;
     }
@@ -1472,60 +1423,22 @@ public final class DukeGame {
         return null;
     }
 
-    /** One entry of a production structure's build menu. */
-    public record BuildOption(String templateName, String displayName, int cost) {
-    }
-
     /**
-     * The build menu of a production structure's template, for UIs. Safe from
-     * any thread: templates are immutable once loaded.
-     */
-    public List<BuildOption> getBuildOptions(String factoryTemplateName) {
-        var factoryTemplate = logic.getThingFactory().findTemplate(factoryTemplateName);
-        if (factoryTemplate == null) {
-            return List.of();
-        }
-        for (var entry : factoryTemplate.modules()) {
-            if (entry instanceof uz.dukeengine.rts.module.ProductionUpdate.Data data) {
-                var options = new ArrayList<BuildOption>();
-                for (var name : data.builds()) {
-                    var unit = logic.getThingFactory().findTemplate(name);
-                    if (unit != null) {
-                        var local = logic.getRtsPlayer(getLocalPlayerIndex());
-                        options.add(new BuildOption(name,
-                                Titled.of(unit),
-                                local == null ? uz.dukeengine.rts.Buildable.costOf(unit) : local.priceOf(unit)));
-                    }
-                }
-                return options;
-            }
-        }
-        return List.of();
-    }
-
-    /** Thread-safe: queue a command into the simulation (what the UI uses). */
-    public void postCommand(GameMessage command) {
-        logic.post(command);
-    }
-
-    /**
-     * The same, for an order every side gives — a {@link uz.dukeengine.combat.message.CombatOrder}: a move, an attack,
-     * a stop — or a command the game declared itself — see {@link #onCommand}.
-     *
-     * <p>Separate from the overload above only so the standard orders keep their
-     * exact type; both end up in the same queue, on the same frame boundary, in
-     * the same replay log.
+     * Thread-safe: queue a command into the simulation, what the UI uses — one of the kind of game's set, an order every
+     * side gives (a {@link uz.dukeengine.combat.message.CombatOrder}: a move, an attack, a stop; a word order,
+     * {@link uz.dukeengine.combat.message.GameOrder}), or a command the game declared itself — see {@link #onCommand}.
+     * Each is applied on the next frame boundary and lands in the same replay log.
      */
     public void postCommand(Command command) {
-        logic.post(command);
+        driver.post(command);
     }
 
     /**
-     * Handle commands outside the standard RTS set — the ones this game invented.
+     * Handle commands outside the kind of game's set — the ones this game invented.
      *
      * <p>The engine's contract has always been that a game declares its own
-     * command set ({@link Command}); {@link GameMessage} is the RTS library's set,
-     * not the only one a game on it might want. A roguelike's "cast the third
+     * command set ({@link Command}); a kind's set — the RTS library's {@code GameMessage} —
+     * is not the only one a game on it might want. A roguelike's "cast the third
      * ability" is not an RTS order and never will be, but it has to travel the
      * same road: queued from the input thread, applied at the start of a frame,
      * written to the replay log. That is what this hook is for.
@@ -1537,26 +1450,41 @@ public final class DukeGame {
      * logged and ignored, exactly as before.
      *
      * <p>A command of the game's own class stays on this machine: the wire and the
-     * replay speak the RTS set. An order that must reach every machine and every
-     * replay is a {@link GameMessage.GameOrder}, heard through {@link #onOrder}.
+     * replay speak the kind's set. An order that must reach every machine and every
+     * replay is a {@link uz.dukeengine.combat.message.GameOrder}, heard through {@link #onOrder}.
      */
     public DukeGame onCommand(Consumer<Command> handler) {
         this.commandHandler = handler;
-        if (logic != null) {
-            logic.setGameCommandHandler(handler);
-        }
         return this;
     }
 
-    /** Held until boot, like every other callback: the simulation exists only then. */
-    private Consumer<Command> commandHandler;
+    /** Asked on the simulation thread as each command of the game's own is applied. */
+    private volatile Consumer<Command> commandHandler;
+
+    /**
+     * A command outside the world's own set, as it is applied: a word order told every {@link #onOrder} watcher, in the
+     * order they were added; one of the game's own told its {@link #onCommand} handler, or logged where it has none.
+     */
+    private void otherCommand(Command command) {
+        switch (command) {
+            case uz.dukeengine.combat.message.GameOrder order -> orderCallbacks.forEach(watcher -> watcher.accept(order));
+            default -> {
+                var handler = commandHandler;
+                if (handler == null) {
+                    LOG.warning(() -> "ignoring a command of no set this game knows: " + command.getClass().getName());
+                    return;
+                }
+                handler.accept(command);
+            }
+        }
+    }
 
     // ---- the command bar ----
 
     private volatile List<Integer> selection = List.of();
     private java.util.function.Function<List<Integer>,
-            List<uz.dukeengine.game.view.CommandButton>> commandBar;
-    private Consumer<uz.dukeengine.game.view.CommandPress> commandPressed;
+            List<uz.dukeengine.core.view.CommandButton>> commandBar;
+    private Consumer<uz.dukeengine.core.view.CommandPress> commandPressed;
 
     /**
      * What the player may do with whatever he has selected, asked once a frame as the snapshot is built.
@@ -1570,7 +1498,7 @@ public final class DukeGame {
      * order the window holds it. The engine knows what none of the buttons mean.
      */
     public DukeGame commandBar(java.util.function.Function<List<Integer>,
-            List<uz.dukeengine.game.view.CommandButton>> buttons) {
+            List<uz.dukeengine.core.view.CommandButton>> buttons) {
         this.commandBar = buttons;
         if (client != null) {
             client.setCommands(this::buttonsNow);
@@ -1578,7 +1506,7 @@ public final class DukeGame {
         return this;
     }
 
-    private List<uz.dukeengine.game.view.CommandButton> buttonsNow() {
+    private List<uz.dukeengine.core.view.CommandButton> buttonsNow() {
         return commandBar == null ? List.of() : commandBar.apply(selection);
     }
 
@@ -1670,14 +1598,14 @@ public final class DukeGame {
 
     /**
      * What to do when one of the bar's buttons is pressed: which, what was selected, and where or at what
-     * for one that aims — see {@link uz.dukeengine.game.view.CommandPress}.
+     * for one that aims — see {@link uz.dukeengine.core.view.CommandPress}.
      *
      * <p>The handler's job is to turn that into one of the game's own {@link Command}s and
      * {@link #postCommand} it, which is the road every order already travels — queued from the input
      * thread, applied at the start of a frame, written to the replay log. Doing anything to the world
      * here instead would be doing it off the simulation thread and out of the log.
      */
-    public DukeGame onCommandPressed(Consumer<uz.dukeengine.game.view.CommandPress> pressed) {
+    public DukeGame onCommandPressed(Consumer<uz.dukeengine.core.view.CommandPress> pressed) {
         this.commandPressed = pressed;
         return this;
     }
@@ -1694,11 +1622,11 @@ public final class DukeGame {
     public void pressCommand(String id, Coord3D place, float facing, int target) {
         var handler = commandPressed;
         if (handler != null && id != null) {
-            handler.accept(new uz.dukeengine.game.view.CommandPress(id, selection, place, facing, target));
+            handler.accept(new uz.dukeengine.core.view.CommandPress(id, selection, place, facing, target));
         }
     }
 
-    private Consumer<uz.dukeengine.game.view.CommandPress> pressRefused;
+    private Consumer<uz.dukeengine.core.view.CommandPress> pressRefused;
 
     /**
      * What to do when an armed button is pressed where the simulation will not take it — its ghost red ({@link
@@ -1707,7 +1635,7 @@ public final class DukeGame {
      * InGameUI::displayCantBuildMessage} does. A press taken is heard by {@link #onCommandPressed} as ever, and not
      * here.
      */
-    public DukeGame onPressRefused(Consumer<uz.dukeengine.game.view.CommandPress> refused) {
+    public DukeGame onPressRefused(Consumer<uz.dukeengine.core.view.CommandPress> refused) {
         this.pressRefused = refused;
         return this;
     }
@@ -1716,7 +1644,7 @@ public final class DukeGame {
     public void refusePress(String id, Coord3D place, float facing) {
         var handler = pressRefused;
         if (handler != null && id != null) {
-            handler.accept(new uz.dukeengine.game.view.CommandPress(id, selection, place, facing, -1));
+            handler.accept(new uz.dukeengine.core.view.CommandPress(id, selection, place, facing, -1));
         }
     }
 
@@ -1738,12 +1666,12 @@ public final class DukeGame {
     /** The game's answer about an armed button's place, faced one way — see {@link #aimAnswer}. */
     @FunctionalInterface
     public interface AimAnswering {
-        uz.dukeengine.game.view.AimAnswer answer(String button, Coord3D place, float facing);
+        uz.dukeengine.core.view.AimAnswer answer(String button, Coord3D place, float facing);
     }
 
     /**
      * Whether an armed button's place would do, asked as the cursor moves — for a ghost to be drawn green or
-     * red. The game answers from the simulation's side: for a building, {@code RtsSimulation.fits}.
+     * red. The game answers from the simulation's side: for a building, the RTS's {@code RtsSimulation.fits}.
      *
      * <p>Asked with the facing the ghost has at that moment, because for anything but a round footprint the
      * answer depends on it: a long building turned across a slope is a different question from the same
@@ -1755,7 +1683,7 @@ public final class DukeGame {
      */
     public DukeGame aimFits(AimFits fits) {
         return aimAnswer(fits == null ? null
-                : (button, place, facing) -> new uz.dukeengine.game.view.AimAnswer(fits.test(button, place, facing),
+                : (button, place, facing) -> new uz.dukeengine.core.view.AimAnswer(fits.test(button, place, facing),
                         List.of()));
     }
 
@@ -1781,9 +1709,9 @@ public final class DukeGame {
         this.aim = buttonId == null || place == null ? null : new Aim(buttonId, place, facing);
     }
 
-    private uz.dukeengine.game.view.AimAnswer aimAnswerNow() {
+    private uz.dukeengine.core.view.AimAnswer aimAnswerNow() {
         var now = aim;
-        return now == null || aimAnswering == null ? uz.dukeengine.game.view.AimAnswer.YES
+        return now == null || aimAnswering == null ? uz.dukeengine.core.view.AimAnswer.YES
                 : aimAnswering.answer(now.button(), now.place(), now.facing());
     }
 
@@ -1800,7 +1728,7 @@ public final class DukeGame {
 
     /**
      * Thread-safe: the thing under the window's pointer, or -1 for none — so the next snapshot can say whether
-     * an attack on it by what is selected would be taken ({@link uz.dukeengine.game.view.WorldSnapshot#attackable}).
+     * an attack on it by what is selected would be taken ({@link uz.dukeengine.core.view.WorldSnapshot#attackable}).
      * One-way, like the selection: the window writes, the simulation reads.
      */
     public void setPointedAt(int unitId) {
@@ -1907,7 +1835,7 @@ public final class DukeGame {
      * What a click on the ground means where it is not a move: the reference's
      * {@code MSG_DO_SPECIAL_POWER_OVERRIDE_DESTINATION}, a particle beam or a gunship steered by any click on the
      * ground. Asked as {@link #contextOrder} is, with the point under the pointer where the pointer is on no thing; the
-     * snapshot carries the word, the pointer shows its picture, and the click sends {@code GameMessage.GameOrder(player,
+     * snapshot carries the word, the pointer shows its picture, and the click sends {@code GameOrder(player,
      * word, selection, place, null, 0)} instead of a move. A click on a thing still selects it or gives what
      * {@link #contextOrder} says.
      */
@@ -1939,7 +1867,7 @@ public final class DukeGame {
      * game's to name. Asked on the simulation thread as the snapshot is built, for the thing under the pointer and
      * what the local player has selected — a transport its infantry may board is {@code Enter}, a supply dock its
      * truck works at {@code Dock}. The snapshot carries the word ({@code WorldSnapshot.contextOrder}), the pointer
-     * shows the word's picture, and the click sends {@code GameMessage.GameOrder(player, word, selection, place,
+     * shows the word's picture, and the click sends {@code GameOrder(player, word, selection, place,
      * target, 0)} for the game's {@link #onOrder} to carry out. The engine never reads the word.
      */
     public DukeGame contextOrder(ContextOrder rule) {
@@ -1973,7 +1901,7 @@ public final class DukeGame {
     }
 
     /** The local player's own selected things, but {@code except}. */
-    private List<GameObject> selectedOwn(RtsSimulation world, GameObject except) {
+    private List<GameObject> selectedOwn(uz.dukeengine.core.GameLogic world, GameObject except) {
         var selected = new java.util.ArrayList<GameObject>();
         for (var id : selection) {
             var unit = world.findObject(new uz.dukeengine.core.thing.ObjectId(id));
@@ -1995,7 +1923,7 @@ public final class DukeGame {
      */
     public void floatText(String text, float x, float y, float z, int argb) {
         var world = logic;
-        world.postTask(() -> world.post(new uz.dukeengine.core.event.TextFloated(world.getFrame(),
+        driver.postTask(() -> world.post(new uz.dukeengine.core.event.TextFloated(world.getFrame(),
                 new Coord3D(x, y, z), text, argb)));
     }
 
@@ -2005,7 +1933,7 @@ public final class DukeGame {
      */
     public void floatTextAbout(uz.dukeengine.core.thing.ObjectId thing, String text, int argb) {
         var world = logic;
-        world.postTask(() -> {
+        driver.postTask(() -> {
             var about = world.findObject(thing);
             if (about != null) {
                 world.post(uz.dukeengine.core.event.TextFloated.about(world.getFrame(), about, text, argb));
@@ -2020,7 +1948,7 @@ public final class DukeGame {
      */
     public void effect(String name, float x, float y, float z, float facing) {
         var world = logic;
-        world.postTask(() -> world.effect(name, new Coord3D(x, y, z), facing));
+        driver.postTask(() -> world.effect(name, new Coord3D(x, y, z), facing));
     }
 
     /** A mark the map burns into its ground — see {@link #markGround}. */
@@ -2098,7 +2026,7 @@ public final class DukeGame {
 
     /** Thread-safe: run work on the simulation thread next frame. */
     public void runOnSimThread(Runnable task) {
-        logic.postTask(task);
+        driver.postTask(task);
     }
 
     /** Thread-safe: toggle the simulation pause state. */
@@ -2106,9 +2034,20 @@ public final class DukeGame {
         runOnSimThread(() -> logic.setGamePaused(!logic.isGamePaused()));
     }
 
-    /** The full simulation — the escape hatch to everything the engine can do. */
-    public RtsSimulation getLogic() {
+    /**
+     * The full simulation — the escape hatch to everything the engine can do. The kind of game's own world is its
+     * flavour's to give: {@code game.flavour(RtsFlavour.class).logic()}.
+     */
+    public uz.dukeengine.core.GameLogic getLogic() {
         return logic;
+    }
+
+    /** The world's armoury, where its weapons and bonus table go: an error for a kind whose things do not fight. */
+    private uz.dukeengine.combat.Armoury armoury() {
+        if (logic instanceof uz.dukeengine.combat.ArmedWorld armed) {
+            return armed.armoury();
+        }
+        throw new IllegalStateException(flavour.getClass().getName() + " makes a world with no weapons to give");
     }
 
     private void requireNotStarted() {
@@ -2116,129 +2055,4 @@ public final class DukeGame {
             throw new IllegalStateException("configure the game before start()");
         }
     }
-
-    // ---- starter content ----
-
-    /**
-     * A small, balanced starter faction so a first game needs no data files:
-     * a power plant, a barracks that builds riflemen, a rifleman and a tank.
-     */
-    public static final String STARTER_UNITS = """
-            Object
-              Name = PowerPlant
-              DisplayName = Power Plant
-              KindOf = [STRUCTURE, SELECTABLE, POWERED]
-              Geometry = Box
-                MajorRadius = 18
-                MinorRadius = 14
-                Height = 16
-              End
-              BuildCost = 600
-              BuildTime = 4.0
-              VisionRange = 30
-              Modules = [
-                ActiveBody
-                  MaxHealth = 400
-                End,
-                PowerModule
-                  Produces = 10
-                End
-              ]
-            End
-            Object
-              Name = Barracks
-              DisplayName = Barracks
-              KindOf = [STRUCTURE, SELECTABLE]
-              Geometry = Box
-                MajorRadius = 20
-                MinorRadius = 16
-                Height = 14
-              End
-              BuildCost = 500
-              BuildTime = 5.0
-              VisionRange = 35
-              Modules = [
-                ActiveBody
-                  MaxHealth = 600
-                End,
-                ProductionUpdate
-                  Builds = [Rifleman, Tank]
-                End,
-                PowerModule
-                  Consumes = 3
-                End,
-                ; Stall the line when the base outgrows its plants. Asked for here
-                ; rather than assumed by the engine — a game with no notion of
-                ; capacity simply leaves this off.
-                CapacityGate
-                End
-              ]
-            End
-            Object
-              Name = Rifleman
-              DisplayName = Rifleman
-              KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
-              Geometry = Cylinder
-                Radius = 3
-                Height = 9
-              End
-              BuildCost = 120
-              BuildTime = 1.5
-              VisionRange = 40
-              Modules = [
-                ActiveBody
-                  MaxHealth = 80
-                End,
-                MoveUpdate
-                  Speed = 14
-                End,
-                WeaponUpdate
-                  Damage = 9
-                  AttackRange = 22
-                  ReloadFrames = 12
-                End,
-                ExperienceModule
-                  ExperienceValue = 30
-                  ExperienceRequired = [60, 180, 360]
-                  LevelDamageBonus = [1.1, 1.2, 1.3]
-                  HealOnPromotion = Yes
-                End
-              ]
-            End
-            Object
-              Name = Tank
-              DisplayName = Battle Tank
-              KindOf = [VEHICLE, SELECTABLE, CAN_ATTACK]
-              Geometry = Box
-                MajorRadius = 8
-                MinorRadius = 5
-                Height = 6
-              End
-              BuildCost = 700
-              BuildTime = 6.0
-              VisionRange = 45
-              Modules = [
-                ActiveBody
-                  MaxHealth = 300
-                End,
-                MoveUpdate
-                  Speed = 20
-                  TurnRate = 120
-                End,
-                WeaponUpdate
-                  Damage = 40
-                  AttackRange = 30
-                  ReloadFrames = 45
-                  SplashRadius = 6
-                  DamageType = EXPLOSION
-                End,
-                ExperienceModule
-                  ExperienceValue = 100
-                  ExperienceRequired = [200, 500, 1000]
-                  LevelDamageBonus = [1.1, 1.2, 1.3]
-                  HealOnPromotion = Yes
-                End
-              ]
-            End
-            """;
 }

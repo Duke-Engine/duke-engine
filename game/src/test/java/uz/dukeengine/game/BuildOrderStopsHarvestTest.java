@@ -92,7 +92,7 @@ class BuildOrderStopsHarvestTest {
         local.spawn("Depot", me, 100f, 100f);
         local.spawn("Pile", me, 400f, 100f);
         local.spawn("Worker", me, 390f, 100f);
-        game.money(me, 1000);
+        game.flavour(uz.dukeengine.rts.RtsFlavour.class).money(me::getIndex, 1000);
         game.runHeadless(40);
         var worker = named(game, "Worker");
         var harvest = worker.findModule(HarvestUpdate.class);

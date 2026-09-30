@@ -84,7 +84,7 @@ class WeatherTest {
 
     // ---- set for a match ----
 
-    private static final uz.dukeengine.game.view.FallingWeather SNOW = new uz.dukeengine.game.view.FallingWeather(
+    private static final uz.dukeengine.core.view.FallingWeather SNOW = new uz.dukeengine.core.view.FallingWeather(
             "weather/flake.png", 100f, 1f, 3f, 4f, 0.0533f, 0.0275f, 0.5f);
 
     @Test

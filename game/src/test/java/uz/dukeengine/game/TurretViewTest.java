@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.module.ActiveBody;
 import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.thing.GameObject;
-import uz.dukeengine.game.view.Turrets;
+import uz.dukeengine.core.view.Turrets;
 import uz.dukeengine.rts.RtsTemplate;
 import uz.dukeengine.rts.module.Turret;
 
@@ -43,7 +43,7 @@ class TurretViewTest {
 
     @Test
     void theViewCarriesEachTurretsTurnAndPitch() {
-        var game = DukeGame.create("turrets").loadUnits(DukeGame.STARTER_UNITS).map(20, 20)
+        var game = DukeGame.create("turrets").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(20, 20)
                 .addUnits(List.of(RtsTemplate.named("Ship").module(new ActiveBody.Data(100f)).build()));
         var me = game.addPlayer("Me", Color.BLUE);
         game.localPlayer(me).spawn("Ship", me, 100f, 100f).spawn("Rifleman", me, 150f, 100f);

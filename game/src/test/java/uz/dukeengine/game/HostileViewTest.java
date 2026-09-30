@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 class HostileViewTest {
 
     private static boolean hostileTo(int viewer) {
-        var game = DukeGame.create("Sides").loadUnits(DukeGame.STARTER_UNITS).map(60, 60);
+        var game = DukeGame.create("Sides").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(60, 60);
         var owner = game.addPlayer("GLA", Color.GREEN);
         var ally = game.addPlayer("Ally", Color.YELLOW);
         var enemy = game.addPlayer("USA", Color.BLUE);

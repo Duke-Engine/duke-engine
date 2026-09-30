@@ -393,7 +393,7 @@ class CursorsTest {
 
         var order = DukeRtsApp.groundOrder(1, units, "Steer", ground);
 
-        assertEquals(new uz.dukeengine.rts.message.GameMessage.GameOrder(1, "Steer", units,
+        assertEquals(new uz.dukeengine.combat.message.GameOrder(1, "Steer", units,
                 new uz.dukeengine.core.math.Coord3D(120f, 80f, 4f), null, 0), order);
         assertEquals(null, DukeRtsApp.groundOrder(1, units, null, ground), "no word: the move it always was");
     }

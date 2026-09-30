@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.Map;
 import uz.dukeengine.core.event.ObjectDied;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.UnitView;
-import uz.dukeengine.game.view.WorldSnapshot;
+import uz.dukeengine.core.view.UnitView;
+import uz.dukeengine.core.view.WorldSnapshot;
 import uz.dukeengine.combat.event.WeaponFired;
 
 /**

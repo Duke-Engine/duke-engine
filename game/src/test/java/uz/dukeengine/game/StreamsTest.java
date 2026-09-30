@@ -6,7 +6,7 @@ import java.awt.Color;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.thing.GameObject;
-import uz.dukeengine.game.view.StreamView;
+import uz.dukeengine.core.view.StreamView;
 
 /** Things riding a stream, as the reference's {@code ProjectileStreamUpdate} keeps its shots, and the view of it. */
 class StreamsTest {
@@ -20,7 +20,7 @@ class StreamsTest {
     }
 
     private static Field field(int shots) {
-        var game = DukeGame.create("streams").loadUnits(DukeGame.STARTER_UNITS).map(40, 40);
+        var game = DukeGame.create("streams").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40);
         var me = game.addPlayer("Me", Color.BLUE);
         game.localPlayer(me);
         for (int shot = 0; shot < shots; shot++) {

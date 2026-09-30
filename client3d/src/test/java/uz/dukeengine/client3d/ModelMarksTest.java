@@ -41,10 +41,10 @@ class ModelMarksTest {
     @Test
     void aMoveTheGameGivesIsHintedForTwoUnitsAndNotForALoneBuilding() {
         var tanks = java.util.List.of(
-                new uz.dukeengine.game.view.UnitView(4, "Tank", 1, 0f, 0f, 0f, 100f, 100f, false, true, false, false, -1),
-                new uz.dukeengine.game.view.UnitView(7, "Tank", 1, 0f, 0f, 0f, 100f, 100f, false, true, false, false, -1));
+                new uz.dukeengine.core.view.UnitView(4, "Tank", 1, 0f, 0f, 0f, 100f, 100f, false, true, false, false, -1),
+                new uz.dukeengine.core.view.UnitView(7, "Tank", 1, 0f, 0f, 0f, 100f, 100f, false, true, false, false, -1));
         var factory = java.util.List.of(
-                new uz.dukeengine.game.view.UnitView(9, "WarFactory", 1, 0f, 0f, 0f, 900f, 900f, true, true, false, false,
+                new uz.dukeengine.core.view.UnitView(9, "WarFactory", 1, 0f, 0f, 0f, 900f, 900f, true, true, false, false,
                         0));
 
         assertTrue(DukeRtsApp.hintsMove(HINT, java.util.Set.of(4, 7), tanks), "two units: the model is laid");

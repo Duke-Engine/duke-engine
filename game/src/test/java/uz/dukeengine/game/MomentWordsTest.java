@@ -8,8 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.MomentWords;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.MomentWords;
+import uz.dukeengine.core.view.UnitView;
 import uz.dukeengine.combat.event.WeaponFired;
 
 /** The game's words for a thing's moments, held by its view while they last, for its looks to choose by. */
@@ -53,7 +53,7 @@ class MomentWordsTest {
 
     @Test
     void movingItHoldsItsMovingWordAndStandingItDoesNot() {
-        var game = DukeGame.create("moments").loadUnits(DukeGame.STARTER_UNITS).momentWords(WORDS).map(40, 40);
+        var game = DukeGame.create("moments").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).momentWords(WORDS).map(40, 40);
         var me = game.addPlayer("Me", Color.BLUE);
         game.localPlayer(me).spawn("Rifleman", me, 100f, 100f);
         game.runHeadless(1);
@@ -126,7 +126,7 @@ class MomentWordsTest {
                 uz.dukeengine.combat.module.Weapon.PreAttack.PER_SHOT, false);
         var sets = List.of(new uz.dukeengine.combat.module.WeaponSet(List.of(),
                 List.of(new uz.dukeengine.combat.module.WeaponSlot("Knife"))));
-        var game = DukeGame.create("moments").loadUnits(DukeGame.STARTER_UNITS).momentWords(words).map(40, 40)
+        var game = DukeGame.create("moments").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).momentWords(words).map(40, 40)
                 .addWeapons(List.of(knife))
                 .addUnits(List.of(uz.dukeengine.rts.RtsTemplate.named("Burton").visionRange(80f)
                         .module(new uz.dukeengine.core.module.ActiveBody.Data(100f))

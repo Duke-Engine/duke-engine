@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.game.DukeGame;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /**
  * Where a thing and its bar are on the screen, and the player's control groups, for a game's own drawing — the

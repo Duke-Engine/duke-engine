@@ -38,7 +38,7 @@ class OrdersHeardTest {
 
     @Test
     void aWeaponlessUnitHearsItsOrdersTheFrameTheyAreAppliedAndSendsItsSoldier() {
-        var game = DukeGame.create("hive").loadUnits(DukeGame.STARTER_UNITS).map(60, 40);
+        var game = DukeGame.create("hive").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(60, 40);
         var gla = game.addPlayer("GLA", Color.GREEN);
         var usa = game.addPlayer("USA", Color.BLUE);
         game.enemies(gla, usa).localPlayer(gla);

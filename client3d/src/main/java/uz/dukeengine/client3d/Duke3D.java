@@ -11,7 +11,7 @@ import uz.dukeengine.game.DukeGame;
  * play" for a full 3D RTS:
  *
  * <pre>{@code
- * var game = DukeGame.create("My RTS").loadUnits(DukeGame.STARTER_UNITS)...;
+ * var game = DukeGame.create("My RTS").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS)...;
  * var visuals = Visuals.create().unit("Tank", u -> u.model("Models/tank.gltf"));
  * Duke3D.launch(game, visuals);   // opens the 3D window, blocks until closed
  * }</pre>
@@ -332,7 +332,7 @@ public final class Duke3D {
      * and a right click or Escape gives it up; so does arming another. {@code ended} is told which, on the window's
      * thread, so the game can let its button up.
      */
-    public void aim(uz.dukeengine.game.view.CommandButton button, java.util.function.Consumer<AimOutcome> ended) {
+    public void aim(uz.dukeengine.core.view.CommandButton button, java.util.function.Consumer<AimOutcome> ended) {
         aim(button, 0f, null, ended);
     }
 
@@ -341,7 +341,7 @@ public final class Duke3D {
      * — and the pointer {@code pointer} while it is armed, a situation the game gave a picture with {@code
      * Visuals.pointer(situation, …)}; 0 and null for neither.
      */
-    public void aim(uz.dukeengine.game.view.CommandButton button, float radius, String pointer,
+    public void aim(uz.dukeengine.core.view.CommandButton button, float radius, String pointer,
             java.util.function.Consumer<AimOutcome> ended) {
         aim(button, radius, pointer, null, ended);
     }
@@ -351,7 +351,7 @@ public final class Duke3D {
      * 2 × radius} across, following the ground, its opacity throbbing as {@code decal} says — seen by this player
      * only; null for the circle.
      */
-    public void aim(uz.dukeengine.game.view.CommandButton button, float radius, String pointer, AimDecal decal,
+    public void aim(uz.dukeengine.core.view.CommandButton button, float radius, String pointer, AimDecal decal,
             java.util.function.Consumer<AimOutcome> ended) {
         later(client -> client.armFromGame(button, radius, pointer, decal, ended));
     }

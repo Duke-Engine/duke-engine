@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.CommandButton;
+import uz.dukeengine.core.view.CommandButton;
 
 /** A button on the game's own canvas aims as the client's bar aims: armed, put down, given up. */
 class AimingTest {

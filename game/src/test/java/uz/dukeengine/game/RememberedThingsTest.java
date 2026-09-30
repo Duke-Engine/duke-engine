@@ -14,7 +14,7 @@ import uz.dukeengine.core.module.KeepsDead;
 import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.module.MoveUpdate;
 import uz.dukeengine.core.thing.GameObject;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 import uz.dukeengine.rts.RtsTemplate;
 
 /**
@@ -50,7 +50,7 @@ class RememberedThingsTest {
     }
 
     private static Field field(boolean cells) {
-        var game = DukeGame.create("ghosts").loadUnits(DukeGame.STARTER_UNITS).map(60, 60)
+        var game = DukeGame.create("ghosts").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(60, 60)
                 .addUnits(List.of(
                         RtsTemplate.named("Bunker").visionRange(10f).module(new ActiveBody.Data(100f)).build(),
                         RtsTemplate.named("Tank").visionRange(10f).module(new ActiveBody.Data(100f))

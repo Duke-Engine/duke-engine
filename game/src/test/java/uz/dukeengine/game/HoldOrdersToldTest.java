@@ -41,7 +41,7 @@ class HoldOrdersToldTest {
     }
 
     private static Field field() {
-        var game = DukeGame.create("holds").loadUnits(DukeGame.STARTER_UNITS).map(30, 30)
+        var game = DukeGame.create("holds").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(30, 30)
                 .addUnits(List.of(RtsTemplate.named("Truck").module(new ActiveBody.Data(200f))
                         .module(new MoveUpdate.Data(30f)).module(new ContainModule.Data(4)).build()));
         var me = game.addPlayer("Me", Color.BLUE);

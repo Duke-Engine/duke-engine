@@ -258,8 +258,8 @@ class TerrainSceneTest {
         return seen;
     }
 
-    private static uz.dukeengine.game.view.UnitView unit(float x, float y) {
-        return new uz.dukeengine.game.view.UnitView(
+    private static uz.dukeengine.core.view.UnitView unit(float x, float y) {
+        return new uz.dukeengine.core.view.UnitView(
                 1, "Rogue", 0, x, y, 0f, 10f, 10f, false, true, false, false, -1);
     }
 

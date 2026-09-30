@@ -22,7 +22,7 @@ class GameOrderTest {
     private static final ObjectId SECOND = new ObjectId(2);
 
     private static DukeGame match() {
-        var game = DukeGame.create("order-test").loadUnits(DukeGame.STARTER_UNITS).map(80, 40);
+        var game = DukeGame.create("order-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(80, 40);
         var one = game.addPlayer("One", Color.BLUE);
         var two = game.addPlayer("Two", Color.RED);
         game.enemies(one, two);
@@ -32,8 +32,8 @@ class GameOrderTest {
         return game;
     }
 
-    private static GameMessage.GameOrder order(int player, String word, ObjectId target) {
-        return new GameMessage.GameOrder(player, word, List.of(), new Coord3D(300f, 200f, 0f), target, 42L);
+    private static uz.dukeengine.combat.message.GameOrder order(int player, String word, ObjectId target) {
+        return new uz.dukeengine.combat.message.GameOrder(player, word, List.of(), new Coord3D(300f, 200f, 0f), target, 42L);
     }
 
     /** What a machine heard: which order, on which frame, and whether the move posted beside it had been applied. */

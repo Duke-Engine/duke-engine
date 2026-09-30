@@ -1425,6 +1425,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         messageStream.propagate(this::onCommand);
         updateObjects();
         reapDestroyed();
+        eachFrame.run();
         simulate();
         scriptEngine.evaluate(this);
         // What was made this frame is told so by its end, so the frame's picture shows what making it set.
@@ -1493,6 +1494,43 @@ public abstract class GameLogic extends SubsystemInterface implements World {
      * sealed command hierarchy and pattern-matching over it exhaustively.
      */
     protected void onCommand(Command command) {
+    }
+
+    /** What runs this world does each frame — see {@link #eachFrame}. */
+    private Runnable eachFrame = () -> {
+    };
+
+    /**
+     * Do {@code work} every frame on the simulation thread, just before the world's own {@link #simulate}: what the
+     * runtime running this world does there — the orders posted from other threads, the game's per-frame code.
+     */
+    public final void eachFrame(Runnable work) {
+        this.eachFrame = work == null ? () -> {
+        } : work;
+    }
+
+    /** Where a command outside this world's own set goes — see {@link #onOtherCommand}. */
+    private java.util.function.Consumer<Command> otherCommands;
+
+    /**
+     * Hand the commands this world's own set does not know to {@code handler} — what runs the world, which knows the
+     * game's own: on the simulation thread, as each is applied.
+     */
+    public final void onOtherCommands(java.util.function.Consumer<Command> handler) {
+        this.otherCommands = handler;
+    }
+
+    /**
+     * A command this world's own set does not know, which a simulation's {@link #onCommand} passes on: the handler
+     * given {@link #onOtherCommands} hears it, and with none it is a mistake, logged and dropped.
+     */
+    protected void onOtherCommand(Command command) {
+        if (otherCommands == null) {
+            java.util.logging.Logger.getLogger(GameLogic.class.getName())
+                    .warning(() -> "ignoring a command of no set this world knows: " + command.getClass().getName());
+            return;
+        }
+        otherCommands.accept(command);
     }
 
     /**

@@ -2,7 +2,6 @@ package uz.dukeengine.game.script;
 
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.MoveUpdate;
-import uz.dukeengine.rts.player.RtsPlayer;
 import uz.dukeengine.combat.module.WeaponUpdate;
 import uz.dukeengine.core.player.Relationship;
 import uz.dukeengine.core.thing.GameObject;
@@ -121,42 +120,6 @@ public abstract class UnitScript {
         var weapon = unit.findModule(WeaponUpdate.class);
         if (weapon != null) {
             weapon.holdFire();
-        }
-    }
-
-    // ---- production (for scripts on factory structures) ----
-
-    /** This unit's owner's current money. */
-    protected final int money() {
-        var player = RtsPlayer.of(world, unit.getPlayerIndex());
-        return player == null ? 0 : player.getMoney();
-    }
-
-    /** How many units this structure has queued (0 if it can't produce). */
-    protected final int productionQueue() {
-        var production = unit.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
-        return production == null ? 0 : production.getQueueSize();
-    }
-
-    /**
-     * Queue one unit of {@code templateName} in this structure's production
-     * (must be on its build menu). Returns false if this unit is not a factory,
-     * the unit is off-menu, or the owner cannot afford it.
-     */
-    protected final boolean trainUnit(String templateName) {
-        var production = unit.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
-        var template = world.findTemplate(templateName);
-        if (production == null || template == null || !production.canBuild(templateName)) {
-            return false;
-        }
-        return production.queue(template);
-    }
-
-    /** Send this structure's finished units to a rally position. */
-    protected final void setRallyPoint(float x, float y) {
-        var production = unit.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
-        if (production != null) {
-            production.setRallyPoint(new Coord3D(x, y, 0f));
         }
     }
 }

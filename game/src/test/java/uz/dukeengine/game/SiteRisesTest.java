@@ -7,7 +7,7 @@ import java.awt.Color;
 import java.util.ArrayList;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 import uz.dukeengine.rts.message.GameMessage;
 
 /** How far a building is built reaches the client from the simulation's own progress, going up and coming down. */
@@ -58,7 +58,7 @@ class SiteRisesTest {
         var game = DukeGame.create("Rising").loadUnits(UNITS).map(40, 40);
         var me = game.addPlayer("Me", Color.CYAN);
         game.localPlayer(me).spawn("Dozer", me, 100f, 100f);
-        game.money(me, 1000);
+        game.flavour(uz.dukeengine.rts.RtsFlavour.class).money(me::getIndex, 1000);
         game.runHeadless(1);
         var dozer = game.getSnapshot().units().getFirst();
         game.postCommand(new GameMessage.Construct(me.getIndex(), new uz.dukeengine.core.thing.ObjectId(dozer.id()),

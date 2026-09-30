@@ -7,7 +7,7 @@ import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import uz.dukeengine.game.view.Turrets;
+import uz.dukeengine.core.view.Turrets;
 
 /** Turrets drawn turned and pitched as the simulation has them ({@code handleClientTurretPositioning}). */
 class TurretBonesTest {

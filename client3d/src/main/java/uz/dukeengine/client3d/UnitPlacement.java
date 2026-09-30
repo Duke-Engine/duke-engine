@@ -2,7 +2,7 @@ package uz.dukeengine.client3d;
 
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /**
  * Where a thing is drawn and how it is turned: at its own height — a jet at cruising height, a shell at the top of

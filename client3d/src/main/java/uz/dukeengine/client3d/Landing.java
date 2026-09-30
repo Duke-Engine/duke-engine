@@ -2,7 +2,7 @@ package uz.dukeengine.client3d;
 
 import com.jme3.math.Vector3f;
 import java.util.List;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /**
  * Whether a thing that has just left the world came down, or only left the light.

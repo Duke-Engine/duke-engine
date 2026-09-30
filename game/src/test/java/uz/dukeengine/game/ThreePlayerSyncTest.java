@@ -28,7 +28,7 @@ class ThreePlayerSyncTest {
     private static final int PORT = 17778;
 
     private static DukeGame newGame() {
-        var game = DukeGame.create("mp3-test").loadUnits(DukeGame.STARTER_UNITS);
+        var game = DukeGame.create("mp3-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
         var one = game.addPlayer("One", Color.BLUE);
         var two = game.addPlayer("Two", Color.RED);
         var three = game.addPlayer("Three", Color.GREEN);
