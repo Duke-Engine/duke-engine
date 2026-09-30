@@ -38,6 +38,8 @@ final class MinimapPicture {
     private int storeys;
     /** What unwalked ground fades to: the fog's own colour. */
     private ColorRGBA dark = ColorRGBA.Black;
+    /** What of the picture changed since it was last sent to the card. */
+    private final TextureTiles tiles = new TextureTiles();
 
     MinimapPicture() {
         texture.setMagFilter(Texture.MagFilter.Nearest); // a cell is a square, drawn crisp however large
@@ -61,6 +63,7 @@ final class MinimapPicture {
         texels = BufferUtils.createByteBuffer(width * height * BYTES_PER_TEXEL);
         image = new Image(Image.Format.RGBA8, width, height, texels, ColorSpace.Linear);
         texture.setImage(image);
+        tiles.resize(width, height);
         if (grid == null) {
             put(0, 0, GROUND);
             return;
@@ -84,6 +87,14 @@ final class MinimapPicture {
      * so to the card only where one did.
      */
     void paint(Discovery seen) {
+        paint(seen, null);
+    }
+
+    /**
+     * The same, what changed sent to the card by {@code renderer} a tile of the picture at a time ({@link
+     * TextureTiles}); null sends the whole picture again, as it always was.
+     */
+    void paint(Discovery seen, com.jme3.renderer.Renderer renderer) {
         if (!discovered || grid == null || seen == null) {
             return;
         }
@@ -101,7 +112,7 @@ final class MinimapPicture {
             }
         }
         if (painted) {
-            image.setUpdateNeeded();
+            tiles.send(renderer, texture, image, texels);
         }
     }
 
@@ -140,6 +151,7 @@ final class MinimapPicture {
             return false;
         }
         texels.put(at, red).put(at + 1, green).put(at + 2, blue).put(at + 3, (byte) 0xFF);
+        tiles.changed(cx, row, cx, row);
         return true;
     }
 

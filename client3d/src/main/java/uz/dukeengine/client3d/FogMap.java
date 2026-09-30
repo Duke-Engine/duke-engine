@@ -57,6 +57,8 @@ final class FogMap {
     /** Every texel to be drawn at the next update, as for a new map. */
     private boolean everyTexel = true;
     private final BitSet near = new BitSet();
+    /** What of the picture changed since it was last sent to the card. */
+    private final TextureTiles tiles = new TextureTiles();
 
     /** What colour nothing is. The game's, until a theme says otherwise. */
     private com.jme3.math.ColorRGBA tint;
@@ -73,6 +75,7 @@ final class FogMap {
         // card would convert on the way in would not come out the same colour.
         this.image = new Image(Image.Format.RGBA8, width, height, texels, ColorSpace.Linear);
         this.texture = new Texture2D(image);
+        tiles.resize(width, height);
         // The whole point of the texture: the card fills in between texels.
         // Nearest would put the squares straight back, only smaller ones.
         texture.setMagFilter(Texture.MagFilter.Bilinear);
@@ -108,6 +111,7 @@ final class FogMap {
             texels.put(at, red).put(at + 1, green).put(at + 2, blue);
         }
         image.setUpdateNeeded();
+        tiles.resize(width, height);
     }
 
     /** What colour the texel's dark is, packed {@code 0xRRGGBB}. */
@@ -144,6 +148,7 @@ final class FogMap {
         }
         fillWithDark();
         image.setUpdateNeeded();
+        tiles.resize(width, height);
         everyTexel = true;
     }
 
@@ -160,19 +165,24 @@ final class FogMap {
      * within a second of the hero stopping.
      */
     void update(Discovery seen) {
+        update(seen, null);
+    }
+
+    /**
+     * The same, what changed sent to the card by {@code renderer} a tile of the picture at a time ({@link
+     * TextureTiles}); null sends the whole picture again, as it always was.
+     */
+    void update(Discovery seen, com.jme3.renderer.Renderer renderer) {
         if (seen == null || worldWidth <= 0f || worldHeight <= 0f) {
             return;
         }
-        boolean moved;
         if (everyTexel) {
-            moved = redraw(seen, 0, width - 1, 0, height - 1);
+            redraw(seen, 0, width - 1, 0, height - 1);
             everyTexel = false;
         } else {
-            moved = redrawNear(seen, seen.movedCells());
+            redrawNear(seen, seen.movedCells());
         }
-        if (moved) {
-            image.setUpdateNeeded();
-        }
+        tiles.send(renderer, texture, image, texels);
     }
 
     /** The texels of every cell within one of a cell whose light moved; whether any of them changed. */
@@ -213,6 +223,10 @@ final class FogMap {
     /** Texels {@code fromX..toX} by {@code fromY..toY}, each asked how dark its ground is; whether any changed. */
     private boolean redraw(Discovery seen, int fromX, int toX, int fromY, int toY) {
         boolean moved = false;
+        int leftmost = Integer.MAX_VALUE;
+        int rightmost = -1;
+        int topmost = Integer.MAX_VALUE;
+        int bottommost = -1;
         for (int ty = fromY; ty <= toY; ty++) {
             // The image's first row is the map's far edge: v runs the other way,
             // and the shader that reads this agrees with it.
@@ -224,9 +238,14 @@ final class FogMap {
                 if (texels.get(at) != dark) {
                     texels.put(at, dark);
                     moved = true;
+                    leftmost = Math.min(leftmost, tx);
+                    rightmost = Math.max(rightmost, tx);
+                    topmost = Math.min(topmost, ty);
+                    bottommost = Math.max(bottommost, ty);
                 }
             }
         }
+        tiles.changed(leftmost, topmost, rightmost, bottommost);
         return moved;
     }
 

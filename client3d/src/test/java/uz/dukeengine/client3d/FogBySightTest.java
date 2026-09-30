@@ -29,4 +29,39 @@ class FogBySightTest {
         assertEquals(1f, discovery.lightAt(9, 1), 1e-4f, "in sight: whole");
         assertEquals(0f, discovery.lightAtPoint(130f, 20f), 1e-4f, "past the map's edge: black, not the edge repeated");
     }
+    /**
+     * Taken frame after frame, only the chunks the simulation wrote since the last view are read again — and the
+     * ground comes out as it does read whole, cell for cell.
+     */
+    @Test
+    void readOnlyWhereItChangedTheGroundIsWhatItIsReadWhole() {
+        var factory = new uz.dukeengine.core.thing.ThingFactory(uz.dukeengine.core.module.ModuleFactory.withDefaults());
+        factory.addTemplate(uz.dukeengine.core.thing.ThingTemplate.named("Scout").visionRange(60f).build());
+        var world = new uz.dukeengine.core.GameLogic(factory) {
+            @Override
+            protected void simulate() {
+            }
+        };
+        world.init();
+        var grid = new PathGrid(160, 90);
+        world.setPathGrid(grid);
+        world.setSightCells(15f, 12);
+        int me = world.getPlayerList().addPlayer("Me").getIndex();
+        var scout = world.spawn(world.findTemplate("Scout"), new uz.dukeengine.core.math.Coord3D(20f, 20f, 0f), me);
+        var fog = new Fog(false, 0f, 0.5f, 1f, 0, 100f, 64, 0x000000);
+        var kept = new Discovery(grid, fog);
+        for (int frame = 0; frame < 90; frame++) {
+            scout.setPosition(new uz.dukeengine.core.math.Coord3D(20f + frame * 17f, 20f + frame * 9f, 0f));
+            world.update();
+            var view = world.getSightCells().view(me);
+            kept.fromSight(view);
+            var whole = new Discovery(grid, fog);
+            whole.fromSight(view);
+            for (int cy = 0; cy < grid.getHeight(); cy++) {
+                for (int cx = 0; cx < grid.getWidth(); cx++) {
+                    assertEquals(whole.stateAt(cx, cy), kept.stateAt(cx, cy), "frame " + frame + " " + cx + "," + cy);
+                }
+            }
+        }
+    }
 }

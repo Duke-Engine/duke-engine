@@ -443,6 +443,58 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return sightCells;
     }
 
+    /** Whether stone and the floors above a looker hide the ground from it — see {@link #setSightHiddenByStone}. */
+    private boolean sightHiddenByStone;
+
+    /**
+     * Let stone and the floors above a looker hide the ground from it in each player's cells — see {@link
+     * SightCells.Ground}: a line of sight stops at the map's stone, the stone itself seen, and a floor standing above
+     * the looker's is seen and nothing on it in sight — a crawler's dark, kept by the simulation, saved with it and the
+     * same on every machine. Off, as the reference's is: a looker covers its disc.
+     */
+    public final void setSightHiddenByStone(boolean hidden) {
+        this.sightHiddenByStone = hidden;
+        if (sightCells != null) {
+            sightCells.setGround(hidden ? groundUnderTheCells(sightCells, pathGrid) : null);
+        }
+    }
+
+    /** The map's stone and storeys, each sight cell asked of the ground under its middle. */
+    private static SightCells.Ground groundUnderTheCells(SightCells cells, PathGrid grid) {
+        float size = cells.cellSize();
+        float ground = grid.getCellSize();
+        return new SightCells.Ground() {
+            @Override
+            public boolean stone(int cx, int cy) {
+                return grid.isTerrainBlocked(under(cx), under(cy));
+            }
+
+            @Override
+            public int storey(int cx, int cy) {
+                return grid.level(under(cx), under(cy));
+            }
+
+            private int under(int cell) {
+                return (int) Math.floor((cell + 0.5f) * size / ground);
+            }
+        };
+    }
+
+    /**
+     * What {@code player} has seen, to keep with a saved game — see {@link SightCells#remember}; null where the game
+     * keeps no cells.
+     */
+    public final SightCells.Memory getSightMemory(int player) {
+        return sightCells == null ? null : sightCells.remember(player);
+    }
+
+    /** {@code player}'s cells as a saved game kept them — see {@link SightCells#recall}; nothing where none are kept. */
+    public final void setSightMemory(int player, SightCells.Memory memory) {
+        if (sightCells != null && memory != null) {
+            sightCells.recall(player, memory);
+        }
+    }
+
     private void layTheSightCells() {
         if (sightCellSize <= 0f || pathGrid == null) {
             sightCells = null;
@@ -450,6 +502,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         }
         sightCells = new SightCells(sightCellSize, sightLinger, pathGrid.getWidth() * pathGrid.getCellSize(),
                 pathGrid.getHeight() * pathGrid.getCellSize());
+        if (sightHiddenByStone) {
+            sightCells.setGround(groundUnderTheCells(sightCells, pathGrid));
+        }
         for (int player : markedSeen) {
             sightCells.markSeen(player); // what was marked is marked on the new grid's cells too
         }

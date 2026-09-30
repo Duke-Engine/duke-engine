@@ -112,6 +112,7 @@ final class Discovery {
         easing.clear();
         moved.clear();
         everyTarget = true;
+        lastSight = null;
     }
 
     int getWidth() {
@@ -138,6 +139,7 @@ final class Discovery {
      * where anything of his that has a position also has eyes.
      */
     void reveal(List<UnitView> units, int localPlayer, float radius, String eyesOf) {
+        lastSight = null;
         visible.clear();
         if (radius <= 0f || width == 0) {
             return;
@@ -164,21 +166,54 @@ final class Discovery {
      */
     void fromSight(uz.dukeengine.core.SightCells.View sight) {
         darkPastTheEdge = true;
-        visible.clear();
-        explored.clear();
+        var before = lastSight;
+        lastSight = sight;
         if (sight == null) {
+            visible.clear();
+            explored.clear();
             return;
         }
-        for (int cy = 0; cy < height; cy++) {
+        if (before == null || before.width() != sight.width() || before.height() != sight.height()
+                || before.cellSize() != sight.cellSize() || before.everywhere() != sight.everywhere()) {
+            takeCells(sight, 0, 0, width - 1, height - 1);
+            return;
+        }
+        // Only the chunks written since: a chunk the simulation has not written since is the same array.
+        var chunks = sight.chunks();
+        var was = before.chunks();
+        float span = uz.dukeengine.core.SightCells.CHUNK * sight.cellSize();
+        for (int chunk = 0; chunk < chunks.length; chunk++) {
+            if (chunks[chunk] == was[chunk]) {
+                continue;
+            }
+            float x0 = (chunk % sight.chunksAcross()) * span;
+            float y0 = (chunk / sight.chunksAcross()) * span;
+            takeCells(sight, (int) Math.floor(x0 / cellSize) - 1, (int) Math.floor(y0 / cellSize) - 1,
+                    (int) Math.ceil((x0 + span) / cellSize) + 1, (int) Math.ceil((y0 + span) / cellSize) + 1);
+        }
+    }
+
+    /** The simulation's cells as last taken, whose chunks the next are told apart from; null for none. */
+    private uz.dukeengine.core.SightCells.View lastSight;
+
+    /** The cells {@code fromX..toX} by {@code fromY..toY} as the sight cell under each one's middle has it. */
+    private void takeCells(uz.dukeengine.core.SightCells.View sight, int fromX, int fromY, int toX, int toY) {
+        for (int cy = Math.max(0, fromY); cy <= Math.min(height - 1, toY); cy++) {
             float y = (cy + 0.5f) * cellSize;
-            for (int cx = 0; cx < width; cx++) {
+            for (int cx = Math.max(0, fromX); cx <= Math.min(width - 1, toX); cx++) {
+                int cell = cy * width + cx;
                 switch (sight.at((cx + 0.5f) * cellSize, y)) {
                     case IN_SIGHT -> {
-                        visible.set(cy * width + cx);
-                        explored.set(cy * width + cx);
+                        visible.set(cell);
+                        explored.set(cell);
                     }
-                    case SEEN -> explored.set(cy * width + cx);
+                    case SEEN -> {
+                        visible.clear(cell);
+                        explored.set(cell);
+                    }
                     case NEVER_SEEN -> {
+                        visible.clear(cell);
+                        explored.clear(cell);
                     }
                 }
             }
@@ -187,6 +222,7 @@ final class Discovery {
 
     /** The whole map open and in sight: for a player it was revealed to, and for a watcher. */
     void openEverything() {
+        lastSight = null;
         visible.set(0, width * height);
         explored.set(0, width * height);
     }

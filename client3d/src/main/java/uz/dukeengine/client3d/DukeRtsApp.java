@@ -1255,7 +1255,7 @@ final class DukeRtsApp extends SimpleApplication {
      * thing, and it comes free.
      */
     private void applyMinimapDiscovery() {
-        minimapPicture.paint(discovery);
+        minimapPicture.paint(discovery, renderer);
     }
 
     /** How low and how high a map's ground stands anywhere, in world units. */
@@ -3205,7 +3205,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (snapshot.revealed()) {
             discovery.openEverything(); // the map revealed to this player, or a watcher's seat
             discovery.soften(tpf);
-            fogMap.update(discovery);
+            fogMap.update(discovery, renderer);
             terrain.applyDiscovery(discovery);
             applyMinimapDiscovery();
             return;
@@ -3213,7 +3213,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (visuals.isFogBySight()) {
             discovery.fromSight(snapshot.sight()); // the simulation's cells of what this player has seen
             discovery.soften(tpf);
-            fogMap.update(discovery);
+            fogMap.update(discovery, renderer);
             terrain.applyDiscovery(discovery);
             applyMinimapDiscovery();
             return;
@@ -3239,7 +3239,7 @@ final class DukeRtsApp extends SimpleApplication {
         discovery.soften(tpf);
         // The picture is what the player actually sees the dark as; the terrain is
         // only told what is so far behind it that drawing it is waste.
-        fogMap.update(discovery);
+        fogMap.update(discovery, renderer);
         terrain.applyDiscovery(discovery);
         applyMinimapDiscovery();
     }
