@@ -1425,6 +1425,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         messageStream.propagate(this::onCommand);
         updateObjects();
         reapDestroyed();
+        eachFrame.run();
         simulate();
         scriptEngine.evaluate(this);
         // What was made this frame is told so by its end, so the frame's picture shows what making it set.
@@ -1493,6 +1494,19 @@ public abstract class GameLogic extends SubsystemInterface implements World {
      * sealed command hierarchy and pattern-matching over it exhaustively.
      */
     protected void onCommand(Command command) {
+    }
+
+    /** What runs this world does each frame — see {@link #eachFrame}. */
+    private Runnable eachFrame = () -> {
+    };
+
+    /**
+     * Do {@code work} every frame on the simulation thread, just before the world's own {@link #simulate}: what the
+     * runtime running this world does there — the orders posted from other threads, the game's per-frame code.
+     */
+    public final void eachFrame(Runnable work) {
+        this.eachFrame = work == null ? () -> {
+        } : work;
     }
 
     /** Where a command outside this world's own set goes — see {@link #onOtherCommand}. */

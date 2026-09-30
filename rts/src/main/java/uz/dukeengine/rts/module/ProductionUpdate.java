@@ -52,12 +52,18 @@ public final class ProductionUpdate extends UpdateModule {
      * ProductionUpdate::cancelUnitCreate}, {@code calcCostToBuild}), rather than what was paid for it.
      */
     public record Data(List<String> builds, List<String> researches, Exit exit, List<Door> doors, Words words,
-            boolean refundsPriceNow) implements ModuleData {
+            boolean refundsPriceNow) implements ModuleData, uz.dukeengine.core.module.Brings {
         public Data {
             builds = builds == null ? List.of() : List.copyOf(builds);
             researches = researches == null ? List.of() : List.copyOf(researches);
             doors = doors == null ? List.of() : List.copyOf(doors);
             words = words == null ? Words.NONE : words;
+        }
+
+        /** What its build list brings into the world: the units and buildings it makes. */
+        @Override
+        public List<String> brings() {
+            return builds;
         }
 
         /** A factory of one door or none, whose cancel gives back what was paid, as every one did before. */
