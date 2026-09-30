@@ -52,9 +52,11 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     private final ThingFactory thingFactory;
     private final PlayerList playerList;
     private final MessageStream messageStream = new MessageStream();
-    private final PartitionManager partition = new PartitionManager(this::getObjects);
+    private final PartitionManager partition = PartitionManager.indexed(this::getObjects);
     private final uz.dukeengine.core.script.ScriptEngine scriptEngine = new uz.dukeengine.core.script.ScriptEngine();
     private final List<GameObject> objects = new ArrayList<>();
+    /** The live objects by id — what {@link #findObject} answers from, where it looked at every object. */
+    private final java.util.HashMap<Integer, GameObject> byId = new java.util.HashMap<>();
     private PathGrid pathGrid; // null = open terrain (direct paths)
     private WorldTemplate world; // null = a game with no World block
     private boolean staticObstaclesDirty = true;
@@ -1402,6 +1404,8 @@ public abstract class GameLogic extends SubsystemInterface implements World {
 
     private void clearState() {
         objects.clear();
+        byId.clear();
+        partition.cleared();
         objectsCopy = null;
         revealedTo.clear();
         markedSeen.clear();
@@ -1579,6 +1583,10 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             return;
         }
         objects.removeAll(leaving);
+        for (var object : leaving) {
+            byId.remove(object.getId().value(), object);
+            partition.removed(object);
+        }
         objectsCopy = null;
         staticObstaclesDirty = true; // a demolished building reopens its ground
         if (!ridingEffects.isEmpty()) {
@@ -1649,8 +1657,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     public final GameObject createObject(ThingTemplate template) {
         var object = thingFactory.newObject(template, new ObjectId(nextObjectId++));
         object.setWorld(this);
-        objects.add(object);
-        objectsCopy = null;
+        enter(object);
         staticObstaclesDirty = true;
         return object;
     }
@@ -1753,6 +1760,8 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     /** Remove every object — used when loading a saved game over this world. */
     public final void clearWorld() {
         objects.clear();
+        byId.clear();
+        partition.cleared();
         objectsCopy = null;
     }
 
@@ -1769,19 +1778,26 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         var object = thingFactory.newObject(template, id);
         object.restored();
         object.setWorld(this);
-        objects.add(object);
-        objectsCopy = null;
+        enter(object);
         return object;
+    }
+
+    /** {@code object} comes into the world: last in its order, found by its id and where it stands. */
+    private void enter(GameObject object) {
+        objects.add(object);
+        byId.putIfAbsent(object.getId().value(), object);
+        partition.added(object);
+        objectsCopy = null;
+    }
+
+    @Override
+    public final void thingMoved(GameObject thing) {
+        partition.moved(thing);
     }
 
     /** The live object with this id, or {@code null} if none (or it was reaped). */
     public final GameObject findObject(ObjectId id) {
-        for (var object : objects) {
-            if (object.getId().equals(id)) {
-                return object;
-            }
-        }
-        return null;
+        return id == null ? null : byId.get(id.value());
     }
 
     /**

@@ -553,6 +553,9 @@ public final class GameObject {
             world.stillThingMoved(); // where it stands in the way moved with it
         }
         this.position = position;
+        if (world != null) {
+            world.thingMoved(this);
+        }
     }
 
     public float getOrientation() {

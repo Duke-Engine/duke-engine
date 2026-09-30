@@ -83,6 +83,10 @@ public interface World {
     default void stillThingsWordsChanged() {
     }
 
+    /** {@code thing} stands somewhere else now — told each move, for the world to know where its things stand. */
+    default void thingMoved(GameObject thing) {
+    }
+
     /** A still thing turned or moved: its footprint is laid on the ground again before the next route. */
     default void stillThingMoved() {
     }

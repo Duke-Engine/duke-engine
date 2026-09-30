@@ -14,20 +14,86 @@ import uz.dukeengine.core.thing.GameObject;
  * the nearest enemy?".
  *
  * <p>It reads the live object set from a supplier (the simulation) so it never
- * owns object lifetime. This implementation is an honest brute-force scan; the
- * faithful next step is SAGE's spatial cell grid for large object counts, but the
- * query API is what callers depend on and is what is fixed here.
+ * owns object lifetime. One made {@link #indexed} keeps SAGE's cells as well — the
+ * things by where they stand ({@link SpatialIndex}), told by its world each thing
+ * that comes in, moves and goes — and asks a question only of the things near the
+ * place asked about, so a question costs what is near it, not the world's size.
+ * One made plain looks at every thing.
  *
- * <p>Determinism: candidates are scanned in the source's order (object creation
- * order), and {@link #closestObject} breaks distance ties by lowest object id,
- * so results never depend on hash or iteration order.
+ * <p>Determinism: candidates are asked in the source's order (object creation
+ * order), and the closest-thing questions break distance ties by lowest object id,
+ * so results never depend on hash or iteration order — the same, thing for thing,
+ * indexed or not.
  */
 public final class PartitionManager extends SubsystemInterface {
 
     private final Supplier<List<GameObject>> objectSource;
+    /** Where the things stand, or null for a manager that looks at every thing. */
+    private final SpatialIndex index;
 
     public PartitionManager(Supplier<List<GameObject>> objectSource) {
+        this(objectSource, null);
+    }
+
+    private PartitionManager(Supplier<List<GameObject>> objectSource, SpatialIndex index) {
         this.objectSource = objectSource;
+        this.index = index;
+    }
+
+    /** A manager that keeps where the things stand — told of each by {@link #added}, {@link #moved}, {@link #removed}. */
+    public static PartitionManager indexed(Supplier<List<GameObject>> objectSource) {
+        return new PartitionManager(objectSource, new SpatialIndex());
+    }
+
+    /** {@code thing} came into the world. */
+    public void added(GameObject thing) {
+        if (index != null) {
+            index.add(thing);
+        }
+    }
+
+    /** {@code thing} stands somewhere else now. */
+    public void moved(GameObject thing) {
+        if (index != null) {
+            index.moved(thing);
+        }
+    }
+
+    /** {@code thing} left the world. */
+    public void removed(GameObject thing) {
+        if (index != null) {
+            index.remove(thing);
+        }
+    }
+
+    /** Every thing left the world. */
+    public void cleared() {
+        if (index != null) {
+            index.clear();
+        }
+    }
+
+    /**
+     * The things whose middle may stand within {@code reach} of the ground box, in creation order: those near it where
+     * the index knows, every thing where it does not.
+     */
+    private List<GameObject> candidates(float minX, float minY, float maxX, float maxY, float reach) {
+        if (index == null) {
+            return objectSource.get();
+        }
+        var near = index.near(minX - reach, minY - reach, maxX + reach, maxY + reach);
+        return near == null ? objectSource.get() : near;
+    }
+
+    /** The things whose middle may stand within {@code range} of {@code center}, measured along the ground. */
+    private List<GameObject> candidates(Coord3D center, float range) {
+        return candidates(center.x(), center.y(), center.x(), center.y(), range);
+    }
+
+    /** The things whose footprint may come within {@code reach} of {@code footprint}'s. */
+    private List<GameObject> candidates(Footprint footprint, float reach) {
+        float from = footprint.shape().footprintRadius() + reach + (index == null ? 0f : index.widest());
+        return candidates(footprint.center(), from);
     }
 
     @Override
@@ -45,7 +111,7 @@ public final class PartitionManager extends SubsystemInterface {
     /** All objects within {@code range} of {@code center} that pass {@code filter}. */
     public List<GameObject> objectsInRange(Coord3D center, float range, PartitionFilter filter) {
         var result = new ArrayList<GameObject>();
-        for (var candidate : objectSource.get()) {
+        for (var candidate : candidates(center, range)) {
             if (center.distance(candidate.getPosition()) <= range && filter.accept(candidate)) {
                 result.add(candidate);
             }
@@ -59,7 +125,7 @@ public final class PartitionManager extends SubsystemInterface {
      */
     public List<GameObject> objectsOverlapping(Footprint footprint, PartitionFilter filter) {
         var result = new ArrayList<GameObject>();
-        for (var candidate : objectSource.get()) {
+        for (var candidate : candidates(footprint, 0f)) {
             if (filter.accept(candidate) && footprint.overlaps(Footprint.of(candidate))) {
                 result.add(candidate);
             }
@@ -73,7 +139,7 @@ public final class PartitionManager extends SubsystemInterface {
      * at the first hit instead of collecting them all.
      */
     public GameObject firstOverlapping(Footprint footprint, PartitionFilter filter) {
-        for (var candidate : objectSource.get()) {
+        for (var candidate : candidates(footprint, 0f)) {
             if (filter.accept(candidate) && footprint.overlaps(Footprint.of(candidate))) {
                 return candidate;
             }
@@ -94,7 +160,7 @@ public final class PartitionManager extends SubsystemInterface {
     public GameObject closestWithinReach(Footprint from, float reach, PartitionFilter filter) {
         GameObject best = null;
         float bestSeparation = Float.MAX_VALUE;
-        for (var candidate : objectSource.get()) {
+        for (var candidate : candidates(from, reach)) {
             if (!filter.accept(candidate)) {
                 continue;
             }
@@ -119,7 +185,7 @@ public final class PartitionManager extends SubsystemInterface {
     public GameObject closestObject(Coord3D center, float range, PartitionFilter filter) {
         GameObject best = null;
         float bestDistance = Float.MAX_VALUE;
-        for (var candidate : objectSource.get()) {
+        for (var candidate : candidates(center, range)) {
             if (!filter.accept(candidate)) {
                 continue;
             }
