@@ -1509,7 +1509,8 @@ public final class DukeGame {
     }
 
     /**
-     * The same, for a command the game declared itself — see {@link #onCommand}.
+     * The same, for an order every side gives — a {@link uz.dukeengine.combat.message.CombatOrder}: a move, an attack,
+     * a stop — or a command the game declared itself — see {@link #onCommand}.
      *
      * <p>Separate from the overload above only so the standard orders keep their
      * exact type; both end up in the same queue, on the same frame boundary, in

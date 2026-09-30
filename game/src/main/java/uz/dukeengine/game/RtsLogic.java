@@ -262,8 +262,8 @@ final class RtsLogic extends RtsSimulation {
                 session.issueLocal(command); // ships to both peers, applied in lock-step
             } else {
                 if (session != null) {
-                    // The wire codec speaks the RTS set, and applying this one locally
-                    // would desync, so say so loudly — and say what does travel.
+                    // The wire codec speaks the RTS set and the orders every side gives, and applying this
+                    // one locally would desync, so say so loudly — and say what does travel.
                     var unsendable = command;
                     LOG.warning(() -> "game command cannot be sent to peers: "
                             + unsendable.getClass().getName() + "; send it as a GameMessage.GameOrder");

@@ -3,9 +3,90 @@
 Versions are `major.minor.patch`. While the major is 0, a minor may break what came before — and
 when it does, this page says exactly what to change and how.
 
+## 0.8.0
+
+Unreleased. The release after 0.6.0: 0.7.0 is never published, and what its section below lists ships in this one, so a
+game coming from 0.6.0 makes the changes both lists of what to change name.
+
+The engine is being split so that an RTS and an RPG are two libraries on one layer they share: `combat`, what both
+fight with, under `rts` and, in a later step, `rpg`. The split lands in steps, and this section grows with them.
+
+### What to change
+
+- **A new module, `combat`** (`uz.duke-engine:combat`), between `core` and `rts`. `rts` names it as part of its API, so
+  a game that depends on `rts`, `game` or `client3d` has it without naming it, and the bom lists it. Twenty-five classes
+  moved into it, each keeping its name — an import to change, and nothing else:
+
+  | Was | Is |
+  |---|---|
+  | `uz.dukeengine.rts.module.` `Weapon`, `WeaponUpdate`, `WeaponSet`, `WeaponSlot`, `WeaponStatus`, `WeaponAim`, `WeaponHold`, `Clip`, `AimOffset`, `TargetRule`, `WeaponBonus`, `DamageModifier`, `RateOfFireModifier`, `Shot`, `ProjectileLauncher`, `StatusUpdate`, `AutoHealUpdate`, `ExperienceModule`, `PursueUpdate`, `Engaging`, `GuardRules`, `Errand` | `uz.dukeengine.combat.module.` the same |
+  | `uz.dukeengine.rts.event.` `WeaponFired`, `ShotLanded` | `uz.dukeengine.combat.event.` the same |
+  | `uz.dukeengine.rts.message.OrderSource` | `uz.dukeengine.combat.message.OrderSource` |
+
+  A data file names a module by its class's simple name, so no `.duke` file changes, and a save reads as before.
+- **Move, attack and stop are the orders every side gives**: `GameMessage.MoveTo`, `AttackObject` and `StopMoving` are
+  `uz.dukeengine.combat.message.CombatOrder.MoveTo`, `AttackObject` and `StopMoving` — the same components and
+  constructors, and the same lines on the wire (`MOVE,…`, `ATTACK,…`, `STOP,…`), so a recording reads as ever. A
+  `switch` over `GameMessage` loses the three cases. An `RtsSimulation` of the game's own is told them by
+  `onCombatOrder(CombatOrder)`, no longer by `onRtsCommand`; `CommandCodec.decodeCommand` answers a `Command`, a
+  `CombatOrder` or a `GameMessage`, and `encodeCommand` takes either. `DukeGame.postCommand` takes them as it takes
+  any command.
+- `OrderListener.onOrder` is told a `Command` — a `CombatOrder` or a `GameMessage` — where it was told a `GameMessage`.
+- Whether a computer plays a side is core's: `Player.isComputer()` and `setComputer(boolean)`, which `RtsPlayer` has by
+  inheriting them, so a call reads as before.
+- `RtsModules.MODULES` begins with `CombatModules.MODULES`: the words an RTS's files may use are what they were, and
+  the aura's.
+
+### Combat, a layer of its own
+
+`combat` is what fights, whatever the genre — weapons and their bonuses, statuses, experience, healing over time,
+shots, closing on a target, the auras below and the orders every side gives — on `core` alone, so a world that is no
+RTS's fights with it: a `GameLogic` that is an `ArmedWorld`, its `armoury()` the world's arms settings — the weapons by
+name, the target rules, the weapon bonus table, how often weapons look, what is shown when hidden, the guard rules —
+with `CombatModules.withDefaults()` for its modules. `RtsSimulation` is one, and its `addWeapons`, `findWeapon`,
+`setTargetRules`, `setWeaponBonuses`, `setTargetScanFrames`, `setGuardRules` and the rest are its armoury's, doing
+what they did. A side's own damage bonus is asked of a player that is an `ArmedSide`, as `RtsPlayer` is, and a unit's
+of its `DamageModifier` modules as ever; whether a contained thing fires from its hold, of every `Hold` in the world,
+as `ContainModule` is. `CombatModuleGroups.PROGRESSION` is the editor's group for experience, the word
+`RtsModuleGroups.PROGRESSION` names.
+
+### A weapon's shots told to its own thing
+
+A module of a shooter that is a `ShotListener` is told each shot as it is fired (`onFired`), and each blow of it as it
+lands — a direct hit, a carried shot coming down, each thing a blast catches — with what the blow took after armour and
+the body's scale (`onDealt`): the frame a swing strikes, and what a lifesteal takes its share of. `BodyModule.worthOf`
+is that number, asked before the blow is taken.
+
+### Auras
+
+`AuraUpdate` is the reference's `PropagandaTowerBehavior` as a mechanism, which a leader's bonus and a fountain are as
+well. Every `PulseFrames` it looks who is within its `Radius` along the ground — its side and its allies, or whom its
+`Affects` names in a blast's words (`ALLIES`, `ENEMIES`, `NEUTRALS`, `SELF` for its own thing, `NOT_SIMILAR`,
+`NOT_AIRBORNE`), of its `Kinds` and of none of its `ExceptKinds`. Each thing found holds its `Words` for as long as it
+stays — what a `WeaponBonus` line, an armour set or a weapon set reads — and is given back its `HealShareEachSecond` of
+its most health, a little every frame, from one aura at a time: `BodyModule.healFromOne`, the reference's
+`attemptHealingFromSoleBenefactor`, a heal taken from one healer until that one has stopped for its frames. A thing no
+longer found gives the words back at the next look, but for a word another aura still holds it in, so where two
+leaders' reaches meet, leaving one takes nothing the other gives. Its `PulseEffect` plays riding its thing at each look,
+and its thing's `AuraListener`s are told who was found — what a fountain's mana or a pulse shown over each head needs.
+It gives nothing while its thing is dead, disabled, sold, hidden or in a hold it does not fire out of, nor while it is
+being built, and takes everything back then, when its thing dies, and when it is taken off its thing — a skill given
+up.
+
+```
+AuraUpdate
+  Radius = 150
+  PulseFrames = 60
+  Words = [ENTHUSIASTIC]
+  HealShareEachSecond = 0.01
+  ExceptKinds = [STRUCTURE]
+  PulseEffect = PropagandaTowerPulse
+End
+```
+
 ## 0.7.0
 
-Unreleased.
+Never published: what it lists ships in 0.8.0.
 
 ### What to change
 
