@@ -92,6 +92,13 @@ baked at, so a size costs a few milliseconds and a bar rebuilt at a resize bakes
 none draws in the bitmap fonts as before, and `BitmapFontBaker`'s files are the same to the byte. The card that opens over a slot is lettered the same
 way, its name in `TitleLettering` and the rest in `Lettering`.
 
+### A creature's own level
+
+A creature may carry a level of its own on its bar: the game names the start of a word in its `UnitBarLook`
+(`withLevelWord("level:")`) and sets `level:7` on the creature (`GameObject.setCondition`), and its medallion shows 7
+where it showed the floor's depth. The hero keeps his own level, a creature holding no such word the depth, and a game
+naming none sees its bars as they were.
+
 ### Clicks and bars on a hill
 
 A click on the ground — an order, an aimed skill, what the pointer is over — lands where the pointer is on a relief of

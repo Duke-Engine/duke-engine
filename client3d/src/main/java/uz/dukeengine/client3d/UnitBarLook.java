@@ -83,6 +83,8 @@ import java.util.List;
  * @param countSize    how big the reading inside a bar is
  * @param levelSize    how big the level in the medallion is
  * @param plain        the bar an RTS draws instead of all of this, or null — see {@link Plain}
+ * @param levelWord    the start of a word a creature may hold for a level of its own — {@code level:} for {@code
+ *                     level:7} — shown in its medallion for the floor's depth; null for the depth on every creature
  */
 public record UnitBarLook(
         List<Step> steps,
@@ -111,7 +113,8 @@ public record UnitBarLook(
         float bossNameSize,
         float countSize,
         float levelSize,
-        Plain plain) {
+        Plain plain,
+        String levelWord) {
 
     /**
      * The bar an RTS draws — the reference's {@code Drawable::drawHealthBar}: an outline and the fill inside it, as wide
@@ -145,7 +148,24 @@ public record UnitBarLook(
             float nameSize, float bossNameSize, float countSize, float levelSize) {
         this(steps, shortestAt, longestAt, shortest, longest, height, manaHeight, gap, lift, ring, ringEdge, ringGap,
                 arc, enemy, friend, mana, trough, tick, ringFace, ringRim, bossRim, lettering, nameSize, bossNameSize,
-                countSize, levelSize, null);
+                countSize, levelSize, null, null);
+    }
+
+    /** A look whose creatures have no levels of their own: every look from before one could. */
+    public UnitBarLook(List<Step> steps, int shortestAt, int longestAt, float shortest, float longest, float height,
+            float manaHeight, float gap, float lift, float ring, float ringEdge, float ringGap, float arc, int enemy,
+            int friend, int mana, int trough, int tick, int ringFace, int ringRim, int bossRim, int lettering,
+            float nameSize, float bossNameSize, float countSize, float levelSize, Plain plain) {
+        this(steps, shortestAt, longestAt, shortest, longest, height, manaHeight, gap, lift, ring, ringEdge, ringGap,
+                arc, enemy, friend, mana, trough, tick, ringFace, ringRim, bossRim, lettering, nameSize, bossNameSize,
+                countSize, levelSize, plain, null);
+    }
+
+    /** This look, its creatures' levels read from the words that begin {@code word} — see {@link #levelWord}. */
+    public UnitBarLook withLevelWord(String word) {
+        return new UnitBarLook(steps, shortestAt, longestAt, shortest, longest, height, manaHeight, gap, lift, ring,
+                ringEdge, ringGap, arc, enemy, friend, mana, trough, tick, ringFace, ringRim, bossRim, lettering,
+                nameSize, bossNameSize, countSize, levelSize, plain, word);
     }
 
     /** The plain bar of an RTS, and nothing of the dungeon's. */

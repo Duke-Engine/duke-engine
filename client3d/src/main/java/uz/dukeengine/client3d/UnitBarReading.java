@@ -84,6 +84,26 @@ record UnitBarReading(
         return isHero(unitId) ? heroLevel : depth;
     }
 
+    /**
+     * The same, for a creature that may hold a level of its own: the number after {@code levelWord} in the first of
+     * its words that begins with it — {@code level:7} — where the game names one; the hero's and the floor's as ever.
+     */
+    int levelOn(uz.dukeengine.game.view.UnitView view, String levelWord) {
+        if (isHero(view.id()) || levelWord == null || levelWord.isEmpty()) {
+            return levelOn(view.id());
+        }
+        for (var word : view.conditions()) {
+            if (word.startsWith(levelWord)) {
+                try {
+                    return Integer.parseInt(word.substring(levelWord.length()).trim());
+                } catch (NumberFormatException notANumber) {
+                    // a word that begins as a level does and says none: the floor's
+                }
+            }
+        }
+        return depth;
+    }
+
     /** How far round the ring has gone, or 0 for anybody who earns nothing. */
     float experienceOn(int unitId) {
         if (!isHero(unitId) || experienceNeeded <= 0) {

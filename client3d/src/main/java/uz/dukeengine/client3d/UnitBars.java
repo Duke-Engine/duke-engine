@@ -456,7 +456,7 @@ final class UnitBars {
         }
 
         bar.count.say(Math.round(view.health()) + "/" + Math.round(view.maxHealth()));
-        bar.level.say(Integer.toString(reading.levelOn(view.id())));
+        bar.level.say(Integer.toString(reading.levelOn(view, look.levelWord())));
         bar.level.colour(boss ? look.rim(true) : look.letteringColour());
         // A boss is torch-lit and set in the display face, which is the whole of
         // how one is told from an ordinary monster at a glance.

@@ -170,4 +170,25 @@ class UnitBarReadingTest {
             assertFalse(reading.isBoss(0));
         }
     }
+
+    private static uz.dukeengine.game.view.UnitView creature(int id, String... words) {
+        return new uz.dukeengine.game.view.UnitView(id, "Skeleton", 1, 0f, 0f, 0f, 40f, 40f, false, true, false,
+                false, -1, 0f, 0f, 0f, false, 0, java.util.List.of(), java.util.List.of(words), 1f, -1);
+    }
+
+    /**
+     * A creature holding a level of its own shows it: two skeletons on one floor, one {@code level:3} and one {@code
+     * level:8}, show 3 and 8; one holding none, and every creature where the game names no such word, the floor's.
+     */
+    @Test
+    void aCreatureWithALevelOfItsOwnShowsItAndTheRestTheFloors() {
+        var reading = UnitBarReading.read(REAL + "|deep=4");
+
+        assertEquals(3, reading.levelOn(creature(43, "level:3"), "level:"));
+        assertEquals(8, reading.levelOn(creature(77, "AWAKE", "level:8"), "level:"));
+        assertEquals(4, reading.levelOn(creature(78, "AWAKE"), "level:"), "holding none: the floor's");
+        assertEquals(4, reading.levelOn(creature(79, "level:many"), "level:"), "a word saying no number: the floor's");
+        assertEquals(4, reading.levelOn(creature(43, "level:3"), null), "a game naming no word: the floor's, as today");
+        assertEquals(1, reading.levelOn(creature(1, "level:9"), "level:"), "and the hero his own");
+    }
 }
