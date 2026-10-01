@@ -231,6 +231,15 @@ AuraUpdate
 End
 ```
 
+### A press on a thing answered as the game's own order
+
+A button that aims at a thing may name the game's word its press there is answered as
+(`CommandButton.answeredAs("use")`): pressed on a thing, it is marked and voiced as a click giving that word on the
+thing is — the ring of the game's own orders in their colour, a move's arrowheads where the look rings none, the thing
+flashed, or nothing (`Visuals.wordMark`), and the word's voice (`Visuals.orderAnswer`) — where it was answered by the
+attack's ring, as if the thing were to be fought: a key used on a gate is no attack on it. A button naming none is
+answered as an ability aimed at an enemy always was, and the constructors a game calls build one as before.
+
 ## 0.7.0
 
 Never published: what it lists ships in 0.8.0.
