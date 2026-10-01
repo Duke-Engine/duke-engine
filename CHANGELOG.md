@@ -269,6 +269,14 @@ A mover whose way bodies shut goes as near as they let it, and a walk that ends 
 
 A walk none of this touches goes exactly as before; one that met any of it ends differently, by design.
 
+### Where the bottom panel stands, told to a game's painter
+
+The `Canvas` a game's `Painter` is handed says where the client's bottom panel stands this frame
+(`Canvas.bottomPanel()`): the bar across the foot of the window, in the canvas's pixels, as tall as it is drawn — a
+window too narrow for its blocks squeezes it below the design's figure, which a game copying `192 × scale` missed — and
+null while it is hidden, as `barOf` says where a thing's bar is. A game keeps its own marks, and its pointer, off it by
+asking rather than by copying the panel's height. The blocks a game stood elsewhere are not in it.
+
 ## 0.7.0
 
 Never published: what it lists ships in 0.8.0.
