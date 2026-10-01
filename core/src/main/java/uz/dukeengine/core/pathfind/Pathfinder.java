@@ -783,9 +783,15 @@ public final class Pathfinder {
                 nearest = room >= 0 ? room : nearest; // no room near it: it squeezes there, as before
             }
             var there = grid.cellCenter(nearest % width, nearest / width);
-            var way = searcher.search(grid, from, there, clearance, false, tally, traffic);
-            if (way.isEmpty() && clearance > 0f) {
-                way = searcher.search(grid, from, there, 0f, false, tally, traffic);
+            // As near to it as the movers on the ground let it come: where they shut that cell or every way to it — a
+            // still enemy on a gate's threshold — the nearest cell the search reached, as a goal it can reach is gone
+            // for; with room first, squeezing where that gets nearer.
+            var way = searcher.search(grid, from, there, clearance, true, tally, traffic);
+            if (!way.reachesGoal() && clearance > 0f) {
+                var squeezed = searcher.search(grid, from, there, 0f, true, tally, traffic);
+                if (squeezed.reachesGoal() || awayFrom(squeezed, from, there) < awayFrom(way, from, there)) {
+                    way = squeezed;
+                }
             }
             return Path.partial(way.getWaypoints());
         }

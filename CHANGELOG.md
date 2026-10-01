@@ -231,6 +231,27 @@ AuraUpdate
 End
 ```
 
+### A walk that stops short says so
+
+A mover whose way bodies shut goes as near as they let it, and a walk that ends short of where it was sent says so
+(`MoveUpdate.stoppedShort`), where four of its ways of ending left it neither arrived nor short:
+
+- **A goal no zone of its holds** — a building, a gate, the usual end of a walk up to a thing — is gone for by a search
+  to the nearest cell of its zone that, where the movers on the ground shut that cell or every way to it, ends at the
+  nearest cell it reached: sent at a building whose doorstep a still enemy stands on, it walks up beside him, where it was
+  told at once that nowhere was nearer than where it stood. A goal it can reach is gone for as before.
+- **A route again round the movers it is stuck behind that finds nowhere nearer** has it stopped short, as a route given
+  that leads nowhere nearer has; it stood with its goal kept, not moving and not short, until something else moved it.
+- **Held between bodies**, it plans round all those it has been held by while it comes no nearer where it is going — added
+  up, not replaced — where it planned round each in turn and was sent from one into the other: so it gets round them,
+  finds there is no way round them all and stops short, or, held again only by those it plans round and no nearer for
+  its stuck limit, walks through them a while, and through them already, stops short.
+- **A step aside** goes on afterwards with the walk it was on whatever kind it was — to a place, exactly onto a point (a
+  thing to take or use), or into a band round a thing — and through a second step aside as through the first, where a
+  walk exactly to a point was dropped and its point still named as where it was going, so that it read as arrived.
+
+A walk none of this touches goes exactly as before; one that met any of it ends differently, by design.
+
 ## 0.7.0
 
 Never published: what it lists ships in 0.8.0.

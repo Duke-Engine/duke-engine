@@ -215,8 +215,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
      * route it had, or stands, and asks again each frame until it is given one.
      */
     private boolean waiting;
-    /** Where it goes on to by a route once it has walked the way it was given — see {@link #leave}. */
-    private Coord3D then;
+    /** What it goes on to once it has walked the way it was given — see {@link #leave}, {@link #stepAsideFor}. */
+    private Walk then;
     /** The points it has yet to go through, and the place it holds at their end — see {@link #moveThrough}. */
     private List<Coord3D> through = List.of();
     private Coord3D throughTo;
@@ -233,6 +233,10 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     /** Between {@code least} and {@code most} of {@code what}, outline to outline. */
     private record Band(GameObject what, float least, float most) {
+    }
+
+    /** A walk it goes on to: to the place round {@code to}, exactly onto it, or into a band round a thing. */
+    private record Walk(Coord3D to, boolean exactly, Band within) {
     }
     /** Where it stood when this frame began, and how far it went the frame before. */
     private Coord3D lastPosition;
@@ -263,6 +267,14 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     /** The movers it last planned a route round, and where it stood then. */
     private java.util.Set<uz.dukeengine.core.thing.ObjectId> roundLast = java.util.Set.of();
     private Coord3D roundFrom;
+    /**
+     * How far it stood from where it was going when it began planning round the movers it plans round now, and the frame
+     * it began: what it has come no nearer than since, while they are added up.
+     */
+    private float roundAway;
+    private int roundSince;
+    /** Whether it has walked through the movers it plans round since it last came nearer. */
+    private boolean passedRound;
 
     public MoveUpdate(GameObject owner, Data data) {
         super(owner);
@@ -439,7 +451,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         this.toPlace = false;
         this.exactly = false;
         this.destination = way;
-        this.then = destination;
+        this.then = new Walk(destination, false, null);
         this.waypoints = List.of(way);
         this.routeFrom = getOwner().getPosition();
         this.nearEndSince = -1;
@@ -458,7 +470,14 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         if (then == null) {
             return false;
         }
-        moveTo(then);
+        var walk = then;
+        if (walk.within() != null) {
+            moveWithin(walk.within().what(), walk.within().least(), walk.within().most());
+        } else if (walk.exactly()) {
+            moveExactlyTo(walk.to());
+        } else {
+            moveTo(walk.to());
+        }
         return true;
     }
 
@@ -706,7 +725,10 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         }
         if (routeAgainAt >= 0 && world != null && world.getFrame() >= routeAgainAt) {
             routeAgainAt = -1;
-            planRoute(); // its wait for a route asked too soon is over
+            planAgain(); // its wait for a route asked too soon is over
+            if (!isMoving()) {
+                return;
+            }
         }
         boolean slowed = owner.hasStatus(ObjectStatus.SLOWED);
         float step = slowed ? stepPerFrame * 0.5f : stepPerFrame;
@@ -1035,9 +1057,35 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         return true;
     }
 
-    /** A route round the movers it is stuck behind — or, asked for within 3 frames of the last, a second from now. */
+    /**
+     * A route round the movers it is stuck behind — or, asked for within 3 frames of the last, a second from now.
+     *
+     * <p>While it comes no nearer where it is going, those it plans round are added up, not replaced: held by one and
+     * then by another, it plans round both, where planning round each in turn sent it from one into the other for ever.
+     * Held again only by movers it plans round already, and no nearer for {@link #STUCK_FRAME_LIMIT}, it walks through
+     * them a while — as the reference lets a blocked and stuck unit go through units ({@code setIgnoreCollisionTime}) —
+     * and, through them already, it is as near as it gets.
+     */
     private void planAgainRound(World world, java.util.Set<uz.dukeengine.core.thing.ObjectId> stuckBehind) {
-        round = stuckBehind;
+        float away = destination == null ? 0f : across(getOwner().getPosition(), destination);
+        if (round.isEmpty() || away < roundAway - world.cellSize()) {
+            round = stuckBehind;
+            roundAway = away;
+            roundSince = world.getFrame();
+            passedRound = false;
+        } else if (!round.containsAll(stuckBehind)) {
+            var all = new java.util.HashSet<>(round);
+            all.addAll(stuckBehind);
+            round = all;
+        } else if (world.getFrame() - roundSince >= STUCK_FRAME_LIMIT) {
+            if (passedRound) {
+                stop(); // through them, and no nearer: as close as it is ever going to get
+                stoppedShort = true;
+                return;
+            }
+            passedRound = true;
+            passThroughUntil = world.getFrame() + STUCK_FRAMES;
+        }
         heldFrames = 0;
         if (world.getFrame() - lastRouteFrame < TOO_SOON_FRAMES) {
             if (routeAgainAt < 0) {
@@ -1045,7 +1093,19 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             }
             return;
         }
+        planAgain();
+    }
+
+    /**
+     * A route again from where it stands; one that leaves it nowhere nearer to go has it stopped short, as a route given
+     * that leads nowhere nearer has.
+     */
+    private void planAgain() {
         planRoute();
+        if (!waiting && !isMoving()) {
+            nowhereNearer();
+            routeWalked();
+        }
     }
 
     /**
@@ -1174,8 +1234,10 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     /**
      * Out of the way of {@code from}, going along {@code way}: to the nearest block it may have whose ground stays clear
-     * of it, for up to 10 seconds — going on to where it was sent afterwards if it was on its way somewhere — or, where
-     * there is no such block, through the movers in its way meanwhile ({@code aiMoveAwayFromUnit}).
+     * of it, for up to 10 seconds — going on afterwards with the walk it was on, if it was on its way somewhere: to a
+     * place, exactly onto a point — a thing to take or use — or into a band round a thing, and through a second step
+     * aside as through the first — or, where there is no such block, through the movers in its way meanwhile ({@code
+     * aiMoveAwayFromUnit}).
      */
     void stepAsideFor(GameObject from, List<Coord3D> way) {
         var owner = getOwner();
@@ -1196,7 +1258,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             passThroughUntil = world.getFrame() + ASIDE_FRAMES;
             return;
         }
-        var goOnTo = isMoving() && toPlace && asideUntil < 0 ? sentTo : null;
+        var goOnTo = asideUntil >= 0 ? then : isMoving() ? walkingNow() : null;
+        this.band = null;
         this.then = null;
         this.destination = aside;
         this.toPlace = true;
@@ -1208,6 +1271,17 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         this.then = goOnTo;
         this.asideUntil = world.getFrame() + ASIDE_FRAMES;
         this.asideFor = from.getId();
+    }
+
+    /** The walk it is on, to go on with once it has stepped aside; null for one it has no way back into. */
+    private Walk walkingNow() {
+        if (band != null) {
+            return new Walk(destination, true, band); // not yet planned: into the band once it is
+        }
+        if (toPlace) {
+            return sentTo == null ? null : new Walk(sentTo, false, null);
+        }
+        return exactly ? new Walk(destination, true, null) : null;
     }
 
     /** The way a mover is going from where it stands: its position and the waypoints left to it. */
