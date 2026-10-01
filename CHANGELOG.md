@@ -69,6 +69,8 @@ fight with, under `rts` and, in a later step, `rpg`. The split lands in steps, a
   y)` reads as before, `new View(cellSize, width, height, states)` still builds one from cells given row by row, and
   `states()` gives them back, a copy the size of the map.
 - `PathGrid.setLevel` refuses a storey below -32768 or above 32767: a cell's storey is kept in two bytes.
+- `Layer` has a component more, `renews`, after `follows`: a `Layer` made in code rather than read from a block passes
+  it, null where it says nothing.
 
 ### One seamless world
 
@@ -230,6 +232,12 @@ AuraUpdate
   PulseEffect = PropagandaTowerPulse
 End
 ```
+
+### A layer that renews, in data
+
+A `Layer` block may say `Renews = true`, and its `fields()` hand it on as `renews`, as they hand on `follows`: an aura
+that is carried to a new cast's end (`EffectLayer.Builder.renews`) is asked for in a game's files, where a block saying
+it was refused. A block that does not say it hands on nothing, and is drawn as before.
 
 ## 0.7.0
 
