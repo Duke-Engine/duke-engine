@@ -2,6 +2,7 @@ package uz.dukeengine.game;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -175,5 +176,20 @@ class CommandBarTest {
         assertTrue(rich.available());
         assertEquals(poor.id(), rich.id(), "the same button either way, so it keeps its place");
         assertEquals("", new CommandButton("x", null, null, null, true).label(), "a nameless one is blank");
+    }
+
+    /** A button says which of the game's words its press on a thing is answered as, and nothing else about it moves. */
+    @Test
+    void aButtonAnsweredAsTheGamesWordKeepsEverythingElseAndOneThatSaysNothingIsAnAttacks() {
+        var key = new CommandButton("use:3", "icons/key.png", "Key", "K", true, CommandButton.Aim.UNIT, null, 0f, 0.5f);
+
+        assertNull(key.answeredAs(), "said nothing: answered as an attack, as every button before");
+        assertNull(CommandButton.of("x", null, "x", null).answeredAs());
+        var used = key.answeredAs("use");
+        assertEquals("use", used.answeredAs());
+        assertEquals(new CommandButton("use:3", "icons/key.png", "Key", "K", true, CommandButton.Aim.UNIT, null, 0f,
+                0.5f, "use"), used, "and the rest as it was");
+        assertEquals("use", used.withProgress(0.75f).answeredAs(), "kept as its progress moves");
+        assertEquals(key, used.answeredAs(null));
     }
 }

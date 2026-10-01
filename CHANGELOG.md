@@ -69,6 +69,8 @@ fight with, under `rts` and, in a later step, `rpg`. The split lands in steps, a
   y)` reads as before, `new View(cellSize, width, height, states)` still builds one from cells given row by row, and
   `states()` gives them back, a copy the size of the map.
 - `PathGrid.setLevel` refuses a storey below -32768 or above 32767: a cell's storey is kept in two bytes.
+- `Layer` has a component more, `renews`, after `follows`: a `Layer` made in code rather than read from a block passes
+  it, null where it says nothing.
 
 ### One seamless world
 
@@ -230,6 +232,21 @@ AuraUpdate
   PulseEffect = PropagandaTowerPulse
 End
 ```
+
+### A layer that renews, in data
+
+A `Layer` block may say `Renews = true`, and its `fields()` hand it on as `renews`, as they hand on `follows`: an aura
+that is carried to a new cast's end (`EffectLayer.Builder.renews`) is asked for in a game's files, where a block saying
+it was refused. A block that does not say it hands on nothing, and is drawn as before.
+
+### A press on a thing answered as the game's own order
+
+A button that aims at a thing may name the game's word its press there is answered as
+(`CommandButton.answeredAs("use")`): pressed on a thing, it is marked and voiced as a click giving that word on the
+thing is — the ring of the game's own orders in their colour, a move's arrowheads where the look rings none, the thing
+flashed, or nothing (`Visuals.wordMark`), and the word's voice (`Visuals.orderAnswer`) — where it was answered by the
+attack's ring, as if the thing were to be fought: a key used on a gate is no attack on it. A button naming none is
+answered as an ability aimed at an enemy always was, and the constructors a game calls build one as before.
 
 ### A walk that stops short says so
 
