@@ -16,6 +16,8 @@ import java.util.Map;
  * @param cover  how much of the floor it hides, for fire that has to read on pale ground: 0 is
  *               Additive's, 1 is Alpha's
  * @param follows whether a layer on somebody goes where he goes; an AURA always does
+ * @param renews an AURA's: whether a cast of it on somebody it still burns on carries it to the new
+ *               cast's end — a status given again — where one that does not is dropped
  * @param life   the least and the most a particle lives, {@code [0.2, 0.5]}; so too
  *               {@code size}, {@code alpha} (start and end), {@code speed} and {@code colour}
  * @param measure UNITS, or REACH for a shape as wide as the skill's own radius
@@ -24,7 +26,7 @@ public record Layer(String name, String type, String texture, String blend, Floa
         Float rate, Float delay, Float seconds, Float sizeEase, Float sizeJitter, Float colourEase, Float fadeIn,
         Float fadeOut, Float spread, Float radius, Float height, Float gravity, Float drag, Float stretch,
         Float spin, Float turn, Float turnJitter, Float pulseRate, Float pulseDepth, Float lightPower,
-        Float lightRadius, Float fall, Float rise, Float riseEase, Boolean follows, List<Float> life,
+        Float lightRadius, Float fall, Float rise, Float riseEase, Boolean follows, Boolean renews, List<Float> life,
         List<Float> size, List<Float> alpha, List<Float> speed, List<Integer> colour, Integer lightColour,
         String direction, String at, String measure) {
 
@@ -71,6 +73,7 @@ public record Layer(String name, String type, String texture, String blend, Floa
         text(said, "rise", rise);
         text(said, "riseEase", riseEase);
         text(said, "follows", follows);
+        text(said, "renews", renews);
         pair(said, "lifeMin", "lifeMax", life);
         pair(said, "sizeStart", "sizeEnd", size);
         pair(said, "alphaStart", "alphaEnd", alpha);

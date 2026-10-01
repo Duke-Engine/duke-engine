@@ -88,6 +88,9 @@
 ;                the whole Height. RiseEase, the curve it crosses along
 ;   Follows      Yes keeps a layer on whoever it happened to, going where he goes,
 ;                for as long as it lasts. An AURA always does
+;   Renews       an AURA's: Yes carries it to the new cast's end when it is cast
+;                again on whoever it still burns on -- a status given again --
+;                where one that does not is dropped
 ;   Order        there is no such field: layers that start together are drawn in
 ;                the order they are written, each over the last -- so what lies
 ;                on the floor goes first, smoke next, and fire and light last.

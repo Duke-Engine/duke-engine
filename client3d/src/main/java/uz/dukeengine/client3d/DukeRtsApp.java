@@ -4476,6 +4476,20 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /** An order given on {@code thing}, answered: its mark laid there, the thing flashed, the selection's voice. */
+    private void answer(ThingAnswer answer, uz.dukeengine.core.view.UnitView thing, List<ObjectId> units) {
+        if (answer.mark() != null) {
+            markOrder(thing.x(), thing.y(), thing.id(), answer.mark());
+        }
+        if (answer.flash()) {
+            flash(thing.id(), visuals.getSelectionFlash() != null
+                    ? visuals.getSelectionFlash() : Visuals.SelectionFlashLook.REFERENCE);
+        }
+        if (answer.voice() != null) {
+            answerOrder(answer.voice(), units);
+        }
+    }
+
     /** An order the player gave the selection: {@code ordered.<order>.<template>} for the first of it. */
     private void answerOrder(String order, List<ObjectId> units) {
         if (!units.isEmpty()) {
@@ -4524,17 +4538,7 @@ final class DukeRtsApp extends SimpleApplication {
             // The order the game said a click on this thing gives — see DukeGame.contextOrder.
             game.postCommand(new uz.dukeengine.combat.message.GameOrder(local, snapshot.contextOrder(), units,
                     new Coord3D(enemy.view.x(), enemy.view.y(), 0f), new ObjectId(enemy.view.id()), 0));
-            switch (visuals.wordMarkFor(snapshot.contextOrder())) {
-                case MARK -> markOrder(enemy.view.x(), enemy.view.y(), enemy.view.id(),
-                        visuals.getOrderMark().ringsContextOrders()
-                                ? OrderMarkers.Kind.CONTEXT : OrderMarkers.Kind.MOVE);
-                case FLASH -> flash(enemy.view.id(), visuals.getSelectionFlash() != null
-                        ? visuals.getSelectionFlash() : Visuals.SelectionFlashLook.REFERENCE);
-                case NONE -> {
-                    // the game named this order answered by nothing drawn
-                }
-            }
-            answerWord(snapshot.contextOrder(), units);
+            answer(ThingAnswer.toTheWord(snapshot.contextOrder(), visuals), enemy.view, units);
             return;
         }
         // With the force-attack key held, a neutral thing is fired on too — not a friend: the simulation never
@@ -5112,8 +5116,7 @@ final class DukeRtsApp extends SimpleApplication {
             var press = aiming.target(unit.view.id());
             forgetTheAim();
             game.pressCommand(press.button().id(), null, 0f, press.target());
-            answerOrder(button.id(), selectedIds());
-            markOrder(unit.view.x(), unit.view.y(), unit.view.id(), OrderMarkers.Kind.ATTACK);
+            answer(ThingAnswer.toThePress(button, visuals), unit.view, selectedIds());
             return;
         }
         var ground = pickGround();

@@ -38,9 +38,13 @@ package uz.dukeengine.core.view;
  *                  -135, fronts to the camera, and a ghost drawn square-on showed a different footprint from
  *                  the one that was built. The reference game starts its placement icon at the thing's own
  *                  angle and deliberately not the camera's, so it faces the player until he turns it
+ * @param answeredAs for a button that aims at a thing, the game's word its press there is answered as: marked and
+ *                  voiced as a click giving that word on a thing is ({@code Visuals.wordMark}, {@code orderAnswer}) —
+ *                  a key used on a gate is the game's own order, no attack on it. Null for an attack's answer, the
+ *                  ring in the attack's colour and the button's own name voiced, as an ability aimed at an enemy is
  */
 public record CommandButton(String id, String picture, String label, String hotkey, boolean available,
-        Aim aim, String ghost, float facing, float progress) {
+        Aim aim, String ghost, float facing, float progress, String answeredAs) {
 
     /** What {@link #progress} is for a button that shows none. */
     public static final float NO_PROGRESS = -1f;
@@ -65,10 +69,16 @@ public record CommandButton(String id, String picture, String label, String hotk
         aim = aim == null ? Aim.NOW : aim;
     }
 
+    /** A button whose press on a thing is answered as an attack's: every button from before the game could say. */
+    public CommandButton(String id, String picture, String label, String hotkey, boolean available, Aim aim,
+            String ghost, float facing, float progress) {
+        this(id, picture, label, hotkey, available, aim, ghost, facing, progress, null);
+    }
+
     /** A button with no progress to show: every button from before a queue could be drawn on the bar. */
     public CommandButton(String id, String picture, String label, String hotkey, boolean available, Aim aim,
             String ghost, float facing) {
-        this(id, picture, label, hotkey, available, aim, ghost, facing, NO_PROGRESS);
+        this(id, picture, label, hotkey, available, aim, ghost, facing, NO_PROGRESS, null);
     }
 
     /**
@@ -77,7 +87,15 @@ public record CommandButton(String id, String picture, String label, String hotk
      */
     public CommandButton withProgress(float share) {
         return new CommandButton(id, picture, label, hotkey, available, aim, ghost, facing,
-                Math.clamp(share, 0f, 1f));
+                Math.clamp(share, 0f, 1f), answeredAs);
+    }
+
+    /**
+     * The same button, its press on a thing answered as the game's order {@code word} is — see {@link #answeredAs()};
+     * null for an attack's answer again.
+     */
+    public CommandButton answeredAs(String word) {
+        return new CommandButton(id, picture, label, hotkey, available, aim, ghost, facing, progress, word);
     }
 
     /** A button sent the moment it is pressed. */
