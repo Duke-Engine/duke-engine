@@ -961,7 +961,7 @@ final class DukeRtsApp extends SimpleApplication {
         movieScreen.place(movie.movie(), cam.getWidth(), cam.getHeight());
     }
 
-    /** Where the world's points and things' bars are on the screen, for the game's drawing this frame. */
+    /** Where the world's points, things' bars and the bottom panel are on the screen, for the game's drawing. */
     private final CanvasFrame.World canvasWorld = new CanvasFrame.World() {
         @Override
         public Canvas.Point screenOf(float x, float y, float height) {
@@ -971,6 +971,11 @@ final class DukeRtsApp extends SimpleApplication {
         @Override
         public Canvas.Box barOf(int id) {
             return worldShown() ? CanvasFrame.fromTheBottom(unitBars.barOf(id), cam.getHeight()) : null;
+        }
+
+        @Override
+        public Canvas.Box bottomPanel() {
+            return heroPanel == null ? null : heroPanel.standing();
         }
     };
 

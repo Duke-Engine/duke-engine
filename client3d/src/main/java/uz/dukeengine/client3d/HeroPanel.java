@@ -907,6 +907,16 @@ final class HeroPanel {
     }
 
     /**
+     * Where the bar stands across the foot of the window, in the window's pixels from its top left — as tall as it
+     * is drawn, squeezed into a window too narrow for its blocks or not — or null while it is hidden. The blocks the
+     * game stood elsewhere are not in it.
+     */
+    Canvas.Box standing() {
+        float tall = heightPixels();
+        return tall <= 0f ? null : new Canvas.Box(0f, screenHeight - tall, screenWidth, tall);
+    }
+
+    /**
      * The skill slot under a screen point, or {@code null} for none.
      *
      * <p>The bar is drawn in design pixels and scaled to the window, so a cursor

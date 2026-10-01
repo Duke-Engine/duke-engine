@@ -164,4 +164,14 @@ public interface Canvas {
     default Box barOf(int id) {
         return null;
     }
+
+    /**
+     * Where the client's bottom panel stands this frame — the bar across the foot of the window, as tall as it is
+     * drawn, squeezed into a window too narrow for its blocks or not — or null while it is hidden: for a game's own
+     * marks kept off it, and its pointer, which is over the panel and not the world there, as {@link #barOf} says where
+     * a thing's bar is.
+     */
+    default Box bottomPanel() {
+        return null;
+    }
 }

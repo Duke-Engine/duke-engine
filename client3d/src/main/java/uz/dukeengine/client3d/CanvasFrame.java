@@ -65,7 +65,10 @@ final class CanvasFrame implements Canvas {
         this.world = world;
     }
 
-    /** Where the world's points and things' bars are on the screen this frame — see {@link Canvas#screenOf}. */
+    /**
+     * Where the world's points and things' bars are on the screen this frame, and the bottom panel — see {@link
+     * Canvas#screenOf}, {@link Canvas#bottomPanel}.
+     */
     interface World {
         World NONE = new World() {
             @Override
@@ -77,11 +80,18 @@ final class CanvasFrame implements Canvas {
             public Canvas.Box barOf(int id) {
                 return null;
             }
+
+            @Override
+            public Canvas.Box bottomPanel() {
+                return null;
+            }
         };
 
         Canvas.Point screenOf(float x, float y, float height);
 
         Canvas.Box barOf(int id);
+
+        Canvas.Box bottomPanel();
     }
 
     private final World world;
@@ -94,6 +104,11 @@ final class CanvasFrame implements Canvas {
     @Override
     public Canvas.Box barOf(int id) {
         return world.barOf(id);
+    }
+
+    @Override
+    public Canvas.Box bottomPanel() {
+        return world.bottomPanel();
     }
 
     /**
