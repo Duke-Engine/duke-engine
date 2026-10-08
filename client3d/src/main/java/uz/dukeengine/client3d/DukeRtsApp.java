@@ -3168,6 +3168,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         terrain.streamWithin(visuals.getStreamGround());
         terrain.blendWith(visuals.getPaintBlend());
+        terrain.quarterWith(visuals.isPaintInQuarters());
         terrain.rebuildLooked(builtFrom, currentKit, builtPaint, visuals.getGroundLight(), kitsOfTheCells(builtFrom),
                 game.getMapRecord() instanceof uz.dukeengine.core.map.Dressed dressed ? dressed.scenery()
                         : java.util.List.of());

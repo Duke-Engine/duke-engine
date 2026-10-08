@@ -2755,6 +2755,22 @@ public final class Visuals {
         return paintCliffs;
     }
 
+    private boolean paintInQuarters;
+
+    /**
+     * Cut each cell of a blended map's ground two by two: four times the corners, each lit by the relief round it and
+     * carrying its share of the blend, for hills lit more smoothly and borders blended more truly. The ground drawn is
+     * the ground walked either way — every corner stands on the relief's own triangles. Off: a cell a quad, as ever.
+     */
+    public Visuals paintInQuarters(boolean quarters) {
+        this.paintInQuarters = quarters;
+        return this;
+    }
+
+    public boolean isPaintInQuarters() {
+        return paintInQuarters;
+    }
+
     private int streamGround;
 
     /**

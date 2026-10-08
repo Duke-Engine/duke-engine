@@ -354,6 +354,13 @@ E16, in parts.
   down from above — one copy to `coverage` cells, over a narrow band so a cliff's edge is not a line: a map need not lay
   `@PictureCorners` on its cliffs. On a blended map a `#` cell draws nothing: its stone is its relief. A map drawn a
   surface a cell keeps its stone blocks and its picture corners, as before.
+- **Smooth relief.** Blended ground is lit smoothly by default: each corner by the relief round it, with or without
+  `Visuals.groundLight`. `Visuals.paintInQuarters(true)` cuts each of its cells two by two — four times the corners,
+  each lit by the relief and carrying its share of the blend, so hills are lit more smoothly and borders blended more
+  truly — every corner on the relief's own triangles, each quarter cut along the cell's own diagonal: the ground drawn
+  is the ground walked. Ground drawn a surface a cell keeps its flat cells, so a Generals map looks as it did. Measured
+  blended and streamed on the 900 × 900 world of six surfaces: no frame walking across it over 3.6 ms, 4.3 ms in
+  quarters.
 
 ### A game's own order, applied at once
 

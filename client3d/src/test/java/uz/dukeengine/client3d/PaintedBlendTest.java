@@ -187,4 +187,69 @@ class PaintedBlendTest {
                 .rebuild(MapTerrain.of(map, 10f, 0f), null, GroundPaint.of(map));
         assertTrue(!named(plain, "rock").isEmpty(), "this map has stone, or the check above proves nothing");
     }
+
+    /**
+     * Cut in quarters, blended ground has four times the corners, every corner and every triangle's middle on the
+     * relief the pathfinder walks — the ground drawn is the ground walked — lit by the relief round it, and a cell's middle
+     * carrying the average of its corners' weights.
+     */
+    @Test
+    void cutInQuartersEveryCornerAndEveryTriangleLiesOnTheReliefAndIsLitSmoothly() {
+        var map = field();
+        var grid = MapTerrain.of(map, 10f, 0f);
+        var whole = new Node("whole");
+        blending(whole, false).rebuild(grid, null, GroundPaint.of(map));
+        var quartered = new Node("quartered");
+        var scene = blending(quartered, false);
+        scene.quarterWith(true);
+        scene.rebuild(grid, null, GroundPaint.of(map));
+        whole.updateGeometricState();
+        quartered.updateGeometricState();
+
+        int plain = named(whole, "blended").stream().mapToInt(g -> g.getMesh().getVertexCount()).sum();
+        int cut = named(quartered, "blended").stream().mapToInt(g -> g.getMesh().getVertexCount()).sum();
+        assertEquals(4 * plain, cut);
+        var keys = List.of("g", "s", "r");
+        boolean middleChecked = false;
+        for (var geometry : named(quartered, "blended")) {
+            var place = geometry.getWorldTranslation();
+            var mesh = geometry.getMesh();
+            var p = mesh.getFloatBuffer(VertexBuffer.Type.Position);
+            var n = mesh.getFloatBuffer(VertexBuffer.Type.Normal);
+            var w = mesh.getFloatBuffer(VertexBuffer.Type.TexCoord2);
+            var idx = mesh.getIndexBuffer();
+            for (int v = 0; v < mesh.getVertexCount(); v++) {
+                float x = p.get(v * 3) + place.x;
+                float z = p.get(v * 3 + 2) + place.z;
+                assertEquals(grid.reliefHeight(new uz.dukeengine.core.math.Coord3D(x, z, 0f)), p.get(v * 3 + 1), 1e-4f);
+                var smooth = TerrainScene.smoothNormal(grid, x, z);
+                assertEquals(smooth.y, n.get(v * 3 + 1), 1e-5f, "lit by the relief round it");
+                if (!middleChecked && Math.abs(x % 10f - 5f) < 1e-3f && Math.abs(z % 10f - 5f) < 1e-3f) {
+                    int cx = (int) (x / 10f);
+                    int cy = (int) (z / 10f);
+                    float average = 0f;
+                    for (int[] c : new int[][] {{cx, cy}, {cx + 1, cy}, {cx + 1, cy + 1}, {cx, cy + 1}}) {
+                        average += PaintWeights.at(map.paint(), keys, WIDE, DEEP, c[0], c[1])[0] / 4f;
+                    }
+                    if (geometry.getMesh().getFloatBuffer(VertexBuffer.Type.TexCoord2) != null && average > 0f) {
+                        // slot 0 is the chunk's first surface; grass, where any corner of this cell shows it
+                        assertEquals(average, w.get(v * 4), 1e-5f, "the middle: its corners' average");
+                        middleChecked = true;
+                    }
+                }
+            }
+            for (int t = 0; t + 2 < idx.size(); t += 3) {
+                int a = idx.get(t);
+                int b = idx.get(t + 1);
+                int c = idx.get(t + 2);
+                float x = (p.get(a * 3) + p.get(b * 3) + p.get(c * 3)) / 3f + place.x;
+                float z = (p.get(a * 3 + 2) + p.get(b * 3 + 2) + p.get(c * 3 + 2)) / 3f + place.z;
+                float y = (p.get(a * 3 + 1) + p.get(b * 3 + 1) + p.get(c * 3 + 1)) / 3f;
+                // the relief answers a point in 256ths of a cell, in whole numbers: a middle is within its rounding
+                assertEquals(grid.reliefHeight(new uz.dukeengine.core.math.Coord3D(x, z, 0f)), y, 0.02f,
+                        "a triangle in one of the relief's own");
+            }
+        }
+        assertTrue(middleChecked, "a cell middle with grass round it was found");
+    }
 }

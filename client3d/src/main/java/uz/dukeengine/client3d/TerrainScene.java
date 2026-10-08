@@ -120,6 +120,8 @@ final class TerrainScene {
     static final int BLEND_SLOTS = 8;
     /** How a painted map's ground is blended from its paint; null for one surface a cell — see {@link #blendWith}. */
     private Visuals.PaintBlend blend;
+    /** Whether blended ground cuts each cell two by two — see {@link Visuals#paintInQuarters}. */
+    private boolean quarters;
     /** Whether a chunk with more surfaces than {@link #BLEND_SLOTS} has been said: once. */
     private boolean tooManySaid;
     /** The paint of a painted map built a chunk at a time; null where none is. */
@@ -201,6 +203,11 @@ final class TerrainScene {
      */
     void blendWith(Visuals.PaintBlend blend) {
         this.blend = blend;
+    }
+
+    /** Cut each cell of blended ground two by two from the next build on — see {@link Visuals#paintInQuarters}. */
+    void quarterWith(boolean quarters) {
+        this.quarters = quarters;
     }
 
     private boolean blended(GroundPaint paint) {
@@ -443,7 +450,9 @@ final class TerrainScene {
      * shows there ({@link uz.dukeengine.core.map.PaintWeights}), the material laying each surface across the world at
      * its coverage and blending them by the weights. The surfaces are the chunk's in palette order, at most {@link
      * #BLEND_SLOTS}: a chunk where more meet draws the first of them, and says so once. A map's picture corners are a
-     * cell's own blend's, and a blended map has none.
+     * cell's own blend's, and a blended map has none. Lit smoothly: each corner by the relief round it ({@link
+     * #smoothNormal}), and, cut in quarters, each cell's middle and the middles of its edges too — every corner on the
+     * relief's own triangles, each quarter cut along the cell's own diagonal.
      */
     private void blendCells(PathGrid grid, GroundPaint paint, int fromX, int fromY, int toX, int toY, Node into,
             float ox, float oz) {
@@ -482,44 +491,53 @@ final class TerrainScene {
         if (slots.isEmpty()) {
             return;
         }
-        int cells = (toX - fromX + 1) * (toY - fromY + 1);
-        var positions = com.jme3.util.BufferUtils.createFloatBuffer(cells * 12);
-        var normals = com.jme3.util.BufferUtils.createFloatBuffer(cells * 12);
-        var first = com.jme3.util.BufferUtils.createFloatBuffer(cells * 16);
-        var second = com.jme3.util.BufferUtils.createFloatBuffer(cells * 16);
-        var indices = com.jme3.util.BufferUtils.createIntBuffer(cells * 6);
-        var lights = light == null ? null : com.jme3.util.BufferUtils.createFloatBuffer(cells * 16);
+        int steps = quarters ? 2 : 1;
+        int quads = (toX - fromX + 1) * (toY - fromY + 1) * steps * steps;
+        var positions = com.jme3.util.BufferUtils.createFloatBuffer(quads * 12);
+        var normals = com.jme3.util.BufferUtils.createFloatBuffer(quads * 12);
+        var first = com.jme3.util.BufferUtils.createFloatBuffer(quads * 16);
+        var second = com.jme3.util.BufferUtils.createFloatBuffer(quads * 16);
+        var indices = com.jme3.util.BufferUtils.createIntBuffer(quads * 6);
+        var lights = light == null ? null : com.jme3.util.BufferUtils.createFloatBuffer(quads * 16);
+        float[][] round = {{0f, 0f}, {1f, 0f}, {1f, 1f}, {0f, 1f}};
         int vertex = 0;
         for (int cy = fromY; cy <= toY; cy++) {
             for (int cx = fromX; cx <= toX; cx++) {
-                float x0 = cx * cell;
-                float x1 = x0 + cell;
-                float z0 = cy * cell;
-                float z1 = z0 + cell;
-                float h00 = groundAt(grid, x0, z0);
-                float h10 = groundAt(grid, x1, z0);
-                float h11 = groundAt(grid, x1, z1);
-                float h01 = groundAt(grid, x0, z1);
-                var normal = new Vector3f(x1 - x0, h10 - h00, 0f)
-                        .cross(new Vector3f(0f, h01 - h00, z1 - z0)).negateLocal().normalizeLocal();
-                positions.put(x0 - ox).put(h00).put(z0 - oz).put(x1 - ox).put(h10).put(z0 - oz)
-                        .put(x1 - ox).put(h11).put(z1 - oz).put(x0 - ox).put(h01).put(z1 - oz);
-                int[][] corners = {{cx, cy}, {cx + 1, cy}, {cx + 1, cy + 1}, {cx, cy + 1}};
-                for (var corner : corners) {
-                    normals.put(normal.x).put(normal.y).put(normal.z);
-                    var at = weights[(corner[1] - fromY) * across + corner[0] - fromX];
-                    for (int slot = 0; slot < BLEND_SLOTS; slot++) {
-                        (slot < 4 ? first : second).put(slot < slots.size() ? at[slots.get(slot)] : 0f);
-                    }
-                    if (lights != null) {
-                        var lit = light.at(smoothNormal(grid, corner[0] * cell, corner[1] * cell));
-                        lights.put(lit.r).put(lit.g).put(lit.b).put(1f);
+                var w00 = weights[(cy - fromY) * across + cx - fromX];
+                var w10 = weights[(cy - fromY) * across + cx + 1 - fromX];
+                var w11 = weights[(cy + 1 - fromY) * across + cx + 1 - fromX];
+                var w01 = weights[(cy + 1 - fromY) * across + cx - fromX];
+                var split = cellTriangles(drawnDiagonal(grid, paint, cx, cy));
+                for (int qy = 0; qy < steps; qy++) {
+                    for (int qx = 0; qx < steps; qx++) {
+                        for (var corner : round) {
+                            float u = (qx + corner[0]) / steps;
+                            float v = (qy + corner[1]) / steps;
+                            float x = (cx + u) * cell;
+                            float z = (cy + v) * cell;
+                            positions.put(x - ox).put(groundAt(grid, x, z)).put(z - oz);
+                            var normal = smoothNormal(grid, x, z);
+                            normals.put(normal.x).put(normal.y).put(normal.z);
+                            for (int slot = 0; slot < BLEND_SLOTS; slot++) {
+                                float at = 0f;
+                                if (slot < slots.size()) {
+                                    int s = slots.get(slot);
+                                    at = (w00[s] * (1f - u) + w10[s] * u) * (1f - v)
+                                            + (w01[s] * (1f - u) + w11[s] * u) * v;
+                                }
+                                (slot < 4 ? first : second).put(at);
+                            }
+                            if (lights != null) {
+                                var lit = light.at(normal);
+                                lights.put(lit.r).put(lit.g).put(lit.b).put(1f);
+                            }
+                        }
+                        for (int corner : split) {
+                            indices.put(vertex + corner);
+                        }
+                        vertex += 4;
                     }
                 }
-                for (int corner : cellTriangles(drawnDiagonal(grid, paint, cx, cy))) {
-                    indices.put(vertex + corner);
-                }
-                vertex += 4;
             }
         }
         var mesh = new com.jme3.scene.Mesh();
