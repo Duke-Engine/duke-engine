@@ -322,6 +322,25 @@ E16, in parts.
   900 × 900 painted world of six surfaces: the setup 11 ms where the whole build was 627 ms, the first frame 28 ms,
   then no frame over 4.1 ms walking across it. A game that does not stream its ground builds a painted map whole, as
   before.
+- **Blends from the paint alone, Warcraft III style**, where the game asks (`Visuals.paintBlend(PaintBlend)`; null, the
+  default, draws each cell its one surface as before). The map's format does not change: its `@Paint` rows and palette
+  are all it writes. The rule, `uz.dukeengine.core.map.PaintWeights.at(rows, keys, width, height, cx, cy)`, is the one
+  an editor's preview ports, pinned by `PaintWeightsTest`:
+  - a corner (`cx`, `cy`), `0 <= cx <= width`, `0 <= cy <= height`, is shared by the up to four cells round it —
+    (`cx-1`, `cy-1`), (`cx`, `cy-1`), (`cx-1`, `cy`), (`cx`, `cy`) — those on the map and painted with a character
+    the palette names;
+  - each surface's weight there is how many of those cells it paints over how many were counted, in the palette's
+    order: at most four show, they add up to one, and a corner with none counted shows none;
+  - a cell is drawn as its four corners' weights blended across it.
+
+  Drawn a mesh a chunk of 16 cells, each corner carrying the weights of up to eight surfaces — the chunk's, in palette
+  order; a chunk where more meet draws the first eight and says so once — in the ground's own shader, each surface's
+  picture laid across the world at its coverage, white for a colour and multiplied by it. `PaintBlend` says how the
+  borders are drawn: `noise`, a picture whose four channels move each border — only where a surface already shows,
+  so none appears where no cell round is painted with it — by `raggedness` (0..1), laid one copy to `noiseCoverage`
+  cells; `sharpness`, how narrow a border is (1 a ramp across the cell). `PaintBlend.SMOOTH` is smooth ramps. A map
+  that writes its own blends (`@Overlay` and `@Fade`) is drawn from them as before, so a converted Generals map keeps
+  its look; a blended map's `@PictureCorners` are not read (cliffs come with part 5).
 
 ### A game's own order, applied at once
 

@@ -278,6 +278,11 @@ class PaintedGroundTest {
             implements MapTemplate, Scaled, Painted {
     }
 
+    /** A shore that writes its own blend, for the blend test: a fade of sand over grass down its third column. */
+    static Shore shoreForBlending() {
+        return shore(List.of("..1.", "..1.", "..1."));
+    }
+
     private static Shore shore(List<String> fade) {
         var palette = new LinkedHashMap<String, String>();
         palette.put("g", "textures/ground/grass.png");

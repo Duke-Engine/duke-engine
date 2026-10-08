@@ -46,6 +46,29 @@ MaterialDef Fogged Terrain {
         Vector4 ShadePlace2
         // How much of them shows: 1, or 0 where the game has put them away.
         Float ShadeShown
+
+        // Ground blended from its paint: up to eight surfaces, each vertex carrying their weights in its second and
+        // third texture coordinates. Each surface is laid across the world: one over how much ground a copy covers, for
+        // surfaces 0-3 and 4-7, and a colour it is multiplied by.
+        Boolean Blended
+        Texture2D Surface0
+        Texture2D Surface1
+        Texture2D Surface2
+        Texture2D Surface3
+        Texture2D Surface4
+        Texture2D Surface5
+        Texture2D Surface6
+        Texture2D Surface7
+        Vector4 SurfaceScale0
+        Vector4 SurfaceScale1
+        Vector4Array SurfaceTints
+        // How narrow a border between two surfaces is: 1 a ramp across the cell, more a narrower one.
+        Float BlendSharp
+        // A picture whose four channels move each border, laid across the world one over NoiseScale units a copy, by
+        // as much as BlendRagged: borders ragged rather than the shape of the cells.
+        Texture2D BlendNoise
+        Float NoiseScale
+        Float BlendRagged
     }
 
     Technique {
@@ -66,6 +89,8 @@ MaterialDef Fogged Terrain {
             HAS_SHADEMAP2 : ShadeMap2
             FOG_WINDOW : FogWindow
             HAZE : Haze
+            BLENDED : Blended
+            BLEND_NOISE : BlendNoise
         }
     }
 }

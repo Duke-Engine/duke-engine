@@ -3167,6 +3167,7 @@ final class DukeRtsApp extends SimpleApplication {
             strips.clear(); // a new world lays its own
         }
         terrain.streamWithin(visuals.getStreamGround());
+        terrain.blendWith(visuals.getPaintBlend());
         terrain.rebuildLooked(builtFrom, currentKit, builtPaint, visuals.getGroundLight(), kitsOfTheCells(builtFrom),
                 game.getMapRecord() instanceof uz.dukeengine.core.map.Dressed dressed ? dressed.scenery()
                         : java.util.List.of());
@@ -7899,7 +7900,60 @@ final class DukeRtsApp extends SimpleApplication {
         public Material overlay(ColorRGBA colour, String texture) {
             return groundOverlay(colour, texture);
         }
+
+        @Override
+        public Material blended(List<GroundPaint.Surface> surfaces, float[] spans) {
+            return blendedGround(surfaces, spans);
+        }
     };
+
+    /** A white picture of one texel, for a blended ground's surfaces that are colours or are not used. */
+    private com.jme3.texture.Texture white;
+
+    private com.jme3.texture.Texture white() {
+        if (white == null) {
+            var image = new com.jme3.texture.Image(com.jme3.texture.Image.Format.RGBA8, 1, 1,
+                    com.jme3.util.BufferUtils.createByteBuffer(new byte[] {-1, -1, -1, -1}),
+                    com.jme3.texture.image.ColorSpace.Linear);
+            white = new com.jme3.texture.Texture2D(image);
+            white.setWrap(com.jme3.texture.Texture.WrapMode.Repeat);
+        }
+        return white;
+    }
+
+    /**
+     * The material of ground blended from its paint: the ground's own fogged shader, its blended branch, each surface's
+     * picture — white for a colour — laid across the world at its span and multiplied by its colour; the game's noise
+     * and sharpness for the borders ({@link Visuals#paintBlend}).
+     */
+    private Material blendedGround(List<GroundPaint.Surface> surfaces, float[] spans) {
+        var material = fogged(ColorRGBA.White, ambientColour.mult(PLAIN_AMBIENT), null);
+        material.setBoolean("Blended", true);
+        var scales = new float[TerrainScene.BLEND_SLOTS];
+        var tints = new com.jme3.math.Vector4f[TerrainScene.BLEND_SLOTS];
+        for (int slot = 0; slot < TerrainScene.BLEND_SLOTS; slot++) {
+            var surface = slot < surfaces.size() ? surfaces.get(slot) : null;
+            var picture = surface == null || surface.texture() == null ? null : groundTexture(surface.texture());
+            material.setTexture("Surface" + slot, picture == null ? white() : picture);
+            var colour = surface == null ? ColorRGBA.Black : surface.colour();
+            tints[slot] = new com.jme3.math.Vector4f(colour.r, colour.g, colour.b, 1f);
+            scales[slot] = slot < spans.length && spans[slot] > 0f ? 1f / spans[slot] : 1f;
+        }
+        material.setVector4("SurfaceScale0", new com.jme3.math.Vector4f(scales[0], scales[1], scales[2], scales[3]));
+        material.setVector4("SurfaceScale1", new com.jme3.math.Vector4f(scales[4], scales[5], scales[6], scales[7]));
+        material.setParam("SurfaceTints", com.jme3.shader.VarType.Vector4Array, tints);
+        var blend = visuals.getPaintBlend() == null ? Visuals.PaintBlend.SMOOTH : visuals.getPaintBlend();
+        material.setFloat("BlendSharp", blend.sharpness());
+        var noise = blend.noise() == null ? null : groundTexture(blend.noise());
+        if (noise != null) {
+            float cell = builtFrom == null ? uz.dukeengine.core.pathfind.PathGrid.DEFAULT_CELL_SIZE
+                    : builtFrom.getCellSize();
+            material.setTexture("BlendNoise", noise);
+            material.setFloat("NoiseScale", 1f / (blend.noiseCoverage() * cell));
+            material.setFloat("BlendRagged", blend.raggedness());
+        }
+        return material;
+    }
 
     private final java.util.Map<String, com.jme3.texture.Texture> groundTextures =
             new java.util.HashMap<>();

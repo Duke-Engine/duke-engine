@@ -15,6 +15,7 @@ import uz.dukeengine.core.data.PictureCorners;
 import uz.dukeengine.core.map.MapTemplate;
 import uz.dukeengine.core.map.MapTerrain;
 import uz.dukeengine.core.map.Painted;
+import uz.dukeengine.core.map.PaintWeights;
 
 /**
  * What a map's ground is painted with, read off the map and sorted into the few surfaces it actually uses.
@@ -153,6 +154,31 @@ final class GroundPaint {
      * by ({@code cx+1}, {@code cy}), ({@code cx+1}, {@code cy+1}) and ({@code cx}, {@code cy+1}) — or null where it
      * is laid straight down.
      */
+    /** Whether the map writes blends of its own ({@code @Overlay} and {@code @Fade}), drawn as written. */
+    boolean writesBlends() {
+        return !fades.isEmpty();
+    }
+
+    /** The palette's characters, in the palette's own order. */
+    List<String> keys() {
+        return List.copyOf(palette.keySet());
+    }
+
+    /** What the palette's {@code key} is drawn with. */
+    Surface surfaceOf(String key) {
+        return Surface.of(palette.get(key));
+    }
+
+    /** How many cells one copy of the palette's {@code key} covers. */
+    float coverage(String key) {
+        return coverageOf(key);
+    }
+
+    /** Each surface's weight at corner ({@code cx}, {@code cy}), in palette order — see {@link PaintWeights}. */
+    float[] weightsAt(int width, int height, int cx, int cy) {
+        return PaintWeights.at(rows, keys(), width, height, cx, cy);
+    }
+
     float[] cornersOf(int cx, int cy) {
         return corners.get(cellKey(cx, cy));
     }

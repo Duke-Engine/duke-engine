@@ -2641,6 +2641,45 @@ public final class Visuals {
         return word == null ? WordMark.MARK : wordMarks.getOrDefault(word, WordMark.MARK);
     }
 
+    /**
+     * How a painted map's ground is blended from its paint, as Warcraft III blends its tiles: each corner shows the
+     * surfaces of the cells round it by their share ({@code uz.dukeengine.core.map.PaintWeights}), blended across each
+     * cell, the borders broken by a picture of noise.
+     *
+     * @param noise         a picture whose four channels break the borders of the surfaces, laid across the world;
+     *                      null for smooth borders
+     * @param raggedness    how far the noise moves a border, from 0 for none to 1 for across the whole cell
+     * @param sharpness     how narrow a border is drawn: 1 a ramp across the cell, more a narrower one
+     * @param noiseCoverage how many cells one copy of the noise covers
+     */
+    public record PaintBlend(String noise, float raggedness, float sharpness, float noiseCoverage) {
+
+        /** Smooth ramps across a cell, nothing broken: the blend with no picture of its own. */
+        public static final PaintBlend SMOOTH = new PaintBlend(null, 0f, 1f, 8f);
+
+        public PaintBlend {
+            raggedness = Math.clamp(raggedness, 0f, 1f);
+            sharpness = Math.max(1f, sharpness);
+            noiseCoverage = noiseCoverage > 0f ? noiseCoverage : 8f;
+        }
+    }
+
+    private PaintBlend paintBlend;
+
+    /**
+     * Blend a painted map's ground from its paint ({@link PaintBlend}) — where the map writes no blend of its own: one
+     * that lays {@code @Overlay} and {@code @Fade} rows is drawn from them, as a converted Generals map is. Null, as
+     * ever, draws each cell its one surface.
+     */
+    public Visuals paintBlend(PaintBlend blend) {
+        this.paintBlend = blend;
+        return this;
+    }
+
+    public PaintBlend getPaintBlend() {
+        return paintBlend;
+    }
+
     private int streamGround;
 
     /**

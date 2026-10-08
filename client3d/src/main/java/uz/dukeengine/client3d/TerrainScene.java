@@ -116,6 +116,12 @@ final class TerrainScene {
     private int streamCells;
     /** The map whose chunks are built as the camera comes near them; null where the whole map was built at once. */
     private PathGrid streamed;
+    /** How many surfaces one chunk of blended ground carries: two vectors of four weights a vertex. */
+    static final int BLEND_SLOTS = 8;
+    /** How a painted map's ground is blended from its paint; null for one surface a cell — see {@link #blendWith}. */
+    private Visuals.PaintBlend blend;
+    /** Whether a chunk with more surfaces than {@link #BLEND_SLOTS} has been said: once. */
+    private boolean tooManySaid;
     /** The paint of a painted map built a chunk at a time; null where none is. */
     private GroundPaint streamedPaint;
     /** The rock of each chunk of a painted map built a chunk at a time, each with its cell as user data. */
@@ -186,6 +192,19 @@ final class TerrainScene {
      */
     void streamWithin(int cells) {
         this.streamCells = Math.max(0, cells);
+    }
+
+    /**
+     * Blend a painted map's ground from its paint from the next build on, as the game asks ({@link
+     * Visuals#paintBlend}); null for one surface a cell. A map that writes blends of its own is drawn from them
+     * either way.
+     */
+    void blendWith(Visuals.PaintBlend blend) {
+        this.blend = blend;
+    }
+
+    private boolean blended(GroundPaint paint) {
+        return blend != null && paint != null && !paint.writesBlends();
     }
 
     /** Lay out {@code grid} with the kit the game started with. */
@@ -277,7 +296,9 @@ final class TerrainScene {
             streamPainted(grid, paint);
             return;
         }
-        if (grid != null && paint != null) {
+        if (grid != null && blended(paint)) {
+            blendWhole(grid, paint);
+        } else if (grid != null && paint != null) {
             paintCells(grid, paint, 0, 0, grid.getWidth() - 1, grid.getHeight() - 1, root, 0f, 0f);
         } else {
             var plane = new Geometry("ground", new Quad(worldW, worldH));
@@ -376,7 +397,11 @@ final class TerrainScene {
         float ox = x0 * cell;
         float oz = y0 * cell;
         var node = new Node("chunk");
-        paintCells(grid, streamedPaint, x0, y0, x1, y1, node, ox, oz);
+        if (blended(streamedPaint)) {
+            blendCells(grid, streamedPaint, x0, y0, x1, y1, node, ox, oz);
+        } else {
+            paintCells(grid, streamedPaint, x0, y0, x1, y1, node, ox, oz);
+        }
         var stone = new java.util.ArrayList<Geometry>();
         layStone(grid, x0, y0, x1, y1, node, ox, oz, stone::add);
         for (var piece : sceneryByChunk.getOrDefault(chunk, java.util.List.of())) {
@@ -392,6 +417,128 @@ final class TerrainScene {
         rocksByChunk.put(chunk, stone);
         built.set(chunk);
         dirtyChunks.set(chunk);
+    }
+
+    /** Blended ground over the whole map, built whole: a mesh a chunk, as a world built round the camera has. */
+    private void blendWhole(PathGrid grid, GroundPaint paint) {
+        float cell = grid.getCellSize();
+        for (int y0 = 0; y0 < grid.getHeight(); y0 += CHUNK_CELLS) {
+            for (int x0 = 0; x0 < grid.getWidth(); x0 += CHUNK_CELLS) {
+                var node = new Node("chunk");
+                blendCells(grid, paint, x0, y0, Math.min(x0 + CHUNK_CELLS, grid.getWidth()) - 1,
+                        Math.min(y0 + CHUNK_CELLS, grid.getHeight()) - 1, node, x0 * cell, y0 * cell);
+                node.setLocalTranslation(x0 * cell, 0f, y0 * cell);
+                root.attachChild(node);
+            }
+        }
+    }
+
+    /**
+     * The ground of the cells from ({@code fromX}, {@code fromY}) to ({@code toX}, {@code toY}) blended from the paint,
+     * as Warcraft III blends its tiles: one mesh, each cell's corners carrying the weight of every surface the chunk
+     * shows there ({@link uz.dukeengine.core.map.PaintWeights}), the material laying each surface across the world at
+     * its coverage and blending them by the weights. The surfaces are the chunk's in palette order, at most {@link
+     * #BLEND_SLOTS}: a chunk where more meet draws the first of them, and says so once. A map's picture corners are a
+     * cell's own blend's, and a blended map has none.
+     */
+    private void blendCells(PathGrid grid, GroundPaint paint, int fromX, int fromY, int toX, int toY, Node into,
+            float ox, float oz) {
+        int width = grid.getWidth();
+        int height = grid.getHeight();
+        float cell = grid.getCellSize();
+        var keys = paint.keys();
+        int across = toX - fromX + 2;
+        var weights = new float[across * (toY - fromY + 2)][];
+        var shown = new boolean[keys.size()];
+        for (int cy = fromY; cy <= toY + 1; cy++) {
+            for (int cx = fromX; cx <= toX + 1; cx++) {
+                var at = paint.weightsAt(width, height, cx, cy);
+                weights[(cy - fromY) * across + cx - fromX] = at;
+                for (int surface = 0; surface < at.length; surface++) {
+                    shown[surface] |= at[surface] > 0f;
+                }
+            }
+        }
+        var slots = new java.util.ArrayList<Integer>();
+        for (int surface = 0; surface < shown.length; surface++) {
+            if (!shown[surface]) {
+                continue;
+            }
+            if (slots.size() == BLEND_SLOTS) {
+                if (!tooManySaid) {
+                    tooManySaid = true;
+                    java.util.logging.Logger.getLogger(TerrainScene.class.getName()).warning(() -> "more than "
+                            + BLEND_SLOTS + " surfaces meet in one chunk of 16 cells; the first " + BLEND_SLOTS
+                            + " of the palette are drawn there");
+                }
+                break;
+            }
+            slots.add(surface);
+        }
+        if (slots.isEmpty()) {
+            return;
+        }
+        int cells = (toX - fromX + 1) * (toY - fromY + 1);
+        var positions = com.jme3.util.BufferUtils.createFloatBuffer(cells * 12);
+        var normals = com.jme3.util.BufferUtils.createFloatBuffer(cells * 12);
+        var first = com.jme3.util.BufferUtils.createFloatBuffer(cells * 16);
+        var second = com.jme3.util.BufferUtils.createFloatBuffer(cells * 16);
+        var indices = com.jme3.util.BufferUtils.createIntBuffer(cells * 6);
+        var lights = light == null ? null : com.jme3.util.BufferUtils.createFloatBuffer(cells * 16);
+        int vertex = 0;
+        for (int cy = fromY; cy <= toY; cy++) {
+            for (int cx = fromX; cx <= toX; cx++) {
+                float x0 = cx * cell;
+                float x1 = x0 + cell;
+                float z0 = cy * cell;
+                float z1 = z0 + cell;
+                float h00 = groundAt(grid, x0, z0);
+                float h10 = groundAt(grid, x1, z0);
+                float h11 = groundAt(grid, x1, z1);
+                float h01 = groundAt(grid, x0, z1);
+                var normal = new Vector3f(x1 - x0, h10 - h00, 0f)
+                        .cross(new Vector3f(0f, h01 - h00, z1 - z0)).negateLocal().normalizeLocal();
+                positions.put(x0 - ox).put(h00).put(z0 - oz).put(x1 - ox).put(h10).put(z0 - oz)
+                        .put(x1 - ox).put(h11).put(z1 - oz).put(x0 - ox).put(h01).put(z1 - oz);
+                int[][] corners = {{cx, cy}, {cx + 1, cy}, {cx + 1, cy + 1}, {cx, cy + 1}};
+                for (var corner : corners) {
+                    normals.put(normal.x).put(normal.y).put(normal.z);
+                    var at = weights[(corner[1] - fromY) * across + corner[0] - fromX];
+                    for (int slot = 0; slot < BLEND_SLOTS; slot++) {
+                        (slot < 4 ? first : second).put(slot < slots.size() ? at[slots.get(slot)] : 0f);
+                    }
+                    if (lights != null) {
+                        var lit = light.at(smoothNormal(grid, corner[0] * cell, corner[1] * cell));
+                        lights.put(lit.r).put(lit.g).put(lit.b).put(1f);
+                    }
+                }
+                for (int corner : cellTriangles(drawnDiagonal(grid, paint, cx, cy))) {
+                    indices.put(vertex + corner);
+                }
+                vertex += 4;
+            }
+        }
+        var mesh = new com.jme3.scene.Mesh();
+        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Position, 3, positions);
+        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Normal, 3, normals);
+        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.TexCoord2, 4, first);
+        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.TexCoord3, 4, second);
+        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Index, 3, indices);
+        if (lights != null) {
+            mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Color, 4, lights);
+        }
+        mesh.updateBound();
+        var surfaces = new java.util.ArrayList<GroundPaint.Surface>();
+        var spans = new float[slots.size()];
+        for (int slot = 0; slot < slots.size(); slot++) {
+            var key = keys.get(slots.get(slot));
+            surfaces.add(paint.surfaceOf(key));
+            spans[slot] = paint.coverage(key) * cell;
+        }
+        var ground = new Geometry("blended", mesh);
+        ground.setMaterial(material.blended(surfaces, spans));
+        litByCorners(ground);
+        into.attachChild(ground);
     }
 
     /**
@@ -835,8 +982,8 @@ final class TerrainScene {
      * One chunk of a kit's floor, built as the whole map would build it, a step at a time: every piece of the plan
      * filed under a cell of it — planned with two cells round it, since a rock's body is turned by the first of its
      * faces the map lays and its faces come from the cells round it — then its scenery, gathered into a geometry a
-     * material, laid over the relief, and kept about its own corner, so a world far from its origin is drawn as finely as
-     * one at it.
+     * material, laid over the relief, and kept about its own corner, so a world far from its origin is drawn as finely
+     * as one at it.
      */
     private final class ChunkBuild {
 

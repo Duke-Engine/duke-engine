@@ -29,6 +29,13 @@ varying float vertexAlpha;
 varying vec3 vertexLight;
 #endif
 
+#ifdef BLENDED
+attribute vec4 inTexCoord2;
+attribute vec4 inTexCoord3;
+varying vec4 blend0;
+varying vec4 blend1;
+#endif
+
 void main() {
     vec4 world = g_WorldMatrix * vec4(inPosition, 1.0);
 
@@ -51,6 +58,11 @@ void main() {
     #endif
     #ifdef VERTEX_LIGHT
     vertexLight = inColor.rgb;
+    #endif
+
+    #ifdef BLENDED
+    blend0 = inTexCoord2;
+    blend1 = inTexCoord3;
     #endif
 
     gl_Position = g_WorldViewProjectionMatrix * vec4(inPosition, 1.0);

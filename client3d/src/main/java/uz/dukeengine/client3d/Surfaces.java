@@ -41,4 +41,12 @@ interface Surfaces {
     default Material overlay(ColorRGBA colour, String texture) {
         return of(colour, texture);
     }
+
+    /**
+     * The material of ground blended from its paint: up to {@link TerrainScene#BLEND_SLOTS} surfaces, the n-th in the
+     * n-th of the weights each vertex carries, each laid across the world one copy to {@code spans[n]} units.
+     */
+    default Material blended(java.util.List<GroundPaint.Surface> surfaces, float[] spans) {
+        return of(ColorRGBA.White, null);
+    }
 }
