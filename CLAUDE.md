@@ -29,7 +29,13 @@ games'.
   It knows no kind: a kind of game is a `Flavour` (core's), which makes its world,
   and the RTS library's is `RtsFlavour`.
 - **`client3d`** — the 3D client the logic is drawn by. It ships no assets but
-  the shader it draws terrain with.
+  the shader it draws terrain with. It knows no kind of game: each kind's part of
+  the window is a `HudPart`, found on the classpath as a kind of game is.
+- **`rts-client-3d`** — the RTS's part of the window: what it sends that only an
+  RTS has words for (a rally point, a build menu), and where the RTS's panels go.
+- **`rpg-client-3d`** — the RPG's part: the hero's bar and portrait, the bag and
+  what is on a creature, single-hero control, and both ends of the hero card on
+  the status line (`HeroPanel` reads it, `HeroCard` writes it).
 - **`skirmish`** — a small RTS, the example game in this repository. It exists
   to prove the point that `rts` is a library rather than one game's engine, and
   it is deliberately unlike the other game built on this engine
@@ -60,14 +66,15 @@ core is pure Java; a render/audio backend comes later.
   the RTS's command set, production, construction, economy, holds, vocabulary and
   save format — but only the parts every RTS shares. A rule one game happens to
   have is the game's.
-- `skirmish` → `client3d` → `game` → `combat` → `core`, and `client3d` → `rts` →
-  `combat`, and `rpg` → `combat`. Never the other way; `core` never imports `combat`,
+- `skirmish` → `rts-client-3d` → `client3d` → `game` → `combat` → `core`,
+  `rts-client-3d` → `rts` → `combat`, `rpg-client-3d` → `client3d`, and
+  `rpg-client-3d` → `rpg` → `combat`. Never the other way; `core` never imports `combat`,
   `rts` or `rpg`, `combat` never imports either, `rts` and `rpg` never each other —
   duke-generals builds without `rpg` — and `game` never imports `rts` — it runs a kind of game
   through core's `Flavour`, and the kind brings its world, its records, its wire and
-  its parts of the picture. `client3d` still draws the RTS's own panels, and
-  depends on `rts` for them until the client is split. A game depends on `kit`, and
-  `kit` on nothing but data.
+  its parts of the picture. `client3d` imports neither `rts` nor `rpg`, and the two
+  client parts never each other: duke-generals builds without `rpg-client-3d`. A game
+  depends on `kit`, and `kit` on nothing but data.
 
 **The question to ask before adding to `combat`:** *would an RTS and an RPG both
 need this?* A weapon, a stun, a heal, experience, an aura: both, so `combat`. A
@@ -283,8 +290,9 @@ now and expensive to find after a release.
 
 - `./gradlew build` passes.
 - No new `-Xlint:all` warnings.
-- `core` still compiles with no reference to `combat`, `rts` or `rpg`, `combat`
-  and `game` with none to `rts` or `rpg`, and `rts` and `rpg` with none to each other (they cannot see them — but check that nothing
+- `core` still compiles with no reference to `combat`, `rts` or `rpg`, `combat`,
+  `game` and `client3d` with none to `rts` or `rpg`, `rts` and `rpg` with none to
+  each other, and `rts-client-3d` and `rpg-client-3d` with none to each other (they cannot see them — but check that nothing
   genre-specific leaked in the other direction either).
 - Nothing new in `combat` is asked by only an RTS or only an RPG: that belongs to
   `rts`, or to the RPG's side.

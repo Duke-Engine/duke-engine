@@ -109,6 +109,44 @@ fight with, under `rts` and `rpg`. The split lands in steps, and this section gr
   `Skill`'s `Projectile` and `Summons` and `Bow`'s `Projectile` no longer say `@Link`: what they name is a template, and
   a link names one record, which an engine library cannot name for a game. The item modules are in the editor's group
   `Items` (`RpgModuleGroups.ITEMS`) rather than `Economy`.
+- **The client is split: `rts-client-3d` and `rpg-client-3d`** (`uz.duke-engine:rts-client-3d`, `:rpg-client-3d`), each
+  beside `client3d` on its side's library, and both in the bom. `client3d` no longer depends on `rts`: a game that
+  plays an RTS depends on `rts-client-3d` (skirmish does now), one that plays an RPG on `rpg-client-3d`, and a game
+  with both sides on both. Each is found by the client on the classpath (`HudPart`, see below); a game names neither
+  in code. Moved, each keeping its name:
+
+  | Was | Is |
+  |---|---|
+  | `uz.dukeengine.client3d.` `HeroPanel`, `HeroPortrait`, `PortraitLook`, `PortraitMood`, `SkillTip`, `StatLook`, `PanelLook`, `PanelBlock`, `PanelPlace`, `PanelAnchor`, `IconLook` | `uz.dukeengine.client3d.rpg.` the same |
+  | `Visuals.statLook`, `panelLook`, `iconLook`, `portrait`, `portraits`, `portraitFps` and their getters | the same on `uz.dukeengine.client3d.rpg.HeroLooks`: `HeroLooks.of(visuals).statLook(…)` |
+  | `HeroPanel.iconTexture` | `uz.dukeengine.client3d.PanelSkin.texture` |
+  | `GameSounds.status`, the card's sounds | the RPG's part, hearing them off the card itself |
+  | `uz.dukeengine.rpg.skill.Skills.slots`, `Skills.Words` | `uz.dukeengine.client3d.rpg.HeroCard.skills`, `HeroCard.Words` |
+  | `uz.dukeengine.rpg.skill.SkillTip` (the tip's fields), `SkillTip.Words` | written by `HeroCard.skills`; `HeroCard.TipWords` |
+  | the client's text build menu and its digit keys, a lone factory's rally point on open ground | the same, from `rts-client-3d` (`RtsHud`); with no RTS part a lone factory takes no click |
+
+  What a game moves out of its own code into `rpg-client-3d`, from duke-dungeon at 7eb423d:
+
+  | Was, in duke-dungeon | Is |
+  |---|---|
+  | `BagScreen` | `uz.dukeengine.client3d.rpg.BagScreen`: `BagScreen.on(duke, menuStyle, words, gives, buffs)`, `show(game, bag, wire, under)` — its words a `BagScreen.Words` (the items heading, the drop, take and use hints, and the pick-up, to-the-gate and use order words, `PartyOrders`' today), `gives` the game's lines for what a thing gives (its `bonusOf` and `extraOf`, which stay the game's words), `bag` this machine's hero's bag or null, `wire` its `PartyOrders::of`, and `under` its `MissionScreen` |
+  | `BuffScreen` | `uz.dukeengine.client3d.rpg.BuffScreen`: `new BuffScreen(settings.skills(), settings.effects(), settings.menu(), settings.panelLook(), hud.buffIcon(), words)`, its words a `BuffScreen.Words` (attack, mana a second, lifesteal, attack speed, seconds); `addsOf(buff)` an instance method |
+  | `run/HeroStatus`, the card's fields | written through `uz.dukeengine.client3d.rpg.HeroCard`: `HeroCard.named(name).title(…).rank(…).health(now, most)`… — `experience`, `mana`, `refusedForMana`, `depth`, `headings`, `note`, `stat`, `attribute`, `attributeTip`, `item`, `ordersAreHis`, `order`, `points`, `skills`, `casts` (its `appendCast`) — and `field(name, value)` for the line's other fields (`deep`, `boss`, `hero`, `who`, `look`); what goes on the card stays the game's |
+  | `HeroPanel`, drawn by the client | drawn by the RPG's part as before, found on the classpath: nothing to call |
+  | `run/Watching` and a hero needing to be selected for his orders | single-hero control (below): his orders go to his hero whatever is picked out. `Watching` stays the game's, for whose card the panel shows |
+
+- **`HudPart`** (`uz.dukeengine.client3d`): a kind of game's part of the window, found on the classpath as a kind of
+  game is (a `META-INF/services/uz.dukeengine.client3d.HudPart` line). The client asks its parts what it asked the hero
+  panel and the RTS: where a panel stands, the minimap's socket, whether a point is on a panel, whether a key is ready
+  and whose the orders are, a key refused or armed, a point to spend, a creature dead, the pause menu's facts, a rally
+  point, a build menu — and who the orders go to. Every answer has a default that is the client's own with no part.
+- **`Visuals.part(type, whenNone)`**: a kind of game's own looks among the game's `Visuals`, never read by the client's
+  own drawing — the hero bar's (`HeroLooks`).
+- **`DukeGame.setOrdered(ids)`**: the things the local player's orders go to where they are not the selection, told by
+  the window; a click is judged for them — whether an attack would be taken, the word of the order it gives. `null`,
+  the default, is the selection.
+- `Lettering`, `Shade`, `NineSlice` (and their members the panel uses), `UnitBarReading` and its `read`, two
+  `Visuals.UnitVisual` fields (`idleAnim`, `dieAnim`) and `AnimationLibrary.findControl` are public, for the parts.
 - `Layer` has a component more, `renews`, after `follows`: a `Layer` made in code rather than read from a block passes
   it, null where it says nothing.
 
@@ -261,8 +299,27 @@ game. It is duke-dungeon's own, which already ran the RPG half, and what tied it
   commands one hero; it is an `AttackBonus` on him, so `rpg` needs nothing of `rts`. A blow multiplies it among the
   unit's modifiers rather than after them, so its last bit may differ from the dungeon's own.
 - **What stays the game's**: the run, its floors and their generation, the keep and the spawner, the world's blocks, the
-  story and the words. `HeroStatus` (the hero card on the wire) moves with the client, in the next step, beside the
-  hero panel. Single-hero control and an RPG flavour wait for that step too: today an RPG still runs on `RtsFlavour`.
+  story and the words. The hero card on the wire went with the client, beside the hero panel (`HeroCard`, below), and
+  single-hero control with it. An RPG flavour has not been made: an RPG still runs on `RtsFlavour`.
+
+### The client, split
+
+The client is one 3D client with each side's part of the window beside it, as the proposal for the split has it. The
+line between them is what a part reads or sends that only its side has words for, and nothing else:
+
+- **The RTS's part is small.** After the first two steps everything the RTS's window draws speaks `core`'s views — the
+  command bar, aiming, the ghost, the drag box, the rally marks — and so stays the client's, for any game: an RPG's party
+  may be drag-selected, and its buttons aim. What only an RTS has words for is the rally point and the build menu, which
+  send the RTS's own orders; that is `rts-client-3d`, and it is where the RTS's panels go as they come.
+- **The RPG's part is the hero card's two ends.** The panel reads the card off the status line, and `HeroCard` writes
+  it, so the format lives in one place. The bars over the world and the casts' knocks read fields of the same line that
+  are the client's own conventions for any game's creatures, and stay the client's; the card's other users — the
+  portrait, its sounds, the pause menu's depth and rank — go with the panel. The armed key's reach ring stays the
+  client's: an RTS's abilities have reaches too.
+- **Single-hero control** is the client deciding who the orders go to, and saying so: an RPG's part names the hero —
+  the one the status line's bars field names — and every order the window gives goes to him, while the selection goes
+  on choosing what is shown. The runtime judges a click for who takes the orders. Nothing in the simulation changes:
+  the orders name the hero as any order names its units.
 
 ### A weapon's shots told to its own thing
 
