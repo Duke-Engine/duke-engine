@@ -107,7 +107,7 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p build/release
-          for module in core rts game client3d kit; do
+          for module in core combat rts rpg game client3d rts-client-3d rpg-client-3d kit; do
             jar="$module/build/libs/$module-$VERSION.jar"
             test -f "$jar" || { echo "no $jar — does build.gradle.kts say $VERSION?"; exit 1; }
             cp "$jar" build/release/
@@ -134,10 +134,7 @@ jobs:
             echo '```kotlin'
             echo 'dependencies {'
             echo "    implementation(platform(\"uz.duke-engine:bom:${GITHUB_REF_NAME#v}\"))"
-            echo '    implementation("uz.duke-engine:core")'
-            echo '    implementation("uz.duke-engine:rts")'
-            echo '    implementation("uz.duke-engine:game")'
-            echo '    implementation("uz.duke-engine:client3d")'
+            echo '    implementation("uz.duke-engine:rts-client-3d") // an RTS; an RPG takes rpg-client-3d'
             echo '    implementation("uz.duke-engine:kit")'
             echo '}'
             echo '```'

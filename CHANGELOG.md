@@ -5,11 +5,12 @@ when it does, this page says exactly what to change and how.
 
 ## 0.8.0
 
-Unreleased. The release after 0.6.0: 0.7.0 is never published, and what its section below lists ships in this one, so a
+The release after 0.6.0: 0.7.0 is never published, and what its section below lists ships in this one, so a
 game coming from 0.6.0 makes the changes both lists of what to change name.
 
-The engine is being split so that an RTS and an RPG are two libraries on one layer they share: `combat`, what both
-fight with, under `rts` and `rpg`. The split lands in steps, and this section grows with them.
+The engine is split so that an RTS and an RPG are two libraries on one layer they share: `combat`, what both fight
+with, under `rts` and `rpg`, and the 3D client with each side's part of the window beside it, `rts-client-3d` and
+`rpg-client-3d`.
 
 ### What to change
 

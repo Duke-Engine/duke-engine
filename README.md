@@ -42,25 +42,26 @@ See [Duke-Engine/duke-plugin](https://github.com/Duke-Engine/duke-plugin).
 ```kotlin
 dependencies {
     // The version, once. Everything below comes from it.
-    implementation(platform("uz.duke-engine:bom:0.6.0"))
+    implementation(platform("uz.duke-engine:bom:0.8.0"))
 
-    implementation("uz.duke-engine:client3d") // brings core, rts and game with it
-    implementation("uz.duke-engine:kit")      // effects to start from, data only
+    implementation("uz.duke-engine:rts-client-3d") // an RTS: brings core, combat, rts, game and client3d
+    implementation("uz.duke-engine:kit")           // effects to start from, data only
 }
 ```
 
 Each module is its own artifact — depend on `core` alone and you get the genre-neutral engine and
-nothing else. The BOM only says which versions go together, so a client from one release can never
-meet a core from another.
+nothing else; an RPG depends on `rpg-client-3d` where an RTS depends on `rts-client-3d`. The BOM only says
+which versions go together, so a client from one release can never meet a core from another.
 
 ```java
 var game = DukeGame.create("My RTS")
-        .loadUnits(DukeGame.STARTER_UNITS)
+        .loadUnits(RtsFlavour.STARTER_UNITS)
         .map(70, 45);
 
 var you = game.addPlayer("USA", Color.CYAN);
 var foe = game.addPlayer("China", Color.RED);
-game.enemies(you, foe).money(you, 1500);
+game.enemies(you, foe);
+game.flavour(RtsFlavour.class).money(you::getIndex, 1500);
 
 game.spawn("Barracks", you, 100, 360);
 game.spawn("Tank", foe, 550, 100);
@@ -97,7 +98,9 @@ worth reading to see what a finished game on this engine looks like.
 ## Modules
 
 ```
-skirmish  →  client3d  →  game  →  rts  →  core
+skirmish  →  rts-client-3d  →  client3d  →  game  →  combat  →  core
+                  └──────────→  rts  →  combat
+            rpg-client-3d  →  client3d, rpg  →  combat
     └─────→  kit
 ```
 
@@ -105,20 +108,27 @@ skirmish  →  client3d  →  game  →  rts  →  core
   objects/templates/modules, the `.duke` data layer, spatial queries, pathfinding, lock-step
   networking, fog of war, scripting triggers. It knows nothing about any genre: no commands, no
   weapons, no economy.
-- **rts** — the RTS on top of it: the command set, combat, production, economy, veterancy, power,
-  transports, superweapons, the RTS vocabulary and the save format.
-- **game** — the Unity-style API: the `DukeGame` facade, a built-in Swing 2D renderer, camera, unit
-  selection, right-click orders, HUD, two-player lock-step multiplayer over TCP.
+- **combat** — what fights, in any game whose things fight: weapons and their bonuses, shots,
+  statuses, experience, auras, closing on a target, and the move, attack and stop orders.
+- **rts** — the RTS library on combat: its command set, production, construction, economy, holds,
+  the RTS vocabulary and the save format — the parts every RTS shares, the rules left to the game.
+- **rpg** — the RPG library on combat: a hero's skill book (mana, cooldowns, ranks, buffs, auras),
+  levels and attributes, items and loot, missions.
+- **game** — the runtime a game boots through: the `DukeGame` facade, of whatever kind the game is,
+  a built-in Swing 2D renderer, lock-step multiplayer over TCP.
 - **client3d** — the 3D client on jMonkeyEngine: glTF/Ogre model loading, skeletal animation,
-  positional sound, an RTS camera, ray-picked selection, effects, menus and a minimap.
+  positional sound, the camera, ray-picked selection, effects, menus and a minimap.
+- **rts-client-3d**, **rpg-client-3d** — each side's part of the window: an RTS's rally point and
+  build menu; an RPG's hero bar, portrait, bag and single-hero control.
 - **kit** — the starter set a game begins from: an effects library, 27 effects in eight groups with
   the particle art they are drawn with. Data only, no code. A game links one and replaces it by
   writing its own of the same name.
 - **bom** — every module at one version, so a game writes the version once.
 - **skirmish** — the example game above. Not published: it is played and copied from, not depended on.
 
-`core` never imports `rts`. Building a game that is not an RTS means depending on `core` alone and
-supplying your own commands, modules and vocabulary — see **Extending** below.
+`core` never imports `combat`, `rts` or `rpg`, and `rts` and `rpg` never each other. Building a game of
+another kind means depending on `core` — or `combat` — and supplying your own commands, modules and
+vocabulary — see **Extending** below.
 
 ## Architecture
 
