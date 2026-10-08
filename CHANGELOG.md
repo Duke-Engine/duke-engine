@@ -364,6 +364,10 @@ E16, in parts.
 - **The move order's arrowheads lie on the slope they are on** (E21): each is spun inward about the vertical as
   before, then tilted onto the ground's normal under it, read from the floor's height a little either side; on level
   ground it is drawn exactly as before. The attack ring, the selection rings and discs were laid over the relief already.
+- **Haze and the world picture chosen per map** (E24): `Visuals.haze(from, to, forMap)` and
+  `Duke3D.worldPicture(mostTexels, forMap, handed)`, asked of each map's record as it is laid, as E18's streaming is —
+  an open world fading at its edge and pictured whole, the floors of a descent neither. The forms without `forMap`
+  apply to every map, as before.
 - **Streaming chosen per map** (E18): `Visuals.streamGround(cells, forMap)` builds round the camera only the maps
   `forMap` says, asked of each map's record as it is laid — an open world streamed, the small floors of a descent built
   whole, in one game; `streamGroundFor(map)` is the reach for a map, 0 for one built whole. `streamGround(cells)` streams

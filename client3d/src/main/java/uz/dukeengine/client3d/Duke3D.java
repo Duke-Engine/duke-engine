@@ -478,7 +478,16 @@ public final class Duke3D {
      * painting reads every cell of the world. From any thread, before launch or while it runs.
      */
     public void worldPicture(int mostTexels, Consumer<Picture> handed) {
-        later(client -> client.worldPicture(mostTexels, handed));
+        worldPicture(mostTexels, map -> true, handed);
+    }
+
+    /**
+     * The same, only for the maps {@code forMap} says, asked of each map's record as it is laid: the open world's
+     * picture and none for the floors of a descent. On a map it says no to nothing is handed, and the picture of the
+     * world before is kept no longer.
+     */
+    public void worldPicture(int mostTexels, java.util.function.Predicate<Object> forMap, Consumer<Picture> handed) {
+        later(client -> client.worldPicture(mostTexels, forMap, handed));
     }
 
     /** Stop the movie playing, and its sound, at once — for a key the game says skips it. */

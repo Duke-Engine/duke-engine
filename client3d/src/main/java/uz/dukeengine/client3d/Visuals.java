@@ -2819,14 +2819,32 @@ public final class Visuals {
      * none, as ever, where {@code toCells} is 0.
      */
     public Visuals haze(float fromCells, float toCells) {
+        return haze(fromCells, toCells, map -> true);
+    }
+
+    /** Which maps fade into haze — see {@link #haze(float, float, java.util.function.Predicate)}. */
+    private java.util.function.Predicate<Object> hazesMap = map -> true;
+
+    /**
+     * The same, only on the maps {@code forMap} says, asked of each map's record as it is laid — as {@link
+     * #streamGround(int, java.util.function.Predicate)} is: an open world fading at its edge and the small floors of a
+     * descent drawn whole to their walls, in one game.
+     */
+    public Visuals haze(float fromCells, float toCells, java.util.function.Predicate<Object> forMap) {
         this.hazeTo = Math.max(0f, toCells);
         this.hazeFrom = Math.clamp(fromCells, 0f, this.hazeTo);
+        this.hazesMap = forMap == null ? map -> true : forMap;
         return this;
     }
 
-    /** Whether the ground fades into nothing far from where the camera looks. */
+    /** Whether the ground fades into nothing far from where the camera looks, on some map. */
     public boolean hazes() {
         return hazeTo > 0f;
+    }
+
+    /** Whether {@code map}'s ground fades into nothing far from where the camera looks. */
+    public boolean hazes(Object map) {
+        return hazes() && hazesMap.test(map);
     }
 
     public float getHazeFrom() {

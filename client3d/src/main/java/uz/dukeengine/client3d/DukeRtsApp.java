@@ -1328,18 +1328,21 @@ final class DukeRtsApp extends SimpleApplication {
     /** The whole world's picture the game asked for, at most how many texels a side, and whom it is handed to. */
     private int worldPictureMost;
     private java.util.function.Consumer<Picture> worldPictureHanded;
+    private java.util.function.Predicate<Object> worldPictureFor = map -> true;
     private WorldPicture worldPicture;
 
     /** See {@link Duke3D#worldPicture}. */
-    void worldPicture(int mostTexels, java.util.function.Consumer<Picture> handed) {
+    void worldPicture(int mostTexels, java.util.function.Predicate<Object> forMap,
+            java.util.function.Consumer<Picture> handed) {
         this.worldPictureMost = Math.max(1, mostTexels);
+        this.worldPictureFor = forMap == null ? map -> true : forMap;
         this.worldPictureHanded = handed;
         makeTheWorldPicture(game.getTerrain());
     }
 
     /** The whole world's picture for the world laid now, where the game asked for one, painted and handed over. */
     private void makeTheWorldPicture(uz.dukeengine.core.pathfind.PathGrid grid) {
-        if (worldPictureHanded == null || grid == null) {
+        if (worldPictureHanded == null || grid == null || !worldPictureFor.test(game.getMapRecord())) {
             worldPicture = null;
             return;
         }
@@ -3307,7 +3310,11 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** The haze round where the camera looks told to one material that reads the fog, where the game keeps a haze. */
     private void tellTheHaze(Material material) {
-        if (!visuals.hazes() || builtFrom == null) {
+        if (!visuals.hazes(game.getMapRecord()) || builtFrom == null) {
+            // A material kept from a hazy map drawn on one without.
+            if (material.getParam("Haze") != null) {
+                material.clearParam("Haze");
+            }
             return;
         }
         float cell = builtFrom.getCellSize();
@@ -3317,7 +3324,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** The haze kept round where the camera looks, told to the ground each time the camera moves. */
     private void hazeRoundTheCamera() {
-        if (!visuals.hazes() || fogMap == null || builtFrom == null) {
+        if (!visuals.hazes(game.getMapRecord()) || fogMap == null || builtFrom == null) {
             return;
         }
         if (camera.targetX() == hazeToldX && camera.targetZ() == hazeToldZ) {
