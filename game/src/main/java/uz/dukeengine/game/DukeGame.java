@@ -1545,6 +1545,27 @@ public final class DukeGame {
         return selection;
     }
 
+    /** Who the player's orders go to, where the window says it is not what is selected; {@code null} where it is. */
+    private volatile List<Integer> ordered;
+
+    /**
+     * The things the local player's orders go to, where they are not what is selected — a game of one hero, whose
+     * orders go to the hero whatever is picked out to be looked at. A click is judged for them: whether an attack on
+     * what the pointer is on would be taken, and the word of the order it gives. {@code null} puts it back to the
+     * selection, which is what it is until a window says otherwise.
+     *
+     * <p>Thread-safe and one-way, as the selection is: the window writes, the simulation reads.
+     */
+    public void setOrdered(List<Integer> unitIds) {
+        this.ordered = unitIds == null ? null : List.copyOf(unitIds);
+    }
+
+    /** Who the player's orders go to: what the window said, or what is selected. */
+    private List<Integer> orderedNow() {
+        var told = ordered;
+        return told != null ? told : selection;
+    }
+
     /** The selection the game last asked the client for — see {@link #select}. */
     private final java.util.concurrent.atomic.AtomicReference<Selecting> selectionWanted =
             new java.util.concurrent.atomic.AtomicReference<>();
@@ -1794,7 +1815,7 @@ public final class DukeGame {
             return true;
         }
         boolean armed = false;
-        for (var id : selection) {
+        for (var id : orderedNow()) {
             var unit = world.findObject(new uz.dukeengine.core.thing.ObjectId(id));
             if (unit == null || unit.getPlayerIndex() != getLocalPlayerIndex()) {
                 continue;
@@ -1920,10 +1941,10 @@ public final class DukeGame {
         return selected.isEmpty() ? null : rule.orderOn(selected, target);
     }
 
-    /** The local player's own selected things, but {@code except}. */
+    /** The local player's own things his orders go to, but {@code except}. */
     private List<GameObject> selectedOwn(uz.dukeengine.core.GameLogic world, GameObject except) {
         var selected = new java.util.ArrayList<GameObject>();
-        for (var id : selection) {
+        for (var id : orderedNow()) {
             var unit = world.findObject(new uz.dukeengine.core.thing.ObjectId(id));
             if (unit != null && unit != except && unit.getPlayerIndex() == getLocalPlayerIndex()) {
                 selected.add(unit);

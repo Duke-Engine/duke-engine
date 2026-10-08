@@ -4765,7 +4765,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** The rally points of the selected things of his that have one, and the flag of the only one — see RallyMarks. */
     private void showRallies() {
-        var own = selectedOwn().stream().map(uz.dukeengine.core.view.UnitView::id).collect(java.util.stream.Collectors
+        var own = ownSelected().stream().map(uz.dukeengine.core.view.UnitView::id).collect(java.util.stream.Collectors
                 .toSet());
         var shown = snapshot.rallies().stream().filter(rally -> own.contains(rally.id())).toList();
         rallyMarks.show(visuals.getRally(), shown, RallyMarks.flagOf(shown, selected.size()),
@@ -4866,11 +4866,40 @@ final class DukeRtsApp extends SimpleApplication {
         return selectedOwn().stream().map(u -> new ObjectId(u.id())).toList();
     }
 
-    /** What the snapshot says of the selected things that are his. */
+    /**
+     * Who his orders go to: what he has selected of his own, or what a part says instead — a game of one hero's, the
+     * hero, whatever is picked out to be looked at.
+     */
     private List<uz.dukeengine.core.view.UnitView> selectedOwn() {
+        var own = ownSelected();
+        for (var part : parts) {
+            var ordered = part.ordered(snapshot, game.getLocalPlayerIndex(), own);
+            if (ordered != null) {
+                return ordered;
+            }
+        }
+        return own;
+    }
+
+    /** What the snapshot says of the selected things that are his. */
+    private List<uz.dukeengine.core.view.UnitView> ownSelected() {
         return snapshot.units().stream()
                 .filter(u -> selected.contains(u.id()) && u.playerIndex() == game.getLocalPlayerIndex())
                 .toList();
+    }
+
+    /** Who his orders went to when the game was last told, so it is told only when that changes. */
+    private List<Integer> orderedTold = List.of();
+
+    /** The game told who his orders go to, where a part makes that other than what is selected. */
+    private void tellTheGameWhoIsOrdered() {
+        var own = ownSelected();
+        var ordered = selectedOwn();
+        var told = ordered.equals(own) ? null : ordered.stream().map(uz.dukeengine.core.view.UnitView::id).toList();
+        if (!java.util.Objects.equals(told, orderedTold)) {
+            orderedTold = told;
+            game.setOrdered(told);
+        }
     }
 
     // ---- per-frame sync ----
@@ -5008,6 +5037,9 @@ final class DukeRtsApp extends SimpleApplication {
         }
         selectionLink.tell(selected, game);
         selectionLink.tellGroups(controls.groups(), game);
+        if (snapshot != null) {
+            tellTheGameWhoIsOrdered();
+        }
     }
 
     /**

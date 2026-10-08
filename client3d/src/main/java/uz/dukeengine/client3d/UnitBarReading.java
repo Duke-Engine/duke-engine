@@ -50,7 +50,7 @@ import java.util.Map;
  *                         Missing means the template's own name is as good as
  *                         anything the game could have added
  */
-record UnitBarReading(
+public record UnitBarReading(
         int depth,
         int bossId,
         int heroId,
@@ -65,7 +65,7 @@ record UnitBarReading(
     static final UnitBarReading NOTHING =
             new UnitBarReading(0, 0, 0, 0, 0, 0, 0, 0, Map.of());
 
-    UnitBarReading {
+    public UnitBarReading {
         names = names == null ? Map.of() : Map.copyOf(names);
     }
 
@@ -125,7 +125,7 @@ record UnitBarReading(
      * since the two halves are interleaved in whatever order the game wrote
      * them and neither end should have to care.
      */
-    static UnitBarReading read(String status) {
+    public static UnitBarReading read(String status) {
         if (status == null || status.isEmpty()) {
             return NOTHING;
         }

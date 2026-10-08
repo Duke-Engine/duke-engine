@@ -185,6 +185,15 @@ public interface HudPart {
         return null;
     }
 
+    /**
+     * Who the local player's orders go to: {@code ownSelected}, what he has selected of his own, as in every game
+     * until a part says otherwise — or, in a game of one hero, the hero, whatever is picked out to be looked at.
+     * {@code null} where this part has no say.
+     */
+    default List<UnitView> ordered(WorldSnapshot snapshot, int localPlayer, List<UnitView> ownSelected) {
+        return null;
+    }
+
     /** What the pause menu says of the match beside its buttons: a word and its value, a row each. */
     default List<String[]> pauseFacts(WorldSnapshot snapshot) {
         return List.of();

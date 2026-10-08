@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import uz.dukeengine.client3d.Canvas;
 import uz.dukeengine.client3d.HudPart;
+import uz.dukeengine.client3d.UnitBarReading;
+import uz.dukeengine.core.view.UnitView;
 import uz.dukeengine.core.view.WorldSnapshot;
 
 /**
@@ -160,6 +162,25 @@ public final class RpgHud implements HudPart {
     @Override
     public Character keyAt(float x, float y) {
         return panel.slotAt(x, y);
+    }
+
+    /**
+     * Single-hero control: the player's orders go to his hero — the one the bars' {@code hero} field names, where it
+     * is his and still standing — whatever he has picked out to look at, a creature of the dungeon's included. With no
+     * hero named, what he has selected of his own, as in any game.
+     */
+    @Override
+    public List<UnitView> ordered(WorldSnapshot snapshot, int localPlayer, List<UnitView> ownSelected) {
+        int hero = snapshot.hasStatus() ? UnitBarReading.read(snapshot.status()).heroId() : 0;
+        if (hero == 0) {
+            return null;
+        }
+        for (var unit : snapshot.units()) {
+            if (unit.id() == hero && unit.playerIndex() == localPlayer) {
+                return List.of(unit);
+            }
+        }
+        return null;
     }
 
     /** How deep the run is and the hero's rank, off the card, which the panel has put away by the time a menu is up. */

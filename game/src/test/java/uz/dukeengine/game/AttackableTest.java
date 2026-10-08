@@ -138,6 +138,29 @@ class AttackableTest {
 
         assertEquals(null, scene.tank().findModule(WeaponUpdate.class).getTarget(), "refused");
     }
+    /**
+     * A game of one hero: the worker picked out to be looked at, the orders going to the tank. A click is judged for
+     * who takes the orders — the tank cannot hit the helicopter overhead — and, told nothing, for the selection again.
+     */
+    @Test
+    void aClickIsJudgedForWhoTakesTheOrdersWhereTheWindowSaysItIsNotTheSelection() {
+        var scene = scene();
+        var game = scene.game();
+        scene.helicopter().setStatus(ObjectStatus.AIRBORNE);
+        game.setSelection(List.of(scene.worker().getId().value()));
+        game.setPointedAt(scene.helicopter().getId().value());
+        game.runHeadless(1);
+        assertTrue(game.getSnapshot().attackable(), "the worker is unarmed, and refuses nothing");
+
+        game.setOrdered(List.of(scene.tank().getId().value()));
+        game.runHeadless(1);
+        assertFalse(game.getSnapshot().attackable(), "the tank takes the orders, and cannot hit it");
+
+        game.setOrdered(null);
+        game.runHeadless(1);
+        assertTrue(game.getSnapshot().attackable(), "back to the selection");
+    }
+
     @Test
     void theGameNamesTheOrderAClickOnAThingWouldGiveAndTheSnapshotCarriesIt() {
         var scene = scene();
