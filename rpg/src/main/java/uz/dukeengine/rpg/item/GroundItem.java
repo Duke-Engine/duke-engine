@@ -39,7 +39,7 @@ public final class GroundItem extends Module {
     }
 
     /** Taken: empty, and gone from the floor. */
-    Loot take() {
+    public Loot take() {
         var item = holding;
         holding = null;
         getOwner().markDestroyed();

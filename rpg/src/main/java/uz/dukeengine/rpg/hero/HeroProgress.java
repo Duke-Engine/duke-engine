@@ -5,6 +5,7 @@ import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.rpg.item.LootBag;
 import java.util.function.Consumer;
+import java.util.function.IntSupplier;
 import uz.dukeengine.core.GameLogic;
 import uz.dukeengine.combat.module.ExperienceModule;
 
@@ -32,7 +33,7 @@ import uz.dukeengine.combat.module.ExperienceModule;
  */
 public final class HeroProgress {
 
-    private final int heroPlayer;
+    private final IntSupplier heroPlayer;
     /** Where a level reached is said: the hero's own player's screen, and nowhere else. */
     private final Consumer<String> banner;
     private final Levelling rules;
@@ -83,11 +84,11 @@ public final class HeroProgress {
     private float speedOnThisBody = Float.NaN;
 
     /**
-     * @param heroPlayer the side his hero plays for
+     * @param heroPlayer the side his hero plays for, asked when wanted: a player is bound once the match starts
      * @param banner     says a word on the hero's own player's screen, and "" takes it away; another machine of a
      *                   party says nothing
      */
-    public HeroProgress(int heroPlayer, Consumer<String> banner, Levelling rules, AttributeRules attributeRules,
+    public HeroProgress(IntSupplier heroPlayer, Consumer<String> banner, Levelling rules, AttributeRules attributeRules,
             int bannerFrames, LootBag loot) {
         this.heroPlayer = heroPlayer;
         this.banner = banner;
@@ -360,7 +361,7 @@ public final class HeroProgress {
 
     private GameObject findHero(GameLogic logic) {
         for (var object : logic.getObjects()) {
-            if (object.getPlayerIndex() == heroPlayer
+            if (object.getPlayerIndex() == heroPlayer.getAsInt()
                     && object.getTemplate().name().equals(hero.name())) {
                 return object;
             }

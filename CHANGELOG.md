@@ -96,7 +96,7 @@ fight with, under `rts` and `rpg`. The split lands in steps, and this section gr
   | `new EyesOnly(owner, settings)` | `new EyesOnly(owner, settings.storeyHeight())` |
   | `new SummoningUpdate(owner, settings)` | `new SummoningUpdate(owner, (risen, level) -> Spawner.scale(risen, level, settings))` |
   | the dungeon's `Seal` class | a class of the game's implementing `rpg.Seal` — `parts(world, a, b)` as before; `Seal.NONE` parts nothing |
-  | `new HeroProgress(gamePlayer, levelling, attributeRules, bannerFrames, bag)` | `new HeroProgress(playerIndex, banner, levelling, …)`, `banner` saying a word on the hero's own player's screen and `""` taking it off |
+  | `new HeroProgress(gamePlayer, levelling, attributeRules, bannerFrames, bag)` | `new HeroProgress(gamePlayer::getIndex, banner, levelling, …)` — the side asked when wanted, so it may be made before the match binds its players — `banner` saying a word on the hero's own player's screen and `""` taking it off |
   | `playing(HeroLook)`, `getHero()` | `playing(HeroSheet)`: `HeroLook` implements `rpg.hero.HeroSheet` — it has every accessor the sheet asks |
   | `tick(game)`, `carryOver(game, body)` | `tick(game.getLogic())`, `carryOver(game.getLogic(), body)` |
   | the hero's blow as his side's `RtsPlayer.setWeaponDamageBonus` | an `AttackBonus` module on the hero, added when it is first more than 1; his side's bonus is left alone |

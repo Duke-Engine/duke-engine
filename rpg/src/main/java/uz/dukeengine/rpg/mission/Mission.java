@@ -124,7 +124,7 @@ public final class Mission {
 
     /** On each monster the floor put outside the keep: its death, told to the mission it belongs to. */
     @ModuleGroup(RpgModuleGroups.ITEMS)
-    static final class Counted extends Module implements DieModule {
+    public static final class Counted extends Module implements DieModule {
 
         private final Mission mission;
 
