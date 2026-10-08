@@ -1916,6 +1916,20 @@ public final class DukeGame {
         return this;
     }
 
+    /**
+     * A rule asked beside the ones already given, after them: the first to name a word is the word. So a library's rule
+     * — the bag's pickup — and the game's own — a word for talking to a person — both answer on one match without
+     * either repeating the other. {@link #contextOrder} still sets the one rule, putting away all that were added.
+     */
+    public DukeGame addContextOrder(ContextOrder rule) {
+        var before = contextOrder;
+        this.contextOrder = before == null ? rule : (selection, target) -> {
+            var word = before.orderOn(selection, target);
+            return word != null ? word : rule.orderOn(selection, target);
+        };
+        return this;
+    }
+
     private String contextOrderNow() {
         var now = pointed;
         var world = logic;

@@ -183,6 +183,29 @@ class AttackableTest {
         assertEquals(null, game.getSnapshot().contextOrder(), "nothing selected, nothing ordered");
     }
 
+    /** A library's rule and the game's own, both answering on one match, the one added first asked first. */
+    @Test
+    void rulesAddedBesideEachOtherEachAnswerTheirOwnThings() {
+        var scene = scene();
+        var game = scene.game();
+        game.addContextOrder((selection, target) -> target == scene.tank() ? "Enter" : null);
+        game.addContextOrder((selection, target) -> target == scene.helicopter() ? "Talk" : null);
+        game.addContextOrder((selection, target) -> "Never");
+        game.setSelection(List.of(scene.worker().getId().value()));
+
+        game.setPointedAt(scene.tank().getId().value());
+        game.runHeadless(1);
+        assertEquals("Enter", game.getSnapshot().contextOrder(), "the first rule's thing");
+
+        game.setPointedAt(scene.helicopter().getId().value());
+        game.runHeadless(1);
+        assertEquals("Talk", game.getSnapshot().contextOrder(), "the second's, the first naming nothing");
+
+        game.contextOrder((selection, target) -> null);
+        game.runHeadless(1);
+        assertEquals(null, game.getSnapshot().contextOrder(), "setting the rule puts the added ones away");
+    }
+
     @Test
     void theGameMayNameTheOrderAClickOnTheGroundWouldGive() {
         var scene = scene();

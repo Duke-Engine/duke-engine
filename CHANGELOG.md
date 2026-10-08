@@ -369,6 +369,13 @@ E16, in parts.
   whole, in one game; `streamGroundFor(map)` is the reach for a map, 0 for one built whole. `streamGround(cells)` streams
   every map, as before.
 
+### A right-click rule beside the others
+
+- **`DukeGame.addContextOrder(rule)`** (E20): a rule asked after the ones already there, the first to name a word
+  giving it, so a library's rule and a game's own answer on one match. `BagScreen.show` adds its pickup and gate
+  rule this way, so a game adds its own (`Talk`) beside it rather than copying it. `contextOrder(rule)` still sets the
+  one rule, putting away any that were added.
+
 ### Saving on the way out
 
 - **A game's rows on the pause menu** (E19): `Shell.pauseRows(List<Shell.Option>)`, between Settings and Abandon.

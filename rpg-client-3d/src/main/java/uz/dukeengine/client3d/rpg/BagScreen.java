@@ -140,7 +140,8 @@ public final class BagScreen implements Painter, CanvasInput {
 
     /**
      * The match now being played, told before it starts: a click on a thing lying on the floor is a pickup in it, a
-     * click on a gate is the walk up to it, a place the drop aim was given becomes the order to put the thing down
+     * click on a gate is the walk up to it — added beside the game's own right-click rules ({@link
+     * DukeGame#addContextOrder}) — a place the drop aim was given becomes the order to put the thing down
      * there, and a thing the use aim was given becomes the order to take it there.
      *
      * @param bag   this machine's hero's bag, or {@code null} before the match has numbered its players
@@ -148,7 +149,7 @@ public final class BagScreen implements Painter, CanvasInput {
      * @param under painted under the bag while it is shown — the game's own words over the world — or {@code null}
      */
     public void show(DukeGame game, Supplier<LootBag> bag, UnaryOperator<Command> wire, Painter under) {
-        game.contextOrder((selection, target) -> {
+        game.addContextOrder((selection, target) -> {
             var item = target.findModule(GroundItem.class);
             if (item != null && item.getHolding() != null) {
                 return words.pickUp();
