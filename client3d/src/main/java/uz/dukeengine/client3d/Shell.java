@@ -135,6 +135,7 @@ public final class Shell {
     private final boolean startsImmediately;
     private final boolean drawnByTheGame;
     private Question question;
+    private List<Option> pauseRows = List.of();
 
     private Shell(boolean startsImmediately) {
         this(startsImmediately, false);
@@ -159,6 +160,21 @@ public final class Shell {
     /** What the game wants answered first, or {@code null} if it wants nothing. */
     public Question question() {
         return question != null && question.worthAsking() ? question : null;
+    }
+
+    /**
+     * The game's own rows on the pause menu, between Settings and Abandon, in this order. Taking one runs its
+     * {@code taken} on the client's thread with the simulation paused; a row with a {@code next} question opens it,
+     * Back and its last answer both coming back to the pause menu, and one without comes straight back.
+     */
+    public Shell pauseRows(List<Option> rows) {
+        this.pauseRows = List.copyOf(rows);
+        return this;
+    }
+
+    /** The game's rows on the pause menu; see {@link #pauseRows(List)}. */
+    public List<Option> pauseRows() {
+        return pauseRows;
     }
 
     /** An empty shell, to be filled in. Entries appear in the order they are added. */

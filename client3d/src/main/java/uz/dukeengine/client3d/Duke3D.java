@@ -509,6 +509,16 @@ public final class Duke3D {
         later(DukeRtsApp::releaseMatchStart);
     }
 
+    /**
+     * Run {@code hook} once before the client lets its match go — on Abandon, on Quit and on the window closing — on
+     * the client's thread with the simulation paused, so a game may save on the way out. Nothing runs where there is
+     * no match.
+     */
+    public Duke3D onLeaving(Runnable hook) {
+        later(app -> app.onLeaving(hook));
+        return this;
+    }
+
     /** Do this on the client's own thread: at its next frame, or once it is launched. */
     private void later(Consumer<DukeRtsApp> task) {
         DukeRtsApp running;

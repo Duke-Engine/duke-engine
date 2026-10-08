@@ -618,12 +618,32 @@ final class DukeRtsApp extends SimpleApplication {
         return game;
     }
 
+    private Runnable leaving;
+
     void awaitStop() throws InterruptedException {
         stopped.await();
     }
 
+    /** Run once before this client lets its match go — see {@link Duke3D#onLeaving}. */
+    void onLeaving(Runnable hook) {
+        this.leaving = hook;
+    }
+
+    /** The game told it is about to lose its match, with the world still, if there is a match to lose. */
+    void leave() {
+        var hook = leaving;
+        leaving = null;
+        if (hook == null || game.getLogic() == null) {
+            return;
+        }
+        setSimulationPaused(true);
+        hook.run();
+    }
+
     @Override
     public void destroy() {
+        // Abandon, Quit and the window closing all come here.
+        leave();
         if (backdrop != null) {
             backdrop.stop();
         }
@@ -1957,6 +1977,14 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private void showQuestion(Shell.Question question, Runnable back) {
         screen = Screen.MENU;
+        showQuestion(question, back, this::startGame);
+    }
+
+    /**
+     * The same, ending in {@code done} once the last of its answers is taken, on whatever screen it is asked from —
+     * so a question asked from the pause menu is still the pause menu's if the window is resized under it.
+     */
+    private void showQuestion(Shell.Question question, Runnable back, Runnable done) {
         var items = new java.util.ArrayList<StoneMenu.Row>();
         for (var option : question.options()) {
             items.add(new StoneMenu.Action(option.label(), () -> {
@@ -1965,9 +1993,9 @@ final class DukeRtsApp extends SimpleApplication {
                 }
                 // Either it narrows the choice further or it was the last of them.
                 if (option.next() != null) {
-                    showQuestion(option.next(), () -> showQuestion(question, back));
+                    showQuestion(option.next(), () -> showQuestion(question, back, done), done);
                 } else {
-                    startGame();
+                    done.run();
                 }
             }, false, option.picture()));
             if (!option.blurb().isBlank()) {
@@ -2428,10 +2456,25 @@ final class DukeRtsApp extends SimpleApplication {
         }
         rows.add(new StoneMenu.Action("Resume", this::resumeGame));
         rows.add(new StoneMenu.Action("Settings", () -> showSettingsMenu(Screen.PAUSED)));
+        for (var row : shell.pauseRows()) {
+            rows.add(new StoneMenu.Action(row.label(), () -> takePauseRow(row), false, row.picture()));
+        }
         // Marked, and asked about. It is the one thing on any of these screens
         // that costs him something he cannot get back.
         rows.add(new StoneMenu.Action("Abandon the run", this::confirmAbandon, true));
         menu.show("PAUSED", "", rows, "ESC resume", "", true);
+    }
+
+    /** A game's row on the pause menu taken: its own work, then its question if it has one, then back. */
+    private void takePauseRow(Shell.Option row) {
+        if (row.taken() != null) {
+            row.taken().run();
+        }
+        if (row.next() != null) {
+            showQuestion(row.next(), this::showPauseMenu, this::showPauseMenu);
+        } else {
+            showPauseMenu();
+        }
     }
 
     /**

@@ -369,6 +369,15 @@ E16, in parts.
   whole, in one game; `streamGroundFor(map)` is the reach for a map, 0 for one built whole. `streamGround(cells)` streams
   every map, as before.
 
+### Saving on the way out
+
+- **A game's rows on the pause menu** (E19): `Shell.pauseRows(List<Shell.Option>)`, between Settings and Abandon.
+  Taking one runs its `taken` on the client's thread with the simulation paused; one with a `next` question opens
+  it — a save's slots — Back and the last answer both coming back to the pause menu.
+- **Told before the match is let go** (E19): `Duke3D.onLeaving(Runnable)` runs once on Abandon, on Quit and on the
+  window closing, on the client's thread with the simulation paused, so a game may save as it goes. Where there is no
+  match, nothing runs.
+
 ### A game's own order, applied at once
 
 `GameLogic.applyNow(command)` applies an order in the frame it is given, exactly as one drained at the start of a frame
