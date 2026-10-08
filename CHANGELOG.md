@@ -310,7 +310,10 @@ false unless it says so). While such a thing stands, the sight cells its footpri
 looker's line of sight, exactly as the map's stone is where the game has stone hide the ground
 (`GameLogic.setSightHiddenByStone`): the cells themselves seen, what is behind them not, the same for every player.
 The cells are laid again at each look, so a thing gone — a gate opened and replaced by its open template — uncovers
-them on the next. Pathing is untouched. A shut gate, a door, a curtain, a thick hedge.
+them on the next. The 3D client's own fog does the same where its line of sight is on (`Fog.lineOfSight`): the
+things standing in each frame's snapshot whose template blocks sight stop it as stone does, an opened gate letting it
+through the next frame. `Footprint.cellsOverlapped` is the one rule for which cells a thing covers. Pathing is
+untouched. A shut gate, a door, a curtain, a thick hedge.
 
 ### The client, split
 

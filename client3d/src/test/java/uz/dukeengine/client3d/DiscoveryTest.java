@@ -404,6 +404,28 @@ class DiscoveryTest {
     }
 
     /**
+     * A thing that blocks sight stops it as stone does: a shut gate across an open floor hides the cells behind it, its
+     * own cells seen, and taken away the next reveal sees through.
+     */
+    @Test
+    void aGateThatBlocksSightHidesWhatIsBehindItUntilItGoes() {
+        var seen = seeing(new PathGrid(40, 30), true);
+        // A box 30 long and 4 thick, turned across the line: x 203..207, y 90..120 — cells (20, 9..11).
+        var gate = new uz.dukeengine.core.thing.Footprint(new uz.dukeengine.core.thing.Geometry.Box(15f, 2f, 10f),
+                new uz.dukeengine.core.math.Coord3D(205f, 105f, 0f), (float) (Math.PI / 2));
+
+        seen.blockSight(List.of(gate));
+        seen.reveal(List.of(at(LOCAL, 175f, 105f)), LOCAL, 80f, "Rogue");
+        assertEquals(Discovery.State.VISIBLE, seen.stateAt(19, 10), "his side");
+        assertEquals(Discovery.State.VISIBLE, seen.stateAt(20, 10), "the gate's own cell");
+        assertEquals(Discovery.State.UNSEEN, seen.stateAt(22, 10), "behind it");
+
+        seen.blockSight(List.of());
+        seen.reveal(List.of(at(LOCAL, 175f, 105f)), LOCAL, 80f, "Rogue");
+        assertEquals(Discovery.State.VISIBLE, seen.stateAt(22, 10), "opened, the next reveal sees through");
+    }
+
+    /**
      * Stone stops sight.
      *
      * <p>The hero stands one side of a wall and looks at it; the cell behind it is

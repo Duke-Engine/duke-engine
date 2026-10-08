@@ -59,6 +59,8 @@ final class Discovery {
      * is stone.
      */
     private final BitSet solid = new BitSet();
+    /** The cells things that block sight stand on, as last told: stone to a line of sight, as {@link #solid} is. */
+    private final BitSet sightBlocked = new BitSet();
 
     /**
      * Which storey each cell stands on.
@@ -103,6 +105,7 @@ final class Discovery {
         explored.clear();
         visible.clear();
         solid.clear();
+        sightBlocked.clear();
         storey = new short[width * height];
         for (int cy = 0; cy < height; cy++) {
             for (int cx = 0; cx < width; cx++) {
@@ -298,6 +301,18 @@ final class Discovery {
      * gun and the dark into something you can simply shoot away. Null for a game
      * where anything of his that has a position also has eyes.
      */
+    /**
+     * The things standing now that hide what is behind them ({@code Solid.blocksSight}): the cells their footprints
+     * overlap are stone to a line of sight from the next reveal, as the map's stone is — themselves seen, what is
+     * behind them not — and a thing no longer among them opens its cells again.
+     */
+    void blockSight(List<uz.dukeengine.core.thing.Footprint> standing) {
+        sightBlocked.clear();
+        for (var footprint : standing) {
+            footprint.cellsOverlapped(cellSize, width, height, (cx, cy) -> sightBlocked.set(cy * width + cx));
+        }
+    }
+
     void reveal(List<UnitView> units, int localPlayer, float radius, String eyesOf) {
         lastSight = null;
         allOpen = false;
@@ -515,7 +530,7 @@ final class Discovery {
             // Stone stops the line, and so does a floor standing above the eyes:
             // a raised room between here and there is a wall with a room on top
             // of it, and what is behind it is behind it.
-            if (solid.get(y * width + x) || storey[y * width + x] > eyes) {
+            if (solid.get(y * width + x) || sightBlocked.get(y * width + x) || storey[y * width + x] > eyes) {
                 return false;
             }
         }

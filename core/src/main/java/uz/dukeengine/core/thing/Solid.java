@@ -21,7 +21,8 @@ public interface Solid extends ThingTemplate {
     /**
      * Whether it hides what is behind it from sight while it stands — a shut gate, a door, a curtain, a thick hedge
      * ({@code BlocksSight = Yes}): the sight cells its footprint covers are stone to every looker's line of sight, as
-     * the map's stone is, where the game has stone hide the ground at all ({@code GameLogic.setSightHiddenByStone}).
+     * the map's stone is — in the simulation's sight cells, where the game has stone hide the ground at all ({@code
+     * GameLogic.setSightHiddenByStone}), and in a client's fog whose line of sight stops at stone.
      * The cells themselves are seen, what is behind them not; gone, or another template in its place, they are open on
      * the next look. Pathing is untouched.
      */

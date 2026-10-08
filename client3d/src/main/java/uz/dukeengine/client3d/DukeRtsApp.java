@@ -3457,9 +3457,27 @@ final class DukeRtsApp extends SimpleApplication {
             discoveryRadius = uz.dukeengine.core.thing.Sighted.of(template);
             discoveryEyes = eyes;
         }
+        discovery.blockSight(whatBlocksSight());
         discovery.reveal(snapshot.units(), game.getLocalPlayerIndex(), discoveryRadius,
                 visuals.getDiscoveryTemplate());
         drawWhatIsOpen(tpf);
+    }
+
+    /**
+     * The footprints of what stands in this frame's snapshot and hides what is behind it — a shut gate — read from its
+     * template, so the fog's line of sight stops at them and a gate opened lets it through the next frame.
+     */
+    private List<uz.dukeengine.core.thing.Footprint> whatBlocksSight() {
+        var logic = game.getLogic();
+        var standing = new ArrayList<uz.dukeengine.core.thing.Footprint>();
+        for (var view : snapshot.units()) {
+            var template = logic == null ? null : logic.getThingFactory().findTemplate(view.templateName());
+            if (template instanceof uz.dukeengine.core.thing.Solid solid && solid.blocksSight()) {
+                standing.add(new uz.dukeengine.core.thing.Footprint(solid.geometry(),
+                        new Coord3D(view.x(), view.y(), 0f), view.orientation()));
+            }
+        }
+        return standing;
     }
 
     /** What is open, decided: drawn. */

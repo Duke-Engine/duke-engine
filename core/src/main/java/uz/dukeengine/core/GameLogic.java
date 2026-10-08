@@ -526,9 +526,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     /**
-     * Lay the cells every standing thing that blocks sight covers: those its footprint overlaps, a cell it only touches
-     * at an edge left open. Laid again each look, so one gone or swapped for another template uncovers them at once.
-     * Every thing is asked, a sleeping one too — a shut gate hides the court whether or not anyone is near it.
+     * Lay the cells every standing thing that blocks sight covers: those its footprint overlaps ({@link
+     * Footprint#cellsOverlapped}). Laid again each look, so one gone or swapped for another template uncovers them at
+     * once. Every thing is asked, a sleeping one too — a shut gate hides the court whether or not anyone is near it.
      */
     private void layWhatBlocksSight() {
         sightBlocked.clear();
@@ -537,22 +537,8 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             if (thing.isDestroyed() || !(thing.getTemplate() instanceof Solid solid) || !solid.blocksSight()) {
                 continue;
             }
-            var footprint = Footprint.of(thing);
-            var at = thing.getPosition();
-            float reach = footprint.shape().footprintRadius();
-            int fromX = Math.max(0, (int) Math.floor((at.x() - reach) / size));
-            int toX = Math.min(sightCells.width() - 1, (int) Math.floor((at.x() + reach) / size));
-            int fromY = Math.max(0, (int) Math.floor((at.y() - reach) / size));
-            int toY = Math.min(sightCells.height() - 1, (int) Math.floor((at.y() + reach) / size));
-            var cell = new Geometry.Box(size / 2f, size / 2f, 0f);
-            for (int cy = fromY; cy <= toY; cy++) {
-                for (int cx = fromX; cx <= toX; cx++) {
-                    var middle = new Coord3D((cx + 0.5f) * size, (cy + 0.5f) * size, 0f);
-                    if (footprint.separation(new Footprint(cell, middle, 0f)) < 0f) {
-                        sightBlocked.add(cellKey(cx, cy));
-                    }
-                }
-            }
+            Footprint.of(thing).cellsOverlapped(size, sightCells.width(), sightCells.height(),
+                    (cx, cy) -> sightBlocked.add(cellKey(cx, cy)));
         }
     }
 

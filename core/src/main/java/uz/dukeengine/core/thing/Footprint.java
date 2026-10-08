@@ -62,6 +62,34 @@ public record Footprint(Geometry shape, Coord3D center, float orientation, float
     }
 
     /** True when the two shapes share ground. Points never overlap anything. */
+    /** One cell of a grid, by its column and row. */
+    @FunctionalInterface
+    public interface Cell {
+        void at(int cx, int cy);
+    }
+
+    /**
+     * Each cell of a grid of {@code cellSize} cells, {@code width} by {@code height} from the origin, that this
+     * footprint overlaps — a cell it only touches at an edge left out — row by row. What a thing that blocks sight
+     * hides ({@link Solid#blocksSight}), in the simulation's sight cells and in a client's fog alike.
+     */
+    public void cellsOverlapped(float cellSize, int width, int height, Cell cell) {
+        float reach = shape.footprintRadius();
+        int fromX = Math.max(0, (int) Math.floor((center.x() - reach) / cellSize));
+        int toX = Math.min(width - 1, (int) Math.floor((center.x() + reach) / cellSize));
+        int fromY = Math.max(0, (int) Math.floor((center.y() - reach) / cellSize));
+        int toY = Math.min(height - 1, (int) Math.floor((center.y() + reach) / cellSize));
+        var square = new Geometry.Box(cellSize / 2f, cellSize / 2f, 0f);
+        for (int cy = fromY; cy <= toY; cy++) {
+            for (int cx = fromX; cx <= toX; cx++) {
+                var middle = new Coord3D((cx + 0.5f) * cellSize, (cy + 0.5f) * cellSize, 0f);
+                if (separation(new Footprint(square, middle, 0f)) < 0f) {
+                    cell.at(cx, cy);
+                }
+            }
+        }
+    }
+
     public boolean overlaps(Footprint other) {
         if (shape.isPoint() || other.shape.isPoint()) {
             return false;
