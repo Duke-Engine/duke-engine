@@ -69,6 +69,12 @@ MaterialDef Fogged Terrain {
         Texture2D BlendNoise
         Float NoiseScale
         Float BlendRagged
+        // A large picture whose red channel varies each surface by as much as its share of SurfaceVariation0 and 1,
+        // laid one over VariationScale units a copy: one picture over a valley not repeating to the eye.
+        Texture2D Variation
+        Float VariationScale
+        Vector4 SurfaceVariation0
+        Vector4 SurfaceVariation1
     }
 
     Technique {
@@ -91,6 +97,7 @@ MaterialDef Fogged Terrain {
             HAZE : Haze
             BLENDED : Blended
             BLEND_NOISE : BlendNoise
+            BLEND_VARIATION : Variation
         }
     }
 }

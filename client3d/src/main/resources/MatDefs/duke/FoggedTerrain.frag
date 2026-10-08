@@ -78,6 +78,23 @@ uniform float m_NoiseScale;
 uniform float m_BlendRagged;
 #endif
 
+#ifdef BLEND_VARIATION
+uniform sampler2D m_Variation;
+uniform float m_VariationScale;
+uniform vec4 m_SurfaceVariation0;
+uniform vec4 m_SurfaceVariation1;
+
+// How much a surface is varied here: the variation picture, each surface reading it a little way off the others so they
+// do not darken and lighten together, about one on average and nothing at all for a surface of no variation.
+float varied(float strength, float slot) {
+    float v = texture2D(m_Variation, worldPos.xz * m_VariationScale + vec2(slot * 0.173, slot * 0.311)).r;
+    return mix(1.0, 0.5 + v, strength);
+}
+#define VARY(strength, slot) varied(strength, slot)
+#else
+#define VARY(strength, slot) 1.0
+#endif
+
 // The ground blended from its paint, as Warcraft III blends its tiles: each surface's weight comes in at the cell's
 // corners and is blended across it; the noise moves a border only where the surface already shows -- a surface never
 // appears where no cell round it is painted with it -- and the weights are sharpened and made to add up to one again.
@@ -105,14 +122,22 @@ vec3 blendedGround() {
     w0 /= total;
     w1 /= total;
     vec2 p = worldPos.xz;
-    vec3 colour = w0.x * texture2D(m_Surface0, p * m_SurfaceScale0.x).rgb * m_SurfaceTints[0].rgb;
-    colour += w0.y * texture2D(m_Surface1, p * m_SurfaceScale0.y).rgb * m_SurfaceTints[1].rgb;
-    colour += w0.z * texture2D(m_Surface2, p * m_SurfaceScale0.z).rgb * m_SurfaceTints[2].rgb;
-    colour += w0.w * texture2D(m_Surface3, p * m_SurfaceScale0.w).rgb * m_SurfaceTints[3].rgb;
-    colour += w1.x * texture2D(m_Surface4, p * m_SurfaceScale1.x).rgb * m_SurfaceTints[4].rgb;
-    colour += w1.y * texture2D(m_Surface5, p * m_SurfaceScale1.y).rgb * m_SurfaceTints[5].rgb;
-    colour += w1.z * texture2D(m_Surface6, p * m_SurfaceScale1.z).rgb * m_SurfaceTints[6].rgb;
-    colour += w1.w * texture2D(m_Surface7, p * m_SurfaceScale1.w).rgb * m_SurfaceTints[7].rgb;
+    vec3 colour = w0.x * texture2D(m_Surface0, p * m_SurfaceScale0.x).rgb * m_SurfaceTints[0].rgb
+            * VARY(m_SurfaceVariation0.x, 0.0);
+    colour += w0.y * texture2D(m_Surface1, p * m_SurfaceScale0.y).rgb * m_SurfaceTints[1].rgb
+            * VARY(m_SurfaceVariation0.y, 1.0);
+    colour += w0.z * texture2D(m_Surface2, p * m_SurfaceScale0.z).rgb * m_SurfaceTints[2].rgb
+            * VARY(m_SurfaceVariation0.z, 2.0);
+    colour += w0.w * texture2D(m_Surface3, p * m_SurfaceScale0.w).rgb * m_SurfaceTints[3].rgb
+            * VARY(m_SurfaceVariation0.w, 3.0);
+    colour += w1.x * texture2D(m_Surface4, p * m_SurfaceScale1.x).rgb * m_SurfaceTints[4].rgb
+            * VARY(m_SurfaceVariation1.x, 4.0);
+    colour += w1.y * texture2D(m_Surface5, p * m_SurfaceScale1.y).rgb * m_SurfaceTints[5].rgb
+            * VARY(m_SurfaceVariation1.y, 5.0);
+    colour += w1.z * texture2D(m_Surface6, p * m_SurfaceScale1.z).rgb * m_SurfaceTints[6].rgb
+            * VARY(m_SurfaceVariation1.z, 6.0);
+    colour += w1.w * texture2D(m_Surface7, p * m_SurfaceScale1.w).rgb * m_SurfaceTints[7].rgb
+            * VARY(m_SurfaceVariation1.w, 7.0);
     return colour;
 }
 #endif

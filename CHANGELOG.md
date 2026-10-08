@@ -341,6 +341,14 @@ E16, in parts.
   cells; `sharpness`, how narrow a border is (1 a ramp across the cell). `PaintBlend.SMOOTH` is smooth ramps. A map
   that writes its own blends (`@Overlay` and `@Fade`) is drawn from them as before, so a converted Generals map keeps
   its look; a blended map's `@PictureCorners` are not read (cliffs come with part 5).
+- **A surface's tint and variation.** `Visuals.surface(paletteValue, new SurfaceLook(tint, variation))` draws the
+  surface a palette value names — its picture's path as the map writes it — with its picture multiplied by `tint`
+  (`0xRRGGBB`), on blended ground and on ground drawn a surface a cell alike: one picture of grass drawn lush in one
+  map and dry in another. On blended ground a large picture (`PaintBlend.variation`, laid one copy to
+  `variationCoverage` cells) varies each surface by its `variation` (0..1), each surface reading it a little way off
+  the others, so one picture over a valley does not repeat to the eye. `PaintBlend` keeps its four-part constructor,
+  which names no variation. Per-cell turning of a picture is not offered: on a picture that runs across cells it draws
+  the cells' edges.
 
 ### A game's own order, applied at once
 

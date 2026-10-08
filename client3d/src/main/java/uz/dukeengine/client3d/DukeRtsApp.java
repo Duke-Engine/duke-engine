@@ -7847,6 +7847,9 @@ final class DukeRtsApp extends SimpleApplication {
      * and every cell after it the picture's last column, which is a map drawn in stripes.
      */
     private Material ground(ColorRGBA colour, String texture) {
+        if (texture != null) {
+            colour = tinted(colour, visuals.getSurface(texture));
+        }
         var picture = texture == null ? null : groundTexture(texture);
         if (picture == null) {
             return foggedGround() ? foggedTerrain(colour) : lit(colour);
@@ -7907,6 +7910,13 @@ final class DukeRtsApp extends SimpleApplication {
         }
     };
 
+    /** A surface's colour times the tint the game gave its picture ({@link Visuals#surface}). */
+    static ColorRGBA tinted(ColorRGBA colour, Visuals.SurfaceLook look) {
+        int tint = look.tint();
+        return colour.mult(new ColorRGBA((tint >> 16 & 0xFF) / 255f, (tint >> 8 & 0xFF) / 255f, (tint & 0xFF) / 255f,
+                1f));
+    }
+
     /** A white picture of one texel, for a blended ground's surfaces that are colours or are not used. */
     private com.jme3.texture.Texture white;
 
@@ -7930,12 +7940,16 @@ final class DukeRtsApp extends SimpleApplication {
         var material = fogged(ColorRGBA.White, ambientColour.mult(PLAIN_AMBIENT), null);
         material.setBoolean("Blended", true);
         var scales = new float[TerrainScene.BLEND_SLOTS];
+        var varied = new float[TerrainScene.BLEND_SLOTS];
         var tints = new com.jme3.math.Vector4f[TerrainScene.BLEND_SLOTS];
         for (int slot = 0; slot < TerrainScene.BLEND_SLOTS; slot++) {
             var surface = slot < surfaces.size() ? surfaces.get(slot) : null;
             var picture = surface == null || surface.texture() == null ? null : groundTexture(surface.texture());
             material.setTexture("Surface" + slot, picture == null ? white() : picture);
-            var colour = surface == null ? ColorRGBA.Black : surface.colour();
+            var look = surface == null || surface.texture() == null ? Visuals.SurfaceLook.PLAIN
+                    : visuals.getSurface(surface.texture());
+            var colour = surface == null ? ColorRGBA.Black : tinted(surface.colour(), look);
+            varied[slot] = look.variation();
             tints[slot] = new com.jme3.math.Vector4f(colour.r, colour.g, colour.b, 1f);
             scales[slot] = slot < spans.length && spans[slot] > 0f ? 1f / spans[slot] : 1f;
         }
@@ -7944,10 +7958,19 @@ final class DukeRtsApp extends SimpleApplication {
         material.setParam("SurfaceTints", com.jme3.shader.VarType.Vector4Array, tints);
         var blend = visuals.getPaintBlend() == null ? Visuals.PaintBlend.SMOOTH : visuals.getPaintBlend();
         material.setFloat("BlendSharp", blend.sharpness());
+        float cell = builtFrom == null ? uz.dukeengine.core.pathfind.PathGrid.DEFAULT_CELL_SIZE
+                : builtFrom.getCellSize();
+        var variation = blend.variation() == null ? null : groundTexture(blend.variation());
+        if (variation != null) {
+            material.setTexture("Variation", variation);
+            material.setFloat("VariationScale", 1f / (blend.variationCoverage() * cell));
+            material.setVector4("SurfaceVariation0",
+                    new com.jme3.math.Vector4f(varied[0], varied[1], varied[2], varied[3]));
+            material.setVector4("SurfaceVariation1",
+                    new com.jme3.math.Vector4f(varied[4], varied[5], varied[6], varied[7]));
+        }
         var noise = blend.noise() == null ? null : groundTexture(blend.noise());
         if (noise != null) {
-            float cell = builtFrom == null ? uz.dukeengine.core.pathfind.PathGrid.DEFAULT_CELL_SIZE
-                    : builtFrom.getCellSize();
             material.setTexture("BlendNoise", noise);
             material.setFloat("NoiseScale", 1f / (blend.noiseCoverage() * cell));
             material.setFloat("BlendRagged", blend.raggedness());

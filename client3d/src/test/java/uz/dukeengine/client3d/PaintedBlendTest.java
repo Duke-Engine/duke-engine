@@ -159,4 +159,18 @@ class PaintedBlendTest {
         assertTrue(named(root, "blended").isEmpty(), "its @Overlay and @Fade, as written");
         assertTrue(!named(root, "painted").isEmpty() && !named(root, "overlay").isEmpty());
     }
+
+    /** A surface is drawn by the look the game gave its palette value: tinted, and varied by the blend's picture. */
+    @Test
+    void aSurfacesLookTintsItsPictureAndSaysHowMuchItIsVaried() {
+        var visuals = Visuals.create().surface("textures/ground/grass.png", new Visuals.SurfaceLook(0x80FF00, 0.6f));
+
+        var tinted = DukeRtsApp.tinted(com.jme3.math.ColorRGBA.White, visuals.getSurface("textures/ground/grass.png"));
+        assertEquals(new com.jme3.math.ColorRGBA(0x80 / 255f, 1f, 0f, 1f), tinted);
+        assertEquals(0.6f, visuals.getSurface("textures/ground/grass.png").variation());
+        assertEquals(Visuals.SurfaceLook.PLAIN, visuals.getSurface("textures/ground/sand.png"), "never named: plain");
+        assertEquals(com.jme3.math.ColorRGBA.White,
+                DukeRtsApp.tinted(com.jme3.math.ColorRGBA.White, Visuals.SurfaceLook.PLAIN));
+        assertEquals(null, new Visuals.PaintBlend("noise.png", 0.3f, 2f, 8f).variation(), "borders alone: none");
+    }
 }

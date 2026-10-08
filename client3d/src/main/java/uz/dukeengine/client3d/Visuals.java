@@ -2651,8 +2651,13 @@ public final class Visuals {
      * @param raggedness    how far the noise moves a border, from 0 for none to 1 for across the whole cell
      * @param sharpness     how narrow a border is drawn: 1 a ramp across the cell, more a narrower one
      * @param noiseCoverage how many cells one copy of the noise covers
+     * @param variation     a large picture whose red channel varies each surface, laid across the world, so one
+     *                      picture over a valley does not repeat to the eye — each surface by its {@link
+     *                      SurfaceLook#variation}; null for none
+     * @param variationCoverage how many cells one copy of the variation covers
      */
-    public record PaintBlend(String noise, float raggedness, float sharpness, float noiseCoverage) {
+    public record PaintBlend(String noise, float raggedness, float sharpness, float noiseCoverage, String variation,
+            float variationCoverage) {
 
         /** Smooth ramps across a cell, nothing broken: the blend with no picture of its own. */
         public static final PaintBlend SMOOTH = new PaintBlend(null, 0f, 1f, 8f);
@@ -2661,7 +2666,48 @@ public final class Visuals {
             raggedness = Math.clamp(raggedness, 0f, 1f);
             sharpness = Math.max(1f, sharpness);
             noiseCoverage = noiseCoverage > 0f ? noiseCoverage : 8f;
+            variationCoverage = variationCoverage > 0f ? variationCoverage : 64f;
         }
+
+        /** Borders and nothing else: no variation picture. */
+        public PaintBlend(String noise, float raggedness, float sharpness, float noiseCoverage) {
+            this(noise, raggedness, sharpness, noiseCoverage, null, 64f);
+        }
+    }
+
+    /**
+     * How one surface of painted ground is drawn beyond its picture, by the palette value that names it.
+     *
+     * @param tint      a colour its picture is multiplied by, {@code 0xRRGGBB}: one picture of grass drawn lush in
+     *                  one map and dry in another; white leaves it as it is
+     * @param variation how much the blend's variation picture ({@link PaintBlend#variation}) varies it, 0 to 1
+     */
+    public record SurfaceLook(int tint, float variation) {
+
+        /** As its picture is. */
+        public static final SurfaceLook PLAIN = new SurfaceLook(0xFFFFFF, 0f);
+
+        public SurfaceLook {
+            variation = Math.clamp(variation, 0f, 1f);
+        }
+    }
+
+    private final Map<String, SurfaceLook> surfaceLooks = new LinkedHashMap<>();
+
+    /**
+     * Draw the surface a palette names {@code paletteValue} — its picture's path as the map writes it, or its colour —
+     * by {@code look}: tinted, and varied where the ground is blended. Repeatable; a value never named is drawn plain.
+     */
+    public Visuals surface(String paletteValue, SurfaceLook look) {
+        if (paletteValue != null && look != null) {
+            surfaceLooks.put(paletteValue, look);
+        }
+        return this;
+    }
+
+    /** How the surface {@code paletteValue} names is drawn: what {@link #surface} said, or plain. */
+    public SurfaceLook getSurface(String paletteValue) {
+        return paletteValue == null ? SurfaceLook.PLAIN : surfaceLooks.getOrDefault(paletteValue, SurfaceLook.PLAIN);
     }
 
     private PaintBlend paintBlend;
