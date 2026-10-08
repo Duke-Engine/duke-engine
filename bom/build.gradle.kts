@@ -15,6 +15,7 @@ dependencies {
         api(project(":core"))
         api(project(":combat"))
         api(project(":rts"))
+        api(project(":rpg"))
         api(project(":game"))
         api(project(":client3d"))
         api(project(":kit"))

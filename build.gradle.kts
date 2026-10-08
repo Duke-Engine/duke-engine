@@ -72,6 +72,8 @@ val published = mapOf(
         + "experience, auras, pursuit and the move, attack and stop orders — for an RTS and an RPG alike.",
     "rts" to "The RTS library on top of combat: commands, production, economy, construction and the RTS "
         + "vocabulary — the parts every RTS shares, with the rules left to the game.",
+    "rpg" to "The RPG library on top of combat: a hero's skills, mana and buffs, levels and attributes, items "
+        + "and loot, missions — the parts every RPG shares, with the rules left to the game.",
     "game" to "The Unity-style API: the DukeGame facade, players, orders, a 2D Swing client and lock-step "
         + "multiplayer over TCP.",
     "client3d" to "The 3D client on jMonkeyEngine: model loading, skeletal animation, positional sound, an RTS "
