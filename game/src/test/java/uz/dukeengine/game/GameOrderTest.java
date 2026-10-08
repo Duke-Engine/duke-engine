@@ -124,4 +124,33 @@ class GameOrderTest {
 
         assertEquals(List.of(postedAt + 1), frames);
     }
+
+    /**
+     * An order the game's own code decides in a tick is applied in that tick: its listeners told and the move it gave
+     * already under way before the tick returns. One posted as a player's is still applied on the next frame.
+     */
+    @Test
+    void anOrderAppliedNowFromATickHasTakenEffectBeforeTheTickReturns() {
+        var game = match();
+        var heard = new CopyOnWriteArrayList<String>();
+        listen(game, heard);
+        var seen = new CopyOnWriteArrayList<String>();
+        game.onTick(ticked -> {
+            var logic = ticked.getLogic();
+            if (logic.getFrame() != 3) {
+                return;
+            }
+            int me = ticked.getLocalPlayerIndex();
+            logic.applyNow(new CombatOrder.MoveTo(me, List.of(FIRST), new Coord3D(400f, 100f, 0f)));
+            logic.applyNow(order(me, "now", FIRST));
+            seen.add("told=" + heard.size() + " moving=" + logic.findObject(FIRST).getLocomotor().isMoving());
+            ticked.postCommand(new CombatOrder.MoveTo(me, List.of(SECOND), new Coord3D(400f, 160f, 0f)));
+            seen.add("posted moving=" + logic.findObject(SECOND).getLocomotor().isMoving());
+        });
+        game.runHeadless(6);
+
+        assertEquals(List.of("told=1 moving=true", "posted moving=false"), seen);
+        assertEquals(1, heard.size());
+        assertEquals(true, game.getLogic().findObject(SECOND).getLocomotor().isMoving(), "the posted one, a frame on");
+    }
 }

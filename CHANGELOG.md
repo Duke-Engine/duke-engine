@@ -303,6 +303,15 @@ game. It is duke-dungeon's own, which already ran the RPG half, and what tied it
   story and the words. The hero card on the wire went with the client, beside the hero panel (`HeroCard`, below), and
   single-hero control with it. An RPG flavour has not been made: an RPG still runs on `RtsFlavour`.
 
+### A game's own order, applied at once
+
+`GameLogic.applyNow(command)` applies an order in the frame it is given, exactly as one drained at the start of a frame
+is: the same checks, the same listeners (`DukeGame.onOrder` for a game's own `GameOrder`), its result in the world before
+it returns — for an order the game's own code decides during a frame, a computer player choosing its builder's work, an
+order a module queued settled in a tick, as the reference's AI calls its order paths directly. On the simulation thread
+only, never from inside a thing's own update; it goes neither to the wire nor into a recording, since every machine runs
+the same code. A player's order still goes by `issueCommand` and `DukeGame.postCommand`, on the next frame.
+
 ### A thing that hides what is behind it
 
 A template may say `BlocksSight = Yes` — a `blocksSight` component of its record, which `Solid` asks (`Solid.blocksSight`,

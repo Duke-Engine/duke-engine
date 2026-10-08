@@ -1709,6 +1709,21 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     /**
+     * Apply {@code command} now, in the frame it is given, exactly as one drained at the start of a frame is applied:
+     * the same checks, the same listeners — a game's own order heard by whatever hears the game's orders — its result
+     * in the world before this returns. For an order the game's own code decides during a frame — a computer player
+     * choosing its builder's work, an order a module queued settled in a tick — as the reference's AI calls its order
+     * paths directly.
+     *
+     * <p>On the simulation thread only, and not from inside a thing's own update, where nothing may change what modules
+     * it has. It goes neither to the wire nor to a recording: every machine runs the same code and applies it alike on
+     * the same frame, and a replay runs that code again. An order a player gives still goes by {@link #issueCommand}.
+     */
+    public final void applyNow(Command command) {
+        onCommand(command);
+    }
+
+    /**
      * Handle one command drained from the stream. Default does nothing; concrete
      * simulations override it, narrowing {@link Command} to their own game's
      * sealed command hierarchy and pattern-matching over it exhaustively.
