@@ -73,6 +73,23 @@ class DukeTextTest {
         assertEquals(new Value.Text("Fire"), fields.get(3).value());
     }
 
+    /** A list of thirty thousand lines, an open world's scenery, read in linear time: well under a second. */
+    @Test
+    void aLongListOverLinesIsReadInLinearTime() {
+        var text = new StringBuilder("Map\n  Scenery = [\n");
+        for (int i = 0; i < 30_000; i++) {
+            text.append("    \"rock_").append(i).append(" ; 1\",\n");
+        }
+        text.append("  ]\nEnd\n");
+        long start = System.nanoTime();
+        var items = (Value.Items) DukeText.parse(text.toString(), "map.duke").getFirst().fields().getFirst().value();
+        long millis = (System.nanoTime() - start) / 1_000_000;
+
+        assertEquals(30_000, items.items().size());
+        assertEquals("rock_29999 ; 1", items.items().getLast());
+        assertTrue(millis < 1_000, "read in " + millis + " ms");
+    }
+
     @Test
     void aListIsOneValueAndMayRunOverLines() {
         var fields = DukeText.parse("""

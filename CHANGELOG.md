@@ -369,6 +369,12 @@ E16, in parts.
   whole, in one game; `streamGroundFor(map)` is the reach for a map, 0 for one built whole. `streamGround(cells)` streams
   every map, as before.
 
+### A long list read in linear time
+
+- **A list over many lines** (E23): `DukeText` looked for a list's `]` from the list's start after every line, n² in
+  its length — 30,000 one-line scenery items took 50 s. It now goes on from where the last line stopped; the format is
+  unchanged.
+
 ### A right-click rule beside the others
 
 - **`DukeGame.addContextOrder(rule)`** (E20): a rule asked after the ones already there, the first to name a word

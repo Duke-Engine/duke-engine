@@ -302,7 +302,11 @@ public final class DukeText {
         private Value items(String first, int line) {
             var text = new StringBuilder(first);
             int close;
-            while ((close = closingBracket(text, line)) < 0) {
+            int scanned = 1;
+            while ((close = closingBracket(text, scanned, line)) < 0) {
+                // Resumed where the last line stopped, not from the start: a quote never runs over a line, so a scan
+                // that found no bracket ended outside one. From the start every time, a long list read in n² time.
+                scanned = text.length();
                 if (next >= lines.length) {
                     throw error(line, "'[' is never closed by ']'");
                 }
@@ -351,9 +355,9 @@ public final class DukeText {
             return unquote(item);
         }
 
-        /** Where the list's ']' is, skipping quoted text; -1 while it is still open. */
-        private int closingBracket(CharSequence text, int line) {
-            for (int i = 1; i < text.length(); i++) {
+        /** Where the list's ']' is, looking from {@code from} and skipping quoted text; -1 while it is still open. */
+        private int closingBracket(CharSequence text, int from, int line) {
+            for (int i = from; i < text.length(); i++) {
                 char c = text.charAt(i);
                 if (c == '"') {
                     i = quoteEnd(text, i, line) - 1;
