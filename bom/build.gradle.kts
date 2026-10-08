@@ -18,6 +18,8 @@ dependencies {
         api(project(":rpg"))
         api(project(":game"))
         api(project(":client3d"))
+        api(project(":rts-client-3d"))
+        api(project(":rpg-client-3d"))
         api(project(":kit"))
     }
 }

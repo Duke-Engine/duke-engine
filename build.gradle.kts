@@ -78,6 +78,10 @@ val published = mapOf(
         + "multiplayer over TCP.",
     "client3d" to "The 3D client on jMonkeyEngine: model loading, skeletal animation, positional sound, an RTS "
         + "camera, effects, menus and a minimap.",
+    "rts-client-3d" to "The RTS's part of the 3D client: what its window sends that only an RTS has words for — a "
+        + "building's rally point and its build menu.",
+    "rpg-client-3d" to "The RPG's part of the 3D client: the hero's bar and portrait, the skill cards, the bag "
+        + "and what is on a creature, and the hero's card on the status line, both ends of it.",
     "kit" to "The starter set a game begins from: an effects library and the particle art it is drawn with. "
         + "Data only — no code.",
 )

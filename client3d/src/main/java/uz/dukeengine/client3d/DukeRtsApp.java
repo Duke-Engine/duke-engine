@@ -51,7 +51,6 @@ import uz.dukeengine.core.view.UnitView;
 import uz.dukeengine.core.view.WorldSnapshot;
 import uz.dukeengine.combat.event.ShotLanded;
 import uz.dukeengine.combat.event.WeaponFired;
-import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.combat.message.CombatOrder;
 
 /**
@@ -253,6 +252,9 @@ final class DukeRtsApp extends SimpleApplication {
     private final List<Landing.Gone> endedShots = new ArrayList<>();
     /** A level, the boss down, a new floor -- see RunMoments. */
     private final RunMoments runMoments = new RunMoments();
+
+    /** Each kind of game's part of the window on the classpath — see {@link HudPart}. */
+    private final List<HudPart> parts = HudPart.found();
     /** The floor's half of this frame's status line, read once for the bars and the moments. */
     private UnitBarReading barReading = UnitBarReading.NOTHING;
 
@@ -4561,7 +4563,7 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         var click = groundClick(local, selectedOwn(), enemy == null ? snapshot.contextOrder() : null,
-                game.namesGroundOrders(), ground);
+                game.namesGroundOrders(), ground, parts);
         switch (click) {
             case null -> {
                 // nothing selected may take it: the pointer already said so
@@ -4572,10 +4574,6 @@ final class DukeRtsApp extends SimpleApplication {
                     markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE); // no thing on open ground to flash
                 }
                 answerWord(steer.word(), units);
-            }
-            case GameMessage.SetRallyPoint rally -> {
-                game.postCommand(rally);
-                markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
             }
             case CombatOrder.MoveTo move -> {
                 if (!move.units().isEmpty()) {
@@ -4597,7 +4595,10 @@ final class DukeRtsApp extends SimpleApplication {
                     answerOrder("move", move.units());
                 }
             }
-            default -> throw new IllegalStateException("a ground click gave " + click);
+            default -> {
+                game.postCommand(click); // a building's rally point, as its kind of game names it
+                markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
+            }
         }
     }
 
@@ -4605,12 +4606,12 @@ final class DukeRtsApp extends SimpleApplication {
      * What a click on open ground orders the local player's selected things: the game's word for it, where it has one;
      * else one move for those of them that can move — placed as a group by the simulation, and the player's own click,
      * which gathers a group clicked in its middle; else the rally point of a lone production building of his, only in a
-     * game that names no ground orders of its own; else nothing for one structure of his selected alone, and for more a
+     * game that names no ground orders of its own, as the first of {@code parts} to have one sends it; else nothing for one structure of his selected alone, and for more a
      * move of none of them — answered as a move, sent to nobody — as the reference issues its move whatever the
      * selection ({@code CommandTranslator::evaluateContextCommand}).
      */
     static uz.dukeengine.core.message.Command groundClick(int local, List<uz.dukeengine.core.view.UnitView> own,
-            String word, boolean gameDecides, Vector3f ground) {
+            String word, boolean gameDecides, Vector3f ground, List<HudPart> parts) {
         var steer = groundOrder(local, own.stream().map(unit -> new ObjectId(unit.id())).toList(), word, ground);
         if (steer != null) {
             return steer;
@@ -4621,8 +4622,9 @@ final class DukeRtsApp extends SimpleApplication {
         if (!movers.isEmpty()) {
             return new CombatOrder.MoveTo(local, movers, place, true);
         }
-        if (rallies(own, gameDecides)) {
-            return new GameMessage.SetRallyPoint(local, new ObjectId(own.getFirst().id()), place);
+        var rally = rallies(own, gameDecides) ? rallyOf(local, own.getFirst(), place, parts) : null;
+        if (rally != null) {
+            return rally;
         }
         return own.isEmpty() || loneStructure(own) ? null : new CombatOrder.MoveTo(local, List.of(), place, true);
     }
@@ -4632,9 +4634,22 @@ final class DukeRtsApp extends SimpleApplication {
      * is refused only to one structure of his selected alone that takes it as no rally point, as the reference's
      * {@code InGameUI::createMouseoverHint} shows {@code GENERIC_INVALID} for a lone structure alone.
      */
-    static boolean groundTakes(List<uz.dukeengine.core.view.UnitView> own, boolean gameDecides) {
-        return own.stream().anyMatch(uz.dukeengine.core.view.UnitView::mobile) || rallies(own, gameDecides)
-                || !loneStructure(own);
+    static boolean groundTakes(int local, List<uz.dukeengine.core.view.UnitView> own, boolean gameDecides,
+            List<HudPart> parts) {
+        return own.stream().anyMatch(uz.dukeengine.core.view.UnitView::mobile) || !loneStructure(own)
+                || rallies(own, gameDecides) && rallyOf(local, own.getFirst(), new Coord3D(0f, 0f, 0f), parts) != null;
+    }
+
+    /** A building's rally point at {@code place}, as the first of {@code parts} with one sends it, or null. */
+    private static uz.dukeengine.core.message.Command rallyOf(int local, uz.dukeengine.core.view.UnitView building,
+            Coord3D place, List<HudPart> parts) {
+        for (var part : parts) {
+            var rally = part.rally(local, building, place);
+            if (rally != null) {
+                return rally;
+            }
+        }
+        return null;
     }
 
     private static boolean loneStructure(List<uz.dukeengine.core.view.UnitView> own) {
@@ -4751,12 +4766,6 @@ final class DukeRtsApp extends SimpleApplication {
         return null;
     }
 
-    /** A factory's build menu as the RTS prices it for this player; none in a game of another kind. */
-    private List<uz.dukeengine.rts.RtsFlavour.BuildOption> buildOptions(String factory) {
-        return game.flavour() instanceof uz.dukeengine.rts.RtsFlavour rts
-                ? rts.getBuildOptions(factory, game.getLocalPlayerIndex()) : List.of();
-    }
-
     /**
      * Queue the {@code index}-th entry of the selected factory's build menu.
      */
@@ -4765,10 +4774,12 @@ final class DukeRtsApp extends SimpleApplication {
         if (producer == null) {
             return;
         }
-        var options = buildOptions(producer.templateName());
-        if (index >= 0 && index < options.size()) {
-            game.postCommand(new GameMessage.QueueProduction(game.getLocalPlayerIndex(),
-                    new ObjectId(producer.id()), options.get(index).templateName()));
+        for (var part : parts) {
+            var build = part.build(game, producer, index);
+            if (build != null) {
+                game.postCommand(build);
+                return;
+            }
         }
     }
 
@@ -5371,7 +5382,7 @@ final class DukeRtsApp extends SimpleApplication {
         return new Cursors.Over(true, armed, canReach, overPanel,
                 over != null, over != null && over.view.playerIndex() == game.getLocalPlayerIndex(),
                 snapshot.attackable(), !own.isEmpty(), snapshot.contextOrder(), // a thing's, or the ground's
-                scrolling, groundTakes(own, game.namesGroundOrders()));
+                scrolling, groundTakes(game.getLocalPlayerIndex(), own, game.namesGroundOrders(), parts));
     }
 
     /**
@@ -7444,17 +7455,10 @@ final class DukeRtsApp extends SimpleApplication {
             buildMenu.setText("");
             return;
         }
-        var text = new StringBuilder("BUILD (press number; right-click sets rally):\n");
-        var options = buildOptions(producer.templateName());
-        for (int i = 0; i < options.size() && i < 9; i++) {
-            var option = options.get(i);
-            text.append("  [").append(i + 1).append("] ").append(option.displayName())
-                    .append("  $").append(option.cost()).append('\n');
+        var text = new StringBuilder();
+        for (var part : parts) {
+            text.append(part.buildMenu(game, producer));
         }
-        if (options.isEmpty()) {
-            text.append("  (nothing — set Builds in this structure's Produce capability)\n");
-        }
-        text.append("  queue: ").append(producer.productionQueue());
         buildMenu.setText(text.toString());
     }
 

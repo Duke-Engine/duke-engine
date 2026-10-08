@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.core.view.UnitView;
-import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.core.message.Command;
 import uz.dukeengine.combat.message.CombatOrder;
 
 /**
@@ -33,13 +33,24 @@ class GroundClickTest {
     private static final UnitView DOZER = new UnitView(9, "Dozer", LOCAL, 120f, 100f, 0f, 250f, 250f,
             false, true, false, false, 0);
 
+    /** A kind of game's part that rallies a building where the click was, as an RTS's does. */
+    private record Rallied(int playerIndex, int building, Coord3D place) implements Command {
+    }
+
+    private static final List<HudPart> PARTS = List.of(new HudPart() {
+        @Override
+        public Command rally(int localPlayer, UnitView building, Coord3D place) {
+            return new Rallied(localPlayer, building.id(), place);
+        }
+    });
+
     private static Cursors.Over overOpenGround(boolean groundTakes, String word) {
         return new Cursors.Over(true, null, true, false, false, false, true, true, word, null, groundTakes);
     }
 
     @Test
     void aRuleAnsweringSetRallyPointForAFactoryShowsItsPointerAndSendsItsOrderNotTheClientsOwn() {
-        var click = DukeRtsApp.groundClick(LOCAL, List.of(FACTORY), "SetRallyPoint", true, GROUND);
+        var click = DukeRtsApp.groundClick(LOCAL, List.of(FACTORY), "SetRallyPoint", true, GROUND, PARTS);
 
         assertEquals(new uz.dukeengine.combat.message.GameOrder(LOCAL, "SetRallyPoint", List.of(new ObjectId(7)),
                 new Coord3D(300f, 200f, 0f), null, 0), click);
@@ -48,23 +59,23 @@ class GroundClickTest {
 
     @Test
     void theSameRuleAnsweringNothingForALoneDozerWithAQueueMovesIt() {
-        var click = DukeRtsApp.groundClick(LOCAL, List.of(DOZER), null, true, GROUND);
+        var click = DukeRtsApp.groundClick(LOCAL, List.of(DOZER), null, true, GROUND, PARTS);
 
         assertEquals(new CombatOrder.MoveTo(LOCAL, List.of(new ObjectId(9)), PLACE, true), click);
     }
 
     @Test
     void inAGameWithNoRuleALoneDozerIsMovedToo() {
-        var click = DukeRtsApp.groundClick(LOCAL, List.of(DOZER), null, false, GROUND);
+        var click = DukeRtsApp.groundClick(LOCAL, List.of(DOZER), null, false, GROUND, PARTS);
 
         assertEquals(new CombatOrder.MoveTo(LOCAL, List.of(new ObjectId(9)), PLACE, true), click);
     }
 
     @Test
     void aLoneBuildingWithAQueueAndNoWordShowsDenyAndSendsNothing() {
-        assertNull(DukeRtsApp.groundClick(LOCAL, List.of(FACTORY), null, true, GROUND));
+        assertNull(DukeRtsApp.groundClick(LOCAL, List.of(FACTORY), null, true, GROUND, PARTS));
         assertEquals(Cursors.DENY, Cursors.situationFor(
-                overOpenGround(DukeRtsApp.groundTakes(List.of(FACTORY), true), null)));
+                overOpenGround(DukeRtsApp.groundTakes(LOCAL, List.of(FACTORY), true, PARTS), null)));
     }
 
     /**
@@ -74,9 +85,10 @@ class GroundClickTest {
     @Test
     void twoBuildingsWithNoWordShowTheMovePointerAndAClickIsAnsweredAsAMoveOfNobody() {
         var both = List.of(FACTORY, POWER);
-        assertEquals(Cursors.MOVE, Cursors.situationFor(overOpenGround(DukeRtsApp.groundTakes(both, true), null)));
+        assertEquals(Cursors.MOVE, Cursors.situationFor(
+                overOpenGround(DukeRtsApp.groundTakes(LOCAL, both, true, PARTS), null)));
 
-        var click = DukeRtsApp.groundClick(LOCAL, both, null, true, GROUND);
+        var click = DukeRtsApp.groundClick(LOCAL, both, null, true, GROUND, PARTS);
         assertEquals(new CombatOrder.MoveTo(LOCAL, List.of(), PLACE, true), click, "a move of nobody");
         var hint = OrderMark.DEFAULTS.model("models/scmovehint.glb", "SCMoveHint", 40);
         assertTrue(DukeRtsApp.hintsMove(hint, java.util.Set.of(7, 8), both), "the move hint laid");
@@ -84,15 +96,22 @@ class GroundClickTest {
 
     @Test
     void inAGameWithNoRuleALoneFactoryStillTakesTheClickAsItsRallyPoint() {
-        var click = DukeRtsApp.groundClick(LOCAL, List.of(FACTORY), null, false, GROUND);
+        var click = DukeRtsApp.groundClick(LOCAL, List.of(FACTORY), null, false, GROUND, PARTS);
 
-        assertEquals(new GameMessage.SetRallyPoint(LOCAL, new ObjectId(7), PLACE), click);
+        assertEquals(new Rallied(LOCAL, 7, PLACE), click);
         assertEquals(Cursors.MOVE, Cursors.situationFor(overOpenGround(true, null)));
     }
 
     @Test
+    void withNoKindOfGameThatRalliesALoneFactoryTakesNoClick() {
+        assertNull(DukeRtsApp.groundClick(LOCAL, List.of(FACTORY), null, false, GROUND, List.of()));
+        assertEquals(Cursors.DENY, Cursors.situationFor(
+                overOpenGround(DukeRtsApp.groundTakes(LOCAL, List.of(FACTORY), false, List.of()), null)));
+    }
+
+    @Test
     void aFactoryAndADozerTogetherMoveTheDozerAlone() {
-        var click = DukeRtsApp.groundClick(LOCAL, List.of(FACTORY, DOZER), null, false, GROUND);
+        var click = DukeRtsApp.groundClick(LOCAL, List.of(FACTORY, DOZER), null, false, GROUND, PARTS);
 
         assertEquals(new CombatOrder.MoveTo(LOCAL, List.of(new ObjectId(9)), PLACE, true), click);
     }
