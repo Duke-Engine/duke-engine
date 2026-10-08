@@ -122,8 +122,38 @@ final class Chevrons {
             // Turning by -around points the mesh's own +X outward, which puts its
             // point -- sitting at the origin -- nearest the middle. Inward-facing
             // is the whole reading of the shape: three things aiming at one spot.
-            head.setLocalRotation(new Quaternion().fromAngleAxis(-around, Vector3f.UNIT_Y));
+            //
+            // Then laid on the ground under it, so on a hillside it lies on the slope rather than sticking out of one side
+            // of it and into the other: spun about the vertical, then tilted from the vertical onto the ground's normal.
+            var normal = groundNormal(floorAt, marker.x() + x, marker.y() + z, look.size());
+            head.setLocalRotation(lyingOn(normal, -around));
         }
+    }
+
+    /**
+     * Which way the ground faces at ({@code x}, {@code z}), from its heights {@code reach} either side along each
+     * axis: straight up on level ground.
+     */
+    static Vector3f groundNormal(BiFunction<Float, Float, Float> floorAt, float x, float z, float reach) {
+        float e = Math.max(0.25f, reach * 0.5f);
+        float across = floorAt.apply(x + e, z) - floorAt.apply(x - e, z);
+        float down = floorAt.apply(x, z + e) - floorAt.apply(x, z - e);
+        return new Vector3f(-across / (2f * e), 1f, -down / (2f * e)).normalizeLocal();
+    }
+
+    /**
+     * A turn of {@code spin} about the vertical, then the tilt that stands the vertical up along {@code normal}: a flat
+     * piece spun on level ground and laid on a slope. On level ground the spin alone, exactly.
+     */
+    static Quaternion lyingOn(Vector3f normal, float spin) {
+        var turned = new Quaternion().fromAngleAxis(spin, Vector3f.UNIT_Y);
+        var axis = Vector3f.UNIT_Y.cross(normal);
+        float length = axis.length();
+        if (length < 1e-6f) {
+            return turned;
+        }
+        float angle = FastMath.atan2(length, Vector3f.UNIT_Y.dot(normal));
+        return new Quaternion().fromAngleAxis(angle, axis.divideLocal(length)).multLocal(turned);
     }
 
     private Mark borrow(int index) {

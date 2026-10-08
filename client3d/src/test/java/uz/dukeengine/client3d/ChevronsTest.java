@@ -297,4 +297,28 @@ class ChevronsTest {
         }
         return total / heads.size();
     }
+
+    /** On a slope of 30 degrees each arrowhead lies on it: its up the slope's normal; on level ground, the spin alone. */
+    @Test
+    void onASlopeEachArrowheadLiesOnItAndOnLevelGroundAsEver() {
+        float rise = com.jme3.math.FastMath.tan(30f * com.jme3.math.FastMath.DEG_TO_RAD);
+        var scene = scene();
+        scene.orders().add(50f, 50f, OrderMarkers.Kind.MOVE, NOW);
+        scene.chevrons().show(scene.orders().markers(), NOW, (x, y) -> x * rise);
+
+        var slope = new com.jme3.math.Vector3f(-rise, 1f, 0f).normalizeLocal();
+        var mark = (Node) scene.root().getChild(0);
+        for (var head : mark.getChildren()) {
+            var up = head.getLocalRotation().mult(com.jme3.math.Vector3f.UNIT_Y);
+            assertEquals(0f, up.subtract(slope).length(), 1e-4f, "lying on the slope, not level");
+        }
+
+        var level = scene();
+        level.orders().add(50f, 50f, OrderMarkers.Kind.MOVE, NOW);
+        draw(level, NOW);
+        for (var head : ((Node) level.root().getChild(0)).getChildren()) {
+            var up = head.getLocalRotation().mult(com.jme3.math.Vector3f.UNIT_Y);
+            assertEquals(0f, up.subtract(com.jme3.math.Vector3f.UNIT_Y).length(), 1e-6f, "level ground: upright");
+        }
+    }
 }
