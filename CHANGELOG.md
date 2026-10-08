@@ -303,6 +303,15 @@ game. It is duke-dungeon's own, which already ran the RPG half, and what tied it
   story and the words. The hero card on the wire went with the client, beside the hero panel (`HeroCard`, below), and
   single-hero control with it. An RPG flavour has not been made: an RPG still runs on `RtsFlavour`.
 
+### A thing that hides what is behind it
+
+A template may say `BlocksSight = Yes` — a `blocksSight` component of its record, which `Solid` asks (`Solid.blocksSight`,
+false unless it says so). While such a thing stands, the sight cells its footprint overlaps are stone to every
+looker's line of sight, exactly as the map's stone is where the game has stone hide the ground
+(`GameLogic.setSightHiddenByStone`): the cells themselves seen, what is behind them not, the same for every player.
+The cells are laid again at each look, so a thing gone — a gate opened and replaced by its open template — uncovers
+them on the next. Pathing is untouched. A shut gate, a door, a curtain, a thick hedge.
+
 ### The client, split
 
 The client is one 3D client with each side's part of the window beside it, as the proposal for the split has it. The

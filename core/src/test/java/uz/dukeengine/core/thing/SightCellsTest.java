@@ -168,4 +168,39 @@ class SightCellsTest {
         assertEquals(Sight.IN_SIGHT, world.getSightCells().sight(viewer, new Coord3D(325f, 505f, 0f)),
                 "a disc, as the reference's, once stone hides nothing");
     }
+
+    /** A template that says whether it blocks sight, as a game's own record does with a BlocksSight line. */
+    private record Gate(String name, java.util.List<uz.dukeengine.core.module.ModuleData> modules, Geometry geometry,
+            boolean blocksSight) implements Solid {
+    }
+
+    /**
+     * A shut gate standing in a doorway hides what is behind it as the wall beside it does — itself seen, the court
+     * not — and gone, the next look sees through: a test of the one rule a door, a curtain or a hedge says too.
+     */
+    @Test
+    void aThingThatBlocksSightHidesWhatIsBehindItWhileItStands() {
+        world.getThingFactory().addTemplate(
+                new Gate("Gate", java.util.List.of(), new Geometry.Box(15f, 2f, 10f), true));
+        world.getThingFactory().addTemplate(new Gate("OpenGate", java.util.List.of(), new Geometry.Box(15f, 2f, 10f),
+                false));
+        world.setPathGrid(new PathGrid(100, 100));
+        world.setSightCells(10f, 150);
+        world.setSightHiddenByStone(true);
+        var gate = world.spawn(world.findTemplate("Gate"), new Coord3D(305f, 505f, 0f), enemy);
+        gate.setOrientation((float) (Math.PI / 2)); // its length across the line of sight, x 303..307, y 490..520
+        world.spawn(world.findTemplate("Scout"), new Coord3D(255f, 505f, 0f), viewer);
+        var cells = world.getSightCells();
+        run(1);
+        assertEquals(Sight.IN_SIGHT, cells.sight(viewer, new Coord3D(295f, 505f, 0f)), "this side");
+        assertEquals(Sight.IN_SIGHT, cells.sight(viewer, new Coord3D(305f, 505f, 0f)), "the gate's own cell");
+        assertEquals(Sight.NEVER_SEEN, cells.sight(viewer, new Coord3D(325f, 505f, 0f)), "behind it");
+
+        gate.markDestroyed();
+        world.spawn(world.findTemplate("OpenGate"), new Coord3D(305f, 505f, 0f), enemy)
+                .setOrientation((float) (Math.PI / 2));
+        run(1);
+        assertEquals(Sight.IN_SIGHT, cells.sight(viewer, new Coord3D(325f, 505f, 0f)),
+                "opened — another template that says nothing — and the next look sees through");
+    }
 }

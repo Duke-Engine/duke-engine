@@ -2,7 +2,9 @@ package uz.dukeengine.core;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import uz.dukeengine.core.event.ObjectDied;
@@ -455,18 +457,21 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     public final void setSightHiddenByStone(boolean hidden) {
         this.sightHiddenByStone = hidden;
         if (sightCells != null) {
-            sightCells.setGround(hidden ? groundUnderTheCells(sightCells, pathGrid) : null);
+            sightCells.setGround(hidden ? groundUnderTheCells(sightCells, pathGrid, sightBlocked) : null);
         }
     }
 
-    /** The map's stone and storeys, each sight cell asked of the ground under its middle. */
-    private static SightCells.Ground groundUnderTheCells(SightCells cells, PathGrid grid) {
+    /**
+     * The map's stone and storeys, each sight cell asked of the ground under its middle — and the cells a thing that
+     * blocks sight stands on, as {@code blocked} holds them this frame, stone too.
+     */
+    private static SightCells.Ground groundUnderTheCells(SightCells cells, PathGrid grid, Set<Long> blocked) {
         float size = cells.cellSize();
         float ground = grid.getCellSize();
         return new SightCells.Ground() {
             @Override
             public boolean stone(int cx, int cy) {
-                return grid.isTerrainBlocked(under(cx), under(cy));
+                return blocked.contains(cellKey(cx, cy)) || grid.isTerrainBlocked(under(cx), under(cy));
             }
 
             @Override
@@ -503,7 +508,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         sightCells = new SightCells(sightCellSize, sightLinger, pathGrid.getWidth() * pathGrid.getCellSize(),
                 pathGrid.getHeight() * pathGrid.getCellSize());
         if (sightHiddenByStone) {
-            sightCells.setGround(groundUnderTheCells(sightCells, pathGrid));
+            sightCells.setGround(groundUnderTheCells(sightCells, pathGrid, sightBlocked));
         }
         for (int player : markedSeen) {
             sightCells.markSeen(player); // what was marked is marked on the new grid's cells too
@@ -513,10 +518,51 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         }
     }
 
+    /** The sight cells things that block sight stand on this frame — see {@link Solid#blocksSight}. */
+    private final Set<Long> sightBlocked = new HashSet<>();
+
+    private static long cellKey(int cx, int cy) {
+        return ((long) cy << 32) | (cx & 0xFFFFFFFFL);
+    }
+
+    /**
+     * Lay the cells every standing thing that blocks sight covers: those its footprint overlaps, a cell it only touches
+     * at an edge left open. Laid again each look, so one gone or swapped for another template uncovers them at once.
+     * Every thing is asked, a sleeping one too — a shut gate hides the court whether or not anyone is near it.
+     */
+    private void layWhatBlocksSight() {
+        sightBlocked.clear();
+        float size = sightCells.cellSize();
+        for (var thing : objects) {
+            if (thing.isDestroyed() || !(thing.getTemplate() instanceof Solid solid) || !solid.blocksSight()) {
+                continue;
+            }
+            var footprint = Footprint.of(thing);
+            var at = thing.getPosition();
+            float reach = footprint.shape().footprintRadius();
+            int fromX = Math.max(0, (int) Math.floor((at.x() - reach) / size));
+            int toX = Math.min(sightCells.width() - 1, (int) Math.floor((at.x() + reach) / size));
+            int fromY = Math.max(0, (int) Math.floor((at.y() - reach) / size));
+            int toY = Math.min(sightCells.height() - 1, (int) Math.floor((at.y() + reach) / size));
+            var cell = new Geometry.Box(size / 2f, size / 2f, 0f);
+            for (int cy = fromY; cy <= toY; cy++) {
+                for (int cx = fromX; cx <= toX; cx++) {
+                    var middle = new Coord3D((cx + 0.5f) * size, (cy + 0.5f) * size, 0f);
+                    if (footprint.separation(new Footprint(cell, middle, 0f)) < 0f) {
+                        sightBlocked.add(cellKey(cx, cy));
+                    }
+                }
+            }
+        }
+    }
+
     /** As the frame ends: every player's lookers cover their discs, as {@link #canSee} has them look. */
     private void lookAtTheMap() {
         if (sightCells == null) {
             return;
+        }
+        if (sightHiddenByStone) {
+            layWhatBlocksSight();
         }
         sightCells.begin(frame);
         int players = getPlayerList().getPlayerCount();
