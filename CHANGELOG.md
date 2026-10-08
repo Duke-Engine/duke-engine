@@ -148,6 +148,8 @@ with, under `rts` and `rpg`, and the 3D client with each side's part of the wind
   the default, is the selection.
 - `Lettering`, `Shade`, `NineSlice` (and their members the panel uses), `UnitBarReading` and its `read`, two
   `Visuals.UnitVisual` fields (`idleAnim`, `dieAnim`) and `AnimationLibrary.findControl` are public, for the parts.
+- `RtsFlavour.logicOrNull()`: the RTS world, or `null` before a match has made it, for code that asked
+  `DukeGame.getLogic()` and checked for `null` — a menu, a front end. `logic()` throws then, as it did, and says so.
 - `Layer` has a component more, `renews`, after `follows`: a `Layer` made in code rather than read from a block passes
   it, null where it says nothing.
 

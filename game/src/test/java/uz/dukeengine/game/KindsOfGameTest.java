@@ -119,4 +119,17 @@ class KindsOfGameTest {
         var game = DukeGame.create("plain", new PlainFlavour());
         assertThrows(IllegalStateException.class, () -> game.flavour(RtsFlavour.class));
     }
+
+    /** Asked before a match, the RTS flavour says it has no world yet without a throw; logic() still throws then. */
+    @Test
+    void theRtsFlavourSaysItHasNoWorldYetWithoutAThrow() {
+        var flavour = new RtsFlavour();
+        var game = DukeGame.create("before", flavour).loadUnits(RtsFlavour.STARTER_UNITS).map(40, 30);
+        game.addPlayer("One", java.awt.Color.BLUE);
+        assertEquals(null, flavour.logicOrNull(), "a menu, before the match");
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, flavour::logic);
+
+        game.runHeadless(1);
+        assertEquals(flavour.logic(), flavour.logicOrNull(), "the match's world");
+    }
 }

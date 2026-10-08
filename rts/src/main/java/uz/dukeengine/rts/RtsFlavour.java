@@ -122,11 +122,21 @@ public final class RtsFlavour implements Flavour {
         return this;
     }
 
-    /** The RTS world this flavour runs, once a match has made it. */
+    /**
+     * The RTS world this flavour runs, once a match has made it.
+     *
+     * @throws IllegalStateException before a match has begun on this flavour — see {@link #logicOrNull} to ask without
+     *     the throw
+     */
     public RtsSimulation logic() {
         if (logic == null) {
             throw new IllegalStateException("no match has begun on this flavour");
         }
+        return logic;
+    }
+
+    /** The RTS world this flavour runs, or {@code null} before a match has made it — a menu, a front end. */
+    public RtsSimulation logicOrNull() {
         return logic;
     }
 
