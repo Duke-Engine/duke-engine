@@ -19,6 +19,11 @@ games'.
 - **`rts`** — a **library for making RTS games** on `combat`, drawing on SAGE for
   how an RTS is put together. It is not "the Generals layer": it gives every RTS
   the mechanisms they share and leaves the rules to the game.
+- **`rpg`** — the **library for making RPGs** on `combat`, beside `rts` and
+  seeded from duke-dungeon: a hero's skill book (mana, cooldowns, ranks, buffs and
+  pushed auras), levels and attributes, items and loot, missions. What one RPG
+  decides — its numbers, its seals, how a creature is made a level — comes in
+  through constructors and interfaces (`SkillBook.Rules`, `Seal`, `HeroSheet`).
 - **`game`** — the runtime a game boots through: `DukeGame`, its scripts, and
   the wiring that turns data files into a world — of whatever kind the game is.
   It knows no kind: a kind of game is a `Flavour` (core's), which makes its world,
@@ -56,8 +61,9 @@ core is pure Java; a render/audio backend comes later.
   save format — but only the parts every RTS shares. A rule one game happens to
   have is the game's.
 - `skirmish` → `client3d` → `game` → `combat` → `core`, and `client3d` → `rts` →
-  `combat`. Never the other way; `core` never imports `combat` or `rts`, `combat`
-  never imports `rts`, and `game` never imports `rts` — it runs a kind of game
+  `combat`, and `rpg` → `combat`. Never the other way; `core` never imports `combat`,
+  `rts` or `rpg`, `combat` never imports either, `rts` and `rpg` never each other —
+  duke-generals builds without `rpg` — and `game` never imports `rts` — it runs a kind of game
   through core's `Flavour`, and the kind brings its world, its records, its wire and
   its parts of the picture. `client3d` still draws the RTS's own panels, and
   depends on `rts` for them until the client is split. A game depends on `kit`, and
@@ -277,8 +283,8 @@ now and expensive to find after a release.
 
 - `./gradlew build` passes.
 - No new `-Xlint:all` warnings.
-- `core` still compiles with no reference to `combat` or `rts`, and `combat`
-  and `game` with none to `rts` (they cannot see them — but check that nothing
+- `core` still compiles with no reference to `combat`, `rts` or `rpg`, `combat`
+  and `game` with none to `rts` or `rpg`, and `rts` and `rpg` with none to each other (they cannot see them — but check that nothing
   genre-specific leaked in the other direction either).
 - Nothing new in `combat` is asked by only an RTS or only an RPG: that belongs to
   `rts`, or to the RPG's side.

@@ -9,7 +9,7 @@ Unreleased. The release after 0.6.0: 0.7.0 is never published, and what its sect
 game coming from 0.6.0 makes the changes both lists of what to change name.
 
 The engine is being split so that an RTS and an RPG are two libraries on one layer they share: `combat`, what both
-fight with, under `rts` and, in a later step, `rpg`. The split lands in steps, and this section grows with them.
+fight with, under `rts` and `rpg`. The split lands in steps, and this section grows with them.
 
 ### What to change
 
@@ -69,6 +69,46 @@ fight with, under `rts` and, in a later step, `rpg`. The split lands in steps, a
   y)` reads as before, `new View(cellSize, width, height, states)` still builds one from cells given row by row, and
   `states()` gives them back, a copy the size of the map.
 - `PathGrid.setLevel` refuses a storey below -32768 or above 32767: a cell's storey is kept in two bytes.
+- **A new module, `rpg`** (`uz.duke-engine:rpg`), beside `rts` on `combat`, and in the bom. It is duke-dungeon's RPG
+  half (its master at 7eb423d), moved and cut loose from the dungeon's settings. A game that is an RPG depends on it;
+  nothing else does, so an RTS — duke-generals, skirmish — builds as before without it. The classes, each keeping its
+  name but where the table says:
+
+  | Was, in duke-dungeon | Is |
+  |---|---|
+  | `uz.dukeengine.dungeon.skill.` `Skill`, `SkillEffect`, `Buff`, `Skills`, `SkillRanks`, `SkillBook`, `CastSkill`, `UpgradeSkill`, `Mending`, `MendingUpdate`, `Summoning`, `Summoned`, `SummoningUpdate`, `SkillTip` | `uz.dukeengine.rpg.skill.` the same |
+  | `uz.dukeengine.dungeon.loot.` `Loot`, `LootBag`, `LootTable`, `LootDrop`, `KeyDrop`, `GroundItem`, `ItemErrand`, `ItemUse`, `PickUp`, `DropItem`, `UseItem` | `uz.dukeengine.rpg.item.` the same |
+  | `uz.dukeengine.dungeon.loot.` `LootKind`, `LootExtra` | gone: an item's `Kind` and `Extra` are words, `uz.dukeengine.rpg.item.Stat` naming those a hero's figures read |
+  | `uz.dukeengine.dungeon.level.` `Levelling`, `Attribute`, `AttributeRules`, `Attributes`, `HeroAttributes`, `HeroBase`, `HeroBuild`, `HeroFigures`, `HeroProgress`, `GrowableBody`, `Recovery`, `AttackSpeed`, `FountainUpdate` | `uz.dukeengine.rpg.hero.` the same |
+  | `uz.dukeengine.dungeon.combat.LevelBonus` | `uz.dukeengine.rpg.hero.LevelBonus` |
+  | `uz.dukeengine.dungeon.combat.` `Swing`, `ArrowUpdate`, `FallingUpdate`, `Bow`, `EyesOnly` | `uz.dukeengine.rpg.fight.` the same |
+  | `uz.dukeengine.dungeon.combat.Shot` | `uz.dukeengine.rpg.fight.Arrows`, beside combat's own `Shot` |
+  | `uz.dukeengine.dungeon.run.` `Mission`, `GateUpdate` | `uz.dukeengine.rpg.mission.` the same |
+  | `uz.dukeengine.dungeon.run.Seal` | `uz.dukeengine.rpg.Seal`, an interface: the keep's rule stays the game's and answers it |
+  | `uz.dukeengine.dungeon.ai.` `SightLine`, `Facing` | `uz.dukeengine.rpg.` the same |
+
+  What the game hands in where the classes read the dungeon's settings or reached into the game:
+
+  | Was | Is |
+  |---|---|
+  | `new SkillBook(owner, skills, settings, seal)` | `new SkillBook(owner, skills, rules, seal)`, `SkillBook.Rules(muzzleOffset, shotSpeed, summonTurnDegrees, summonTurns, auraPulseFrames, buffLifeFrames, auraMarkLooks, auraMarkTickFrames)` — the `Combat` block's numbers and the heavy shot's speed |
+  | `new Bow(owner, data, settings)` | `new Bow(owner, data, new Bow.Defaults(arrowTemplate, arrowSpeed, arrowMuzzleOffset))` |
+  | `new EyesOnly(owner, settings)` | `new EyesOnly(owner, settings.storeyHeight())` |
+  | `new SummoningUpdate(owner, settings)` | `new SummoningUpdate(owner, (risen, level) -> Spawner.scale(risen, level, settings))` |
+  | the dungeon's `Seal` class | a class of the game's implementing `rpg.Seal` — `parts(world, a, b)` as before; `Seal.NONE` parts nothing |
+  | `new HeroProgress(gamePlayer, levelling, attributeRules, bannerFrames, bag)` | `new HeroProgress(playerIndex, banner, levelling, …)`, `banner` saying a word on the hero's own player's screen and `""` taking it off |
+  | `playing(HeroLook)`, `getHero()` | `playing(HeroSheet)`: `HeroLook` implements `rpg.hero.HeroSheet` — it has every accessor the sheet asks |
+  | `tick(game)`, `carryOver(game, body)` | `tick(game.getLogic())`, `carryOver(game.getLogic(), body)` |
+  | the hero's blow as his side's `RtsPlayer.setWeaponDamageBonus` | an `AttackBonus` module on the hero, added when it is first more than 1; his side's bonus is left alone |
+  | `new LootTable(catalogue, seed, drop, bossDrop, perDepth)`, `dropFor(objectId, depth, boss)` | `new LootTable(catalogue, drop, bossDrop, perTier)`, `dropFor(world.random(), tier, boss)`; `LootDrop` draws so itself |
+  | `Loot`'s `LootKind kind`, `LootExtra extra`, `minDepth` | `String kind`, `String extra` (empty for none), `minTier` — a data file's `MinDepth` line is `MinTier` |
+  | a key, `kind() == LootKind.KEY`; `bag.holds(KEY)`, `removeAll(KEY)` | an item whose `Use` is `UNLOCK`, which never joins; `bag.holds(ItemUse.UNLOCK)`, `removeAll(ItemUse.UNLOCK)` |
+  | `bag.attackPercent()` and the other totals | as they were, and `total(word)` and `extra(word)` for any word |
+  | `Mission.of(world, floor, placed, settings, owner)`, `words(run, step)` | `Mission.begin(world, key, chest, owner, gate, counted, wayIn)`: the game picks the key, the gate, what is counted and the way in; the words are the game's |
+
+  `Skill`'s `Projectile` and `Summons` and `Bow`'s `Projectile` no longer say `@Link`: what they name is a template, and
+  a link names one record, which an engine library cannot name for a game. The item modules are in the editor's group
+  `Items` (`RpgModuleGroups.ITEMS`) rather than `Economy`.
 - `Layer` has a component more, `renews`, after `follows`: a `Layer` made in code rather than read from a block passes
   it, null where it says nothing.
 
@@ -198,6 +238,31 @@ what they did. A side's own damage bonus is asked of a player that is an `ArmedS
 of its `DamageModifier` modules as ever; whether a contained thing fires from its hold, of every `Hold` in the world,
 as `ContainModule` is. `CombatModuleGroups.PROGRESSION` is the editor's group for experience, the word
 `RtsModuleGroups.PROGRESSION` names.
+
+### The RPG, a library
+
+`rpg` is to an RPG what `rts` is to an RTS: the mechanisms every RPG shares, on `combat`, with the rules left to the
+game. It is duke-dungeon's own, which already ran the RPG half, and what tied it to that one game came out on the way:
+
+- **The settings it read are records it is handed** (`SkillBook.Rules`, `Bow.Defaults`, a storey height, a level
+  step), the way `rts` takes `SellRules` and `GuardRules`.
+- **A seal is the game's.** Everything that hurts, mends, moves a caster or lends an aura asks `Seal.parts`; what parts
+  two places — a keep's shut gate, a ward — is a rule, so the game answers it.
+- **Loot is drawn from the world's `LogicRandom`.** The dungeon drew each death from its own seeded generator and the
+  monster's id, so a drop did not depend on the order of deaths; the world's stream does, but it is the one every
+  machine of a lock-step match and every replay draws in the same order, and it is saved with the world. The owner's
+  call. A game that wants its drops apart from the rest of the simulation's chances keeps its own `LogicRandom` and
+  hands that in.
+- **Item kinds are open words.** `ATTACK`, `HEALTH`, `ARMOUR`, `MANA`, `ATTRIBUTE` and the three extras are the
+  ones a hero's figures read (`Stat`); any other word is the game's to add up. Being a key is what an item does —
+  `Use = UNLOCK` — not what it is.
+- **Tier, not depth**: a floor, a zone, a level — how far into the game a drop is made.
+- **A hero's blow is his own.** It was his side's weapon bonus, an `RtsPlayer`'s, standing in for him while a player
+  commands one hero; it is an `AttackBonus` on him, so `rpg` needs nothing of `rts`. A blow multiplies it among the
+  unit's modifiers rather than after them, so its last bit may differ from the dungeon's own.
+- **What stays the game's**: the run, its floors and their generation, the keep and the spawner, the world's blocks, the
+  story and the words. `HeroStatus` (the hero card on the wire) moves with the client, in the next step, beside the
+  hero panel. Single-hero control and an RPG flavour wait for that step too: today an RPG still runs on `RtsFlavour`.
 
 ### A weapon's shots told to its own thing
 
