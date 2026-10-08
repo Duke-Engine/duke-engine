@@ -190,8 +190,8 @@ class PaintedBlendTest {
 
     /**
      * Cut in quarters, blended ground has four times the corners, every corner and every triangle's middle on the
-     * relief the pathfinder walks — the ground drawn is the ground walked — lit by the relief round it, and a cell's middle
-     * carrying the average of its corners' weights.
+     * relief the pathfinder walks — the ground drawn is the ground walked — lit by the relief round it, and a cell's
+     * middle carrying the average of its corners' weights.
      */
     @Test
     void cutInQuartersEveryCornerAndEveryTriangleLiesOnTheReliefAndIsLitSmoothly() {
