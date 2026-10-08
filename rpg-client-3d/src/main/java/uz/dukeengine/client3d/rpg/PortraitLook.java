@@ -12,14 +12,14 @@ package uz.dukeengine.client3d.rpg;
  * "how is he doing", which is a question a player asks continuously and a drawing
  * cannot answer.
  *
- * <p>The same bargain as {@link PanelSkin} and {@link Tileset}: the client owns
+ * <p>The same bargain as {@link uz.dukeengine.client3d.PanelSkin} and {@link uz.dukeengine.client3d.Tileset}: the client owns
  * the mechanism — where the little camera goes, what a <em>state</em> is, how
  * often the thing is drawn — and the game owns every value in it. In particular
  * the client never names a clip. A model's clips are the game's art, and three
  * other games use this client.
  *
  * <p><b>No model is named here.</b> The creature's model, its scale and the
- * libraries its clips come out of are already bound, once, in {@link Visuals}
+ * libraries its clips come out of are already bound, once, in {@link uz.dukeengine.client3d.Visuals}
  * under the same template name — so a portrait cannot drift out of step with the
  * creature it is the face of, and a second hero is a block of settings rather
  * than a second copy of his art.

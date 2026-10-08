@@ -10,7 +10,7 @@ import uz.dukeengine.core.data.Group;
  *
  * <p>What the bar does is the client's — it reads the status line, lights what can be clicked, sweeps a slot
  * that is reloading. What it looks like is the game's, like the fog and the pointer: the edges are the game's
- * {@link PanelSkin}, and this is the rest. A game that asks for nothing gets {@link #DEFAULTS}, which is the bar
+ * {@link uz.dukeengine.client3d.PanelSkin}, and this is the rest. A game that asks for nothing gets {@link #DEFAULTS}, which is the bar
  * as it was designed.
  *
  * <p>The sizes are in the pixels the design was drawn at — see {@link #designWidth} — and a socket asked to be
