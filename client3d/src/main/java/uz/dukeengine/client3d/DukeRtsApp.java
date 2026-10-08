@@ -255,6 +255,62 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** Each kind of game's part of the window on the classpath — see {@link HudPart}. */
     private final List<HudPart> parts = HudPart.found();
+
+    /** What the parts are handed of the window. */
+    private final HudPart.Window window = new HudPart.Window() {
+        @Override
+        public com.jme3.asset.AssetManager assets() {
+            return assetManager;
+        }
+
+        @Override
+        public com.jme3.renderer.RenderManager renderManager() {
+            return renderManager;
+        }
+
+        @Override
+        public Node gui() {
+            return guiNode;
+        }
+
+        @Override
+        public com.jme3.font.BitmapFont font() {
+            return guiFont;
+        }
+
+        @Override
+        public com.jme3.font.BitmapFont titleFont() {
+            return fontOrDefault(visuals.getMenuStyle().titleFont());
+        }
+
+        @Override
+        public Visuals visuals() {
+            return visuals;
+        }
+
+        @Override
+        public DukeGame game() {
+            return game;
+        }
+
+        @Override
+        public Spatial body(Visuals.UnitVisual visual, java.util.Collection<String> alsoWanted) {
+            return buildBody(visual, alsoWanted);
+        }
+
+        @Override
+        public void sound(String cue) {
+            if (noises != null) {
+                noises.moment(cue, timer.getTimeInSeconds());
+            }
+        }
+
+        @Override
+        public float now() {
+            return timer.getTimeInSeconds();
+        }
+    };
+
     /** The floor's half of this frame's status line, read once for the bars and the moments. */
     private UnitBarReading barReading = UnitBarReading.NOTHING;
 
@@ -329,16 +385,6 @@ final class DukeRtsApp extends SimpleApplication {
     private BitmapText hud;
     private BitmapText buildMenu;
     private BannerPanel banner;
-    private HeroPanel heroPanel;
-    /**
-     * The live creature in the panel's frame.
-     *
-     * <p>Held here rather than by the panel, and the reason is the resize: the bar
-     * is thrown away and built again at every new window width, and a render
-     * target that went with it would be a new frame buffer every time the window
-     * was dragged. This outlives the panel and is simply hung on the next one.
-     */
-    private HeroPortrait portrait = HeroPortrait.none();
 
     // minimap: fixed-size overlay in the bottom-right corner
     private static final float MINIMAP_SIZE = 190f;
@@ -581,9 +627,8 @@ final class DukeRtsApp extends SimpleApplication {
         if (backdrop != null) {
             backdrop.stop();
         }
-        // Before the application goes, because it owns the render manager the
-        // portrait's viewport is standing in.
-        portrait.close();
+        // Before the application goes, because it owns the render manager a part's viewport may stand in.
+        parts.forEach(HudPart::close);
         super.destroy();
         stopped.countDown();
     }
@@ -734,14 +779,9 @@ final class DukeRtsApp extends SimpleApplication {
         hint.setAlpha(0.6f);
         guiNode.attachChild(hint);
 
-        heroPanel = new HeroPanel(assetManager, guiFont,
-                fontOrDefault(visuals.getMenuStyle().titleFont()), guiNode, cam.getWidth(), cam.getHeight(),
-                visuals.getPanelSkin(), visuals.getRangeLook(), visuals.getIconLook(),
-                visuals.getStatLook(), visuals.getPanelLook());
-        // Built the same way units are -- see buildBody -- so the face in the
-        // frame is the creature that is on the floor and not a second version
-        // of it.
-        portrait = HeroPortrait.open(renderManager, visuals, this::buildBody);
+        for (var part : parts) {
+            part.open(window, cam.getWidth(), cam.getHeight());
+        }
 
         buildMinimap();
         buildDragRectangle();
@@ -977,7 +1017,13 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public Canvas.Box bottomPanel() {
-            return heroPanel == null ? null : heroPanel.standing();
+            for (var part : parts) {
+                var panel = part.panel();
+                if (panel != null) {
+                    return panel;
+                }
+            }
+            return null;
         }
     };
 
@@ -1291,7 +1337,12 @@ final class DukeRtsApp extends SimpleApplication {
      * rectangle in window pixels and the other fits itself to it.
      */
     private void placeMinimap() {
-        var socket = heroPanel != null && heroPanel.isShowing() ? heroPanel.minimapRect() : null;
+        float[] socket = null;
+        float panelHeight = 0f;
+        for (var part : parts) {
+            socket = socket != null ? socket : part.minimapSocket();
+            panelHeight = Math.max(panelHeight, part.panelHeight());
+        }
         if (socket != null) {
             minimapScale = socket[2] / Math.max(1f, Math.max(minimap.widthPixels(),
                     minimap.heightPixels()));
@@ -1303,7 +1354,7 @@ final class DukeRtsApp extends SimpleApplication {
             // In the corner, over a bar that is showing without a socket for it.
             minimapScale = 1f;
             minimapX = cam.getWidth() - minimap.widthPixels() - 12f;
-            minimapY = 34f + (heroPanel == null ? 0f : heroPanel.heightPixels());
+            minimapY = 34f + panelHeight;
         }
         minimapNode.setLocalScale(minimapScale);
         // Over the hole cut for it, at the depth the bar says: the GUI bucket is drawn in order of depth, and a map
@@ -2370,13 +2421,10 @@ final class DukeRtsApp extends SimpleApplication {
         // rather than counted here, so a game that says nothing shows nothing —
         // and parsed from the snapshot rather than taken from the panel, which
         // has been put away by the time a menu is up.
-        var run = snapshot != null && snapshot.hasStatus()
-                ? HeroPanel.Reading.parse(snapshot.status())
-                : null;
-        if (run != null) {
-            rows.add(new StoneMenu.Words(run.depthWord().isEmpty() ? "DEPTH"
-                    : run.depthWord(), run.depth()));
-            rows.add(new StoneMenu.Words("RANK", run.rank()));
+        for (var part : snapshot == null ? List.<HudPart>of() : parts) {
+            for (var fact : part.pauseFacts(snapshot)) {
+                rows.add(new StoneMenu.Words(fact[0], fact[1]));
+            }
         }
         rows.add(new StoneMenu.Action("Resume", this::resumeGame));
         rows.add(new StoneMenu.Action("Settings", () -> showSettingsMenu(Screen.PAUSED)));
@@ -2885,13 +2933,9 @@ final class DukeRtsApp extends SimpleApplication {
         // engine holds about a piece of GUI does not survive the window changing
         // size under it. The menu has always been rebuilt for the same reason, and
         // is the reason it was the one thing that came back looking right.
-        var armed = heroPanel.armedKey();
-        heroPanel.destroy();
-        heroPanel = new HeroPanel(assetManager, guiFont,
-                fontOrDefault(visuals.getMenuStyle().titleFont()), guiNode, width, height,
-                visuals.getPanelSkin(), visuals.getRangeLook(), visuals.getIconLook(),
-                visuals.getStatLook(), visuals.getPanelLook());
-        heroPanel.arm(armed);
+        for (var part : parts) {
+            part.resized(width, height);
+        }
         placeMinimap();
         menu.destroy();
         menu = buildMenu(width, height);
@@ -3460,6 +3504,7 @@ final class DukeRtsApp extends SimpleApplication {
         // the floor's look catches up with the floor a moment late -- which rebuilds
         // it again, and puts out the light he arrived in.
         runMoments.forget();
+        parts.forEach(HudPart::newWorld);
         lookChanged = false;
         buildTerrain();
         rebuildMinimapTerrain();
@@ -3587,13 +3632,13 @@ final class DukeRtsApp extends SimpleApplication {
                                 camera.targetZ())) {
                             if (aiming.isArmed() || arming != null || mouse.rightClickLetsGo()) {
                                 secondThoughts();
-                            } else if (pointerOnTheWorld() && !heroPanel.contains(over.x, over.y)) {
+                            } else if (pointerOnTheWorld() && !onAPanel(over.x, over.y)) {
                                 order();
                             }
                         }
                     } else if (pressed && (aiming.isArmed() || arming != null || mouse.rightClickLetsGo())) {
                         secondThoughts();
-                    } else if (pressed && pointerOnTheWorld() && !heroPanel.contains(over.x, over.y)) {
+                    } else if (pressed && pointerOnTheWorld() && !onAPanel(over.x, over.y)) {
                         order(); // a right-click on the bar, or off the world, is not an order to the world
                     }
                 }
@@ -4028,14 +4073,14 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         var range = visuals.getSkillRange(key);
-        if (heroPanel.isAnOrder(key) && !heroPanel.ordersAreHis()) {
+        if (ordersSelection(key) && !parts.stream().allMatch(HudPart::mayOrder)) {
             // The four orders belong to whatever is selected, and what is selected
             // is not his -- so there is nothing to give the order to. The panel
             // draws them dim for the same reason; this is the half that stops the
             // key going round the outside of the dim button.
             return;
         }
-        if (range != null && !heroPanel.isAnOrder(key) && selectedIds().isEmpty()) {
+        if (range != null && !ordersSelection(key) && selectedIds().isEmpty()) {
             // A skill is something one of his creatures does, so it needs that
             // creature picked out — pressing Q with nothing selected, or with a
             // skeleton selected to look at it, used to cast anyway. The orders
@@ -4057,7 +4102,7 @@ final class DukeRtsApp extends SimpleApplication {
                 // way to ask how far it reaches except by spending it. Holding
                 // shows him; letting go casts, so a tap is still a cast and all
                 // that has changed is that looking is now free.
-                if (heroPanel.readyToCast(key)) {
+                if (ready(key)) {
                     arm(key, byMouse);
                 } else {
                     sayWhyNot(key);
@@ -4074,25 +4119,44 @@ final class DukeRtsApp extends SimpleApplication {
         }
         // Refusing here rather than arming and going quiet: a slot the panel is
         // already showing as spent would take a click and do nothing with it.
-        if (!heroPanel.readyToCast(key)) {
+        if (!ready(key)) {
             sayWhyNot(key);
             return;
         }
         arm(key, byMouse);
     }
 
-    /**
-     * Answer a key that was refused, when the answer is not already on its slot.
-     *
-     * <p>Only for want of mana. A slot that is reloading is swept and counting,
-     * and one he has not bought says so across its face -- both are answers he is
-     * already looking at. Being broke is written on a bar at the other end of the
-     * panel, so it is the one refusal that needs saying where he pressed.
-     */
+    /** Answer a key that was refused, where a part's panel does not already show why. */
     private void sayWhyNot(char key) {
-        if (heroPanel.refusedForMana(key)) {
-            heroPanel.denyForMana(timer.getTimeInSeconds());
+        for (var part : parts) {
+            part.refused(key, timer.getTimeInSeconds());
         }
+    }
+
+    /** Whether a key orders what is selected, as a part's panel says. */
+    private boolean ordersSelection(char key) {
+        return parts.stream().anyMatch(part -> part.ordersSelection(key));
+    }
+
+    /** Whether a key may be pressed now, as every part's panel says. */
+    private boolean ready(char key) {
+        return parts.stream().allMatch(part -> part.ready(key));
+    }
+
+    /** Whether a point of the window is on a part's panel. */
+    private boolean onAPanel(float x, float y) {
+        return parts.stream().anyMatch(part -> part.covers(x, y));
+    }
+
+    /** The first answer of the parts that has one, or {@code null}. */
+    private <T> T firstOfTheParts(java.util.function.Function<HudPart, T> asked) {
+        for (var part : parts) {
+            var answer = asked.apply(part);
+            if (answer != null) {
+                return answer;
+            }
+        }
+        return null;
     }
 
     /**
@@ -4101,7 +4165,7 @@ final class DukeRtsApp extends SimpleApplication {
     private void arm(char key, boolean byMouse) {
         arming = key;
         armedByMouse = byMouse;
-        heroPanel.arm(key);
+        tellThePartsWhatIsArmed(key);
     }
 
     /**
@@ -4137,8 +4201,14 @@ final class DukeRtsApp extends SimpleApplication {
     private void disarm() {
         arming = null;
         armedByMouse = false;
-        heroPanel.arm(null);
+        tellThePartsWhatIsArmed(null);
         rangeRings.hide();
+    }
+
+    private void tellThePartsWhatIsArmed(Character key) {
+        for (var part : parts) {
+            part.armed(key);
+        }
     }
 
     /**
@@ -4190,7 +4260,7 @@ final class DukeRtsApp extends SimpleApplication {
         // exception: the ring on an order says how far he HITS from, which is
         // worth knowing and is not a fence. He may be sent to fight his way
         // across the whole floor.
-        var landing = heroPanel.isAnOrder(aimed) ? spot : clampedToReach(aimed, spot);
+        var landing = ordersSelection(aimed) ? spot : clampedToReach(aimed, spot);
         boolean attackMove = binding.aim() == Hotkeys.Aim.UNIT_OR_GROUND;
         markOrder(landing.x(), landing.y(), attackMove ? OrderMarkers.Kind.ATTACK_MOVE : OrderMarkers.Kind.MOVE);
         if (attackMove) {
@@ -4299,7 +4369,7 @@ final class DukeRtsApp extends SimpleApplication {
      * @return whether the bar took the click
      */
     private void raiseSkill(char key) {
-        if (!heroPanel.canRaise(key)) {
+        if (parts.stream().noneMatch(part -> part.raises(key))) {
             return;
         }
         hotkeys.raiseSkill(game, key);
@@ -4312,20 +4382,20 @@ final class DukeRtsApp extends SimpleApplication {
         // and a click there means the badge. It is only ever there when a point
         // may go into that slot, so the corner of a socket with nothing to buy
         // arms the skill exactly as it always did.
-        var raising = heroPanel.badgeAt(cursor.x, cursor.y);
+        Character raising = firstOfTheParts(part -> part.raiseAt(cursor.x, cursor.y));
         if (raising != null) {
             hotkeys.raiseSkill(game, raising);
             noises.moment("power_taken", timer.getTimeInSeconds());
             return true;
         }
-        var key = heroPanel.slotAt(cursor.x, cursor.y);
+        Character key = firstOfTheParts(part -> part.keyAt(cursor.x, cursor.y));
         if (key != null) {
             pressHotkey(key, true);
             return true;
         }
-        // The rest of the bar swallows clicks too. Without this, clicking the
-        // portrait sends the hero walking to wherever the bar happens to cover.
-        return heroPanel.contains(cursor.x, cursor.y);
+        // The rest of a panel swallows clicks too. Without this, clicking its
+        // portrait sends the hero walking to wherever the panel happens to cover.
+        return onAPanel(cursor.x, cursor.y);
     }
 
     /**
@@ -4908,16 +4978,11 @@ final class DukeRtsApp extends SimpleApplication {
         syncViewportOutline();
         syncDragRectangle();
         syncOrderMarkers();
-        noises.status(heroPanel.reading(), (float) timer.getTimeInSeconds());
-        // Before the bar is drawn, because the bar decides between the live
-        // picture and the drawing and has to be told which it has.
-        drawThePortrait(tpf);
-        updateHud();
+        updateHud(tpf);
         keepTheSelectionInStep();
         updateCommandBar();
         followTheAim(); // the bar's aim or the game's, whether or not the client's bar is up
         updateBanner();
-        updateHover();
         placeMinimap();
     }
 
@@ -5223,30 +5288,8 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * Keep the panel's frame filled with whoever is selected, alive.
-     *
-     * <p>The level it is told is the one the bar read <em>last</em> frame, and
-     * that is deliberate rather than sloppy. Nothing here draws a level; the only
-     * use it is put to is noticing that it changed, and a change noticed one frame
-     * late is still noticed exactly once.
-     *
-     * <p>A menu is a different room and the portrait stops with everything else in
-     * it.
-     */
-    private void drawThePortrait(float tpf) {
-        var reading = heroPanel.reading();
-        portrait.show(portraitSubject(), reading == null ? "" : reading.rank());
-        portrait.update(tpf, clientHud() && !menu.isVisible() && !snapshot.paused());
-        heroPanel.live(portrait.texture());
-    }
-
-    /**
-     * The one creature the bar is describing, or nobody.
-     *
-     * <p>The same rule the card itself is built from — see
-     * {@link #tellTheGameWhatHeIsLookingAt} — because the frame is part of the
-     * card. A portrait that showed the hero while the name beside it said
-     * "Skeleton" would be the panel disagreeing with itself.
+     * The one creature a panel describes, or nobody: the one selected, while the HUD is up. The same rule the card
+     * itself is built from — see {@link #tellTheGameWhatHeIsLookingAt}.
      */
     private UnitView portraitSubject() {
         if (!clientHud() || selected.size() != 1) {
@@ -5304,13 +5347,10 @@ final class DukeRtsApp extends SimpleApplication {
         if (controlsHint != null) {
             controlsHint.setCullHint(hint);
         }
-        if (heroPanel != null && !clientHud()) {
-            heroPanel.hide();
-            // And the frame stops being redrawn with it. Said here rather than
-            // beside the rest of the portrait's work because the menu and the
-            // loading screen leave this method before reaching that, and a
-            // viewport nobody switches off goes on drawing.
-            portrait.rest();
+        if (!clientHud()) {
+            // Said here rather than beside the rest of the parts' work because the menu and the loading screen leave
+            // this method before reaching that, and a viewport nobody switches off goes on drawing.
+            parts.forEach(HudPart::hide);
         }
     }
 
@@ -5376,7 +5416,7 @@ final class DukeRtsApp extends SimpleApplication {
         var over = aiming ? null : pickUnit();
         // Over a window of the game's own canvas, or off the world's part of the window, is over the panel: the
         // arrow, as the reference shows it over any window of its interface.
-        boolean overPanel = heroPanel.contains(at.x, at.y) || overTheMinimap(at)
+        boolean overPanel = onAPanel(at.x, at.y) || overTheMinimap(at)
                 || canvasInputs != null && canvasInputs.pointerTaken() || !pointerOnTheWorld();
         var own = selectedOwn();
         return new Cursors.Over(true, armed, canReach, overPanel,
@@ -5393,17 +5433,6 @@ final class DukeRtsApp extends SimpleApplication {
         float tall = minimap.heightPixels() * minimapScale;
         return at.x >= minimapX && at.x <= minimapX + wide
                 && at.y >= minimapY && at.y <= minimapY + tall;
-    }
-
-    /**
-     * Light whatever skill slot the cursor is resting on, and open the card over an
-     * attribute it is resting on.
-     */
-    private void updateHover() {
-        var cursor = inputManager.getCursorPosition();
-        boolean playing = screen == Screen.PLAYING;
-        heroPanel.hover(playing ? heroPanel.slotAt(cursor.x, cursor.y) : null);
-        heroPanel.hoverAttribute(playing ? heroPanel.attributeAt(cursor.x, cursor.y) : null);
     }
 
     private void updateCamera(float tpf) {
@@ -5854,7 +5883,9 @@ final class DukeRtsApp extends SimpleApplication {
                 // Told outright, and it has to be: a dead creature is gone from
                 // the next snapshot, so by the time the frame could notice there
                 // would be nothing left to play a death on.
-                portrait.died(died.object().value());
+                for (var part : parts) {
+                    part.died(died.object().value());
+                }
                 var where = new Vector3f(died.position().x(), 0f, died.position().y());
                 var dying = unitNodes.get(died.object().value());
                 var look = dying != null ? visualFor(dying.view) : visualFor(died.templateName()); // as it was drawn
@@ -7416,12 +7447,12 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    private void updateHud() {
+    private void updateHud(float tpf) {
         // With a menu up there is no panel and no figures along the top: the
         // menu is what he is looking at, and a bar left showing underneath it
         // has a hole in it where the minimap was culled.
         if (!clientHud()) {
-            heroPanel.hide();
+            parts.forEach(HudPart::hide);
             hud.setText("");
             buildMenu.setText("");
             return;
@@ -7431,14 +7462,12 @@ final class DukeRtsApp extends SimpleApplication {
                 : String.valueOf(snapshot.localPlayerPowerSurplus());
         // A game whose status the panel can draw gets it drawn; anything else is
         // still written out along the top, which is what every game got before.
-        boolean drawn = heroPanel.show(snapshot.hasStatus() ? snapshot.status() : null,
-                (float) timer.getTimeInSeconds());
-        // A key he pressed that could not be paid for. The panel knows WHEN, since
-        // it is the thing that reads the line; this knows WHAT, since it owns the
-        // game's noises. A game that names no such sound makes none, and the bar
-        // flashing is still the answer.
-        if (heroPanel.takeRefusal()) {
-            noises.moment("no_mana", (float) timer.getTimeInSeconds());
+        var cursor = inputManager.getCursorPosition();
+        var frame = new HudPart.Frame(snapshot, tpf, !menu.isVisible() && !snapshot.paused(), portraitSubject(),
+                cursor.x, cursor.y, screen == Screen.PLAYING);
+        boolean drawn = false;
+        for (var part : parts) {
+            drawn |= part.show(frame);
         }
         // Money, power and a selection count are an RTS's figures, and a game
         // that draws its own panel has already said what it wants said. Writing

@@ -12,7 +12,7 @@ import uz.dukeengine.core.view.CommandButton;
 /**
  * What the player may do with whatever he has selected, drawn as a grid of buttons in the corner.
  *
- * <p>The engine had nothing of the sort. A dungeon's {@link HeroPanel} draws one hero's skills and reads
+ * <p>The engine had nothing of the sort. An RPG's {@code HeroPanel} draws one hero's skills and reads
  * them out of a line of text, which works because the thing selected never changes; an RTS selects a
  * barracks and then a tank and wants a different set of orders each time. Without this, nothing could be
  * built, trained or ordered except from the keyboard.

@@ -2,7 +2,6 @@ package uz.dukeengine.client3d;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -12,7 +11,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>They have to share it — the channel is one string — and the interesting
  * failures are all at the seam. A field one end adds is a field the other end
- * must at least recognise, because {@link HeroPanel} refuses a line it does not
+ * must at least recognise, because {@code HeroPanel} (rpg-client-3d) refuses a line it does not
  * fully understand: one unknown name and the whole card is somebody else's game,
  * and the panel goes blank. That is a change in the <em>dungeon</em> putting out
  * a light in the <em>client</em>, with nothing to connect the two.
@@ -52,19 +51,6 @@ class UnitBarReadingTest {
         assertEquals(80, reading.maxMana());
         assertEquals(30, reading.experienceNeeded());
         assertEquals("Erika", reading.nameOf("Rogue"));
-    }
-
-    /**
-     * And the panel still takes the same line.
-     *
-     * <p>The half of this that actually breaks. The floor's fields were added to
-     * the game first and the panel knew none of them, which is not a bar drawn
-     * wrong — it is every card refused and the whole bottom of the screen empty.
-     */
-    @Test
-    void andThePanelStillTakesTheSameLine() {
-        assertNotNull(HeroPanel.Reading.parse(REAL),
-                "the panel refused a line its own game sends");
     }
 
     /** A template nobody renamed is printed as it is named. */

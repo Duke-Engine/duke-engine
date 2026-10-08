@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
  * one of the screen however large the bar is drawn, where a bitmap font drawn through the bar's scale is resampled.
  * Each size is baked once ({@link BitmapFontBaker}) and kept.
  */
-final class Lettering {
+public final class Lettering {
 
     private static final Logger LOG = Logger.getLogger(Lettering.class.getName());
     private static final Pattern FIELD = Pattern.compile("(\\w+)=(\"[^\"]*\"|\\S+)");
@@ -39,13 +39,13 @@ final class Lettering {
     private final Map<Integer, BitmapFont> bySize = new HashMap<>();
     private BitmapFontBaker.Kerning kerning;
 
-    Lettering(AssetManager assets, Font face) {
+    public Lettering(AssetManager assets, Font face) {
         this.assets = assets;
         this.face = face;
     }
 
     /** The face in the font file at {@code path}, from the resource root; null for none named, or one that will not load. */
-    static Lettering of(AssetManager assets, String path) {
+    public static Lettering of(AssetManager assets, String path) {
         if (path == null || path.isBlank() || assets == null) {
             return null;
         }
@@ -73,7 +73,7 @@ final class Lettering {
     }
 
     /** The face baked so that a line of it stands {@code pixels} tall, its rendered size; null where it cannot be. */
-    BitmapFont at(int pixels) {
+    public BitmapFont at(int pixels) {
         return bySize.computeIfAbsent(Math.max(1, pixels), this::bake);
     }
 

@@ -96,9 +96,6 @@ final class GameSounds {
     private final java.util.Map<String, Held> held = new java.util.LinkedHashMap<>();
 
     private Map<Integer, UnitView> before = Map.of();
-    private String lastDepth = "";
-    private String lastNote = "";
-    private final Map<Character, Boolean> wasCooling = new HashMap<>();
 
     GameSounds(Sounds sounds, float touching) {
         this(sounds, touching, template -> Map.of());
@@ -400,51 +397,6 @@ final class GameSounds {
         return "gone.";
     }
 
-    /**
-     * What the game's own line says has changed since it last said anything.
-     *
-     * <p>The status line is how this game speaks about itself, and it is where the
-     * moments live that the engine has no name for: a floor, something
-     * picked up, a skill that has just gone on its cooldown. Read rather than
-     * announced, for the same reason as the rest — it is already being sent.
-     */
-    void status(HeroPanel.Reading reading, float now) {
-        if (reading == null) {
-            return;
-        }
-        if (!reading.depth().equals(lastDepth)) {
-            if (!lastDepth.isEmpty()) {
-                sounds.play("depth", now);
-                sounds.play("vo.depth", now);
-            }
-            lastDepth = reading.depth();
-        }
-        // A card with no level on it is not his — the player has picked out
-        // something else and the bar is describing that. The floor above is still
-        // the floor; nothing below this line is. His level is not read here at all:
-        // see levelledUp.
-        if (reading.rank().isEmpty()) {
-            return;
-        }
-        // A note stays up for a while, so it is its arrival that is the moment.
-        var note = reading.note() == null ? "" : reading.note();
-        if (!note.equals(lastNote)) {
-            if (!note.isEmpty()) {
-                sounds.play("loot", now);
-            }
-            lastNote = note;
-        }
-        for (var slot : reading.skills()) {
-            boolean cooling = slot.state() == HeroPanel.Reading.State.COOLING;
-            // Going onto a cooldown is the only outward sign that a skill went
-            // off: the client asked, and the simulation is what decides.
-            if (cooling && !wasCooling.getOrDefault(slot.key(), false)) {
-                sounds.play("skill." + slot.key(), now);
-            }
-            wasCooling.put(slot.key(), cooling);
-        }
-    }
-
     /** A moment the player caused directly: an order, a click, a point spent. */
     void moment(String cue, float now) {
         sounds.play(cue, now);
@@ -470,8 +422,6 @@ final class GameSounds {
         loops.clear();
         hurt.clear();
         before = Map.of();
-        lastNote = "";
-        wasCooling.clear();
     }
 
     private static Map<Integer, UnitView> index(List<UnitView> units) {

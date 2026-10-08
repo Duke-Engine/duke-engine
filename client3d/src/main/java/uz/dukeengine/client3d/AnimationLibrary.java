@@ -224,7 +224,7 @@ public final class AnimationLibrary {
     }
 
     /** The first control of this type anywhere in the model. */
-    static <T extends Control> T findControl(Spatial spatial, Class<T> type) {
+    public static <T extends Control> T findControl(Spatial spatial, Class<T> type) {
         if (spatial == null) {
             return null;
         }

@@ -17,7 +17,7 @@ import com.jme3.math.ColorRGBA;
  * screen that happens to be red. Flat fill is the single difference between a
  * mockup that looks made and a game that looks unfinished.
  */
-final class Shade {
+public final class Shade {
 
     private Shade() {
     }
@@ -35,7 +35,7 @@ final class Shade {
      * vertex buffer is not. Written raw it comes out pale, and by exactly the
      * amount that makes a carefully chosen palette look washed rather than wrong.
      */
-    static ColorRGBA linear(ColorRGBA colour) {
+    public static ColorRGBA linear(ColorRGBA colour) {
         return new ColorRGBA(toLinear(colour.r), toLinear(colour.g), toLinear(colour.b),
                 colour.a);
     }
@@ -46,20 +46,20 @@ final class Shade {
                 : (float) Math.pow((channel + 0.055) / 1.055, 2.4);
     }
 
-    static ColorRGBA lighter(ColorRGBA colour, float towardsWhite) {
+    public static ColorRGBA lighter(ColorRGBA colour, float towardsWhite) {
         return new ColorRGBA(
                 colour.r + (1f - colour.r) * towardsWhite,
                 colour.g + (1f - colour.g) * towardsWhite,
                 colour.b + (1f - colour.b) * towardsWhite, colour.a);
     }
 
-    static ColorRGBA darker(ColorRGBA colour, float towardsBlack) {
+    public static ColorRGBA darker(ColorRGBA colour, float towardsBlack) {
         float keep = 1f - towardsBlack;
         return new ColorRGBA(colour.r * keep, colour.g * keep, colour.b * keep, colour.a);
     }
 
     /** The three stops a gauge of this colour is drawn with, top to bottom. */
-    static ColorRGBA[] gauge(ColorRGBA colour) {
+    public static ColorRGBA[] gauge(ColorRGBA colour) {
         return new ColorRGBA[] {lighter(colour, LIT), colour, darker(colour, FOOT)};
     }
 }

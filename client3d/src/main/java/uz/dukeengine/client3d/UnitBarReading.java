@@ -7,7 +7,7 @@ import java.util.Map;
  * The floor's half of the status line, read.
  *
  * <p>The other half is the card under the player's thumb and is read by
- * {@link HeroPanel}; this is what goes over everybody's head out in the world.
+ * {@code HeroPanel} (rpg-client-3d); this is what goes over everybody's head out in the world.
  * Both come down the same string, because the status channel is one string —
  * a line the engine carries and never reads, which is the seam a game is given
  * for whatever it counts that the engine has no name for.

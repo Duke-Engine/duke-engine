@@ -1,7 +1,11 @@
 package uz.dukeengine.client3d;
 
 import java.awt.Color;
+import com.jme3.asset.AssetManager;
+import com.jme3.texture.Texture;
 import java.util.Map;
+import java.util.Set;
+import java.util.logging.Logger;
 
 /**
  * The painted edges a game wants its hero panel drawn with.
@@ -22,6 +26,8 @@ import java.util.Map;
  * paint it, so they live here rather than being spelled twice.
  */
 public record PanelSkin(Map<String, Piece> pieces) {
+
+    private static final Logger LOG = Logger.getLogger(PanelSkin.class.getName());
 
     /** The recess the minimap is sunk into. */
     public static final String MINIMAP = "Minimap";
@@ -98,5 +104,28 @@ public record PanelSkin(Map<String, Piece> pieces) {
     /** The piece of that name, or {@code null} — which means "draw it as before". */
     public Piece piece(String name) {
         return pieces.get(name);
+    }
+
+    /**
+     * Load an icon, or give back {@code null} — for no name, or for a name nothing
+     * answers to.
+     *
+     * <p>Static and handed everything it needs so that the fallback can be held
+     * still by a test: what happens when the file is not there is the part of this
+     * nobody exercises by playing.
+     */
+    public static Texture texture(AssetManager assets, String icon, Set<String> missing) {
+        if (assets == null || icon == null || icon.isBlank()) {
+            return null;
+        }
+        try {
+            return assets.loadTexture(icon);
+        } catch (RuntimeException e) {
+            if (missing.add(icon)) {
+                LOG.warning(() -> "panel picture not found: " + icon + " (" + e.getMessage()
+                        + ") — drawing that part as it was drawn before there were any");
+            }
+            return null;
+        }
     }
 }

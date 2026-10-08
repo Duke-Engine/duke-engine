@@ -31,7 +31,7 @@ import com.jme3.util.BufferUtils;
  * it, so what a frame does at a size nobody has looked at can be asked of it in a
  * test rather than found in a screenshot.
  */
-final class NineSlice {
+public final class NineSlice {
 
     /**
      * Which part of a texture a piece is cut from, in texture coordinates.
@@ -41,9 +41,9 @@ final class NineSlice {
      * not to anything here — and a mesh builder that had hard-coded nought to one
      * would have to be found and reopened to allow it.
      */
-    record Rect(float u0, float v0, float u1, float v1) {
+    public record Rect(float u0, float v0, float u1, float v1) {
 
-        static final Rect WHOLE = new Rect(0f, 0f, 1f, 1f);
+        public static final Rect WHOLE = new Rect(0f, 0f, 1f, 1f);
     }
 
     private NineSlice() {
@@ -82,7 +82,7 @@ final class NineSlice {
      * @param texWidth  how many texels wide {@code uv} is, so an inset measured in
      *                  texels can be turned into a texture coordinate
      */
-    static Mesh frame(float width, float height, float texWidth, float texHeight,
+    public static Mesh frame(float width, float height, float texWidth, float texHeight,
             float inset, float scale, Rect uv) {
         float border = border(width, height, inset, scale);
         var xs = stops(width, border);
@@ -111,7 +111,7 @@ final class NineSlice {
      * error is not. Rotating which corner of the picture each corner of the quad
      * asks for costs nothing and is exact.
      */
-    static Mesh quarterTurn(float width, float height, Rect uv) {
+    public static Mesh quarterTurn(float width, float height, Rect uv) {
         var xs = new float[] {0f, width};
         var ys = new float[] {0f, height};
         // Bottom-left of the quad takes the picture's bottom-right, and round.
