@@ -314,6 +314,14 @@ E16, in parts.
   descent is tiled may paint its open world.
 - **Ground pictures are mipmapped and filtered at a slant** (`DukeRtsApp.forTheGround`: trilinear, anisotropy 8, as
   far as the card allows), as a model's skin is, so ground far off under a tilted camera does not shimmer.
+- **Painted ground is built a chunk at a time round the camera**, as E10 builds a kit's floor, where the game streams
+  its ground (`Visuals.streamGround`): its surfaces, overlays, stone and scenery in chunks of 16 cells a side, the
+  nearest first within a frame's budget and the camera's own and the eight round it at once, kept about each chunk's
+  corner, culled by the fog a chunk at a time, and let go more than a chunk beyond the reach. Each chunk is, corner for
+  corner, what the whole build makes. The fog's per-cell work is only the stone of the chunks built. Measured on a
+  900 × 900 painted world of six surfaces: the setup 11 ms where the whole build was 627 ms, the first frame 28 ms,
+  then no frame over 4.1 ms walking across it. A game that does not stream its ground builds a painted map whole, as
+  before.
 
 ### A game's own order, applied at once
 

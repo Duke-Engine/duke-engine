@@ -76,6 +76,9 @@ final class GroundPaint {
     private final List<String> flipped;
     /** The cells whose picture is laid by its corners ({@link PictureCorners}), by {@link #cellKey}. */
     private final Map<Long, float[]> corners;
+    /** Whether the paint's mistakes have been said: once a map, however many chunks of it are read. */
+    private boolean paintWarned;
+    private boolean overlaysWarned;
 
     private GroundPaint(String what, List<String> rows, Map<String, String> palette,
             Map<String, Float> coverage, List<List<String>> overlays, List<List<String>> fades,
@@ -172,18 +175,28 @@ final class GroundPaint {
      * twelve geometries and sixty thousand is the difference between a map that opens and one that does not.
      */
     List<Patch> patches(int width, int height) {
+        return patches(width, height, 0, 0, width - 1, height - 1);
+    }
+
+    /**
+     * The same, of the cells from ({@code x0}, {@code y0}) to ({@code x1}, {@code y1}) only: one chunk of a world built
+     * a chunk at a time, its rows read and no others.
+     */
+    List<Patch> patches(int width, int height, int x0, int y0, int x1, int y1) {
         var cells = new LinkedHashMap<String, List<Integer>>();
         for (var key : palette.keySet()) {
             cells.put(key, new ArrayList<>());
         }
         var unnamed = new LinkedHashMap<String, Integer>();
-        for (int cy = 0; cy < height && cy < rows.size(); cy++) {
+        boolean warn = !paintWarned;
+        paintWarned = true;
+        for (int cy = Math.max(0, y0); cy <= y1 && cy < height && cy < rows.size(); cy++) {
             var row = rows.get(cy);
-            if (row.length() != width) {
+            if (warn && row.length() != width) {
                 LOG.log(Level.WARNING, "{0}: paint row {1} is {2} cells wide where the map is {3}",
                         new Object[] {what, cy + 1, row.length(), width});
             }
-            for (int cx = 0; cx < width && cx < row.length(); cx++) {
+            for (int cx = Math.max(0, x0); cx <= x1 && cx < width && cx < row.length(); cx++) {
                 var key = String.valueOf(row.charAt(cx));
                 var painted = cells.get(key);
                 if (painted == null) {
@@ -193,13 +206,15 @@ final class GroundPaint {
                 painted.add(cy * width + cx);
             }
         }
-        if (rows.size() != height) {
+        if (warn && rows.size() != height) {
             LOG.log(Level.WARNING, "{0}: {1} rows of paint for {2} rows of cells",
                     new Object[] {what, rows.size(), height});
         }
-        unnamed.forEach((key, count) -> LOG.log(Level.WARNING,
-                "{0}: the palette does not say what ''{1}'' is, and {2} cell(s) are painted with it",
-                new Object[] {what, key, count}));
+        if (warn) {
+            unnamed.forEach((key, count) -> LOG.log(Level.WARNING,
+                    "{0}: the palette does not say what ''{1}'' is, and {2} cell(s) are painted with it",
+                    new Object[] {what, key, count}));
+        }
 
         var patches = new ArrayList<Patch>(cells.size());
         cells.forEach((key, painted) -> {
@@ -229,14 +244,22 @@ final class GroundPaint {
      * placeholder. What cannot be read is said once, like the paint's own mistakes, and left out.
      */
     List<OverlayPatch> overlays(int width, int height) {
+        return overlays(width, height, 0, 0, width - 1, height - 1);
+    }
+
+    /** The same, of the cells from ({@code x0}, {@code y0}) to ({@code x1}, {@code y1}) only — see {@link #patches}. */
+    List<OverlayPatch> overlays(int width, int height, int x0, int y0, int x1, int y1) {
+        boolean warn = !overlaysWarned;
+        overlaysWarned = true;
         var patches = new ArrayList<OverlayPatch>();
         for (int layer = 0; layer < fades.size(); layer++) {
-            patches.addAll(layer(layer, width, height));
+            patches.addAll(layer(layer, width, height, x0, y0, x1, y1, warn));
         }
         return patches;
     }
 
-    private List<OverlayPatch> layer(int layer, int width, int height) {
+    private List<OverlayPatch> layer(int layer, int width, int height, int x0, int y0, int x1, int y1,
+            boolean warn) {
         var fade = fades.get(layer);
         var overlay = overlays.get(layer);
         // A map of one layer says what it always said; of more, which layer it means.
@@ -244,10 +267,10 @@ final class GroundPaint {
         var cells = new LinkedHashMap<String, List<int[]>>();
         var unnamed = new LinkedHashMap<String, Integer>();
         var unreadable = new LinkedHashMap<Character, Integer>();
-        for (int cy = 0; cy < height && cy < fade.size(); cy++) {
+        for (int cy = Math.max(0, y0); cy <= y1 && cy < height && cy < fade.size(); cy++) {
             var row = fade.get(cy);
             var over = cy < overlay.size() ? overlay.get(cy) : "";
-            for (int cx = 0; cx < width && cx < row.length(); cx++) {
+            for (int cx = Math.max(0, x0); cx <= x1 && cx < width && cx < row.length(); cx++) {
                 int shape = FadeShape.of(row.charAt(cx));
                 if (shape == FadeShape.NONE) {
                     continue;
@@ -264,12 +287,14 @@ final class GroundPaint {
                 cells.computeIfAbsent(key, k -> new ArrayList<>()).add(new int[] {cy * width + cx, shape});
             }
         }
-        unreadable.forEach((written, count) -> LOG.log(Level.WARNING,
-                "{0}: ''{1}'' is no fade — a fade is . or one of 0-F — on {2} cell(s)",
-                new Object[] {where, written, count}));
-        unnamed.forEach((key, count) -> LOG.log(Level.WARNING,
-                "{0}: the palette does not say what the overlay ''{1}'' is, and {2} cell(s) are laid with it",
-                new Object[] {where, key, count}));
+        if (warn) {
+            unreadable.forEach((written, count) -> LOG.log(Level.WARNING,
+                    "{0}: ''{1}'' is no fade — a fade is . or one of 0-F — on {2} cell(s)",
+                    new Object[] {where, written, count}));
+            unnamed.forEach((key, count) -> LOG.log(Level.WARNING,
+                    "{0}: the palette does not say what the overlay ''{1}'' is, and {2} cell(s) are laid with it",
+                    new Object[] {where, key, count}));
+        }
 
         var patches = new ArrayList<OverlayPatch>(cells.size());
         cells.forEach((key, laid) -> {
