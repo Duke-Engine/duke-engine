@@ -3166,7 +3166,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (strips != null) {
             strips.clear(); // a new world lays its own
         }
-        terrain.streamWithin(visuals.getStreamGround());
+        terrain.streamWithin(visuals.streamGroundFor(game.getMapRecord()));
         terrain.blendWith(visuals.getPaintBlend());
         terrain.quarterWith(visuals.isPaintInQuarters());
         terrain.rebuildLooked(builtFrom, currentKit, builtPaint, visuals.getGroundLight(), kitsOfTheCells(builtFrom),
@@ -3210,7 +3210,7 @@ final class DukeRtsApp extends SimpleApplication {
      * over, since a texel reads the cells round it; 0, the whole map, where the ground is built whole.
      */
     private int fogWindowCells() {
-        int stream = visuals.getStreamGround();
+        int stream = visuals.streamGroundFor(game.getMapRecord());
         if (stream <= 0) {
             return 0;
         }
@@ -3302,7 +3302,7 @@ final class DukeRtsApp extends SimpleApplication {
             return null;
         }
         int width = grid.getWidth();
-        if (visuals.getStreamGround() > 0) {
+        if (visuals.streamGroundFor(game.getMapRecord()) > 0) {
             java.util.function.IntFunction<Visuals.Theme> look = cell -> themeNamed(looked.lookAt(cell % width,
                     cell / width));
             cellLooks = look;

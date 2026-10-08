@@ -127,4 +127,16 @@ class PaintedChunksTest {
         assertTrue(streamed.isBuilt(4, 1));
         assertFalse(streamed.isBuilt(0, 0), "let go once the camera is more than a chunk past it");
     }
+
+    /** A game streams the maps it says: its painted world round the camera, its small floors whole. */
+    @Test
+    void theGameSaysWhichMapsAreBuiltRoundTheCamera() {
+        var painted = world();
+        var visuals = Visuals.create().streamGround(48, map -> map instanceof PaintedGroundTest.Shore);
+
+        assertEquals(48, visuals.streamGroundFor(painted));
+        assertEquals(0, visuals.streamGroundFor("a floor of the descent"), "built whole");
+        assertEquals(48, Visuals.create().streamGround(48).streamGroundFor("any"), "one number streams every map");
+        assertEquals(0, Visuals.create().streamGroundFor(painted), "and none, none");
+    }
 }

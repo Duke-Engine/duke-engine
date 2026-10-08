@@ -361,6 +361,10 @@ E16, in parts.
   is the ground walked. Ground drawn a surface a cell keeps its flat cells, so a Generals map looks as it did. Measured
   blended and streamed on the 900 × 900 world of six surfaces: no frame walking across it over 3.6 ms, 4.3 ms in
   quarters.
+- **Streaming chosen per map** (E18): `Visuals.streamGround(cells, forMap)` builds round the camera only the maps
+  `forMap` says, asked of each map's record as it is laid — an open world streamed, the small floors of a descent built
+  whole, in one game; `streamGroundFor(map)` is the reach for a map, 0 for one built whole. `streamGround(cells)` streams
+  every map, as before.
 
 ### A game's own order, applied at once
 

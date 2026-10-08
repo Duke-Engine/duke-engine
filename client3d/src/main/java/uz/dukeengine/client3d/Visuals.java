@@ -2781,12 +2781,30 @@ public final class Visuals {
      * never seen. 0, as ever, builds each map whole when it is laid, and darkens it whole.
      */
     public Visuals streamGround(int cells) {
+        return streamGround(cells, map -> true);
+    }
+
+    /** Which maps are built a chunk at a time — see {@link #streamGround(int, java.util.function.Predicate)}. */
+    private java.util.function.Predicate<Object> streamsMap = map -> true;
+
+    /**
+     * The same, only for the maps {@code forMap} says, asked of each map's record as it is laid: an open world built
+     * round the camera and the small floors of a descent built whole, in one game. A map it says no to is built whole
+     * and darkened whole.
+     */
+    public Visuals streamGround(int cells, java.util.function.Predicate<Object> forMap) {
         this.streamGround = Math.max(0, cells);
+        this.streamsMap = forMap == null ? map -> true : forMap;
         return this;
     }
 
     public int getStreamGround() {
         return streamGround;
+    }
+
+    /** How many cells round the camera {@code map}'s ground is built: {@link #streamGround}'s, or 0 for whole. */
+    public int streamGroundFor(Object map) {
+        return streamGround > 0 && streamsMap.test(map) ? streamGround : 0;
     }
 
     private float hazeFrom;
