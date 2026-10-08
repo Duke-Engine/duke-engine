@@ -298,7 +298,7 @@ class ChevronsTest {
         return total / heads.size();
     }
 
-    /** On a slope of 30 degrees each arrowhead lies on it: its up the slope's normal; on level ground, the spin alone. */
+    /** On a slope of 30 degrees each arrowhead lies on it, its up the slope's normal; on level ground, upright. */
     @Test
     void onASlopeEachArrowheadLiesOnItAndOnLevelGroundAsEver() {
         float rise = com.jme3.math.FastMath.tan(30f * com.jme3.math.FastMath.DEG_TO_RAD);

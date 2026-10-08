@@ -123,8 +123,8 @@ final class Chevrons {
             // point -- sitting at the origin -- nearest the middle. Inward-facing
             // is the whole reading of the shape: three things aiming at one spot.
             //
-            // Then laid on the ground under it, so on a hillside it lies on the slope rather than sticking out of one side
-            // of it and into the other: spun about the vertical, then tilted from the vertical onto the ground's normal.
+            // Then laid on the ground under it, so on a hillside it lies on the slope rather than sticking out of
+            // one side of it and into the other: spun about the vertical, then tilted onto the ground's normal.
             var normal = groundNormal(floorAt, marker.x() + x, marker.y() + z, look.size());
             head.setLocalRotation(lyingOn(normal, -around));
         }
