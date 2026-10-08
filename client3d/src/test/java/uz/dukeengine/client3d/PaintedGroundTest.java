@@ -226,18 +226,42 @@ class PaintedGroundTest {
     }
 
     /**
-     * A kit beats paint. A dungeon's floors are models with a look of their own, and painting over them
-     * would draw the ground twice at the same height.
+     * A map's own kit beats paint. A dungeon's floors are models with a look of their own, and painting over them
+     * would draw a floor twice at one height.
      */
     @Test
-    void aKitOfFloorModelsWinsOverPaint() {
+    void aMapsOwnKitOfFloorModelsWinsOverPaint() {
         var root = new Node("terrain");
-        var kit = Tileset.create().floor("floor").tileSize(4f);
-        new TerrainScene(root, (colour, texture) -> null, false, kit, new SquareTiles())
-                .rebuild(MapTerrain.of(field(), 10f, 0f), kit, GroundPaint.of(field()));
+        var own = Tileset.create().floor("floor").tileSize(4f);
+        new TerrainScene(root, (colour, texture) -> null, false, null, new SquareTiles())
+                .rebuild(MapTerrain.of(field(), 10f, 0f), own, GroundPaint.of(field()));
 
-        assertTrue(painted(root).isEmpty(), "the kit laid the floor; the paint was not drawn over it");
-        assertFalse(root.getChildren().isEmpty(), "and something was laid");
+        assertTrue(painted(root).isEmpty(), "the map's kit laid the floor; the paint was not drawn over it");
+    }
+
+    /** The game's default kit does not: a painted map that names no kit of its own has chosen paint. */
+    @Test
+    void aPaintedMapWinsOverTheGamesDefaultKit() {
+        var root = new Node("terrain");
+        var games = Tileset.create().floor("floor").tileSize(4f);
+        var scene = new TerrainScene(root, (colour, texture) -> null, false, games, new SquareTiles());
+
+        scene.rebuild(MapTerrain.of(field(), 10f, 0f), null, GroundPaint.of(field()));
+        assertEquals(3, painted(root).size(), "painted, the game's kit set aside");
+
+        scene.rebuild(MapTerrain.of(field(), 10f, 0f), null, null);
+        assertTrue(painted(root).isEmpty(), "a map with no paint is laid from the game's kit, as ever");
+    }
+
+    /** Ground pictures are mipmapped and filtered at a slant, so ground far off does not shimmer. */
+    @Test
+    void groundPicturesAreMipmappedAndFilteredAtASlant() {
+        var texture = DukeRtsApp.forTheGround(
+                new com.jme3.texture.Texture2D(4, 4, com.jme3.texture.Image.Format.RGBA8));
+
+        assertEquals(com.jme3.texture.Texture.MinFilter.Trilinear, texture.getMinFilter());
+        assertEquals(DukeRtsApp.GROUND_ANISOTROPY, texture.getAnisotropicFilter());
+        assertEquals(com.jme3.texture.Texture.WrapMode.Repeat, texture.getWrap(com.jme3.texture.Texture.WrapAxis.S));
     }
 
     // ---- the second layer ----

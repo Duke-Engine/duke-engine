@@ -201,11 +201,12 @@ final class TerrainScene {
     /**
      * Lay out {@code grid} from {@code kit}, painted with {@code paint} where the map carries any.
      *
-     * <p><b>A kit beats paint.</b> A kit's floors are models with a look of their own — a dungeon is built
-     * out of them and its rock, its stairs and the lids over them all belong to the same set — and painting
-     * over that would leave a floor drawn twice at the same height. Paint is for the other kind of map: an
-     * outdoor field with no floor models at all, where the ground was a single coloured quad and now is not.
-     * A map with both is drawn from the kit, and the paint is ignored rather than argued about.
+     * <p><b>A map's own kit beats paint; the game's default kit does not.</b> A kit's floors are models with a
+     * look of their own — a dungeon is built out of them and its rock, its stairs and the lids over them all
+     * belong to the same set — and painting over that would leave a floor drawn twice at the same height. So a
+     * map that brings a kit of its own (its look's) is drawn from it, and its paint ignored. But a painted map
+     * that names no kit has chosen paint, and the kit the game draws its other maps with does not take its
+     * ground from it: a game whose descent is tiled may still paint its open world.
      */
     void rebuild(PathGrid grid, Tileset kit, GroundPaint paint) {
         rebuild(grid, kit, paint, null);
@@ -248,7 +249,8 @@ final class TerrainScene {
         this.cellKits = kitOfCell;
         this.cellCount = grid == null ? 0 : grid.getWidth() * grid.getHeight();
         this.light = groundLight;
-        this.tileset = kit != null && kit.isUsable() && tiles != null ? kit : defaultTileset;
+        boolean ownKit = kit != null && kit != defaultTileset && kit.isUsable() && tiles != null;
+        this.tileset = ownKit ? kit : paint != null ? null : defaultTileset;
         root.detachAllChildren();
         cellNodes = new Node[0];
         chunks = new Node[0];

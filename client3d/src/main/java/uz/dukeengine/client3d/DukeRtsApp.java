@@ -7904,13 +7904,25 @@ final class DukeRtsApp extends SimpleApplication {
     private final java.util.Map<String, com.jme3.texture.Texture> groundTextures =
             new java.util.HashMap<>();
 
+    /** How sharply the ground's pictures are drawn at a slant: anisotropic filtering, as far as the card allows. */
+    static final int GROUND_ANISOTROPY = 8;
+
+    /**
+     * A ground picture set to repeat, mipmapped and filtered at a slant as a model's skin is — ground seen far off
+     * under a tilted camera otherwise shimmers, every texel of a distant field fighting for one pixel.
+     */
+    static com.jme3.texture.Texture forTheGround(com.jme3.texture.Texture texture) {
+        texture.setWrap(com.jme3.texture.Texture.WrapMode.Repeat);
+        texture.setMinFilter(com.jme3.texture.Texture.MinFilter.Trilinear);
+        texture.setAnisotropicFilter(GROUND_ANISOTROPY);
+        return texture;
+    }
+
     /** The picture a palette entry names, loaded once and set to repeat, or null with a word about why. */
     private com.jme3.texture.Texture groundTexture(String path) {
         return groundTextures.computeIfAbsent(path, named -> {
             try {
-                var texture = assetManager.loadTexture(named);
-                texture.setWrap(com.jme3.texture.Texture.WrapMode.Repeat);
-                return texture;
+                return forTheGround(assetManager.loadTexture(named));
             } catch (RuntimeException notThere) {
                 LOG.log(java.util.logging.Level.WARNING,
                         "the ground names a picture that will not load: {0} ({1})",

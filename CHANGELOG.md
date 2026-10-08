@@ -305,6 +305,16 @@ game. It is duke-dungeon's own, which already ran the RPG half, and what tied it
   story and the words. The hero card on the wire went with the client, beside the hero panel (`HeroCard`, below), and
   single-hero control with it. An RPG flavour has not been made: an RPG still runs on `RtsFlavour`.
 
+### A painted world, drawn as Warcraft III, Dota and Generals draw theirs
+
+E16, in parts.
+
+- **A painted map wins over the game's default kit.** A map with paint rows that brings no kit of its own is painted,
+  whatever kit the game lays its other maps with; a map's own kit (its look's) still wins over its paint. A game whose
+  descent is tiled may paint its open world.
+- **Ground pictures are mipmapped and filtered at a slant** (`DukeRtsApp.forTheGround`: trilinear, anisotropy 8, as
+  far as the card allows), as a model's skin is, so ground far off under a tilted camera does not shimmer.
+
 ### A game's own order, applied at once
 
 `GameLogic.applyNow(command)` applies an order in the frame it is given, exactly as one drained at the start of a frame
