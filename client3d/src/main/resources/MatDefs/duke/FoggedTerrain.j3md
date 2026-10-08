@@ -75,6 +75,12 @@ MaterialDef Fogged Terrain {
         Float VariationScale
         Vector4 SurfaceVariation0
         Vector4 SurfaceVariation1
+        // Steep ground drawn as rock: the picture laid on the face along its own direction, one over CliffScale units
+        // a copy, wherever the ground's normal stands lower than CliffSlope -- the cosine of the lean past which it is
+        // cliff.
+        Texture2D Cliff
+        Float CliffScale
+        Float CliffSlope
     }
 
     Technique {
@@ -98,6 +104,7 @@ MaterialDef Fogged Terrain {
             BLENDED : Blended
             BLEND_NOISE : BlendNoise
             BLEND_VARIATION : Variation
+            BLEND_CLIFF : Cliff
         }
     }
 }

@@ -2726,6 +2726,35 @@ public final class Visuals {
         return paintBlend;
     }
 
+    /**
+     * How the steep ground of a blended map is drawn: with a picture of rock wherever it leans past {@code slope}
+     * degrees, laid on the face it is — projected along the face's own direction, not down from above — so it is not
+     * stretched however steep, and a map need not lay {@code @PictureCorners} on its cliffs.
+     *
+     * @param picture  the rock's picture
+     * @param slope    the lean, in degrees from level, past which the ground is cliff
+     * @param coverage how many cells one copy of the picture covers
+     */
+    public record Cliffs(String picture, float slope, float coverage) {
+
+        public Cliffs {
+            slope = Math.clamp(slope, 1f, 89f);
+            coverage = coverage > 0f ? coverage : 2f;
+        }
+    }
+
+    private Cliffs paintCliffs;
+
+    /** Draw a blended map's steep ground as cliffs ({@link Cliffs}); null, as ever, draws it as its paint. */
+    public Visuals paintCliffs(Cliffs cliffs) {
+        this.paintCliffs = cliffs;
+        return this;
+    }
+
+    public Cliffs getPaintCliffs() {
+        return paintCliffs;
+    }
+
     private int streamGround;
 
     /**

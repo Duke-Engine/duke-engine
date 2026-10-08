@@ -95,6 +95,25 @@ float varied(float strength, float slot) {
 #define VARY(strength, slot) 1.0
 #endif
 
+#ifdef BLEND_CLIFF
+uniform sampler2D m_Cliff;
+uniform float m_CliffScale;
+uniform float m_CliffSlope;
+
+// The rock on a steep face, laid along the face's own direction rather than down from above -- across x and up the
+// height where the face looks along z, across z and up where it looks along x, the two blended by how much it looks
+// each way -- so it is never stretched however steep; and how much of it shows, by how far the face leans past the
+// slope, over a narrow band so the edge of a cliff is not a line.
+vec4 cliffOn(vec3 normal) {
+    vec3 p = worldPos * m_CliffScale;
+    vec2 facing = abs(normal.xz) + vec2(0.0001);
+    vec3 rock = (texture2D(m_Cliff, p.zy).rgb * facing.x + texture2D(m_Cliff, p.xy).rgb * facing.y)
+            / (facing.x + facing.y);
+    float shown = 1.0 - smoothstep(m_CliffSlope - 0.06, m_CliffSlope + 0.06, normal.y);
+    return vec4(rock, shown);
+}
+#endif
+
 // The ground blended from its paint, as Warcraft III blends its tiles: each surface's weight comes in at the cell's
 // corners and is blended across it; the noise moves a border only where the surface already shows -- a surface never
 // appears where no cell round it is painted with it -- and the weights are sharpened and made to add up to one again.
@@ -146,6 +165,10 @@ void main() {
     vec4 albedo = m_Color;
     #ifdef BLENDED
     albedo.rgb *= blendedGround();
+    #ifdef BLEND_CLIFF
+    vec4 cliff = cliffOn(normalize(worldNormal));
+    albedo.rgb = mix(albedo.rgb, cliff.rgb, cliff.a);
+    #endif
     #endif
     #ifdef HAS_COLORMAP
     albedo *= texture2D(m_ColorMap, texCoord);

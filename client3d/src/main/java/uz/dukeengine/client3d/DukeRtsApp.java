@@ -7969,6 +7969,14 @@ final class DukeRtsApp extends SimpleApplication {
             material.setVector4("SurfaceVariation1",
                     new com.jme3.math.Vector4f(varied[4], varied[5], varied[6], varied[7]));
         }
+        var cliffs = visuals.getPaintCliffs();
+        var rock = cliffs == null ? null : groundTexture(cliffs.picture());
+        if (rock != null) {
+            material.setTexture("Cliff", rock);
+            material.setFloat("CliffScale", 1f / (cliffs.coverage() * cell));
+            material.setFloat("CliffSlope",
+                    com.jme3.math.FastMath.cos(cliffs.slope() * com.jme3.math.FastMath.DEG_TO_RAD));
+        }
         var noise = blend.noise() == null ? null : groundTexture(blend.noise());
         if (noise != null) {
             material.setTexture("BlendNoise", noise);

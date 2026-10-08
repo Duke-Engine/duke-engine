@@ -349,6 +349,11 @@ E16, in parts.
   the others, so one picture over a valley does not repeat to the eye. `PaintBlend` keeps its four-part constructor,
   which names no variation. Per-cell turning of a picture is not offered: on a picture that runs across cells it draws
   the cells' edges.
+- **Cliffs by slope.** `Visuals.paintCliffs(new Cliffs(picture, slope, coverage))` draws a blended map's ground as
+  rock wherever it leans past `slope` degrees, the picture laid on the face along its own direction — triplanar, not
+  down from above — one copy to `coverage` cells, over a narrow band so a cliff's edge is not a line: a map need not lay
+  `@PictureCorners` on its cliffs. On a blended map a `#` cell draws nothing: its stone is its relief. A map drawn a
+  surface a cell keeps its stone blocks and its picture corners, as before.
 
 ### A game's own order, applied at once
 

@@ -173,4 +173,18 @@ class PaintedBlendTest {
                 DukeRtsApp.tinted(com.jme3.math.ColorRGBA.White, Visuals.SurfaceLook.PLAIN));
         assertEquals(null, new Visuals.PaintBlend("noise.png", 0.3f, 2f, 8f).variation(), "borders alone: none");
     }
+
+    /** A blended map's stone is its relief and its cliffs: its # cells draw nothing; a plain map keeps its blocks. */
+    @Test
+    void aBlendedMapsStoneDrawsNoBlocks() {
+        var map = field();
+        var blended = new Node("blended");
+        blending(blended, false).rebuild(MapTerrain.of(map, 10f, 0f), null, GroundPaint.of(map));
+        assertTrue(named(blended, "rock").isEmpty());
+
+        var plain = new Node("plain");
+        new TerrainScene(plain, (colour, texture) -> null)
+                .rebuild(MapTerrain.of(map, 10f, 0f), null, GroundPaint.of(map));
+        assertTrue(!named(plain, "rock").isEmpty(), "this map has stone, or the check above proves nothing");
+    }
 }

@@ -315,7 +315,7 @@ final class TerrainScene {
         }
         cellsWide = grid.getWidth();
         rocks = discovery ? new Geometry[grid.getWidth() * grid.getHeight()] : new Geometry[0];
-        layStone(grid, 0, 0, grid.getWidth() - 1, grid.getHeight() - 1, root, 0f, 0f, rock -> {
+        layStone(grid, 0, 0, grid.getWidth() - 1, grid.getHeight() - 1, root, 0f, 0f, !blended(paint), rock -> {
             if (discovery) {
                 rocks[(int) rock.getUserData(CELL)] = rock;
             }
@@ -328,11 +328,12 @@ final class TerrainScene {
 
     /**
      * The stone of the cells from ({@code x0}, {@code y0}) to ({@code x1}, {@code y1}) on a map drawn without a kit: a
-     * block as tall as the tallest floor beside it on a stone cell, a plinth under a floor standing above the ground —
-     * hung on {@code into}, placed less ({@code ox}, {@code oz}), each block handed to {@code each} with its cell.
+     * block as tall as the tallest floor beside it on a stone cell — where {@code blocks}: a blended map's stone is the
+     * relief and its cliffs, and draws nothing — and a plinth under a floor standing above the ground; hung on {@code
+     * into}, placed less ({@code ox}, {@code oz}), each block handed to {@code each} with its cell.
      */
     private void layStone(PathGrid grid, int x0, int y0, int x1, int y1, Node into, float ox, float oz,
-            java.util.function.Consumer<Geometry> each) {
+            boolean blocks, java.util.function.Consumer<Geometry> each) {
         float cell = grid.getCellSize();
         var stone = material.of(ROCK, null);
         var raised = material.of(GROUND, null);
@@ -351,6 +352,9 @@ final class TerrainScene {
                                 (cy + 0.5f) * cell - oz);
                         into.attachChild(plinth);
                     }
+                    continue;
+                }
+                if (!blocks) {
                     continue;
                 }
                 // Rock stands as tall as the tallest floor beside it, so a raised
@@ -403,7 +407,7 @@ final class TerrainScene {
             paintCells(grid, streamedPaint, x0, y0, x1, y1, node, ox, oz);
         }
         var stone = new java.util.ArrayList<Geometry>();
-        layStone(grid, x0, y0, x1, y1, node, ox, oz, stone::add);
+        layStone(grid, x0, y0, x1, y1, node, ox, oz, !blended(streamedPaint), stone::add);
         for (var piece : sceneryByChunk.getOrDefault(chunk, java.util.List.of())) {
             var model = sceneryModel(grid, piece);
             if (model != null) {
