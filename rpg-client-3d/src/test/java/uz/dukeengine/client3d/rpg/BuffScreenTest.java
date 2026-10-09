@@ -25,7 +25,7 @@ import uz.dukeengine.rpg.skill.SkillEffect;
 class BuffScreenTest {
 
     private static final BuffScreen.Words WORDS = new BuffScreen.Words("Zarba", "Mana/s", "Qon", "Hujum tezligi",
-            "s");
+            "s", "Jonlar");
 
     private record Plain(String name, List<ModuleData> modules) implements ThingTemplate {
     }
@@ -71,5 +71,7 @@ class BuffScreenTest {
     void anAurasFigureIsSaidByItsKind() {
         assertEquals("+50% Zarba", screen.addsOf(new BuffScreen.Buff(MIGHT, 50, 0)));
         assertEquals("+5 Mana/s", screen.addsOf(new BuffScreen.Buff(skill(SkillEffect.MANA_AURA, 0, "M"), 50, 0)));
+        assertEquals("+3% Zarba · Jonlar: 37",
+                screen.addsOf(new BuffScreen.Buff(skill(SkillEffect.SOUL_DRINK, 0, "S"), 3, 0, 37)));
     }
 }

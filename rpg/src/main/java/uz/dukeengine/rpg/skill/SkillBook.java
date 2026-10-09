@@ -267,6 +267,17 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
      */
     private final Seal seal;
 
+    /**
+     * Passives lent by what its bearer wears, by the id of the thing lending them, in the order they were put on —
+     * see {@link #lendFrom}. Read wherever its own passives are: never cast, never in a slot.
+     */
+    private final java.util.Map<String, List<Skill>> lent = new java.util.LinkedHashMap<>();
+    /** What it wears, and the bag's count of changes when it last looked: see {@link #lendFrom}. */
+    private uz.dukeengine.rpg.item.LootBag wornFrom;
+    private int wornVersion = -1;
+    /** The souls a {@code SOUL_DRINK} it has drunk: every enemy its bearer killed while it had one. */
+    private int souls;
+
     public SkillBook(GameObject owner, List<Skill> skills, Rules rules, Seal seal) {
         super(owner);
         this.skills = List.copyOf(skills);
@@ -674,7 +685,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                 var spot = withinReach(owner, towards, skill.range());
                 float each = damageOf(skill, level);
                 for (var victim : enemiesWithin(owner, world, spot, skill.radius())) {
-                    victim.getBody().damage(each);
+                    hurt(owner, victim, each);
                     drink(owner, each);
                 }
                 // And leaves whoever it caught dragging his feet, if the file asks: the
@@ -869,7 +880,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                     owner.getPosition(), victim.getPosition()));
             return;
         }
-        victim.getBody().damage(damage);
+        hurt(owner, victim, damage);
         drink(owner, damage);
     }
 
@@ -1233,11 +1244,17 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
         return true;
     }
 
+    /** A blow of his: it names him and his side, so a kill it makes is his to be credited with. */
+    private static void hurt(GameObject owner, GameObject victim, float amount) {
+        victim.getBody().damage(amount, DamageType.NORMAL, new uz.dukeengine.core.module.Death(
+                uz.dukeengine.core.module.DeathType.NORMAL, owner.getId(), owner.getPlayerIndex()));
+    }
+
     /** Hurt everything of the other side within {@code radius} of him. */
     private void strikeAround(GameObject owner, uz.dukeengine.core.thing.World world,
             float each, float radius) {
         for (var victim : enemiesWithin(owner, world, radius)) {
-            victim.getBody().damage(each);
+            hurt(owner, victim, each);
             drink(owner, each);
         }
     }
@@ -1270,7 +1287,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
             struck.addAll(enemiesWithin(owner, world, at, radius));
         }
         for (var victim : struck) {
-            victim.getBody().damage(each);
+            hurt(owner, victim, each);
             drink(owner, each);
         }
     }
@@ -1283,7 +1300,94 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     @Override
     public float damageMultiplier() {
         float empowered = boostFrames > 0 ? 1f + boostPercent / 100f : 1f;
-        return empowered * (1f + auraOn(getOwner(), SkillEffect.DAMAGE_AURA) / 100f);
+        // A soul drink is added to the strongest aura, never maxed with it: it is his own, not lent.
+        return empowered * (1f + (auraOn(getOwner(), SkillEffect.DAMAGE_AURA) + soulPercent()) / 100f);
+    }
+
+    /** Its passives: its own, and those lent by what its bearer wears. */
+    private List<Skill> passives() {
+        lookAtWhatIsWorn();
+        if (lent.isEmpty()) {
+            return skills;
+        }
+        var all = new java.util.ArrayList<>(skills);
+        lent.values().forEach(all::addAll);
+        return all;
+    }
+
+    /**
+     * Lend it the passives of whatever {@code bag} has acting on its bearer — what is worn, or every slot of a bag that
+     * wears nothing — each thing's {@link uz.dukeengine.rpg.item.Loot#skills}: put on, they are its; taken off, gone.
+     * Looked at again whenever the bag changes. What a soul drink has drunk stays with this book, not the thing.
+     */
+    public void lendFrom(uz.dukeengine.rpg.item.LootBag bag) {
+        this.wornFrom = bag;
+        this.wornVersion = -1;
+    }
+
+    private void lookAtWhatIsWorn() {
+        if (wornFrom == null || wornFrom.version() == wornVersion) {
+            return;
+        }
+        wornVersion = wornFrom.version();
+        lent.clear();
+        for (var item : wornFrom.acting()) {
+            // ponytail: only passives are lent; a worn thing that casts would want a slot and a key of its own.
+            var passive = item.skills().stream().filter(skill -> skill.effect().isPassive()).toList();
+            if (!passive.isEmpty()) {
+                lent.merge(item.id(), passive, (was, more) -> java.util.stream.Stream.concat(was.stream(),
+                        more.stream()).toList());
+            }
+        }
+    }
+
+    /** Its {@code SOUL_DRINK}, its own or lent, or null: the first. */
+    public Skill soulDrink() {
+        for (var skill : passives()) {
+            if (skill.effect() == SkillEffect.SOUL_DRINK) {
+                return skill;
+            }
+        }
+        return null;
+    }
+
+    /** The souls it has drunk — see {@link SkillEffect#SOUL_DRINK}. */
+    public int getSouls() {
+        return souls;
+    }
+
+    /** The souls it has drunk, put back from a save. */
+    public void setSouls(int souls) {
+        this.souls = Math.max(0, souls);
+    }
+
+    /**
+     * What its souls add to every blow and skill, in percent: its {@code SOUL_DRINK}'s {@code BoostPercent} for every
+     * {@code TickFrames} souls, up to its {@code Damage} where that is above 0; nothing without one.
+     */
+    public int soulPercent() {
+        var drink = soulDrink();
+        if (drink == null || drink.tickFrames() <= 0) {
+            return 0;
+        }
+        long percent = (long) (souls / drink.tickFrames()) * drink.boostPercent();
+        return (int) (drink.damage() > 0f ? Math.min(percent, (long) drink.damage()) : Math.min(percent,
+                Integer.MAX_VALUE));
+    }
+
+    /**
+     * A death reaped, told to the book of whoever dealt it: an enemy its bearer killed is a soul for a {@code
+     * SOUL_DRINK} it has. For the runtime's watcher of deaths ({@code GameLogic.onDied}); a death nobody dealt, one of
+     * the killer's own side, or one dealt by a thing with no soul drink, counts for nothing.
+     */
+    public static void reaped(World world, uz.dukeengine.core.event.ObjectDied died) {
+        var killer = died.killer() == null ? null : world.findObject(died.killer());
+        var book = killer == null ? null : killer.findModule(SkillBook.class);
+        if (book == null || book.soulDrink() == null
+                || world.getRelationship(killer.getPlayerIndex(), died.playerIndex()) != Relationship.ENEMIES) {
+            return;
+        }
+        book.souls++;
     }
 
     /**
@@ -1363,7 +1467,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
             return;
         }
         int share = auraOn(striker, SkillEffect.LIFESTEAL_AURA);
-        for (var skill : book.skills) {
+        for (var skill : book.passives()) {
             if (skill.effect() == SkillEffect.LIFESTEAL) {
                 // ponytail: at its first rank, which is a monster's only one; a hero may not
                 // drink yet (see DungeonSettings.validate), and one who does will read his rank
@@ -1497,7 +1601,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
         }
         var here = owner.getPosition();
         int until = world.getFrame() + rules.buffLifeFrames() - 1;
-        for (var skill : skills) {
+        for (var skill : passives()) {
             if (!skill.effect().isAura() || LevelBonus.rankOf(owner, skill) <= 0) {
                 continue;
             }
@@ -1525,7 +1629,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
         if (world == null || owner.isEffectivelyDead()) {
             return;
         }
-        for (var skill : skills) {
+        for (var skill : passives()) {
             int beat = skill.tickFrames();
             if (skill.effect().isAura() && skill.hasLook() && beat > 0
                     && world.getFrame() % beat == Math.floorMod(owner.getId().value(), beat)

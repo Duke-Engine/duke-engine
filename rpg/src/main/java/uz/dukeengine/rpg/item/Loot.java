@@ -1,5 +1,7 @@
 package uz.dukeengine.rpg.item;
 
+import java.util.List;
+
 /**
  * One thing that can be found, as the data file describes it, at the level it has been joined to.
  *
@@ -36,10 +38,12 @@ package uz.dukeengine.rpg.item;
  * @param slot       the worn slot it goes in, one of the words a bag that wears things names
  *                   ({@link LootBag#wornSlots}); blank for a thing that cannot be worn — a key, a potion, a thing to
  *                   sell
+ * @param skills     the passives it lends whoever wears it, while he wears it — see {@link
+ *                   uz.dukeengine.rpg.skill.SkillBook#lendFrom}; none for most things
  */
 public record Loot(String id, String name, String icon, String kind, int value, int weight, int minTier,
         String attribute, String extra, int extraValue, int extraStep, int level, ItemUse use, String liesAs,
-        String slot) {
+        String slot, List<uz.dukeengine.rpg.skill.Skill> skills) {
 
     public Loot {
         attribute = attribute == null ? "" : attribute;
@@ -49,6 +53,15 @@ public record Loot(String id, String name, String icon, String kind, int value, 
         use = use == null ? ItemUse.NONE : use;
         liesAs = liesAs == null ? "" : liesAs;
         slot = slot == null ? "" : slot.strip();
+        skills = skills == null ? List.of() : List.copyOf(skills);
+    }
+
+    /** A thing that lends no skills. */
+    public Loot(String id, String name, String icon, String kind, int value, int weight, int minTier,
+            String attribute, String extra, int extraValue, int extraStep, int level, ItemUse use, String liesAs,
+            String slot) {
+        this(id, name, icon, kind, value, weight, minTier, attribute, extra, extraValue, extraStep, level, use, liesAs,
+                slot, List.of());
     }
 
     /** A thing worn in no slot. */
@@ -91,12 +104,13 @@ public record Loot(String id, String name, String icon, String kind, int value, 
      */
     public Loot joined(int count) {
         return new Loot(id, name, icon, kind, value * count, weight, minTier, attribute, extra,
-                extraValue * count + (level == 1 ? extraStep : 0), extraStep, level + 1, use, liesAs, slot);
+                extraValue * count + (level == 1 ? extraStep : 0), extraStep, level + 1, use, liesAs, slot,
+                skills);
     }
 
     /** The same thing, worth {@code value} instead. */
     public Loot worth(int value) {
         return new Loot(id, name, icon, kind, value, weight, minTier, attribute, extra, extraValue, extraStep, level,
-                use, liesAs, slot);
+                use, liesAs, slot, skills);
     }
 }

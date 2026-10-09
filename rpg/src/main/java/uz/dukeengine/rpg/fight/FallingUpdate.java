@@ -107,7 +107,8 @@ public final class FallingUpdate extends UpdateModule {
                         && world.getRelationship(side, candidate.getPlayerIndex())
                                 == Relationship.ENEMIES
                         && !seal.parts(world, calledFrom, candidate.getPosition()))) {
-            victim.getBody().damage(damage, DamageType.EXPLOSION);
+            victim.getBody().damage(damage, DamageType.EXPLOSION, new uz.dukeengine.core.module.Death(
+                    uz.dukeengine.core.module.DeathType.NORMAL, caller, side));
             // A blow like any other, and its caller drinks from it if a skill of its, or an aura lent to it, says
             // so -- see SkillBook.drink.
             SkillBook.drink(caster, damage);

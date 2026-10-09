@@ -373,6 +373,29 @@ E16, in parts.
   whole, in one game; `streamGroundFor(map)` is the reach for a map, 0 for one built whole. `streamGround(cells)` streams
   every map, as before.
 
+### Blows that name their dealer, and a soul drink
+
+- **The rpg's blows say whose they are** (E27): an arrow and its burst, a meteor, and every skill's damage — strike,
+  area, dash, burst — land as a weapon's do, with a `Death` naming the shooter or caster and his side, so the
+  `ObjectDied` of such a kill names its killer (`killerPlayerIndex` no longer -1). Being whole blows they now post
+  `ObjectHurt` and tell the victim's `DamageListener`s too, as a weapon's blows always did.
+- **`SkillEffect.SOUL_DRINK`**, a passive a hero may bear: its book counts every enemy its bearer kills
+  (`SkillBook.reaped(world, died)`, for the runtime's `onDied`; `getSouls`, `setSouls` for a save), and every
+  `TickFrames` souls add `BoostPercent` to `damageMultiplier`, up to `Damage` percent where that is above 0 —
+  added to a damage aura, not maxed with it. `BuffScreen` shows it (`+3% Zarba · Jonlar: 37`), its word the new last
+  of `BuffScreen.Words`, the five-word constructor kept.
+- **A worn thing lends its passives**: `Loot`'s new last component `skills`, and `SkillBook.lendFrom(bag)` — what the
+  bag has acting on its bearer lends its passives while it acts, and taken off they are gone; the souls stay with the
+  book. `LootBag.acting()` lists what acts. The fifteen-part `Loot` constructor is kept.
+
+| Was | Now |
+|---|---|
+| `body.damage(amount[, type])` in `ArrowUpdate`, `FallingUpdate`, `SkillBook` | `body.damage(amount, type, new Death(NORMAL, dealer, side))` |
+| a game counting souls itself and lending them as a `DAMAGE_AURA` | a `SOUL_DRINK` skill, own or lent by a worn thing; `SkillBook.reaped` from the game's `onDied` |
+| `Loot(…, liesAs, slot)` | `Loot(…, liesAs, slot, skills)`; the old constructor lends none |
+| `BuffScreen.Words(attack, manaRegen, lifesteal, attackSpeed, seconds)` | kept; `…, seconds, souls)` |
+| `BuffScreen.Buff(skill, figure, framesLeft)` | kept; `…, framesLeft, souls)` |
+
 ### One hero: his portrait, no drag box, and the pick's own
 
 For a game where only the hero is commanded and what is picked is looked at (E26):

@@ -40,7 +40,12 @@ public final class BuffScreen {
      * One thing on a creature: the skill it is, what it is worth there — a percent, or a mana aura's tenths of a point
      * a second — and, for a haste, the frames it has left; an aura lasts while it reaches, and has none.
      */
-    public record Buff(Skill skill, int figure, int framesLeft) {
+    public record Buff(Skill skill, int figure, int framesLeft, int souls) {
+
+        /** A buff that counts no souls. */
+        public Buff(Skill skill, int figure, int framesLeft) {
+            this(skill, figure, framesLeft, 0);
+        }
     }
 
     /** A card to draw: what it says, the hints under it, and where its top left goes. */
@@ -48,7 +53,17 @@ public final class BuffScreen {
     }
 
     /** What each kind adds is called, in the game's language. */
-    public record Words(String attack, String manaRegen, String lifesteal, String attackSpeed, String seconds) {
+    public record Words(String attack, String manaRegen, String lifesteal, String attackSpeed, String seconds,
+            String souls) {
+
+        public Words {
+            souls = souls == null ? "" : souls;
+        }
+
+        /** The words of a game whose creatures drink no souls. */
+        public Words(String attack, String manaRegen, String lifesteal, String attackSpeed, String seconds) {
+            this(attack, manaRegen, lifesteal, attackSpeed, seconds, "");
+        }
     }
 
     private final MenuStyle look;
@@ -162,6 +177,10 @@ public final class BuffScreen {
         for (var kind : SkillBook.aurasOn(creature)) {
             on.add(new Buff(kinds.get(kind), SkillBook.auraOn(creature, kind), 0));
         }
+        var drink = book.soulDrink();
+        if (drink != null) {
+            on.add(new Buff(drink, book.soulPercent(), 0, book.getSouls()));
+        }
         return List.copyOf(on);
     }
 
@@ -175,6 +194,7 @@ public final class BuffScreen {
             case LIFESTEAL_AURA -> figure + "% " + words.lifesteal();
             case HASTE -> "+" + figure + "% " + words.attackSpeed() + " · "
                     + Math.ceilDiv(buff.framesLeft(), GameConstants.LOGICFRAMES_PER_SECOND) + words.seconds();
+            case SOUL_DRINK -> "+" + figure + "% " + words.attack() + " · " + words.souls() + ": " + buff.souls();
             default -> "";
         };
     }

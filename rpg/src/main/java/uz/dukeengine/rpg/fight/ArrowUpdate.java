@@ -252,7 +252,7 @@ public final class ArrowUpdate extends UpdateModule {
             getOwner().markDestroyed(); // it came to the shut gate first, and is spent on it
             return;
         }
-        victim.getBody().damage(damage, damageType);
+        victim.getBody().damage(damage, damageType, blow());
         stun(world, victim);
         // Every blow it lands, this one and each its burst deals, its archer drinks from if a
         // skill of his says so -- see SkillBook.drink.
@@ -267,6 +267,12 @@ public final class ArrowUpdate extends UpdateModule {
             }
         }
         getOwner().markDestroyed();
+    }
+
+    /** Whose blow it is: its archer's, and his side's as the arrow carries it, so a kill is credited to him. */
+    private uz.dukeengine.core.module.Death blow() {
+        return new uz.dukeengine.core.module.Death(uz.dukeengine.core.module.DeathType.NORMAL, shooter,
+                getOwner().getPlayerIndex());
     }
 
     /**
@@ -293,7 +299,7 @@ public final class ArrowUpdate extends UpdateModule {
                         && world.getRelationship(side, candidate.getPlayerIndex())
                                 == Relationship.ENEMIES
                         && !seal.parts(world, burst, candidate.getPosition()))) {
-            caught.getBody().damage(damage, damageType);
+            caught.getBody().damage(damage, damageType, blow());
             SkillBook.drink(archer, damage);
             stun(world, caught);
         }

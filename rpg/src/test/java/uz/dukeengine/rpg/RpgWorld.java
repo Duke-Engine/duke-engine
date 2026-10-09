@@ -39,6 +39,8 @@ public final class RpgWorld extends GameLogic implements ArmedWorld {
         super(new ThingFactory(CombatModules.withDefaults()
                 .register(SkillBook.Data.class, (owner, data) -> new SkillBook(owner,
                         skills.getOrDefault(owner.getTemplate().name(), List.of()), RULES, seal))
+                .register(uz.dukeengine.rpg.fight.ArrowUpdate.Data.class,
+                        (owner, data) -> new uz.dukeengine.rpg.fight.ArrowUpdate(owner, "", seal))
                 .register(GroundItem.Data.class, (owner, data) -> new GroundItem(owner))
                 .register(GateUpdate.Data.class, GateUpdate::new)));
         init();

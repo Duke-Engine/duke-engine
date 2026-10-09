@@ -233,7 +233,18 @@ public enum SkillEffect {
      * Everyone of your own round you drinks from its blows: {@code BoostPercent} of every blow it lands back as
      * health, added to a {@link #LIFESTEAL} of its own -- see {@link SkillBook#drink}. An aura -- see {@link #isAura}.
      */
-    LIFESTEAL_AURA(Aim.SELF, true);
+    LIFESTEAL_AURA(Aim.SELF, true),
+
+    /**
+     * Drink the soul of every enemy its bearer kills, and hit harder for them: {@code BoostPercent} more on every blow
+     * and every skill's damage for each {@code TickFrames} souls, up to {@code Damage} percent where that is above 0 —
+     * added to a {@link #DAMAGE_AURA} lent to it, never maxed with one. The souls are its book's, kept and saved
+     * ({@link SkillBook#getSouls}), told each kill by {@link SkillBook#reaped}.
+     *
+     * <p>Never cast: see {@link #isPassive}. A hero may bear one — the one passive he may — written in his file or
+     * lent by a thing he wears ({@link SkillBook#lendFrom}).
+     */
+    SOUL_DRINK(Aim.SELF, true);
 
     /** What a player has to click before the cast can go through. */
     public enum Aim {

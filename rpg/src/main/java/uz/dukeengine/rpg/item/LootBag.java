@@ -331,8 +331,13 @@ public final class LootBag {
     }
 
     /** What acts on him: what he wears, or every slot of a bag that wears nothing. */
-    private Loot[] acting() {
+    private Loot[] actingSlots() {
         return wears() ? worn : slots;
+    }
+
+    /** What acts on him, in order: what he wears, or everything in a bag that wears nothing; no empty places. */
+    public List<Loot> acting() {
+        return Arrays.stream(actingSlots()).filter(java.util.Objects::nonNull).toList();
     }
 
     // ---- what it all comes to: what is worn, or everything in a bag that wears nothing ----
@@ -375,7 +380,7 @@ public final class LootBag {
     /** What everything he carries gives of {@code extra} beside its figure: a {@link Stat} word, or the game's own. */
     public int extra(String extra) {
         int total = 0;
-        for (var item : acting()) {
+        for (var item : actingSlots()) {
             if (item != null && item.extra().equals(extra)) {
                 total += item.extraValue();
             }
@@ -391,7 +396,7 @@ public final class LootBag {
      */
     public uz.dukeengine.rpg.hero.Attributes attributes(uz.dukeengine.rpg.hero.AttributeRules rules) {
         var points = new int[rules.attributes().size()];
-        for (var item : acting()) {
+        for (var item : actingSlots()) {
             if (item == null || !item.kind().equals(Stat.ATTRIBUTE)) {
                 continue;
             }
@@ -406,7 +411,7 @@ public final class LootBag {
     /** What everything he carries adds to the figure {@code kind}: a {@link Stat} word, or the game's own. */
     public int total(String kind) {
         int total = 0;
-        for (var item : acting()) {
+        for (var item : actingSlots()) {
             if (item != null && item.kind().equals(kind)) {
                 total += item.value();
             }
