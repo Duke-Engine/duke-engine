@@ -85,6 +85,50 @@ class KnightSkillsTest {
     }
 
     @Test
+    void aChargeAtASpeedCarriesWhatItCatchesFrameByFrameAndDropsThemWhenItEnds() {
+        var world = world(skill(SkillEffect.SKEWER, new Numbers(20f, 10f, 0f, 120f, 0f, 0, 0, 30, 0f, "", 60f)),
+                Seal.NONE);
+        var knight = world.put("Knight", world.heroes, 0f, 0f);
+        var first = world.put("Skeleton", world.monsters, 30f, 0f);
+        var second = world.put("Skeleton", world.monsters, 90f, 0f);
+        world.run(1);
+        assertTrue(knight.findModule(SkillBook.class).cast('Q', 1, null, new Coord3D(120f, 0f, 0f)));
+
+        world.run(30); // a second: sixty units
+        assertEquals(60f, knight.getPosition().x(), 1f, "half way, at its speed");
+        assertTrue(first.getPosition().x() > knight.getPosition().x(), "the first held at his front as he goes");
+        assertEquals(80f, first.getBody().getHealth(), 1e-3f, "hurt once, as it was caught");
+        assertEquals(100f, second.getBody().getHealth(), "the second not reached yet");
+
+        world.run(40);
+        assertEquals(120f, knight.getPosition().x(), 1f, "the whole way");
+        for (var carried : List.of(first, second)) {
+            assertTrue(carried.getPosition().x() > knight.getPosition().x(), "dropped at his front");
+            assertEquals(80f, carried.getBody().getHealth(), 1e-3f, "each hurt once");
+            assertTrue(stunned(carried));
+        }
+    }
+
+    @Test
+    void aChargeWhoseBearerFallsEndsAndDropsWhatItCarried() {
+        var world = world(skill(SkillEffect.SKEWER, new Numbers(20f, 10f, 0f, 120f, 0f, 0, 0, 30, 0f, "", 60f)),
+                Seal.NONE);
+        var knight = world.put("Knight", world.heroes, 0f, 0f);
+        var caught = world.put("Skeleton", world.monsters, 30f, 0f);
+        world.run(1);
+        assertTrue(knight.findModule(SkillBook.class).cast('Q', 1, null, new Coord3D(120f, 0f, 0f)));
+        world.run(20);
+        float fellAt = knight.getPosition().x();
+
+        knight.getBody().damage(1000f, DamageType.NORMAL);
+        world.run(10);
+
+        assertEquals(fellAt, knight.getPosition().x(), 1e-3f, "no further once fallen");
+        assertTrue(stunned(caught), "dropped, stunned, where it ended");
+        assertTrue(Math.abs(caught.getPosition().x() - fellAt) < 30f, "at his front: " + caught.getPosition());
+    }
+
+    @Test
     void dragonBloodTurnsAsideBlowsAndMendsByItsRank() {
         var world = world(skill(SkillEffect.DRAGON_BLOOD, new Numbers(0f, 0f, 0f, 0f, 0f, 20, 10, 0, 3f, "", 0f)),
                 Seal.NONE);

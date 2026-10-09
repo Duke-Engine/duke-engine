@@ -277,6 +277,114 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     private int wornVersion = -1;
     /** The souls a {@code SOUL_DRINK} it has drunk: every enemy its bearer killed while it had one. */
     private int souls;
+    /**
+     * A {@code SKEWER} under way: how far it has left to go, from where it set off (its side of a seal), what each
+     * one caught takes, and who it has caught, in the order it caught them. On the book, so a frame taken from the
+     * middle of one goes on from where it stood.
+     */
+    private static final class Charge {
+        final Skill skill;
+        final float each;
+        float left;
+        final Coord3D from;
+        final List<ObjectId> caught = new java.util.ArrayList<>();
+
+        Charge(Skill skill, float each, float distance, Coord3D from) {
+            this.skill = skill;
+            this.each = each;
+            this.left = distance;
+            this.from = from;
+        }
+    }
+
+    private Charge charge;
+
+    /** Whether a charge is carrying him: his legs are not his own until it ends. */
+    @Override
+    public boolean keepsBusy() {
+        return charge != null;
+    }
+
+    /**
+     * One frame of the charge: he drives on {@code ProjectileSpeed} a second — the whole way at once where it names
+     * none — catching every enemy within {@code Radius} of him, each hurt once as it is caught, and holding all of them
+     * at his front as he goes. Stone, a seal, his fall or a stun end it where he stands; so does the end of its
+     * {@code Distance}. What it caught is dropped at his front then, spread, stunned {@code StunFrames}.
+     */
+    private void driveTheCharge() {
+        var owner = getOwner();
+        var world = owner.getWorld();
+        var going = charge;
+        if (world == null || owner.isEffectivelyDead() || owner.hasStatus(ObjectStatus.DISABLED)) {
+            endTheCharge(world);
+            return;
+        }
+        float speed = going.skill.projectileSpeed();
+        float step = speed <= 0f ? going.left : Math.min(going.left, speed * uz.dukeengine.core.GameConstants
+                .SECONDS_PER_LOGICFRAME);
+        float facing = owner.getOrientation();
+        var here = owner.getPosition();
+        // In steps no longer than a dash's, so a fast charge does not jump a wall or a body.
+        for (float gone = 0f; gone < step; ) {
+            float bit = Math.min(DASH_STEP, step - gone);
+            var at = new Coord3D(here.x() + (float) StrictMath.cos(facing) * bit,
+                    here.y() + (float) StrictMath.sin(facing) * bit, 0f);
+            var next = new Coord3D(at.x(), at.y(), world.groundHeight(at));
+            if (world.isGroundBlocked(next) || seal.parts(world, going.from, next)
+                    || world.findBlocker(owner, next) != null) {
+                endTheCharge(world);
+                return;
+            }
+            owner.setPosition(next);
+            here = next;
+            gone += bit;
+            going.left -= bit;
+            catchWhatHeMeets(world, going);
+        }
+        holdThemAtHisFront(world, going, 2);
+        if (going.left <= 0.0001f) {
+            endTheCharge(world);
+        }
+    }
+
+    private void catchWhatHeMeets(World world, Charge going) {
+        var owner = getOwner();
+        for (var victim : enemiesWithin(owner, world, owner.getGeometry().footprintRadius() + going.skill.radius())) {
+            if (going.caught.contains(victim.getId())) {
+                continue;
+            }
+            going.caught.add(victim.getId());
+            hurt(owner, victim, going.each);
+            drink(owner, going.each);
+        }
+    }
+
+    /** Everyone caught moved to his front, spread, their legs stopped and held still {@code frames}. */
+    private void holdThemAtHisFront(World world, Charge going, int frames) {
+        var owner = getOwner();
+        float reach = owner.getGeometry().footprintRadius() + going.skill.radius();
+        var at = owner.getPosition();
+        var front = new Coord3D(at.x() + (float) StrictMath.cos(owner.getOrientation()) * reach,
+                at.y() + (float) StrictMath.sin(owner.getOrientation()) * reach, at.z());
+        for (var id : going.caught) {
+            var victim = world.findObject(id);
+            if (victim == null || victim.isEffectivelyDead()) {
+                continue;
+            }
+            placeNear(victim, world, front, going.from);
+            daze(victim, frames);
+        }
+    }
+
+    /** The charge over: what it caught dropped at his front and stunned, and his legs his own again. */
+    private void endTheCharge(World world) {
+        var going = charge;
+        charge = null;
+        if (world != null && going != null) {
+            holdThemAtHisFront(world, going, going.skill.stunFrames());
+        }
+    }
+
     /** Each skill's rank, by key, as the game says it — see {@link #setRank}. */
     private final java.util.Map<Character, Integer> ranks = new java.util.HashMap<>();
     /** Whether a {@code DRAGON_BLOOD} of its holds its bearer's damage scale, and the health it owes him. */
@@ -715,32 +823,22 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                 world.post(new WeaponFired(world.getFrame(), owner.getId(), null, owner.getPosition(), towards));
             }
             case SKEWER -> {
-                float facing = owner.getOrientation();
                 if (towards != null) {
                     Facing.turnToward(owner, towards);
                 }
-                var from = owner.getPosition();
-                var end = dashEnd(owner, world, reachOf(skill, owner, towards));
-                if (seal.parts(world, from, end)) {
-                    owner.setOrientation(facing);
-                    return false; // over a seal: refused, as a dash is
+                var legs = owner.getLocomotor();
+                if (legs != null) {
+                    legs.stop();
                 }
-                var caught = swept(owner, world, from, end, skill.radius());
-                owner.setPosition(end);
-                // Carried with him to where he stops: each dropped at his front, spread, on floor it can stand on.
-                // ponytail: carried in one frame, as a dash goes; a charge taking frames to arrive would want a
-                // lasting state of its own.
-                float reach = owner.getGeometry().footprintRadius() + skill.radius();
-                var front = new Coord3D(end.x() + (float) StrictMath.cos(owner.getOrientation()) * reach,
-                        end.y() + (float) StrictMath.sin(owner.getOrientation()) * reach, end.z());
-                float each = damageOf(skill, level);
-                for (var victim : caught) {
-                    placeNear(victim, world, front, owner.getPosition());
-                    hurt(owner, victim, each);
-                    drink(owner, each);
-                    daze(victim, skill.stunFrames());
+                mark(skill, owner.getPosition(), 0f);
+                charge = new Charge(skill, damageOf(skill, level), reachOf(skill, owner, towards),
+                        owner.getPosition());
+                // A charge of no speed is over in the frame it is cast, as a dash is.
+                if (skill.projectileSpeed() <= 0f) {
+                    while (charge != null) {
+                        driveTheCharge();
+                    }
                 }
-                mark(skill, from, 0f);
                 markOn(skill, owner, 0f);
             }
             case PULL -> {
@@ -1764,6 +1862,9 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
 
     @Override
     public void update() {
+        if (charge != null) {
+            driveTheCharge();
+        }
         holdTheFloor();
         runTheBlood();
         regenerate();

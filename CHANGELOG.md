@@ -392,12 +392,12 @@ Four effects (E31), each read from the `Skill` fields there were — no new ones
 | Effect | Aim | What it does | Its fields |
 |---|---|---|---|
 | `WAVE` | ground | a wave down a line that passes through, each enemy within its width hurt once; stopped by stone, a seal or its distance (`Arrows.waveAlong`) | `Damage`, `DamagePerLevel`, `Distance`, `HitWidth`, `ProjectileSpeed`, `Projectile`, `StunFrames` |
-| `SKEWER` | open ground | a dash that carries: every enemy within `Radius` of his way hurt once and dropped at his front where he stops, spread, never in stone nor over a seal, stunned | `Distance`, `Radius`, `Damage`, `DamagePerLevel`, `StunFrames` |
+| `SKEWER` | open ground | a charge that carries: he drives on at `ProjectileSpeed` a second — at once where it names none — catching every enemy within `Radius` of him as he reaches it, hurt once and held at his front frame by frame, and drops them all there, spread, stunned, when it ends: its distance run, or stone, a seal, his fall or a stun | `Distance`, `Radius`, `ProjectileSpeed`, `Damage`, `DamagePerLevel`, `StunFrames` |
 | `DRAGON_BLOOD` | passive | turns aside `BoostPercent` of every blow (`BoostPerLevel` more each rank past the first) on the body's damage scale, and gives back `Heal` health a second each rank | `BoostPercent`, `BoostPerLevel`, `Heal` |
 | `PULL` | self | every enemy within `Radius` moved to a point `Range` in front of him, spread, never into stone nor across a seal, hurt and stunned | `Radius`, `Range`, `Damage`, `DamagePerLevel`, `StunFrames` |
 
-A passive's rank is `SkillBook.setRank(key, rank)`, the first where nothing says. The charge carries in the one frame a
-dash takes.
+A passive's rank is `SkillBook.setRank(key, rank)`, the first where nothing says. A charge under way is the book's,
+and keeps its bearer busy (`keepsBusy`) until it ends.
 
 ### The live scene behind the client's own menus
 
