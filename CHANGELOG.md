@@ -396,7 +396,8 @@ Four effects (E31), each read from the `Skill` fields there were — no new ones
 | `DRAGON_BLOOD` | passive | turns aside `BoostPercent` of every blow (`BoostPerLevel` more each rank past the first) on the body's damage scale, and gives back `Heal` health a second each rank | `BoostPercent`, `BoostPerLevel`, `Heal` |
 | `PULL` | self | every enemy within `Radius` moved to a point `Range` in front of him, spread, never into stone nor across a seal, hurt and stunned | `Radius`, `Range`, `Damage`, `DamagePerLevel`, `StunFrames` |
 
-A passive's rank is `SkillBook.setRank(key, rank)`, the first where nothing says. A charge under way is the book's,
+A passive's rank is `SkillBook.setRank(key, rank)`, the first where nothing says, and a rank of 0 not held (E32).
+What a charge carries never stops it, and is laid ahead of him; a wave, a charge and a pull are marked as a dash is. A charge under way is the book's,
 and keeps its bearer busy (`keepsBusy`) until it ends.
 
 ### The live scene behind the client's own menus

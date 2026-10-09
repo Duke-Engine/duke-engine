@@ -170,4 +170,56 @@ class KnightSkillsTest {
         assertEquals(100f, beyond.getBody().getHealth());
         assertEquals(new Coord3D(200f, 0f, 0f), outside.getPosition(), "out of reach");
     }
+
+    @Test
+    void aChargeCarryingThreeRunsItsWholeDistanceAndLaysThemAheadOfHim() {
+        var world = world(skill(SkillEffect.SKEWER, new Numbers(5f, 10f, 0f, 150f, 0f, 0, 0, 30, 0f, "", 60f)),
+                Seal.NONE);
+        var knight = world.put("Knight", world.heroes, 0f, 0f);
+        var carried = List.of(world.put("Skeleton", world.monsters, 30f, 0f),
+                world.put("Skeleton", world.monsters, 45f, 2f), world.put("Skeleton", world.monsters, 60f, -2f));
+        world.run(1);
+        assertTrue(knight.findModule(SkillBook.class).cast('Q', 1, null, new Coord3D(150f, 0f, 0f)));
+
+        world.run(100);
+        assertEquals(150f, knight.getPosition().x(), 1f, "the whole way, carrying three");
+        for (var each : carried) {
+            assertTrue(each.getPosition().x() > knight.getPosition().x(), "ahead of him: " + each.getPosition());
+            assertTrue(stunned(each));
+        }
+    }
+
+    @Test
+    void theWaveTheChargeAndThePullAreMarked() {
+        for (var effect : List.of(SkillEffect.WAVE, SkillEffect.SKEWER, SkillEffect.PULL)) {
+            var d = Skill.DEFAULTS;
+            var plain = skill(effect, new Numbers(5f, 30f, 20f, 60f, 10f, 0, 0, 0, 0f, "Wave", 0f));
+            var looked = new Skill(plain.heroTemplate(), plain.key(), plain.effect(), plain.damage(),
+                    plain.damagePerLevel(), plain.radius(), plain.range(), plain.distance(), plain.hitWidth(),
+                    plain.boostPercent(), plain.boostPerLevel(), plain.durationFrames(), plain.tickFrames(),
+                    plain.slowFrames(), plain.cooldownFrames(), plain.cooldownPerLevel(), plain.maxRank(),
+                    plain.levelPerRank(), plain.windUpFrames(), plain.manaCost(), plain.manaCostPerLevel(),
+                    plain.projectile(), d.icon(), "knight_look", d.castAnim(), d.castSeconds(), d.name(), d.blurb(),
+                    effect == SkillEffect.WAVE ? 100f : 0f, plain.heal(), plain.healBelowPercent(), d.summons(),
+                    d.maxSummoned(), d.summonExperiencePercent(), plain.stunFrames(), d.manaRegen());
+            var world = world(looked, Seal.NONE);
+            var knight = world.put("Knight", world.heroes, 0f, 0f);
+            world.run(1);
+            var book = knight.findModule(SkillBook.class);
+            assertTrue(book.cast('Q', 1, null, new Coord3D(60f, 0f, 0f)), effect.name());
+            assertFalse(book.getCastMarks().isEmpty(), effect + " is marked");
+        }
+    }
+
+    @Test
+    void aPassiveTheGameSaysIsAtRankNoughtIsNotHeld() {
+        var world = world(skill(SkillEffect.DRAGON_BLOOD, new Numbers(0f, 0f, 0f, 0f, 0f, 20, 10, 0, 3f, "", 0f)),
+                Seal.NONE);
+        var knight = world.put("Knight", world.heroes, 0f, 0f);
+        knight.findModule(SkillBook.class).setRank('Q', 0);
+        world.run(1);
+
+        knight.getBody().damage(50f, DamageType.NORMAL);
+        assertEquals(50f, knight.getBody().getHealth(), 1e-3f, "unlearnt: nothing turned aside");
+    }
 }

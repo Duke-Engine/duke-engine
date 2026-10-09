@@ -331,7 +331,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                     here.y() + (float) StrictMath.sin(facing) * bit, 0f);
             var next = new Coord3D(at.x(), at.y(), world.groundHeight(at));
             if (world.isGroundBlocked(next) || seal.parts(world, going.from, next)
-                    || world.findBlocker(owner, next) != null) {
+                    || world.findBlocker(owner, next, thing -> going.caught.contains(thing.getId())) != null) {
                 endTheCharge(world);
                 return;
             }
@@ -371,7 +371,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
             if (victim == null || victim.isEffectivelyDead()) {
                 continue;
             }
-            placeNear(victim, world, front, going.from);
+            placeNear(victim, world, front, going.from, owner.getOrientation());
             daze(victim, frames);
         }
     }
@@ -715,7 +715,9 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
             // On him and no wider than the block says: these are about HIM, and a
             // ring the size of a room would claim they were about the room. His
             // rather than the floor's, for the same reason.
-            case EMPOWER, GUARD, STRIKE, SKILLSHOT -> markOn(skill, owner, 0f);
+            case EMPOWER, GUARD, STRIKE, SKILLSHOT, WAVE -> markOn(skill, owner, 0f);
+            // As wide as the pull reached.
+            case PULL -> markOn(skill, owner, skill.radius());
             // Where he put it. Where a skillshot LANDS is its own burst and is
             // drawn by whatever it ran into, which is the point of a lane.
             case AREA_AT_SPOT -> mark(skill, towards == null ? here
@@ -725,7 +727,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                     : withinReach(owner, towards, skill.range()), skill.radius());
             // Both ends. For a dash it is the two feet of the run; for a blink it
             // is the whole of what the skill looks like.
-            case DASH, BLINK -> {
+            case DASH, BLINK, SKEWER -> {
                 // The spot he left is a place and stays one -- it is the dust he
                 // kicked up, and dust does not follow the man.
                 mark(skill, stood, 0f);
@@ -830,7 +832,6 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                 if (legs != null) {
                     legs.stop();
                 }
-                mark(skill, owner.getPosition(), 0f);
                 charge = new Charge(skill, damageOf(skill, level), reachOf(skill, owner, towards),
                         owner.getPosition());
                 // A charge of no speed is over in the frame it is cast, as a dash is.
@@ -839,18 +840,16 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                         driveTheCharge();
                     }
                 }
-                markOn(skill, owner, 0f);
             }
             case PULL -> {
                 var point = pullPoint(owner, world, skill.range());
                 float each = damageOf(skill, level);
                 for (var victim : enemiesWithin(owner, world, skill.radius())) {
-                    placeNear(victim, world, point, owner.getPosition());
+                    placeNear(victim, world, point, owner.getPosition(), Float.NaN);
                     hurt(owner, victim, each);
                     drink(owner, each);
                     daze(victim, skill.stunFrames());
                 }
-                markOn(skill, owner, skill.radius());
             }
             case SKILLSHOT -> {
                 if (towards == null) {
@@ -1440,15 +1439,31 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     }
 
     /**
-     * Move {@code victim} to the first spot round {@code centre} — the centre, then rings a body wide — where it can
-     * stand: not stone, no one in it, on the caster's side of a seal. Left where it is where there is none.
+     * Move {@code victim} to the first spot round {@code centre} — the centre, then rings a body wide, only the half of
+     * each facing {@code ahead} where that is a number — where it can stand: not stone, no one in it, on the caster's
+     * side of a seal. Left where it is where there is none.
      */
-    private void placeNear(GameObject victim, World world, Coord3D centre, Coord3D casterAt) {
+    private void placeNear(GameObject victim, World world, Coord3D centre, Coord3D casterAt, float ahead) {
         float spacing = Math.max(1f, victim.getGeometry().footprintRadius() * 2f);
+        boolean onlyAhead = !Float.isNaN(ahead);
         for (int ring = 0; ring <= 6; ring++) {
             int around = ring == 0 ? 1 : ring * 8;
-            for (int i = 0; i < around; i++) {
-                double angle = 2 * StrictMath.PI * i / around;
+            // Ahead only, for what is carried at a front: straight on first, then either side in turn out to a
+            // quarter turn -- never back toward him, where a body would stand in his way.
+            var angles = new java.util.ArrayList<Double>();
+            if (onlyAhead) {
+                double step = 2 * StrictMath.PI / around;
+                angles.add((double) ahead);
+                for (int k = 1; ring > 0 && k <= around / 4; k++) {
+                    angles.add(ahead + k * step);
+                    angles.add(ahead - k * step);
+                }
+            } else {
+                for (int i = 0; i < around; i++) {
+                    angles.add(2 * StrictMath.PI * i / around);
+                }
+            }
+            for (double angle : angles) {
                 var at = new Coord3D(centre.x() + (float) (StrictMath.cos(angle) * ring * spacing),
                         centre.y() + (float) (StrictMath.sin(angle) * ring * spacing), 0f);
                 var step = new Coord3D(at.x(), at.y(), world.groundHeight(at));
@@ -1533,10 +1548,13 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     /** Its passives: its own, and those lent by what its bearer wears. */
     private List<Skill> passives() {
         lookAtWhatIsWorn();
-        if (lent.isEmpty()) {
-            return skills;
+        // Its own at a rank the game said is 0 are not held; a worn thing's are held while it is worn.
+        var all = new java.util.ArrayList<Skill>(skills.size());
+        for (var skill : skills) {
+            if (rankOf(skill) > 0) {
+                all.add(skill);
+            }
         }
-        var all = new java.util.ArrayList<>(skills);
         lent.values().forEach(all::addAll);
         return all;
     }
@@ -1590,8 +1608,9 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
         ranks.put(Character.toUpperCase(key), rank);
     }
 
+    /** Its rank: what the game said, 0 for not held; the first where it never said. */
     private int rankOf(Skill skill) {
-        return Math.max(1, ranks.getOrDefault(Character.toUpperCase(skill.key()), 1));
+        return Math.max(0, ranks.getOrDefault(Character.toUpperCase(skill.key()), 1));
     }
 
     /** A {@code DRAGON_BLOOD}'s armour held on his body's damage scale and its health given back, while he has one. */
