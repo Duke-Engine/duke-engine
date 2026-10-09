@@ -277,6 +277,11 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     private int wornVersion = -1;
     /** The souls a {@code SOUL_DRINK} it has drunk: every enemy its bearer killed while it had one. */
     private int souls;
+    /** Each skill's rank, by key, as the game says it — see {@link #setRank}. */
+    private final java.util.Map<Character, Integer> ranks = new java.util.HashMap<>();
+    /** Whether a {@code DRAGON_BLOOD} of its holds its bearer's damage scale, and the health it owes him. */
+    private boolean holdsTheScale;
+    private float bloodOwed;
     /** Whether an {@code UNYIELDING} of its has held its bearer's floor, and whether he has been beaten to it. */
     private boolean holdsTheFloor;
     private boolean beaten;
@@ -696,6 +701,58 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                 chill(owner, world, spot, skill.radius(), skill.slowFrames());
                 world.post(new WeaponFired(world.getFrame(), owner.getId(), null,
                         owner.getPosition(), spot));
+            }
+            case WAVE -> {
+                if (towards == null) {
+                    return false;
+                }
+                Facing.turnToward(owner, towards);
+                if (!Arrows.waveAlong(owner, towards, damageOf(skill, level), DamageType.NORMAL, skill.projectile(),
+                        speedOf(skill), rules.muzzleOffset(), skill.distance(), skill.hitWidth(),
+                        skill.stunFrames())) {
+                    return false; // no wave to throw; the cooldown is not spent
+                }
+                world.post(new WeaponFired(world.getFrame(), owner.getId(), null, owner.getPosition(), towards));
+            }
+            case SKEWER -> {
+                float facing = owner.getOrientation();
+                if (towards != null) {
+                    Facing.turnToward(owner, towards);
+                }
+                var from = owner.getPosition();
+                var end = dashEnd(owner, world, reachOf(skill, owner, towards));
+                if (seal.parts(world, from, end)) {
+                    owner.setOrientation(facing);
+                    return false; // over a seal: refused, as a dash is
+                }
+                var caught = swept(owner, world, from, end, skill.radius());
+                owner.setPosition(end);
+                // Carried with him to where he stops: each dropped at his front, spread, on floor it can stand on.
+                // ponytail: carried in one frame, as a dash goes; a charge taking frames to arrive would want a
+                // lasting state of its own.
+                float reach = owner.getGeometry().footprintRadius() + skill.radius();
+                var front = new Coord3D(end.x() + (float) StrictMath.cos(owner.getOrientation()) * reach,
+                        end.y() + (float) StrictMath.sin(owner.getOrientation()) * reach, end.z());
+                float each = damageOf(skill, level);
+                for (var victim : caught) {
+                    placeNear(victim, world, front, owner.getPosition());
+                    hurt(owner, victim, each);
+                    drink(owner, each);
+                    daze(victim, skill.stunFrames());
+                }
+                mark(skill, from, 0f);
+                markOn(skill, owner, 0f);
+            }
+            case PULL -> {
+                var point = pullPoint(owner, world, skill.range());
+                float each = damageOf(skill, level);
+                for (var victim : enemiesWithin(owner, world, skill.radius())) {
+                    placeNear(victim, world, point, owner.getPosition());
+                    hurt(owner, victim, each);
+                    drink(owner, each);
+                    daze(victim, skill.stunFrames());
+                }
+                markOn(skill, owner, skill.radius());
             }
             case SKILLSHOT -> {
                 if (towards == null) {
@@ -1253,6 +1310,74 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                 uz.dukeengine.core.module.DeathType.NORMAL, owner.getId(), owner.getPlayerIndex()));
     }
 
+    /** The enemies within {@code radius} of the way from {@code from} to {@code to}, each once, in id order. */
+    private List<GameObject> swept(GameObject owner, World world, Coord3D from, Coord3D to, float radius) {
+        var found = new java.util.LinkedHashSet<GameObject>();
+        float length = (float) StrictMath.sqrt((to.x() - from.x()) * (to.x() - from.x())
+                + (to.y() - from.y()) * (to.y() - from.y()));
+        int samples = Math.max(2, (int) Math.ceil(length / Math.max(1f, radius)));
+        for (int sample = 0; sample <= samples; sample++) {
+            float along = sample / (float) samples;
+            found.addAll(enemiesWithin(owner, world, new Coord3D(from.x() + (to.x() - from.x()) * along,
+                    from.y() + (to.y() - from.y()) * along, from.z()), radius));
+        }
+        var ordered = new java.util.ArrayList<>(found);
+        ordered.sort(java.util.Comparator.comparingInt(thing -> thing.getId().value()));
+        return ordered;
+    }
+
+    /** {@code reach} in front of him, or as near it as there is floor, walked back toward him from the far end. */
+    private static Coord3D pullPoint(GameObject owner, World world, float reach) {
+        float facing = owner.getOrientation();
+        var from = owner.getPosition();
+        for (float gone = Math.max(0f, reach); gone > 0f; gone -= DASH_STEP) {
+            var at = new Coord3D(from.x() + (float) StrictMath.cos(facing) * gone,
+                    from.y() + (float) StrictMath.sin(facing) * gone, 0f);
+            var step = new Coord3D(at.x(), at.y(), world.groundHeight(at));
+            if (!world.isGroundBlocked(step)) {
+                return step;
+            }
+        }
+        return from;
+    }
+
+    /**
+     * Move {@code victim} to the first spot round {@code centre} — the centre, then rings a body wide — where it can
+     * stand: not stone, no one in it, on the caster's side of a seal. Left where it is where there is none.
+     */
+    private void placeNear(GameObject victim, World world, Coord3D centre, Coord3D casterAt) {
+        float spacing = Math.max(1f, victim.getGeometry().footprintRadius() * 2f);
+        for (int ring = 0; ring <= 6; ring++) {
+            int around = ring == 0 ? 1 : ring * 8;
+            for (int i = 0; i < around; i++) {
+                double angle = 2 * StrictMath.PI * i / around;
+                var at = new Coord3D(centre.x() + (float) (StrictMath.cos(angle) * ring * spacing),
+                        centre.y() + (float) (StrictMath.sin(angle) * ring * spacing), 0f);
+                var step = new Coord3D(at.x(), at.y(), world.groundHeight(at));
+                // Still things by the grid's rule, and bodies -- the ones already placed among them -- by distance.
+                if (!world.isGroundBlocked(step) && world.findBlocker(victim, step) == null
+                        && !seal.parts(world, casterAt, step)
+                        && world.objectsInRange(step, spacing * 0.9f, other -> other != victim
+                                && other.getBody() != null && !other.isEffectivelyDead()).isEmpty()) {
+                    victim.setPosition(step);
+                    var legs = victim.getLocomotor();
+                    if (legs != null) {
+                        legs.stop();
+                    }
+                    return;
+                }
+            }
+        }
+    }
+
+    /** Stunned {@code frames}: the engine's {@code DISABLED} on its own timers, as a stunning shot leaves it. */
+    private static void daze(GameObject victim, int frames) {
+        var timers = frames <= 0 || victim.isEffectivelyDead() ? null : victim.findModule(StatusUpdate.class);
+        if (timers != null) {
+            timers.apply(ObjectStatus.DISABLED, frames);
+        }
+    }
+
     /** Hurt everything of the other side within {@code radius} of him. */
     private void strikeAround(GameObject owner, uz.dukeengine.core.thing.World world,
             float each, float radius) {
@@ -1357,6 +1482,54 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     @Override
     public void onCreated() {
         holdTheFloor(); // before the first blow can land
+    }
+
+    /**
+     * The rank a skill of {@code key} stands at, as the game keeps it (its {@code SkillRanks}): what a passive reads,
+     * for a passive is never cast with one. The first where it is never said.
+     */
+    public void setRank(char key, int rank) {
+        ranks.put(Character.toUpperCase(key), rank);
+    }
+
+    private int rankOf(Skill skill) {
+        return Math.max(1, ranks.getOrDefault(Character.toUpperCase(skill.key()), 1));
+    }
+
+    /** A {@code DRAGON_BLOOD}'s armour held on his body's damage scale and its health given back, while he has one. */
+    private void runTheBlood() {
+        var body = getOwner().getBody();
+        if (body == null) {
+            return;
+        }
+        Skill blood = null;
+        for (var skill : passives()) {
+            if (skill.effect() == SkillEffect.DRAGON_BLOOD) {
+                blood = skill;
+                break;
+            }
+        }
+        if (blood == null) {
+            if (holdsTheScale) {
+                body.setDamageScale(1f);
+                holdsTheScale = false;
+            }
+            return;
+        }
+        // ponytail: it owns the damage scale while he has it; a game scaling the same body otherwise is overruled.
+        holdsTheScale = true;
+        int rank = rankOf(blood);
+        body.setDamageScale(1f - Math.clamp(blood.boostAt(rank), 0, 100) / 100f);
+        if (body.isDead() || blood.heal() <= 0f) {
+            return;
+        }
+        // Whole points as they are owed, so a heal is told once a point rather than every frame.
+        bloodOwed += blood.heal() * rank * uz.dukeengine.core.GameConstants.SECONDS_PER_LOGICFRAME;
+        if (bloodOwed >= 1f) {
+            float whole = (float) Math.floor(bloodOwed);
+            bloodOwed -= whole;
+            body.heal(whole);
+        }
     }
 
     private Skill unyielding() {
@@ -1592,6 +1765,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     @Override
     public void update() {
         holdTheFloor();
+        runTheBlood();
         regenerate();
         for (int slot = 0; slot < cooldowns.length; slot++) {
             if (cooldowns[slot] > 0) {

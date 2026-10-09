@@ -87,6 +87,32 @@ public final class Arrows {
         return true;
     }
 
+    /**
+     * Throw a wave of {@code template} down a line: the same flight as {@link #looseAlong}, passing through every enemy
+     * within {@code width} of it, each hurt once, and stopped only by stone, a seal or its distance.
+     *
+     * @return whether one actually left
+     */
+    public static boolean waveAlong(GameObject shooter, Coord3D towards, float damage, DamageType type,
+            String template, float speed, float muzzleOffset, float distance, float width, int stun) {
+        var world = shooter.getWorld();
+        if (world == null || template == null || template.isBlank() || towards == null) {
+            return false;
+        }
+        var thing = world.findTemplate(template);
+        if (thing == null) {
+            return false;
+        }
+        var wave = world.spawn(thing, alongThatWay(shooter, towards, muzzleOffset), shooter.getPlayerIndex());
+        var flight = wave.findModule(ArrowUpdate.class);
+        if (flight == null) {
+            wave.markDestroyed();
+            return false;
+        }
+        flight.waveAlong(shooter, towards, damage, type, speed, distance, width, stun);
+        return true;
+    }
+
     /** The bow again, but pointed at a place rather than at a creature. */
     private static Coord3D alongThatWay(GameObject shooter, Coord3D towards, float offset) {
         var from = shooter.getPosition();

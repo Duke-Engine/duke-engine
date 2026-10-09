@@ -385,6 +385,20 @@ E16, in parts.
   `margin` pixels in from the edge, and only that strip darkened; `MenuSide.MIDDLE`, the default, as ever. A front menu
   over a live `Duke3D.backdrop` is drawn over it, dimmed, rather than on the stone that hid it.
 
+### Four more shapes of skill
+
+Four effects (E31), each read from the `Skill` fields there were — no new ones:
+
+| Effect | Aim | What it does | Its fields |
+|---|---|---|---|
+| `WAVE` | ground | a wave down a line that passes through, each enemy within its width hurt once; stopped by stone, a seal or its distance (`Arrows.waveAlong`) | `Damage`, `DamagePerLevel`, `Distance`, `HitWidth`, `ProjectileSpeed`, `Projectile`, `StunFrames` |
+| `SKEWER` | open ground | a dash that carries: every enemy within `Radius` of his way hurt once and dropped at his front where he stops, spread, never in stone nor over a seal, stunned | `Distance`, `Radius`, `Damage`, `DamagePerLevel`, `StunFrames` |
+| `DRAGON_BLOOD` | passive | turns aside `BoostPercent` of every blow (`BoostPerLevel` more each rank past the first) on the body's damage scale, and gives back `Heal` health a second each rank | `BoostPercent`, `BoostPerLevel`, `Heal` |
+| `PULL` | self | every enemy within `Radius` moved to a point `Range` in front of him, spread, never into stone nor across a seal, hurt and stunned | `Radius`, `Range`, `Damage`, `DamagePerLevel`, `StunFrames` |
+
+A passive's rank is `SkillBook.setRank(key, rank)`, the first where nothing says. The charge carries in the one frame a
+dash takes.
+
 ### The live scene behind the client's own menus
 
 - **A backdrop behind the stone front menu** (E30): `Duke3D.backdrop` runs and is drawn behind the client's front menu,

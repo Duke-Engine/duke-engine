@@ -253,7 +253,37 @@ public enum SkillEffect {
      *
      * <p>Never cast: see {@link #isPassive}.
      */
-    UNYIELDING(Aim.SELF, true);
+    UNYIELDING(Aim.SELF, true),
+
+    /**
+     * A wave down a line that passes through: thrown at the ground, it leaves the caster as a {@code Projectile} at
+     * {@code ProjectileSpeed} for {@code Distance}, and hurts every enemy within {@code HitWidth} of it once —
+     * {@code Damage}, {@code DamagePerLevel} — stunning each {@code StunFrames} if it says so; it stops at stone and at
+     * a seal, never at a body.
+     */
+    WAVE(Aim.GROUND),
+
+    /**
+     * A charge that carries: he drives forward {@code Distance} toward where he was pointed, as a {@code DASH} does,
+     * and every enemy within {@code Radius} of his way is caught, carried, hurt once ({@code Damage}) and dropped at
+     * his front where he stops — on floor it can stand on, never in stone nor over a seal — stunned {@code
+     * StunFrames}.
+     */
+    SKEWER(Aim.OPEN_GROUND),
+
+    /**
+     * Blood that hardens and mends: never cast, it turns aside {@code BoostPercent} of every blow (and {@code
+     * BoostPerLevel} more each rank past the first) and gives back {@code Heal} health a second each rank, for as long
+     * as its bearer has it. Its rank is what {@link SkillBook#setRank} says, the first where nothing does.
+     */
+    DRAGON_BLOOD(Aim.SELF, true),
+
+    /**
+     * A pull to one point: every enemy within {@code Radius} of him is moved — not walked — to a point {@code Range}
+     * in front of him, spread so none stands in another, never into stone nor across a seal, hurt ({@code Damage})
+     * and stunned {@code StunFrames}.
+     */
+    PULL(Aim.SELF);
 
     /** What a player has to click before the cast can go through. */
     public enum Aim {

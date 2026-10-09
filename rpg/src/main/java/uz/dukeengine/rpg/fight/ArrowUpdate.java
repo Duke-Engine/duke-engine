@@ -99,6 +99,11 @@ public final class ArrowUpdate extends UpdateModule {
     private Coord3D loosedFrom;
     private final Seal seal;
 
+    /** How wide a wave is, which passes through what it meets; 0 for a shot that stops at the first. */
+    private float pierceWidth;
+    /** Who a wave has hurt already, each once. */
+    private final java.util.Set<ObjectId> struck = new java.util.HashSet<>();
+
     public ArrowUpdate(GameObject owner, String stunLook, Seal seal) {
         super(owner);
         this.stunLook = stunLook == null ? "" : stunLook;
@@ -139,6 +144,16 @@ public final class ArrowUpdate extends UpdateModule {
         this.travelLeft = distance;
         this.flight = heightOverTheGround();
         aimAt(towards);
+    }
+
+    /**
+     * The same down a line, as a wave that passes through: every enemy within {@code width} of it is hurt once as it
+     * goes, and only stone, a seal or its distance end it.
+     */
+    void waveAlong(GameObject from, Coord3D towards, float carrying, DamageType type, float speed, float distance,
+            float width, int stun) {
+        looseAlong(from, towards, carrying, type, speed, distance, 0f, stun);
+        this.pierceWidth = Math.max(0.01f, width);
     }
 
     /** How far above the ground under it the shot is now. */
@@ -209,7 +224,10 @@ public final class ArrowUpdate extends UpdateModule {
             owner.markDestroyed();
             return;
         }
-        var hit = world.findClosestInReach(owner, stepPerFrame, candidate ->
+        if (pierceWidth > 0f) {
+            passThrough(owner, world);
+        }
+        var hit = pierceWidth > 0f ? null : world.findClosestInReach(owner, stepPerFrame, candidate ->
                 candidate != owner
                         && candidate.getBody() != null
                         && !candidate.isEffectivelyDead()
@@ -273,6 +291,35 @@ public final class ArrowUpdate extends UpdateModule {
     private uz.dukeengine.core.module.Death blow() {
         return new uz.dukeengine.core.module.Death(uz.dukeengine.core.module.DeathType.NORMAL, shooter,
                 getOwner().getPlayerIndex());
+    }
+
+    /** Everyone a wave is over this frame and has not hurt yet, hurt in id order: it goes on through them. */
+    private void passThrough(GameObject owner, World world) {
+        var archer = world.findObject(shooter);
+        var over = new java.util.ArrayList<>(world.objectsInRange(owner.getPosition(),
+                Math.max(stepPerFrame, pierceWidth / 2f), candidate ->
+                        candidate != owner
+                                && candidate.getBody() != null
+                                && !candidate.isEffectivelyDead()
+                                && !candidate.isContained()
+                                && !struck.contains(candidate.getId())
+                                && world.getRelationship(owner.getPlayerIndex(), candidate.getPlayerIndex())
+                                        == Relationship.ENEMIES
+                                && !seal.parts(world, loosedFrom, candidate.getPosition())));
+        over.sort(java.util.Comparator.comparingInt(thing -> thing.getId().value()));
+        for (var victim : over) {
+            struck.add(victim.getId());
+            victim.getBody().damage(damage, damageType, blow());
+            stun(world, victim);
+            SkillBook.drink(archer, damage);
+            if (victim.isEffectivelyDead()) {
+                var earned = victim.findModule(ExperienceModule.class);
+                var his = archer == null ? null : archer.findModule(ExperienceModule.class);
+                if (his != null && earned != null) {
+                    his.addExperience(earned.getExperienceValue());
+                }
+            }
+        }
     }
 
     /**
