@@ -373,6 +373,25 @@ E16, in parts.
   whole, in one game; `streamGroundFor(map)` is the reach for a map, 0 for one built whole. `streamGround(cells)` streams
   every map, as before.
 
+### Worn slots and a backpack
+
+A hero's bag may wear things (E25): a slot for each kind of thing worn — the game's words, Qurol, Zirh, Uzuk — and
+a backpack beside them that acts on nothing. Only what is worn acts on him; keys, quest items and things to sell are
+carried. A bag given no slots is the bag it always was, every slot acting.
+
+| Was | Now |
+|---|---|
+| `new LootBag(slots, join, topLevel)`, everything acting | the same, unchanged; `new LootBag(wornSlots, backpack, join, topLevel)` for one that wears things |
+| a slot index, `0..slots-1` | a place: the backpack's `0..backpack-1`, then the worn slots' in order (`wornPlace(word)`); `at`, `remove`, `DropItem.slot` and `UseItem.slot` take either |
+| `Loot(…, use, liesAs)` | `Loot(…, use, liesAs, slot)`, the worn slot it goes in, blank for none; the old constructor is a thing worn in no slot |
+| `take` into the first free slot | worn where its slot is empty, and otherwise into the backpack as before |
+| — | `shift(place)` puts a backpack thing on, swapping what was worn there back, or takes a worn one off: `Shift` says which, or `NOT_WEARABLE`, `FULL`, `NOTHING`; the order is `ShiftItem(player, place)`, which the game applies as it applies `DropItem` |
+| a bag restored by `take`, stand-ins held and taken out | `put(place, item)`, exactly where it was, nothing joined or said; `slots()` reads every place in order to save |
+| the figures, of every slot | of what is worn, in a bag that wears things |
+| `holds`, `removeAll`, `getFound` over every slot | over every place, worn and carried |
+| `BagScreen.Words(items, dropHint, takeHint, useHint, pickUp, toTheGate, use)` | the same, kept; and `…, wornIn, wearHint, offHint)`: the card's `Kiyiladi: Uzuk` and how a thing is put on and taken off |
+| `BagScreen`, one grid | for a bag that wears things, its worn slots in a column to the left, an empty one named; a left click on a thing that can be worn sends `ShiftItem` |
+
 ### A long list read in linear time
 
 - **A list over many lines** (E23): `DukeText` looked for a list's `]` from the list's start after every line, n² in

@@ -33,9 +33,13 @@ package uz.dukeengine.rpg.item;
  * @param level      how many times it has been joined, and one: found at 1
  * @param use        what a left click on it in the bag does
  * @param liesAs     the template it lies on the floor as; blank for the chest everything else lies in
+ * @param slot       the worn slot it goes in, one of the words a bag that wears things names
+ *                   ({@link LootBag#wornSlots}); blank for a thing that cannot be worn — a key, a potion, a thing to
+ *                   sell
  */
 public record Loot(String id, String name, String icon, String kind, int value, int weight, int minTier,
-        String attribute, String extra, int extraValue, int extraStep, int level, ItemUse use, String liesAs) {
+        String attribute, String extra, int extraValue, int extraStep, int level, ItemUse use, String liesAs,
+        String slot) {
 
     public Loot {
         attribute = attribute == null ? "" : attribute;
@@ -44,6 +48,14 @@ public record Loot(String id, String name, String icon, String kind, int value, 
         level = Math.max(1, level);
         use = use == null ? ItemUse.NONE : use;
         liesAs = liesAs == null ? "" : liesAs;
+        slot = slot == null ? "" : slot.strip();
+    }
+
+    /** A thing worn in no slot. */
+    public Loot(String id, String name, String icon, String kind, int value, int weight, int minTier,
+            String attribute, String extra, int extraValue, int extraStep, int level, ItemUse use, String liesAs) {
+        this(id, name, icon, kind, value, weight, minTier, attribute, extra, extraValue, extraStep, level, use, liesAs,
+                "");
     }
 
     /** An item that gives no attribute, which is every kind but {@code ATTRIBUTE}. */
@@ -55,7 +67,7 @@ public record Loot(String id, String name, String icon, String kind, int value, 
     /** An item found as it is, with nothing beside its figure. */
     public Loot(String id, String name, String icon, String kind, int value, int weight,
             int minTier, String attribute) {
-        this(id, name, icon, kind, value, weight, minTier, attribute, "", 0, 0, 1, ItemUse.NONE, "");
+        this(id, name, icon, kind, value, weight, minTier, attribute, "", 0, 0, 1, ItemUse.NONE, "", "");
     }
 
     /** Whether it is the same thing as {@code other} at the same level: what joins with it. */
@@ -79,12 +91,12 @@ public record Loot(String id, String name, String icon, String kind, int value, 
      */
     public Loot joined(int count) {
         return new Loot(id, name, icon, kind, value * count, weight, minTier, attribute, extra,
-                extraValue * count + (level == 1 ? extraStep : 0), extraStep, level + 1, use, liesAs);
+                extraValue * count + (level == 1 ? extraStep : 0), extraStep, level + 1, use, liesAs, slot);
     }
 
     /** The same thing, worth {@code value} instead. */
     public Loot worth(int value) {
         return new Loot(id, name, icon, kind, value, weight, minTier, attribute, extra, extraValue, extraStep, level,
-                use, liesAs);
+                use, liesAs, slot);
     }
 }

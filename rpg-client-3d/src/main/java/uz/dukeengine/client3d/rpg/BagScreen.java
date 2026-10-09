@@ -26,6 +26,7 @@ import uz.dukeengine.rpg.item.GroundItem;
 import uz.dukeengine.rpg.item.ItemUse;
 import uz.dukeengine.rpg.item.Loot;
 import uz.dukeengine.rpg.item.LootBag;
+import uz.dukeengine.rpg.item.ShiftItem;
 import uz.dukeengine.rpg.item.UseItem;
 import uz.dukeengine.rpg.mission.GateUpdate;
 
@@ -42,6 +43,10 @@ import uz.dukeengine.rpg.mission.GateUpdate;
  * whose id comes back as a {@link UseItem} order — each handed to the game's wire first, so all of them go down the
  * road every order goes.
  *
+ * <p>A bag that wears things ({@link LootBag#wears}) is drawn as a column of its worn slots, each named in the game's
+ * words while it is empty, beside the backpack's grid; a left click on a thing that can be worn puts it on or takes it
+ * off, as a {@link ShiftItem} order down the same road.
+ *
  * <p>On the window's thread, but for what is handed to the match and run on the simulation's: the rule that names the
  * pickup, and a look after every frame at what lies on the floor. Both only read.
  */
@@ -57,9 +62,24 @@ public final class BagScreen implements Painter, CanvasInput {
      * @param pickUp    the order word a click on a thing lying holding an item is
      * @param toTheGate the order word a click on a gate is
      * @param use       the order word a thing in hand pressed on a thing is answered as
+     * @param wornIn    on a card, before the worn slot a thing goes in: {@code "Kiyiladi: "}
+     * @param wearHint  how a thing in the backpack that can be worn is put on
+     * @param offHint   how a thing worn is taken off
      */
     public record Words(String items, String dropHint, String takeHint, String useHint, String pickUp,
-            String toTheGate, String use) {
+            String toTheGate, String use, String wornIn, String wearHint, String offHint) {
+
+        public Words {
+            wornIn = wornIn == null ? "" : wornIn;
+            wearHint = wearHint == null ? "" : wearHint;
+            offHint = offHint == null ? "" : offHint;
+        }
+
+        /** The words of a bag that wears nothing. */
+        public Words(String items, String dropHint, String takeHint, String useHint, String pickUp,
+                String toTheGate, String use) {
+            this(items, dropHint, takeHint, useHint, pickUp, toTheGate, use, "", "", "");
+        }
     }
 
     /** The id of the aim that puts {@code slot} down. */
@@ -116,6 +136,9 @@ public final class BagScreen implements Painter, CanvasInput {
     private float pad;
     private float heading;
     private int columns;
+    /** How many places the backpack has, and whether the worn slots stand in a column of their own beside it. */
+    private int backpack;
+    private boolean wornColumn;
 
     private int lastFrame = -1;
     private long lastFrameAt;
@@ -216,7 +239,7 @@ public final class BagScreen implements Painter, CanvasInput {
             held = -1; // a match that is over took what was in hand with it
         }
         var slots = bag.slots();
-        layOut(canvas, slots.size());
+        layOut(canvas, bag);
         var card = buffs.paint(canvas, now.game(), mouseX, mouseY, onTheBag(mouseX, mouseY));
         canvas.fillRect(left, top, wide, high, 0xE0000000 | look.stoneColour());
         canvas.openRect(left, top, wide, high, 2f, 0xFF000000 | look.stoneEdgeColour());
@@ -230,6 +253,12 @@ public final class BagScreen implements Painter, CanvasInput {
             canvas.openRect(x, y, slot, slot, lit ? 2f : 1f,
                     0xFF000000 | (lit ? look.torchColour() : look.stoneLitColour()));
             var item = slots.get(at);
+            if (item == null && at >= backpack && wornColumn) {
+                var named = bag.wornSlots().get(at - backpack);
+                var size = canvas.measure(small(), named);
+                canvas.drawText(small(), named, x + (slot - size.width()) / 2f, y + (slot - size.lineHeight()) / 2f,
+                        0xFF000000 | look.hintColour());
+            }
             if (item != null) {
                 float inset = slot * 0.14f;
                 canvas.drawImage(Canvas.Image.of(item.icon()), x + inset, y + inset, x + slot - inset,
@@ -252,18 +281,21 @@ public final class BagScreen implements Painter, CanvasInput {
             }
         } else if (over >= 0 && slots.get(over) != null) {
             var item = slots.get(over);
-            tip(canvas, lines(item), hintsOf(item, true), slotX(over) - gap, slotY(over), true);
+            tip(canvas, lines(item, bag), hintsIn(bag, over, item), slotX(over) - gap, slotY(over), true);
         } else if (card != null) {
             tip(canvas, card.said(), card.hints(), card.x(), card.y(), false);
         } else if (!onTheBag(mouseX, mouseY) && lying.get(now.game().getPointedAt()) instanceof Loot under) {
-            tip(canvas, lines(under), hintsOf(under, false), mouseX + 20, mouseY + 20, false);
+            tip(canvas, lines(under, bag), List.of(words.takeHint()), mouseX + 20, mouseY + 20, false);
         }
     }
 
-    /** Its name, and what it gives if it gives anything. */
-    private List<String> lines(Loot item) {
+    /** Its name, the slot it is worn in where the bag wears it, and what it gives if it gives anything. */
+    private List<String> lines(Loot item, LootBag bag) {
         var said = new ArrayList<String>();
         said.add(LootBag.nameOf(item));
+        if (bag.wornPlace(item.slot()) >= 0 && !words.wornIn().isEmpty()) {
+            said.add(words.wornIn() + item.slot());
+        }
         for (var line : gives.apply(item)) {
             if (!line.isEmpty()) {
                 said.add(line);
@@ -272,12 +304,19 @@ public final class BagScreen implements Painter, CanvasInput {
         return said;
     }
 
-    /** How to take it and, on its card in the bag, how to use it if it does something; on the floor, how to take it. */
-    private List<String> hintsOf(Loot item, boolean inBag) {
-        if (inBag && item.use() != ItemUse.NONE) {
-            return List.of(words.takeHint(), words.useHint());
+    /** On its card in the bag: how to take it, how to use it if it does something, and how to put it on or off. */
+    private List<String> hintsIn(LootBag bag, int place, Loot item) {
+        var hints = new ArrayList<String>();
+        hints.add(words.takeHint());
+        if (item.use() != ItemUse.NONE) {
+            hints.add(words.useHint());
+        } else if (place >= bag.backpackSize() && bag.wears()) {
+            hints.add(words.offHint());
+        } else if (bag.wornPlace(item.slot()) >= 0) {
+            hints.add(words.wearHint());
         }
-        return List.of(words.takeHint());
+        hints.removeIf(String::isEmpty);
+        return hints;
     }
 
     /**
@@ -319,26 +358,35 @@ public final class BagScreen implements Painter, CanvasInput {
         return Canvas.Font.of("Georgia", Math.round(slot * 0.27f));
     }
 
-    /** Two columns at the right of the window, a little above its middle, sized to its height. */
-    private void layOut(Canvas canvas, int count) {
+    /**
+     * Two columns at the right of the window, a little above its middle, sized to its height — and, for a bag that
+     * wears things, its worn slots in a column of their own to their left.
+     */
+    private void layOut(Canvas canvas, LootBag bag) {
         slot = Math.clamp(Math.round(canvas.height() * 0.05f), 34, 72);
         gap = Math.max(3f, slot / 10f);
         pad = Math.max(6f, slot / 6f);
         heading = Math.round(slot * 0.27f) * 1.4f;
         columns = 2;
-        int rows = (count + columns - 1) / columns;
-        wide = pad * 2f + columns * slot + (columns - 1) * gap;
+        backpack = bag.backpackSize();
+        wornColumn = bag.wears();
+        int rows = Math.max((backpack + columns - 1) / columns, wornColumn ? bag.wornSlots().size() : 0);
+        wide = pad * 2f + columns * slot + (columns - 1) * gap + (wornColumn ? slot + gap * 3f : 0f);
         high = pad * 2f + heading + gap + rows * slot + (rows - 1) * gap;
         left = canvas.width() - wide - 16f;
         top = (canvas.height() - high) / 2f - canvas.height() * 0.06f;
     }
 
     private float slotX(int at) {
-        return left + pad + (at % columns) * (slot + gap);
+        if (at >= backpack) {
+            return left + pad;
+        }
+        return left + pad + (wornColumn ? slot + gap * 3f : 0f) + (at % columns) * (slot + gap);
     }
 
     private float slotY(int at) {
-        return top + pad + heading + gap + (at / columns) * (slot + gap);
+        int row = at >= backpack ? at - backpack : at / columns;
+        return top + pad + heading + gap + row * (slot + gap);
     }
 
     /** The slot under {@code (x, y)}, or -1. */
@@ -416,6 +464,8 @@ public final class BagScreen implements Painter, CanvasInput {
             pressedHere = true;
             if (item != null && item.use() != ItemUse.NONE) {
                 hold(now, at, item, USE, CommandButton.Aim.UNIT);
+            } else if (item != null && (at >= bag.backpackSize() || bag.wornPlace(item.slot()) >= 0)) {
+                now.game().postCommand(now.wire().apply(new ShiftItem(now.game().getLocalPlayerIndex(), at)));
             }
             return true;
         }

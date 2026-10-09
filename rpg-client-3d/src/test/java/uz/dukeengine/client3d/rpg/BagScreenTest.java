@@ -15,6 +15,7 @@ import uz.dukeengine.game.DukeGame;
 import uz.dukeengine.rpg.item.ItemUse;
 import uz.dukeengine.rpg.item.Loot;
 import uz.dukeengine.rpg.item.LootBag;
+import uz.dukeengine.rpg.item.ShiftItem;
 import uz.dukeengine.rpg.item.Stat;
 
 /** The bag on the game's canvas: drawn while a match is played, its things taken in hand to put down or to use. */
@@ -85,5 +86,44 @@ class BagScreenTest {
         assertEquals("use:1", armed.getLast().button().id());
         assertEquals(CommandButton.Aim.UNIT, armed.getLast().button().aim());
         assertEquals("Use", armed.getLast().button().answeredAs(), "answered as the game's own order");
+    }
+
+    @Test
+    void aBagThatWearsShowsItsSlotsByKindAndALeftClickPutsAThingOnOrTakesItOff() {
+        var wornBag = new LootBag(List.of("Qurol", "Uzuk"), 4, LootBag.JOIN, LootBag.TOP_LEVEL);
+        var blade = new Loot("blade", "Pichoq", "icons/items/blade.png", Stat.ATTACK, 5, 1, 1, "", "", 0, 0, 1,
+                ItemUse.NONE, "", "Qurol");
+        var axe = new Loot("axe", "Bolta", "icons/items/axe.png", Stat.ATTACK, 9, 1, 1, "", "", 0, 0, 1,
+                ItemUse.NONE, "", "Qurol");
+        wornBag.take(blade, 0, 0);
+        wornBag.take(axe, 0, 0);
+        var sent = new ArrayList<uz.dukeengine.core.message.Command>();
+        var wearing = new BagScreen(MenuStyle.DEFAULTS, new BagScreen.Words("NARSALAR", "Yerga qo'y",
+                "O'ng tugma: ol", "Chap tugma: ishlat", "PickUp", "ToTheGate", "Use", "Kiyiladi: ",
+                "Chap tugma: kiy", "Chap tugma: yech"), item -> List.of(),
+                new BuffScreen(List.of(), List.of(), MenuStyle.DEFAULTS, PanelLook.DEFAULTS, 24f,
+                        new BuffScreen.Words("Zarba", "Mana/s", "Qon", "Tezlik", "s")),
+                (button, ended) -> armed.add(new Armed(button)), () -> 0L);
+        var game = DukeGame.create("worn-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
+        game.addPlayer("One", Color.BLUE);
+        wearing.show(game, () -> wornBag, order -> {
+            sent.add(order);
+            return order;
+        }, null);
+        game.runHeadless(1);
+        var canvas = new Drawn();
+        wearing.paint(canvas);
+
+        assertTrue(canvas.text.contains("Uzuk"), "an empty worn slot named in the game's words: " + canvas.text);
+        var carried = canvas.picture(axe.icon());
+        var worn = canvas.picture(blade.icon());
+        assertTrue(worn.middleX() < carried.middleX(), "the worn slots to the left of the backpack");
+
+        wearing.take(new CanvasInput.Button(carried.middleX(), carried.middleY(), CanvasInput.Mouse.LEFT, true, false));
+        wearing.take(new CanvasInput.Button(worn.middleX(), worn.middleY(), CanvasInput.Mouse.LEFT, true, false));
+        int me = game.getLocalPlayerIndex();
+        assertEquals(List.of(new ShiftItem(me, 0), new ShiftItem(me, wornBag.wornPlace("Qurol"))), sent,
+                "put on from the backpack, taken off from its slot");
+        assertTrue(armed.isEmpty(), "nothing taken in hand");
     }
 }
