@@ -136,6 +136,9 @@ public final class Shell {
     private final boolean drawnByTheGame;
     private Question question;
     private List<Option> pauseRows = List.of();
+    private final Map<String, String> words = new LinkedHashMap<>();
+    private MenuSide menuSide = MenuSide.MIDDLE;
+    private float menuMargin;
 
     private Shell(boolean startsImmediately) {
         this(startsImmediately, false);
@@ -170,6 +173,47 @@ public final class Shell {
     public Shell pauseRows(List<Option> rows) {
         this.pauseRows = List.copyOf(rows);
         return this;
+    }
+
+    /**
+     * Say one of the client's fixed menu words in the game's own: {@code word("Resume", "Davom etish")}. Keyed by the
+     * English the client says when the game names nothing — the pause menu's {@code PAUSED}, {@code Resume},
+     * {@code Settings}, {@code Quit to the main menu}, {@code Quit to the desktop}, {@code ESC resume}, the questions
+     * they ask ({@code QUIT TO THE MAIN MENU?}, {@code QUIT TO THE DESKTOP?}, {@code everything on this floor is lost},
+     * {@code Keep playing}, {@code Quit}, {@code ESC keep playing}), the settings screen's every label, value and line
+     * ({@code SETTINGS}, {@code Fullscreen}, {@code NO}, {@code YES}, {@code Size}, {@code MONITOR},
+     * {@code Anti-aliasing}, {@code OFF}, {@code Volume}, {@code Effects}, {@code Voice}, {@code Music}, {@code Track},
+     * {@code Save}, {@code Cancel}, {@code anti-aliasing from the next launch}, {@code unsaved changes},
+     * {@code UP DOWN choose    LEFT RIGHT change    ESC back}) and the front menu's
+     * {@code UP DOWN choose    ENTER take}.
+     */
+    public Shell word(String english, String said) {
+        words.put(english, said);
+        return this;
+    }
+
+    /** One of the client's fixed words as this game says it, or as the client does where the game names none. */
+    public String wordFor(String english) {
+        return words.getOrDefault(english, english);
+    }
+
+    /**
+     * Lay the front and pause menus' rows at a side of the screen, {@code margin} pixels in from its edge, their title
+     * above them on that side, and only that side darkened: so a live backdrop ({@link Duke3D#backdrop}) is seen across
+     * the rest. {@link MenuSide#MIDDLE}, the default, is the middle as ever.
+     */
+    public Shell menuAt(MenuSide side, float margin) {
+        this.menuSide = side == null ? MenuSide.MIDDLE : side;
+        this.menuMargin = Math.max(0f, margin);
+        return this;
+    }
+
+    public MenuSide menuSide() {
+        return menuSide;
+    }
+
+    public float menuMargin() {
+        return menuMargin;
     }
 
     /** The game's rows on the pause menu; see {@link #pauseRows(List)}. */

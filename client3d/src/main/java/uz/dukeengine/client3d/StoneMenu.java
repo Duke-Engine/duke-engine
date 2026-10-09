@@ -154,6 +154,9 @@ final class StoneMenu {
 
     private float screenWidth;
     private float screenHeight;
+    /** Where the rows stand across the screen, and how far in from its edge — see {@link #placeAt}. */
+    private MenuSide side = MenuSide.MIDDLE;
+    private float margin;
     private float scale = 1f;
     private boolean overGame;
 
@@ -168,6 +171,26 @@ final class StoneMenu {
         root.attachChild(sheet);
         guiNode.attachChild(root);
         hide();
+    }
+
+    /** Lay the rows and their title at {@code side}, {@code margin} pixels in from that edge. */
+    void placeAt(MenuSide side, float margin) {
+        this.side = side == null ? MenuSide.MIDDLE : side;
+        this.margin = Math.max(0f, margin);
+        refresh();
+    }
+
+    /** Where a column {@code width} wide starts across a sheet {@code w} wide, in the sheet's units. */
+    static float columnLeft(MenuSide side, float margin, float w, float width) {
+        return switch (side) {
+            case LEFT -> margin;
+            case MIDDLE -> (w - width) / 2f;
+            case RIGHT -> w - width - margin;
+        };
+    }
+
+    private float columnLeft(float w, float width) {
+        return columnLeft(side, margin / scale, w, width);
     }
 
     // ---- showing ----
@@ -564,8 +587,15 @@ final class StoneMenu {
     private void drawDim() {
         // Dark enough to read a menu over, thin enough to see the room he stopped
         // in. A player who cannot see where he was has to remember instead.
-        StoneCraft.attach(sheet, craft.flat("dim", screenWidth / scale, screenHeight / scale,
-                craft.veil), 0f, 0f, 0f);
+        float w = screenWidth / scale;
+        if (side == MenuSide.MIDDLE) {
+            StoneCraft.attach(sheet, craft.flat("dim", w, screenHeight / scale, craft.veil), 0f, 0f, 0f);
+            return;
+        }
+        // At a side, only its strip: the rest of the screen is the scene behind it, undimmed.
+        float strip = Math.min(w, ROW_WIDTH + margin / scale * 2f);
+        StoneCraft.attach(sheet, craft.flat("dim", strip, screenHeight / scale, craft.veil),
+                side == MenuSide.LEFT ? 0f : w - strip, 0f, 0f);
     }
 
     /** @return the y the rows should start below, in the sheet's own units */
@@ -576,23 +606,27 @@ final class StoneMenu {
             return h * 0.72f;
         }
         float size = settings ? 30f : 46f;
+        float plaqueWidth = Math.min(w - 40f, craft.widthOf(titleFont, size, title) + 92f);
+        // Over the rows: the plaque centred on their column, whichever side it stands at.
+        float column = settings ? ROW_WIDTH : MENU_WIDTH;
+        float plaqueX = side == MenuSide.MIDDLE ? (w - plaqueWidth) / 2f
+                : Math.clamp(columnLeft(w, column) + (column - plaqueWidth) / 2f, 0f, Math.max(0f, w - plaqueWidth));
         var text = craft.text(titleFont, size, craft.torch, 0f, 0f, w,
                 BitmapFont.Align.Center);
         text.setText(title);
-        float plaqueWidth = Math.min(w - 40f, craft.widthOf(titleFont, size, title) + 92f);
         float plaqueHeight = size + (subtitle.isEmpty() ? 30f : 54f);
         float plaqueY = h - (settings ? 44f : 74f) - plaqueHeight;
         var plaque = craft.slab("plaque", plaqueWidth, plaqueHeight);
-        StoneCraft.attach(sheet, plaque, (w - plaqueWidth) / 2f, plaqueY, 2f);
+        StoneCraft.attach(sheet, plaque, plaqueX, plaqueY, 2f);
 
         float textY = plaqueY + plaqueHeight - size - (subtitle.isEmpty() ? 16f : 14f);
         // The box places it; a translation on top of that would move it twice,
         // which puts a title off the top of the screen and leaves a bare slab.
-        text.setBox(new com.jme3.font.Rectangle(0f, textY + size, w, size * 1.4f));
+        text.setBox(new com.jme3.font.Rectangle(plaqueX, textY + size, plaqueWidth, size * 1.4f));
         StoneCraft.attach(sheet, text, 0f, 0f, 4f);
         if (!subtitle.isEmpty()) {
-            var sub = craft.text(rowFont, 14f, craft.hint, 0f,
-                    textY - 24f, w, BitmapFont.Align.Center);
+            var sub = craft.text(rowFont, 14f, craft.hint, plaqueX,
+                    textY - 24f, plaqueWidth, BitmapFont.Align.Center);
             sub.setText(subtitle);
             // In front of the plaque, like the title. Attached plainly it lands
             // at z zero, which is behind the stone it is written on.
@@ -604,7 +638,7 @@ final class StoneMenu {
     /** The front and pause menus: a column of lit lines. */
     private void drawItems(float top, boolean scrolls) {
         float w = screenWidth / scale;
-        float left = (w - MENU_WIDTH) / 2f;
+        float left = columnLeft(w, MENU_WIDTH);
         int from = scrolls ? scrolledBy : 0;
         int fits = scrolls ? (int) (top / ROW_HEIGHT) : rows.size();
         for (int i = 0; i < rows.size(); i++) {
@@ -689,14 +723,16 @@ final class StoneMenu {
         var node = new Node("picture-plate");
         StoneCraft.attach(node, craft.slab("picture-slab", quad.getWidth() + 12f, quad.getHeight() + 12f), 0f, 0f, 0f);
         StoneCraft.attach(node, picture, 6f, 6f, 2f);
-        StoneCraft.attach(sheet, node, left + MENU_WIDTH + 28f, top - quad.getHeight() - 12f, 3f);
+        // Beside the column, toward the middle of the screen.
+        float x = this.side == MenuSide.RIGHT ? left - 28f - quad.getWidth() - 12f : left + MENU_WIDTH + 28f;
+        StoneCraft.attach(sheet, node, x, top - quad.getHeight() - 12f, 3f);
         drawn.add(node);
     }
 
     /** The settings: a label, a control, and what it currently says. */
     private void drawRows(float top, float width, boolean scrolls) {
         float w = screenWidth / scale;
-        float left = (w - width) / 2f;
+        float left = columnLeft(w, width);
         int from = scrolls ? scrolledBy : 0;
         int fits = scrolls ? Math.max(1, (int) (top / ROW_HEIGHT)) : rows.size();
         for (int i = 0; i < rows.size(); i++) {

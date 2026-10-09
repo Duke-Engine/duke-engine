@@ -373,6 +373,18 @@ E16, in parts.
   whole, in one game; `streamGroundFor(map)` is the reach for a map, 0 for one built whole. `streamGround(cells)` streams
   every map, as before.
 
+### The menus in the game's words, at its side
+
+- **`Shell.word(english, said)`** (E29): every fixed word of the pause menu, its questions, the settings screen and the
+  front menu's hint, said the game's way, keyed by the English the client says otherwise (`Shell.wordFor`); a word
+  not named stays English.
+- **Two ways out of a match**, each asked to confirm: `Quit to the main menu` — the game told (`Duke3D.onLeaving`), the
+  match let go, the front end shown — and `Quit to the desktop` — the game told, the window closed. They take the place
+  of `Abandon the run`, which closed the window. `onLeaving` is now told once a match rather than once a window.
+- **`Shell.menuAt(MenuSide, margin)`**: the front and pause menus' rows, and their title, at the left or the right,
+  `margin` pixels in from the edge, and only that strip darkened; `MenuSide.MIDDLE`, the default, as ever. A front menu
+  over a live `Duke3D.backdrop` is drawn over it, dimmed, rather than on the stone that hid it.
+
 ### Beaten, not killed
 
 - **`BodyModule.setLeastHealth(least)`** (E28): the health no blow takes a body below — the blow that would is cut to

@@ -629,15 +629,17 @@ final class DukeRtsApp extends SimpleApplication {
         this.leaving = hook;
     }
 
-    /** The game told it is about to lose its match, with the world still, if there is a match to lose. */
+    /** Whether the game has been told it is losing the match now played — see {@link #leave}. */
+    private boolean left;
+
+    /** The game told it is about to lose its match, with the world still, once a match, if there is one to lose. */
     void leave() {
-        var hook = leaving;
-        leaving = null;
-        if (hook == null || game.getLogic() == null) {
+        if (left || leaving == null || game.getLogic() == null) {
             return;
         }
+        left = true;
         setSimulationPaused(true);
-        hook.run();
+        leaving.run();
     }
 
     @Override
@@ -1938,7 +1940,7 @@ final class DukeRtsApp extends SimpleApplication {
             }
         }
         menu.show(game.getTitle(), game.getSubtitle(), items,
-                "UP DOWN choose    ENTER take", version(), false);
+                say("UP DOWN choose    ENTER take"), version(), backdropShown());
     }
 
     /**
@@ -2123,6 +2125,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void startGame() {
+        left = false; // a new match: the game is told again when this one is let go
         if (game == played && simThread == null) {
             // A match that has been played and stopped cannot be played again: the next is a fresh DukeGame.
             LOG.warning("this match has been played; start the next with Duke3D.startMatch");
@@ -2474,15 +2477,18 @@ final class DukeRtsApp extends SimpleApplication {
                 rows.add(new StoneMenu.Words(fact[0], fact[1]));
             }
         }
-        rows.add(new StoneMenu.Action("Resume", this::resumeGame));
-        rows.add(new StoneMenu.Action("Settings", () -> showSettingsMenu(Screen.PAUSED)));
+        rows.add(new StoneMenu.Action(say("Resume"), this::resumeGame));
+        rows.add(new StoneMenu.Action(say("Settings"), () -> showSettingsMenu(Screen.PAUSED)));
         for (var row : shell.pauseRows()) {
             rows.add(new StoneMenu.Action(row.label(), () -> takePauseRow(row), false, row.picture()));
         }
-        // Marked, and asked about. It is the one thing on any of these screens
-        // that costs him something he cannot get back.
-        rows.add(new StoneMenu.Action("Abandon the run", this::confirmAbandon, true));
-        menu.show("PAUSED", "", rows, "ESC resume", "", true);
+        // Marked, and asked about. They are the things on any of these screens
+        // that cost him something he cannot get back.
+        rows.add(new StoneMenu.Action(say("Quit to the main menu"),
+                () -> confirmQuit("QUIT TO THE MAIN MENU?", this::quitToTheMainMenu), true));
+        rows.add(new StoneMenu.Action(say("Quit to the desktop"),
+                () -> confirmQuit("QUIT TO THE DESKTOP?", this::stop), true));
+        menu.show(say("PAUSED"), "", rows, say("ESC resume"), "", true);
     }
 
     /** A game's row on the pause menu taken: its own work, then its question if it has one, then back. */
@@ -2504,11 +2510,17 @@ final class DukeRtsApp extends SimpleApplication {
      * dialogs, and a menu that replaces a menu is the same mechanism doing the
      * same job. The safe answer is the one already lit.
      */
-    private void confirmAbandon() {
-        menu.show("ABANDON?", "everything on this floor is lost", java.util.List.of(
-                        new StoneMenu.Action("Keep playing", this::showPauseMenu),
-                        new StoneMenu.Action("Abandon", this::stop, true)),
-                "ESC keep playing", "", true);
+    private void confirmQuit(String question, Runnable quit) {
+        menu.show(say(question), say("everything on this floor is lost"), java.util.List.of(
+                        new StoneMenu.Action(say("Keep playing"), this::showPauseMenu),
+                        new StoneMenu.Action(say("Quit"), quit, true)),
+                say("ESC keep playing"), "", true);
+    }
+
+    /** The match let go, the game told first, and the front end shown. */
+    private void quitToTheMainMenu() {
+        leave();
+        backToFrontEnd();
     }
 
     /**
@@ -2531,8 +2543,15 @@ final class DukeRtsApp extends SimpleApplication {
             craft = new StoneCraft(assetManager, guiFont, visuals.getMenuStyle());
         }
         var style = visuals.getMenuStyle();
-        return new StoneMenu(craft, fontOrDefault(style.titleFont()),
+        var built = new StoneMenu(craft, fontOrDefault(style.titleFont()),
                 fontOrDefault(style.rowFont()), guiNode, width, height);
+        built.placeAt(shell.menuSide(), shell.menuMargin());
+        return built;
+    }
+
+    /** One of the client's fixed words, as the game says it — see {@link Shell#word}. */
+    private String say(String english) {
+        return shell.wordFor(english);
     }
 
     private com.jme3.font.BitmapFont fontOrDefault(String assetPath) {
@@ -2562,7 +2581,7 @@ final class DukeRtsApp extends SimpleApplication {
         settingsReturn = returnTo;
         screen = Screen.SETTINGS;
         var rows = new java.util.ArrayList<StoneMenu.Row>();
-        rows.add(new StoneMenu.Choice("Fullscreen", java.util.List.of("NO", "YES"),
+        rows.add(new StoneMenu.Choice(say("Fullscreen"), java.util.List.of(say("NO"), say("YES")),
                 () -> preferences.flag("fullscreen", false) ? 1 : 0,
                 to -> {
                     preferences.set("fullscreen", to == 1);
@@ -2571,8 +2590,8 @@ final class DukeRtsApp extends SimpleApplication {
         // The real ones, from the card, rather than three the client invented —
         // a player who picks a size his monitor cannot show gets a black screen.
         var sizes = screenSizes();
-        rows.add(new StoneMenu.Opens("Size",
-                sizes.stream().map(Size::shown).toList(),
+        rows.add(new StoneMenu.Opens(say("Size"),
+                sizes.stream().map(size -> size.shown().replace("MONITOR", say("MONITOR"))).toList(),
                 () -> indexOfSize(sizes, preferences.number("width", 0),
                         preferences.number("height", 0)),
                 to -> {
@@ -2581,22 +2600,22 @@ final class DukeRtsApp extends SimpleApplication {
                     applyDisplaySettings();
                 }));
         // Taken by the window only as it is made, so it is kept for the next launch and said so below.
-        rows.add(new StoneMenu.Choice("Anti-aliasing", java.util.List.of("OFF", "2×", "4×"),
+        rows.add(new StoneMenu.Choice(say("Anti-aliasing"), java.util.List.of(say("OFF"), "2×", "4×"),
                 () -> indexOf(SAMPLES, preferences.number("samples", 0)),
                 to -> preferences.set("samples", SAMPLES[to])));
-        rows.add(volumeRow("Volume", "volume", 100));
+        rows.add(volumeRow(say("Volume"), "volume", 100));
         // Only offered by a game that has any: this client draws three others and
         // a knob for a channel with nothing on it is a dead button.
         if (!visuals.getSounds().isEmpty()) {
-            rows.add(volumeRow("Effects", "volEffects", 100));
-            rows.add(volumeRow("Voice", "volVoice", 100));
-            rows.add(volumeRow("Music", "volMusic", 60));
+            rows.add(volumeRow(say("Effects"), "volEffects", 100));
+            rows.add(volumeRow(say("Voice"), "volVoice", 100));
+            rows.add(volumeRow(say("Music"), "volMusic", 60));
             var tracks = visuals.getSounds().musicCues();
             if (tracks.size() > 1) {
                 // A list that drops open, not cells side by side: a track is
                 // called "The Sentinel", and three of those across one row is
                 // three names too small to read.
-                rows.add(new StoneMenu.Opens("Track",
+                rows.add(new StoneMenu.Opens(say("Track"),
                         tracks.stream().map(SoundBank.Cue::shown).toList(),
                         () -> Math.clamp(preferences.number("musicTrack", 0), 0, tracks.size() - 1),
                         to -> {
@@ -2607,14 +2626,14 @@ final class DukeRtsApp extends SimpleApplication {
         }
         // The two buttons, in sockets rather than as two more rows: they are not
         // settings, they are what happens to the settings.
-        rows.add(new StoneMenu.Buttons("", "Save", () -> {
+        rows.add(new StoneMenu.Buttons("", say("Save"), () -> {
             preferences.save();
             menu.refresh();
-        }, "Cancel", this::undoSettings,
-                preferences.number("samples", 0) != settings.getSamples() ? "anti-aliasing from the next launch"
-                        : preferences.dirty() ? "unsaved changes" : ""));
-        menu.show("SETTINGS", "", rows,
-                "UP DOWN choose    LEFT RIGHT change    ESC back", "",
+        }, say("Cancel"), this::undoSettings,
+                preferences.number("samples", 0) != settings.getSamples() ? say("anti-aliasing from the next launch")
+                        : preferences.dirty() ? say("unsaved changes") : ""));
+        menu.show(say("SETTINGS"), "", rows,
+                say("UP DOWN choose    LEFT RIGHT change    ESC back"), "",
                 settingsReturn == Screen.PAUSED);
     }
 
