@@ -277,6 +277,9 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     private int wornVersion = -1;
     /** The souls a {@code SOUL_DRINK} it has drunk: every enemy its bearer killed while it had one. */
     private int souls;
+    /** Whether an {@code UNYIELDING} of its has held its bearer's floor, and whether he has been beaten to it. */
+    private boolean holdsTheFloor;
+    private boolean beaten;
 
     public SkillBook(GameObject owner, List<Skill> skills, Rules rules, Seal seal) {
         super(owner);
@@ -1351,6 +1354,53 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
         return null;
     }
 
+    @Override
+    public void onCreated() {
+        holdTheFloor(); // before the first blow can land
+    }
+
+    private Skill unyielding() {
+        for (var skill : passives()) {
+            if (skill.effect() == SkillEffect.UNYIELDING) {
+                return skill;
+            }
+        }
+        return null;
+    }
+
+    /** An {@code UNYIELDING}'s floor kept at its share of his most health, which may grow; let go once it is gone. */
+    private void holdTheFloor() {
+        var body = getOwner().getBody();
+        if (body == null) {
+            return;
+        }
+        var unyielding = unyielding();
+        if (unyielding == null) {
+            if (holdsTheFloor) {
+                body.setLeastHealth(0f);
+                holdsTheFloor = false;
+            }
+            return;
+        }
+        holdsTheFloor = true;
+        body.setLeastHealth(body.getMaxHealth() * unyielding.healBelowPercent() / 100f);
+        beaten |= atTheFloor(body);
+    }
+
+    private static boolean atTheFloor(uz.dukeengine.core.module.BodyModule body) {
+        // A blow cut to the floor lands on it within a float's rounding.
+        return body.getHealth() <= body.getLeastHealth() + 1e-3f;
+    }
+
+    /**
+     * Whether its bearer has been beaten — an {@code UNYIELDING} of its held him at his floor — from the frame the blow
+     * landed, and for good: what being beaten does is the game's to say.
+     */
+    public boolean isBeaten() {
+        var body = getOwner().getBody();
+        return beaten || holdsTheFloor && body != null && atTheFloor(body);
+    }
+
     /** The souls it has drunk — see {@link SkillEffect#SOUL_DRINK}. */
     public int getSouls() {
         return souls;
@@ -1541,6 +1591,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
 
     @Override
     public void update() {
+        holdTheFloor();
         regenerate();
         for (int slot = 0; slot < cooldowns.length; slot++) {
             if (cooldowns[slot] > 0) {

@@ -19,6 +19,8 @@ public abstract class BodyModule extends Module {
     private Death death;
     /** What every blow is multiplied by after armour — see {@link #setDamageScale}. */
     private float damageScale = 1f;
+    /** The health no blow takes it below — see {@link #setLeastHealth}. */
+    private float leastHealth;
     /** The one healer it takes a heal from, and the last frame that holds — see {@link #healFromOne}. */
     private ObjectId soleHealer;
     private int soleHealerUntil;
@@ -73,6 +75,14 @@ public abstract class BodyModule extends Module {
         }
         boolean wasAlive = !isDead();
         float worth = worthOf(amount, type);
+        if (leastHealth > 0f && worth > 0f) {
+            // Cut to what lies above the floor: a blow takes as much as it is worth, so a share of it takes that share.
+            float room = Math.max(0f, getHealth() - leastHealth);
+            if (worth > room) {
+                amount *= room / worth;
+                worth = room;
+            }
+        }
         damage(amount, type);
         if (!wasAlive) {
             return;
@@ -126,6 +136,19 @@ public abstract class BodyModule extends Module {
 
     public final float getDamageScale() {
         return damageScale;
+    }
+
+    /**
+     * The health no blow takes this body below: a blow that would is cut to leave it there, so it never dies of one —
+     * an essential creature, a foe who is beaten rather than killed. 0, as ever, for none. Only blows ({@link
+     * #damage(float, DamageType, Death)} and those it calls) are held to it.
+     */
+    public final void setLeastHealth(float least) {
+        this.leastHealth = Math.max(0f, least);
+    }
+
+    public final float getLeastHealth() {
+        return leastHealth;
     }
 
     /** {@code afterArmour} as this body takes it: times its damage scale, unless {@code type} is unresistable. */

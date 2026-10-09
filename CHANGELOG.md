@@ -373,6 +373,16 @@ E16, in parts.
   whole, in one game; `streamGroundFor(map)` is the reach for a map, 0 for one built whole. `streamGround(cells)` streams
   every map, as before.
 
+### Beaten, not killed
+
+- **`BodyModule.setLeastHealth(least)`** (E28): the health no blow takes a body below — the blow that would is cut to
+  leave it there, so it never dies of one. 0, as ever, for none.
+- **`SkillEffect.UNYIELDING`**, a passive: its bearer's floor is `HealBelowPercent` of his most health, kept as that
+  grows, and once a blow has held him there `SkillBook.isBeaten()` says so, from that frame and for good. No
+  `ObjectDied`, no kill credit; what being beaten does is the game's.
+- **`GrowableBody` honours `setDamageScale`**, as `ActiveBody` always did: what a blow takes now agrees with what its
+  `ObjectHurt` says.
+
 ### Blows that name their dealer, and a soul drink
 
 - **The rpg's blows say whose they are** (E27): an arrow and its burst, a meteor, and every skill's damage — strike,

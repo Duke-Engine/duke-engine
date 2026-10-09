@@ -87,7 +87,7 @@ public final class GrowableBody extends BodyModule {
         if (amount <= 0f) {
             return;
         }
-        health = clamp(health - amount * damageTaken);
+        health = clamp(health - scaled(amount * damageTaken, type));
     }
 
     @Override

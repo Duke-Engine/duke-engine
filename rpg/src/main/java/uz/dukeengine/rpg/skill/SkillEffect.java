@@ -244,7 +244,16 @@ public enum SkillEffect {
      * <p>Never cast: see {@link #isPassive}. A hero may bear one — the one passive he may — written in his file or
      * lent by a thing he wears ({@link SkillBook#lendFrom}).
      */
-    SOUL_DRINK(Aim.SELF, true);
+    SOUL_DRINK(Aim.SELF, true),
+
+    /**
+     * Cannot be killed, only beaten: its bearer's body never falls below {@code HealBelowPercent} of its most health —
+     * the blow that would take it lower leaves it there ({@code BodyModule.setLeastHealth}), so no death is reaped and
+     * no kill is credited — and then it is beaten ({@link SkillBook#isBeaten}). What being beaten does is the game's.
+     *
+     * <p>Never cast: see {@link #isPassive}.
+     */
+    UNYIELDING(Aim.SELF, true);
 
     /** What a player has to click before the cast can go through. */
     public enum Aim {
