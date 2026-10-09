@@ -104,6 +104,16 @@ public interface Canvas {
         throw new UnsupportedOperationException(getClass().getName() + " draws no pictures the game makes");
     }
 
+    /**
+     * Thing {@code unitId} alive in its portrait over {@code [x0, x1) × [y0, y1)} — breathing, turning, falling as the
+     * hero's own portrait does, as the game's portrait look for its template says — for a frame of the game's own round
+     * what is picked. Drawn from the next frame on, and nothing where no part of the window keeps one: a thing with no
+     * portrait look. The window's canvas draws it; another refuses it, as it refuses {@link #drawPicture}.
+     */
+    default void drawPortrait(int unitId, float x0, float y0, float x1, float y1) {
+        throw new UnsupportedOperationException(getClass().getName() + " draws no live portraits");
+    }
+
     /** The same in its own colours, blended by its alpha: how a radar's layers are laid one over another. */
     default void drawPicture(Picture picture, float x0, float y0, float x1, float y1) {
         drawPicture(picture, x0, y0, x1, y1, 0xFFFFFFFF, Blend.ALPHA);

@@ -89,6 +89,19 @@ public interface HudPart {
      * @param picked  the one thing selected, or {@code null} for nothing or several
      * @param playing whether a match is being played rather than a menu shown
      */
+    /**
+     * The things whose live portraits the game's canvas drew this frame ({@link Canvas#drawPortrait}), in the order
+     * asked, every frame there is a world: a part that keeps portraits keeps them up to date from here, and hands their
+     * pictures out by {@link #portraitOf}.
+     */
+    default void portraits(java.util.Set<Integer> wanted, WorldSnapshot snapshot, float tpf) {
+    }
+
+    /** The live portrait of {@code unitId} this part keeps for the canvas, or null for none. */
+    default com.jme3.texture.Texture portraitOf(int unitId) {
+        return null;
+    }
+
     record Frame(WorldSnapshot snapshot, float tpf, boolean drawing, UnitView picked, float cursorX, float cursorY,
             boolean playing) {
     }

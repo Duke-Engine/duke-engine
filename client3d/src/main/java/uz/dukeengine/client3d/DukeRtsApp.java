@@ -820,7 +820,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private void buildCanvas() {
         canvasText = new CanvasText(this::openAsset);
-        canvasDrawing = new CanvasDrawing(assetManager, canvasText);
+        canvasDrawing = new CanvasDrawing(assetManager, canvasText, this::portraitOf);
         guiNode.attachChild(canvasDrawing.node());
         movieScreen = new MovieScreen(assetManager, guiNode);
         surround = renderManager.createPreView("world-surround", new com.jme3.renderer.Camera(cam.getWidth(),
@@ -1047,8 +1047,19 @@ final class DukeRtsApp extends SimpleApplication {
         }
     };
 
+    /** The live portrait of {@code unitId} a part keeps for the canvas, or null — see {@link Canvas#drawPortrait}. */
+    private com.jme3.texture.Texture portraitOf(int unitId) {
+        for (var part : parts) {
+            var texture = part.portraitOf(unitId);
+            if (texture != null) {
+                return texture;
+            }
+        }
+        return null;
+    }
+
     /** The game's drawing for this frame, over whatever else is on the screen. */
-    private void paintTheCanvas() {
+    private void paintTheCanvas(float tpf) {
         if (painter == null) {
             return;
         }
@@ -1063,6 +1074,12 @@ final class DukeRtsApp extends SimpleApplication {
             painter.paint(frame);
         } catch (RuntimeException e) {
             warnOnce(String.valueOf(e), "canvas painter failure");
+        }
+        if (snapshot != null) {
+            var asked = frame.portraitsAsked();
+            for (var part : parts) {
+                part.portraits(asked, snapshot, tpf);
+            }
         }
         canvasDrawing.show(frame.triangles(), height);
     }
@@ -4559,7 +4576,7 @@ final class DukeRtsApp extends SimpleApplication {
             return; // the press was taken by the minimap or a menu
         }
         var cursor = inputManager.getCursorPosition();
-        if (!SelectionBox.isDrag(from.x, from.y, cursor.x, cursor.y, visuals.getDragDistance())) {
+        if (!isBox(visuals, from.x, from.y, cursor.x, cursor.y)) {
             var hit = pickUnit();
             boolean onOwn = hit != null && hit.view.selectable()
                     && hit.view.playerIndex() == game.getLocalPlayerIndex();
@@ -4655,6 +4672,14 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
+     * Whether a press from one point let go at the other is a box: never where the game says a drag selects nothing
+     * ({@link Visuals#dragSelects}).
+     */
+    static boolean isBox(Visuals visuals, float fromX, float fromY, float toX, float toY) {
+        return visuals.isDragSelecting() && SelectionBox.isDrag(fromX, fromY, toX, toY, visuals.getDragDistance());
+    }
+
+    /**
      * Redraw the box while the button is held, as an outline over the world.
      */
     private void syncDragRectangle() {
@@ -4662,7 +4687,7 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         var cursor = inputManager.getCursorPosition();
-        if (!SelectionBox.isDrag(dragFrom.x, dragFrom.y, cursor.x, cursor.y, visuals.getDragDistance())) {
+        if (!isBox(visuals, dragFrom.x, dragFrom.y, cursor.x, cursor.y)) {
             dragRectangle.hide();
             return;
         }
@@ -4980,7 +5005,7 @@ final class DukeRtsApp extends SimpleApplication {
         frame(tpf);
         runTheMovie(tpf);
         // Last, over everything, whatever the screen: the game's front end, its load screen, its HUD in play.
-        paintTheCanvas();
+        paintTheCanvas(tpf);
     }
 
     private void frame(float tpf) {

@@ -16,7 +16,7 @@ import java.util.function.Function;
 final class CanvasFrame implements Canvas {
 
     /** What a triangle is filled from. */
-    sealed interface Source permits Plain, Picture, Glyphs, Pixels {
+    sealed interface Source permits Plain, Picture, Glyphs, Pixels, Live {
     }
 
     /** Its colour alone. */
@@ -35,6 +35,10 @@ final class CanvasFrame implements Canvas {
     record Pixels(uz.dukeengine.client3d.Picture picture) implements Source {
     }
 
+    /** A thing's live portrait, as a part of the window keeps it — see {@link Canvas#drawPortrait}. */
+    record Live(int unitId) implements Source {
+    }
+
     private static final Plain PLAIN = new Plain();
 
     /**
@@ -50,6 +54,7 @@ final class CanvasFrame implements Canvas {
     /** A picture's size in pixels, {width, height}, or null for one that will not load. */
     private final Function<String, int[]> pictureSize;
     private final List<Triangle> triangles = new ArrayList<>();
+    private final java.util.Set<Integer> portraitsAsked = new java.util.LinkedHashSet<>();
     private float[] clip;
 
     CanvasFrame(int width, int height, CanvasText text, Function<String, int[]> pictureSize) {
@@ -129,6 +134,11 @@ final class CanvasFrame implements Canvas {
                 : new Canvas.Box(placed[0], windowHeight - placed[1] - placed[3], placed[2], placed[3]);
     }
 
+    /** The things whose live portraits were drawn, in the order they were first asked for. */
+    java.util.Set<Integer> portraitsAsked() {
+        return portraitsAsked;
+    }
+
     /** Everything drawn, in the order it was drawn. */
     List<Triangle> triangles() {
         return triangles;
@@ -180,6 +190,14 @@ final class CanvasFrame implements Canvas {
         polygon(new Pixels(picture), blend, new float[][]{
                 vertex(x0, y0, 0f, 0f, argb), vertex(x1, y0, 1f, 0f, argb),
                 vertex(x1, y1, 1f, 1f, argb), vertex(x0, y1, 0f, 1f, argb)});
+    }
+
+    @Override
+    public void drawPortrait(int unitId, float x0, float y0, float x1, float y1) {
+        portraitsAsked.add(unitId);
+        polygon(new Live(unitId), Blend.ALPHA, new float[][]{
+                vertex(x0, y0, 0f, 0f, 0xFFFFFFFF), vertex(x1, y0, 1f, 0f, 0xFFFFFFFF),
+                vertex(x1, y1, 1f, 1f, 0xFFFFFFFF), vertex(x0, y1, 0f, 1f, 0xFFFFFFFF)});
     }
 
     @Override

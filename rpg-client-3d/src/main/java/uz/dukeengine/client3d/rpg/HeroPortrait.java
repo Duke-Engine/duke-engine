@@ -181,6 +181,11 @@ final class HeroPortrait {
         mood.sees(creature.attacking(), creature.healthFraction(), rank);
     }
 
+    /** Who is in the frame, or -1. */
+    int subject() {
+        return body == null ? -1 : subject;
+    }
+
     /** That creature died — the event, not a guess about why it left the snapshot. */
     void died(int unitId) {
         if (!off() && mood != null && unitId == subject) {

@@ -44,6 +44,24 @@ class RpgHudTest {
         assertNull(hud.ordered(saying("hero=3,7,10,20,5,100", List.of(skeleton)), 1, List.of()), "fallen");
     }
 
+    /**
+     * The hero's frame is the hero's: a skeleton picked, the hero the card names stands in it; nothing picked, still
+     * him; with no hero named, what is picked, as in any game.
+     */
+    @Test
+    void thePortraitIsTheNamedHerosWhateverIsPicked() {
+        var hero = unit(3, 1);
+        var skeleton = unit(9, 2);
+        var named = saying("hero=3,7,10,20,5,100", List.of(hero, skeleton));
+
+        assertEquals(hero, RpgHud.portraitSubject(named, skeleton), "a monster picked");
+        assertEquals(hero, RpgHud.portraitSubject(named, null), "nothing picked");
+        assertEquals(skeleton, RpgHud.portraitSubject(saying("deep=3", List.of(hero, skeleton)), skeleton),
+                "no hero named: the pick");
+        assertNull(RpgHud.portraitSubject(saying("hero=3,7,10,20,5,100", List.of(skeleton)), skeleton),
+                "the named hero fallen: nobody, not the pick");
+    }
+
     @Test
     void itIsFound() {
         assertTrue(HudPart.found().stream().anyMatch(RpgHud.class::isInstance), "listed in META-INF/services");

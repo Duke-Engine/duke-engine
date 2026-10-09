@@ -2888,6 +2888,21 @@ public final class Visuals {
         return dragDistance;
     }
 
+    private boolean dragSelects = true;
+
+    /**
+     * Whether a press dragged across the world draws a box and selects what is in it — true, as in any RTS. False for a
+     * game with no group to gather, one hero alone: no box is drawn, and wherever the button is let go is a click.
+     */
+    public Visuals dragSelects(boolean selects) {
+        this.dragSelects = selects;
+        return this;
+    }
+
+    public boolean isDragSelecting() {
+        return dragSelects;
+    }
+
     private BarColours barColours = BarColours.REFERENCE;
 
     /** The colours of each plain bar — see {@link UnitBarLook.Plain}; the reference's unless named. */

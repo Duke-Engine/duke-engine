@@ -373,6 +373,18 @@ E16, in parts.
   whole, in one game; `streamGroundFor(map)` is the reach for a map, 0 for one built whole. `streamGround(cells)` streams
   every map, as before.
 
+### One hero: his portrait, no drag box, and the pick's own
+
+For a game where only the hero is commanded and what is picked is looked at (E26):
+
+- **The hero's frame is his.** Where the card names a hero (`hero=`), the hero bar's live portrait shows him whatever
+  is picked, and with nothing picked; with no hero named, the pick, as before.
+- **`Visuals.dragSelects(false)`**: no box is drawn and wherever the button is let go is a click — in place of a drag
+  distance of `Float.MAX_VALUE`. True, as before, unless said.
+- **`Canvas.drawPortrait(unitId, x0, y0, x1, y1)`**: a creature alive in its portrait — as the game's portrait look for
+  its template draws it — in a frame of the game's own canvas, from the next frame on. A part of the window keeps it
+  (`HudPart.portraits`, `portraitOf`); the RPG's keeps one, the first the canvas asked for.
+
 ### Worn slots and a backpack
 
 A hero's bag may wear things (E25): a slot for each kind of thing worn — the game's words, Qurol, Zirh, Uzuk — and

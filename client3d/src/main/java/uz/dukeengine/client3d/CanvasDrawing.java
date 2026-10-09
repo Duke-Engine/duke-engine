@@ -73,9 +73,13 @@ final class CanvasDrawing {
         }
     }
 
-    CanvasDrawing(AssetManager assets, CanvasText text) {
+    /** A thing's live portrait as a part of the window keeps it, or null — see {@link Canvas#drawPortrait}. */
+    private final java.util.function.IntFunction<Texture> live;
+
+    CanvasDrawing(AssetManager assets, CanvasText text, java.util.function.IntFunction<Texture> live) {
         this.assets = assets;
         this.text = text;
+        this.live = live;
     }
 
     Node node() {
@@ -154,9 +158,16 @@ final class CanvasDrawing {
         run.geometry.setCullHint(Spatial.CullHint.Never);
     }
 
+    /** A material for each live portrait's texture: the render target a part keeps, the same one every frame. */
+    private final Map<Texture, Material> livePortraits = new java.util.IdentityHashMap<>();
+
     private Material material(CanvasFrame.Source source, Canvas.Blend blend) {
         if (source instanceof CanvasFrame.Pixels made) {
             return madeMaterial(made.picture(), blend);
+        }
+        if (source instanceof CanvasFrame.Live portrait) {
+            var texture = live.apply(portrait.unitId());
+            return texture == null ? null : livePortraits.computeIfAbsent(texture, key -> unshaded(key, blend));
         }
         var key = source + "|" + blend;
         var known = materials.get(key);
@@ -168,6 +179,7 @@ final class CanvasDrawing {
             case CanvasFrame.Picture picture -> picture.gray() ? gray(picture.path()) : picture(picture.path());
             case CanvasFrame.Glyphs glyphs -> glyphs.page() < pages.size() ? pages.get(glyphs.page()) : null;
             case CanvasFrame.Pixels made -> null; // answered above
+            case CanvasFrame.Live portrait -> null; // answered above
         };
         if (texture == null && !(source instanceof CanvasFrame.Plain)) {
             return null;
