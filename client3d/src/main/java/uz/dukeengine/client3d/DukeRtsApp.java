@@ -88,7 +88,7 @@ final class DukeRtsApp extends SimpleApplication {
      * What is on the screen. {@code FRONT} is a game's own front end, drawn on its canvas — see
      * {@link Shell#drawnByTheGame} — with no match behind it.
      */
-    private enum Screen {MENU, FRONT, LOADING, PLAYING, PAUSED, SETTINGS}
+    enum Screen {MENU, FRONT, LOADING, PLAYING, PAUSED, SETTINGS}
 
     /**
      * Persisted display/audio settings, shared by every duke-engine game.
@@ -1102,8 +1102,47 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** Whether the match behind the front end is what is drawn. */
     private boolean backdropShown() {
-        return screen == Screen.FRONT && backdrop != null && backdrop.running() != null
-                && game == backdrop.running();
+        return onTheFrontEnd() && backdrop != null && backdrop.running() != null && game == backdrop.running();
+    }
+
+    /**
+     * Whether the screen up is the front end's, behind which the backdrop runs: the game's own, or — for a game that
+     * keeps the client's menus — its front menu, the questions it opens and the settings opened from it.
+     */
+    private boolean onTheFrontEnd() {
+        return onTheFrontEnd(screen, shell.isDrawnByTheGame(), settingsReturn);
+    }
+
+    static boolean onTheFrontEnd(Screen screen, boolean drawnByTheGame, Screen settingsFrom) {
+        return screen == Screen.FRONT
+                || !drawnByTheGame && (screen == Screen.MENU
+                        || screen == Screen.SETTINGS && settingsFrom == Screen.MENU);
+    }
+
+    /**
+     * The match the client's front menu plays — kept aside while the backdrop runs in its place, for a game whose
+     * front menu is the client's (see {@link #keepTheBackdropGoing}); null while it is not aside.
+     */
+    private DukeGame frontMatch;
+
+    /** The match the front menu is about: the one it would play, whatever is drawn behind it. */
+    private DukeGame frontGame() {
+        return frontMatch != null && backdropShown() ? frontMatch : game;
+    }
+
+    /** The front menu's match put back in place of the backdrop, which is put away: it is about to be played. */
+    private void takeTheFrontMatchBack() {
+        if (frontMatch == null) {
+            return;
+        }
+        if (backdrop != null) {
+            backdrop.stop();
+        }
+        forgetTheWorld();
+        camera.resetView();
+        game = frontMatch;
+        frontMatch = null;
+        menu.liveBehind(false);
     }
 
     /** Whether the match behind the front end waits to be made — see {@link Duke3D#holdBackdrop}. */
@@ -1115,14 +1154,18 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** Keep the match behind the front end going, and draw it once there is one. */
     private void keepTheBackdropGoing() {
-        if (screen != Screen.FRONT || backdrop == null) {
+        if (!onTheFrontEnd() || backdrop == null) {
             return;
         }
         var behind = backdrop.frame();
         if (behind != null && game != behind) {
+            if (!shell.isDrawnByTheGame() && frontMatch == null) {
+                frontMatch = game; // what the client's front menu plays, kept for when it does
+            }
             forgetTheWorld();
             game = behind;
         }
+        menu.liveBehind(backdropShown());
     }
 
     /** The game's own music by name — see {@link Duke3D#music}. */
@@ -1150,6 +1193,8 @@ final class DukeRtsApp extends SimpleApplication {
         if (backdrop != null) {
             backdrop.stop(); // torn down when a real match starts, made fresh when the front end comes back
         }
+        frontMatch = null;
+        menu.liveBehind(false);
         endTheMatch();
         forgetTheWorld();
         camera.resetView(); // unturned and at its start, whatever the last match or the backdrop left it at
@@ -1933,14 +1978,30 @@ final class DukeRtsApp extends SimpleApplication {
         }
         screen = Screen.MENU;
         var items = new java.util.ArrayList<StoneMenu.Row>();
+        for (var row : shell.frontRows()) {
+            items.add(new StoneMenu.Action(row.label(), () -> takeFrontRow(row), false, row.picture()));
+        }
         for (var chosen : shell.entries()) {
             var action = actionFor(chosen.getKey());
             if (action != null) {
                 items.add(new StoneMenu.Action(chosen.getValue(), action));
             }
         }
-        menu.show(game.getTitle(), game.getSubtitle(), items,
-                say("UP DOWN choose    ENTER take"), version(), backdropShown());
+        menu.show(frontGame().getTitle(), frontGame().getSubtitle(), items,
+                say("UP DOWN choose    ENTER take"), version(), false);
+    }
+
+    /** A game's row on the front menu taken: its own work, then its question if it has one, else the menu again. */
+    private void takeFrontRow(Shell.Option row) {
+        if (row.taken() != null) {
+            row.taken().run();
+        }
+        if (row.next() != null) {
+            screen = Screen.MENU;
+            showQuestion(row.next(), this::showMainMenu, this::startGame);
+        } else if (screen == Screen.MENU) {
+            showMainMenu();
+        }
     }
 
     /**
@@ -1951,11 +2012,11 @@ final class DukeRtsApp extends SimpleApplication {
             // Play does not necessarily play. A game with something to ask first
             // asks it here — see showQuestion — and starts when it is answered.
             case PLAY -> shell.question() == null ? this::startGame : this::showQuestion;
-            case SKIRMISH -> !game.getMapChoices().isEmpty() && !game.isMultiplayer()
+            case SKIRMISH -> !frontGame().getMapChoices().isEmpty() && !frontGame().isMultiplayer()
                     ? this::showSkirmishMenu : null;
-            case HOST_LAN -> game.supportsMultiplayer() && !game.isMultiplayer()
+            case HOST_LAN -> frontGame().supportsMultiplayer() && !frontGame().isMultiplayer()
                     ? this::hostFlow : null;
-            case JOIN_LAN -> game.supportsMultiplayer() && !game.isMultiplayer()
+            case JOIN_LAN -> frontGame().supportsMultiplayer() && !frontGame().isMultiplayer()
                     ? this::joinFlow : null;
             case SETTINGS -> () -> showSettingsMenu(Screen.MENU);
             case QUIT -> this::stop;
@@ -2026,8 +2087,8 @@ final class DukeRtsApp extends SimpleApplication {
                 items.add(new StoneMenu.Words("", option.blurb()));
             }
         }
-        items.add(new StoneMenu.Action("Back", back));
-        menu.show(game.getTitle(), question.title(), items,
+        items.add(new StoneMenu.Action(say("Back"), back));
+        menu.show(frontGame().getTitle(), question.title(), items,
                 question.hint(), version(), false);
     }
 
@@ -2035,8 +2096,9 @@ final class DukeRtsApp extends SimpleApplication {
      * Choose the map and cycle each player's faction before playing.
      */
     private void showSkirmishMenu() {
-        var maps = game.getMapChoices();
-        var factions = game.getFactionChoices();
+        var front = frontGame();
+        var maps = front.getMapChoices();
+        var factions = front.getFactionChoices();
         if (chosenMap == null && !maps.isEmpty()) {
             chosenMap = maps.get(0);
         }
@@ -2051,7 +2113,7 @@ final class DukeRtsApp extends SimpleApplication {
         items.add(new StoneMenu.Action("Map: " + chosenMap, () -> {
             chosenMap = maps.get((maps.indexOf(chosenMap) + 1) % maps.size());
             showSkirmishMenu();
-        }, false, game.getMapPicture(chosenMap)));
+        }, false, front.getMapPicture(chosenMap)));
         for (int p = 0; p < chosenFactions.size(); p++) {
             final int player = p;
             items.add(new StoneMenu.Action("Player " + (p + 1) + ": " + chosenFactions.get(p), () -> {
@@ -2061,17 +2123,18 @@ final class DukeRtsApp extends SimpleApplication {
             }));
         }
         items.add(new StoneMenu.Action("Start match", () -> {
-            game.selectSkirmish(chosenMap, chosenFactions);
+            front.selectSkirmish(chosenMap, chosenFactions);
             startGame();
         }));
-        items.add(new StoneMenu.Action("Back", this::showMainMenu));
-        menu.show(game.getTitle(), "skirmish setup", items,
+        items.add(new StoneMenu.Action(say("Back"), this::showMainMenu));
+        menu.show(front.getTitle(), "skirmish setup", items,
                 "UP DOWN choose    ENTER take    ESC back", version(), false);
     }
 
     // ---- multiplayer flows (menu thread-hops: network blocks, jME must not) ----
 
     private void hostFlow() {
+        takeTheFrontMatchBack();
         int port = uz.dukeengine.game.MultiplayerSession.DEFAULT_PORT;
         int wanted = game.getMaxNetworkPlayers();
         showLobby(port, 0, wanted);
@@ -2097,6 +2160,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void joinFlow() {
+        takeTheFrontMatchBack();
         menu.show(game.getTitle(), "joining…", java.util.List.of(), "", version(), false);
         new Thread(() -> {
             var ip = askText("Host IP address:", "127.0.0.1");
@@ -2125,6 +2189,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void startGame() {
+        takeTheFrontMatchBack();
         left = false; // a new match: the game is told again when this one is let go
         if (game == played && simThread == null) {
             // A match that has been played and stopped cannot be played again: the next is a fresh DukeGame.
@@ -5056,7 +5121,7 @@ final class DukeRtsApp extends SimpleApplication {
                 noises.moment("menu_hover", (float) timer.getTimeInSeconds());
             }
         }
-        if (screen == Screen.MENU || screen == Screen.FRONT && !backdropShown()) {
+        if ((screen == Screen.MENU || screen == Screen.FRONT) && !backdropShown()) {
             hud.setText("");
             buildMenu.setText("");
             return; // the world starts when the player presses Play

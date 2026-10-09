@@ -385,6 +385,17 @@ E16, in parts.
   `margin` pixels in from the edge, and only that strip darkened; `MenuSide.MIDDLE`, the default, as ever. A front menu
   over a live `Duke3D.backdrop` is drawn over it, dimmed, rather than on the stone that hid it.
 
+### The live scene behind the client's own menus
+
+- **A backdrop behind the stone front menu** (E30): `Duke3D.backdrop` runs and is drawn behind the client's front menu,
+  the questions it opens and the settings opened from it — made when it is first shown, torn down when a match starts,
+  hosted or joined, made fresh when the front menu comes back — as it always ran behind a game's own front end. Every
+  screen over it is drawn dimmed, at the side `Shell.menuAt` says. The menu is about the match it would play, not the
+  scene behind it.
+- **`Back`** is said through `Shell.word` too.
+- **`Shell.frontRows(List<Option>)`**: rows of the game's own at the top of the front menu — Continue, New game, Load —
+  each running its `taken` and opening its question if it has one, as `pauseRows` do on the pause menu.
+
 ### Beaten, not killed
 
 - **`BodyModule.setLeastHealth(least)`** (E28): the health no blow takes a body below — the blow that would is cut to

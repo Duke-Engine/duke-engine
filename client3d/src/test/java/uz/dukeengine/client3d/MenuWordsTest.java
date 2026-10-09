@@ -31,4 +31,30 @@ class MenuWordsTest {
         assertEquals(MenuSide.LEFT, shell.menuSide());
         assertEquals(64f, shell.menuMargin());
     }
+
+    /**
+     * The backdrop runs behind the front end: the game's own, or the client's front menu, its questions and the
+     * settings opened from it — never behind the pause menu or a match.
+     */
+    @Test
+    void theBackdropIsKeptGoingBehindTheClientsFrontMenuToo() {
+        assertEquals(true, DukeRtsApp.onTheFrontEnd(DukeRtsApp.Screen.MENU, false, null), "the stone front menu");
+        assertEquals(true, DukeRtsApp.onTheFrontEnd(DukeRtsApp.Screen.SETTINGS, false, DukeRtsApp.Screen.MENU),
+                "settings opened from it");
+        assertEquals(false, DukeRtsApp.onTheFrontEnd(DukeRtsApp.Screen.SETTINGS, false, DukeRtsApp.Screen.PAUSED),
+                "settings opened from the pause menu");
+        assertEquals(false, DukeRtsApp.onTheFrontEnd(DukeRtsApp.Screen.PAUSED, false, null));
+        assertEquals(false, DukeRtsApp.onTheFrontEnd(DukeRtsApp.Screen.PLAYING, false, null));
+        assertEquals(true, DukeRtsApp.onTheFrontEnd(DukeRtsApp.Screen.FRONT, true, null), "the game's own, as ever");
+        assertEquals(false, DukeRtsApp.onTheFrontEnd(DukeRtsApp.Screen.MENU, true, null));
+    }
+
+    @Test
+    void theGamesOwnFrontRowsAreKeptInOrder() {
+        var shell = Shell.standard().frontRows(java.util.List.of(new Shell.Option("Davom etish", "", () -> { }),
+                new Shell.Option("Yangi o'yin", "", () -> { })));
+        assertEquals(java.util.List.of("Davom etish", "Yangi o'yin"),
+                shell.frontRows().stream().map(Shell.Option::label).toList());
+        assertEquals("Orqaga", Shell.standard().word("Back", "Orqaga").wordFor("Back"));
+    }
 }

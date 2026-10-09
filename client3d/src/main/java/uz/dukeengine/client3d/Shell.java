@@ -136,6 +136,7 @@ public final class Shell {
     private final boolean drawnByTheGame;
     private Question question;
     private List<Option> pauseRows = List.of();
+    private List<Option> frontRows = List.of();
     private final Map<String, String> words = new LinkedHashMap<>();
     private MenuSide menuSide = MenuSide.MIDDLE;
     private float menuMargin;
@@ -180,7 +181,8 @@ public final class Shell {
      * English the client says when the game names nothing — the pause menu's {@code PAUSED}, {@code Resume},
      * {@code Settings}, {@code Quit to the main menu}, {@code Quit to the desktop}, {@code ESC resume}, the questions
      * they ask ({@code QUIT TO THE MAIN MENU?}, {@code QUIT TO THE DESKTOP?}, {@code everything on this floor is lost},
-     * {@code Keep playing}, {@code Quit}, {@code ESC keep playing}), the settings screen's every label, value and line
+     * {@code Keep playing}, {@code Quit}, {@code ESC keep playing}), the questions' and the skirmish menu's
+     * {@code Back}, the settings screen's every label, value and line
      * ({@code SETTINGS}, {@code Fullscreen}, {@code NO}, {@code YES}, {@code Size}, {@code MONITOR},
      * {@code Anti-aliasing}, {@code OFF}, {@code Volume}, {@code Effects}, {@code Voice}, {@code Music}, {@code Track},
      * {@code Save}, {@code Cancel}, {@code anti-aliasing from the next launch}, {@code unsaved changes},
@@ -214,6 +216,22 @@ public final class Shell {
 
     public float menuMargin() {
         return menuMargin;
+    }
+
+    /**
+     * The game's own rows at the top of the front menu, before its entries: Continue, New game, Load, Credits.
+     * Taking one runs its {@code taken}; one with a {@code next} question opens it, Back coming back to the front menu
+     * and its last answer starting the game as Play's does; one without comes back to the front menu — a {@code
+     * taken} that starts a match ({@link Duke3D#startMatch}) is what is seen next.
+     */
+    public Shell frontRows(List<Option> rows) {
+        this.frontRows = List.copyOf(rows);
+        return this;
+    }
+
+    /** The game's rows on the front menu; see {@link #frontRows(List)}. */
+    public List<Option> frontRows() {
+        return frontRows;
     }
 
     /** The game's rows on the pause menu; see {@link #pauseRows(List)}. */

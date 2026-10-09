@@ -159,6 +159,8 @@ final class StoneMenu {
     private float margin;
     private float scale = 1f;
     private boolean overGame;
+    /** Whether a live scene runs behind whatever screen is up — see {@link #liveBehind}. */
+    private boolean liveBehind;
 
     StoneMenu(StoneCraft craft, BitmapFont titleFont, BitmapFont rowFont, Node guiNode,
             float screenWidth, float screenHeight) {
@@ -228,6 +230,14 @@ final class StoneMenu {
 
     void hide() {
         root.setCullHint(Spatial.CullHint.Always);
+    }
+
+    /** Draw every screen dimmed over a live scene behind it rather than on its own stone, while there is one. */
+    void liveBehind(boolean live) {
+        if (live != liveBehind) {
+            liveBehind = live;
+            refresh();
+        }
     }
 
     /** Take it off the screen for good — the window changed shape and this is stale. */
@@ -548,7 +558,7 @@ final class StoneMenu {
         }
         sheet.setLocalScale(scale);
 
-        if (overGame) {
+        if (overGame || liveBehind) {
             drawDim();
         } else {
             drawBackdrop();
