@@ -1162,10 +1162,22 @@ final class DukeRtsApp extends SimpleApplication {
             if (!shell.isDrawnByTheGame() && frontMatch == null) {
                 frontMatch = game; // what the client's front menu plays, kept for when it does
             }
-            forgetTheWorld();
+            forgetKeepingTheMenu(menu::isVisible, this::forgetTheWorld, menu::reveal);
             game = behind;
         }
         menu.liveBehind(backdropShown());
+    }
+
+    /**
+     * Forget the world as a backdrop takes its place, and leave the menu that was up still up: forgetting hides it,
+     * which is right when a match ends and wrong here, where the menu is what the player is reading over the scene.
+     */
+    static void forgetKeepingTheMenu(java.util.function.BooleanSupplier menuUp, Runnable forget, Runnable reveal) {
+        boolean wasUp = menuUp.getAsBoolean();
+        forget.run();
+        if (wasUp) {
+            reveal.run();
+        }
     }
 
     /** The game's own music by name — see {@link Duke3D#music}. */

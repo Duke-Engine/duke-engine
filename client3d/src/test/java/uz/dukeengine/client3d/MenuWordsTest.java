@@ -57,4 +57,16 @@ class MenuWordsTest {
                 shell.frontRows().stream().map(Shell.Option::label).toList());
         assertEquals("Orqaga", Shell.standard().word("Back", "Orqaga").wordFor("Back"));
     }
+
+    /** The backdrop taking the world's place leaves the front menu up, its rows taking keys and clicks (E33). */
+    @Test
+    void theMenuThatWasUpStaysUpWhenTheBackdropTakesTheWorldsPlace() {
+        var up = new boolean[] {true};
+        DukeRtsApp.forgetKeepingTheMenu(() -> up[0], () -> up[0] = false, () -> up[0] = true);
+        assertEquals(true, up[0], "shown again after forgetting hid it");
+
+        var down = new boolean[] {false};
+        DukeRtsApp.forgetKeepingTheMenu(() -> down[0], () -> down[0] = false, () -> down[0] = true);
+        assertEquals(false, down[0], "a menu that was not up is not put up");
+    }
 }

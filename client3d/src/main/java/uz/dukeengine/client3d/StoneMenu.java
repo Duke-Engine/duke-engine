@@ -232,6 +232,11 @@ final class StoneMenu {
         root.setCullHint(Spatial.CullHint.Always);
     }
 
+    /** Put the screen last shown back up as it was, after a {@link #hide}: its rows, the one lit, all of it. */
+    void reveal() {
+        root.setCullHint(Spatial.CullHint.Never);
+    }
+
     /** Draw every screen dimmed over a live scene behind it rather than on its own stone, while there is one. */
     void liveBehind(boolean live) {
         if (live != liveBehind) {

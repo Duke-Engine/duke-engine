@@ -407,6 +407,8 @@ and keeps its bearer busy (`keepsBusy`) until it ends.
   hosted or joined, made fresh when the front menu comes back — as it always ran behind a game's own front end. Every
   screen over it is drawn dimmed, at the side `Shell.menuAt` says. The menu is about the match it would play, not the
   scene behind it.
+- **The menu stays up as the backdrop arrives** (E33): putting the world away for it hid the front menu, leaving
+  the scene with no rows over it and no key or click taken; the menu that was up is shown again.
 - **`Back`** is said through `Shell.word` too.
 - **`Shell.frontRows(List<Option>)`**: rows of the game's own at the top of the front menu — Continue, New game, Load —
   each running its `taken` and opening its question if it has one, as `pauseRows` do on the pause menu.
