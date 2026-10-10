@@ -46,4 +46,12 @@ interface TileSource {
     default Spatial piece(Tileset kit, String assetPath, int packedRgb) {
         return piece(assetPath, packedRgb);
     }
+
+    /**
+     * The same, drawn with {@code picture} in place of its own over every material it has — a dark castle of the same
+     * pieces; an empty picture draws its own. A source that has never heard of pictures draws its own.
+     */
+    default Spatial piece(Tileset kit, String assetPath, int packedRgb, String picture) {
+        return piece(kit, assetPath, packedRgb);
+    }
 }

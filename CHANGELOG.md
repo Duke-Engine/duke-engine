@@ -385,6 +385,20 @@ E16, in parts.
   `margin` pixels in from the edge, and only that strip darkened; `MenuSide.MIDDLE`, the default, as ever. A front menu
   over a live `Duke3D.backdrop` is drawn over it, dimmed, rather than on the stone that hid it.
 
+### A map's scenery: its picture, its tint, and walls in the way
+
+- **`SceneryLine`** (core.map): a map's scenery line read and written by the engine —
+  `model[@picture] x y facing scale footprint|WxD [0xRRGGBB]`, in cells. Six words read as they always did, white and
+  round.
+- **Drawn with another picture** (E34): `MapScenery.picture()`, a path drawn in place of the model's own over every
+  material it has — the dark castle of the same pieces. `TileSource.piece(kit, model, tint, picture)`, each picture
+  its own master.
+- **A tint written into a map** (E35): the line's seventh word, `0xRRGGBB`, read back as it was written.
+- **Walls in the way** (E36): `MapScenery.boxLength()` and `boxDepth()` — a footprint written `WxD`, `W` cells along
+  its facing from its origin and `D` across, centred, turned as the piece is (90 toward the top of the map). It closes
+  the cells whose middles it covers on the layer still things lay, not the map's stone, so no rock is drawn there
+  (`GameLogic.setSceneryBoxes`, `SceneryBox`). A round footprint closes no cell, as before.
+
 ### Four more shapes of skill
 
 Four effects (E31), each read from the `Skill` fields there were — no new ones:

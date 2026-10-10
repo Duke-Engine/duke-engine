@@ -611,6 +611,7 @@ public final class DukeGame {
             logic.setPathGrid(grid, navigationCellsPerCell());
             logic.setRouteSectors(routeSectors());
             logic.setSceneryFootprints(sceneryFootprints());
+            logic.setSceneryBoxes(sceneryBoxes());
         }
     }
 
@@ -642,6 +643,22 @@ public final class DukeGame {
             }
         }
         return footprints;
+    }
+
+    /** The scenery of the current map that stands in the way along its length ({@code Dressed}), in world units. */
+    private List<uz.dukeengine.core.pathfind.SceneryBox> sceneryBoxes() {
+        if (terrain == null || !(mapRecord instanceof uz.dukeengine.core.map.Dressed dressed)) {
+            return List.of();
+        }
+        float cell = terrain.getCellSize();
+        var boxes = new ArrayList<uz.dukeengine.core.pathfind.SceneryBox>();
+        for (var piece : dressed.scenery()) {
+            if (piece.boxLength() > 0f) {
+                boxes.add(new uz.dukeengine.core.pathfind.SceneryBox(piece.x() * cell, piece.y() * cell,
+                        piece.boxLength() * cell, piece.boxDepth() * cell, piece.facing()));
+            }
+        }
+        return boxes;
     }
 
     /** The record the current terrain was laid from, or null where the game never handed one over. */
@@ -1177,6 +1194,7 @@ public final class DukeGame {
             logic.setPathGrid(terrain, navigationCellsPerCell());
             logic.setRouteSectors(routeSectors());
             logic.setSceneryFootprints(sceneryFootprints());
+            logic.setSceneryBoxes(sceneryBoxes());
         }
         progress.accept(20);
 

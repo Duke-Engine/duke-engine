@@ -43,4 +43,25 @@ public interface MapScenery {
     default float footprint() {
         return 0f;
     }
+
+    /**
+     * A picture drawn in place of its model's own, over every material it has — the same pieces in darker, colder
+     * pictures — as a path whole from the root of the game's art; empty, the default, draws its own.
+     */
+    default String picture() {
+        return "";
+    }
+
+    /**
+     * How far along its facing from its origin it stands in the way, in cells — a wall, with {@link #boxDepth} across
+     * it, centred, turned with its facing — closing the cells of the ground it covers; 0, the default, for none.
+     */
+    default float boxLength() {
+        return 0f;
+    }
+
+    /** How wide across its facing its box is, in cells; see {@link #boxLength}. */
+    default float boxDepth() {
+        return 0f;
+    }
 }

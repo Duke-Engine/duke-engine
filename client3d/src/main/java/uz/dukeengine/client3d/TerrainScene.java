@@ -1150,7 +1150,7 @@ final class TerrainScene {
             return null;
         }
         float cell = grid.getCellSize();
-        var model = tiles.piece(SCENERY, piece.model(), piece.tint());
+        var model = tiles.piece(SCENERY, piece.model(), piece.tint(), piece.picture());
         if (model == null) {
             return null;
         }

@@ -7858,9 +7858,17 @@ final class DukeRtsApp extends SimpleApplication {
          */
         @Override
         public Spatial piece(Tileset kit, String assetPath, int packedRgb) {
+            return piece(kit, assetPath, packedRgb, "");
+        }
+
+        /** The same, drawn with {@code picture} in place of its own; kept apart from it by the picture's name. */
+        @Override
+        public Spatial piece(Tileset kit, String assetPath, int packedRgb, String picture) {
             boolean own = kit != null && kit.keepsOwnMaterials();
             int tint = blend(kit == null ? 0xFFFFFF : kit.getTint(), packedRgb);
-            String key = assetPath + "#" + Integer.toHexString(tint) + (own ? "#own" : "");
+            com.jme3.texture.Texture drawnWith = picture == null || picture.isBlank() ? null : pictureFor(picture);
+            String key = assetPath + "#" + Integer.toHexString(tint) + (own ? "#own" : "")
+                    + (drawnWith == null ? "" : "@" + picture);
             var master = masters.get(key);
             if (master == null) {
                 try {
@@ -7874,10 +7882,10 @@ final class DukeRtsApp extends SimpleApplication {
                     return null;
                 }
                 if (own) {
-                    refogOwnMaterials(master, toColor(new java.awt.Color(tint)));
+                    refogOwnMaterials(master, toColor(new java.awt.Color(tint)), drawnWith);
                 } else {
                     // One skin per picture the kit draws on, and per tint over it.
-                    var atlas = textureOf(master);
+                    var atlas = drawnWith != null ? drawnWith : textureOf(master);
                     master.setMaterial(skins.computeIfAbsent(
                             nameOf(atlas) + "#" + Integer.toHexString(tint),
                             ignored -> tileMaterial(atlas, toColor(new java.awt.Color(tint)))));
@@ -7891,19 +7899,32 @@ final class DukeRtsApp extends SimpleApplication {
          * Rebuild every material a model brought as one that reads the fog,
          * keeping the colour it was given and multiplying the kit's tint over it.
          */
-        private void refogOwnMaterials(Spatial model, ColorRGBA tint) {
+        private void refogOwnMaterials(Spatial model, ColorRGBA tint, com.jme3.texture.Texture picture) {
             if (model instanceof Geometry geometry) {
                 var was = geometry.getMaterial();
                 var colour = colourOf(was).mult(tint);
+                var drawn = picture != null ? picture : textureOf(geometry);
                 geometry.setMaterial(fogMap == null
-                        ? litKitMaterial(colour, textureOf(geometry))
-                        : fogged(colour, ambientColour.mult(KIT_AMBIENT), textureOf(geometry)));
+                        ? litKitMaterial(colour, drawn)
+                        : fogged(colour, ambientColour.mult(KIT_AMBIENT), drawn));
                 return;
             }
             if (model instanceof Node node) {
                 for (var child : node.getChildren()) {
-                    refogOwnMaterials(child, tint);
+                    refogOwnMaterials(child, tint, picture);
                 }
+            }
+        }
+
+        /** A picture a piece is drawn with in place of its own, loaded once; null for one that will not load. */
+        private com.jme3.texture.Texture pictureFor(String path) {
+            try {
+                return assetManager.loadTexture(path);
+            } catch (RuntimeException e) {
+                if (missingAssets.add(path)) {
+                    LOG.warning(() -> "picture not found: " + path + " (" + e.getMessage() + ")");
+                }
+                return null;
             }
         }
 

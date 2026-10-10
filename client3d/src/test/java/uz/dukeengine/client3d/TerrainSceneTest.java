@@ -1,6 +1,7 @@
 package uz.dukeengine.client3d;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -1158,6 +1159,42 @@ class TerrainSceneTest {
                 0.001f);
         var banner = pieces(root, "banner").getFirst();
         assertEquals(grid.storeyHeight(7, 2), banner.getLocalTranslation().y, 0.001f, "on the floor of its cell");
+    }
+
+    /** One model laid twice, once with another picture: each drawn with the picture its line names (E34). */
+    @Test
+    void aPieceOfSceneryIsDrawnWithThePictureItsLineNames() {
+        var asked = new java.util.ArrayList<String>();
+        var materials = new java.util.HashMap<String, com.jme3.material.Material>();
+        var tiles = new TileSource() {
+            @Override
+            public com.jme3.scene.Spatial piece(String assetPath) {
+                return piece(null, assetPath, 0xFFFFFF, "");
+            }
+
+            @Override
+            public com.jme3.scene.Spatial piece(Tileset kit, String assetPath, int packedRgb, String picture) {
+                asked.add(assetPath + "@" + picture);
+                var node = new Node(assetPath);
+                var tile = new com.jme3.scene.Geometry("tile", new com.jme3.scene.shape.Quad(4f, 4f));
+                tile.setMaterial(materials.computeIfAbsent(picture, any -> new com.jme3.material.Material()));
+                node.attachChild(tile);
+                return node;
+            }
+        };
+        var root = new Node("terrain");
+        new TerrainScene(root, (colour, texture) -> null, true, kit(), tiles)
+                .rebuild(twoStoreys(), kit(), null, null, null, java.util.List.of(
+                        uz.dukeengine.core.map.SceneryLine.of("fort_wall 2.5 1.5 0 1 0"),
+                        uz.dukeengine.core.map.SceneryLine.of("fort_wall@textures/fort_dark.jpg 6.5 1.5 0 1 0")));
+
+        assertTrue(asked.contains("fort_wall@") && asked.contains("fort_wall@textures/fort_dark.jpg"),
+                asked.toString());
+        var walls = pieces(root, "fort_wall");
+        assertEquals(2, walls.size());
+        var first = (com.jme3.scene.Geometry) ((Node) walls.get(0)).getChild(0);
+        var second = (com.jme3.scene.Geometry) ((Node) walls.get(1)).getChild(0);
+        assertNotSame(first.getMaterial(), second.getMaterial(), "drawn with two pictures");
     }
 
     /** A floor's scenery is gathered with its ground: grass of its own material, another geometry in each chunk. */

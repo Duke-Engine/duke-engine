@@ -1042,6 +1042,21 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         }
     }
 
+    /** The scenery that stands in the way along its length — see {@link #setSceneryBoxes}. */
+    private List<uz.dukeengine.core.pathfind.SceneryBox> sceneryBoxes = List.of();
+
+    /**
+     * The scenery that stands in the way along its length — a castle's walls, each a box turned with its facing — in
+     * world units. Unlike a round piece's, a box closes the cells of the ground whose middles it covers, on the layer
+     * still things lay (not the map's stone, so nothing draws rock there). Set with the map it belongs to, which every
+     * machine lays alike.
+     */
+    public final void setSceneryBoxes(List<uz.dukeengine.core.pathfind.SceneryBox> boxes) {
+        this.sceneryBoxes = boxes == null ? List.of() : List.copyOf(boxes);
+        this.staticObstaclesDirty = true;
+        this.lastLaid = null; // laid again, whatever the still things are
+    }
+
     /** How far a mover may come into a piece of scenery's footprint: a touch, as into a mover ahead of it. */
     private static final float SCENERY_TOUCH = 1f;
 
@@ -1149,7 +1164,27 @@ public abstract class GameLogic extends SubsystemInterface implements World {
                 }
             }
         }
+        closeTheSceneryBoxes();
         pathGrid.commitObstacles();
+    }
+
+    /** Every cell whose middle a piece of scenery's box covers, closed. */
+    private void closeTheSceneryBoxes() {
+        for (var box : sceneryBoxes) {
+            float reach = box.length() + box.depth();
+            int minX = pathGrid.toCellX(new Coord3D(box.x() - reach, 0f, 0f));
+            int maxX = pathGrid.toCellX(new Coord3D(box.x() + reach, 0f, 0f));
+            int minY = pathGrid.toCellY(new Coord3D(0f, box.y() - reach, 0f));
+            int maxY = pathGrid.toCellY(new Coord3D(0f, box.y() + reach, 0f));
+            for (int cy = minY; cy <= maxY; cy++) {
+                for (int cx = minX; cx <= maxX; cx++) {
+                    var middle = pathGrid.cellCenter(cx, cy);
+                    if (box.covers(middle.x(), middle.y())) {
+                        pathGrid.setObstacle(cx, cy);
+                    }
+                }
+            }
+        }
     }
 
     /**
