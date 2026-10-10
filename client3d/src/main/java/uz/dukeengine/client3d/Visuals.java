@@ -2807,6 +2807,26 @@ public final class Visuals {
         return streamGround > 0 && streamsMap.test(map) ? streamGround : 0;
     }
 
+    /** Which maps begin with every cell remembered — see {@link #fogStartsExplored}. */
+    private java.util.function.Predicate<Object> startsExplored = map -> false;
+
+    /**
+     * Begin the maps {@code forMap} says — asked of each map's record as it is laid, as {@link
+     * #streamGround(int, java.util.function.Predicate)} is — with every cell remembered and none in sight: an open
+     * world whose lie the player knows, its ground, cliffs and scenery drawn at the remembered light, no creature
+     * shown, only his eyes making cells visible; and the minimap and the world's picture the same. Every other map
+     * begins black, as ever.
+     */
+    public Visuals fogStartsExplored(java.util.function.Predicate<Object> forMap) {
+        this.startsExplored = forMap == null ? map -> false : forMap;
+        return this;
+    }
+
+    /** Whether {@code map} begins with every cell remembered — see {@link #fogStartsExplored}. */
+    public boolean fogStartsExploredFor(Object map) {
+        return startsExplored.test(map);
+    }
+
     private float hazeFrom;
     private float hazeTo;
 

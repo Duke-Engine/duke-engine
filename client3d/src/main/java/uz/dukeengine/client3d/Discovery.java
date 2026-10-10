@@ -47,6 +47,8 @@ final class Discovery {
     private int height;
     private float cellSize;
     private final BitSet explored = new BitSet();
+    /** Whether this world began with every cell remembered — see {@link #startExplored}. */
+    private boolean startsExplored;
     private final BitSet visible = new BitSet();
 
     /**
@@ -126,6 +128,7 @@ final class Discovery {
         everythingTouched = false;
         visibleElsewhere = false;
         allOpen = false;
+        startsExplored = false;
         lastSight = null;
         layWindow();
     }
@@ -364,7 +367,11 @@ final class Discovery {
         lastSight = sight;
         if (sight == null) {
             visible.clear();
-            explored.clear();
+            if (startsExplored) {
+                explored.set(0, width * height);
+            } else {
+                explored.clear();
+            }
             shown.clear();
             shownBefore.clear();
             everythingTouched = true;
@@ -414,7 +421,9 @@ final class Discovery {
                     }
                     case NEVER_SEEN -> {
                         visible.clear(cell);
-                        explored.clear(cell);
+                        if (!startsExplored) {
+                            explored.clear(cell);
+                        }
                     }
                 }
                 if (visible.get(cell) != wasInSight || explored.get(cell) != wasSeen) {
@@ -422,6 +431,17 @@ final class Discovery {
                 }
             }
         }
+    }
+
+    /**
+     * Every cell remembered and none in sight: a world the player knows the lie of — its ground, its cliffs, its
+     * scenery drawn at the remembered light, no creature on it — whose cells only his eyes make visible. Kept while
+     * this world lasts, the simulation's own cells ({@link #fromSight}) included.
+     */
+    void startExplored() {
+        startsExplored = true;
+        explored.set(0, width * height);
+        everythingTouched = true;
     }
 
     /** The whole map open and in sight: for a player it was revealed to, and for a watcher. */

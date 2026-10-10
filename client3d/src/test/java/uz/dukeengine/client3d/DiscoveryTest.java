@@ -42,6 +42,27 @@ class DiscoveryTest {
         assertEquals(Discovery.State.UNSEEN, seen.stateAt(0, 0));
     }
 
+    /**
+     * A world that starts explored: every cell remembered, none in sight but what the eyes see, and an enemy far off
+     * unseen; a new floor after it begins black again (E38).
+     */
+    @Test
+    void aWorldThatStartsExploredIsRememberedEverywhereAndSeenOnlyByTheEyes() {
+        var seen = discovery();
+        seen.startExplored();
+        seen.reveal(List.of(at(LOCAL, 205f, 155f)), LOCAL, 30f, "Rogue");
+
+        assertEquals(40 * 30, seen.exploredCells(), "every cell remembered");
+        assertEquals(Discovery.State.VISIBLE, seen.stateAt(20, 15), "where he looks");
+        assertEquals(Discovery.State.REMEMBERED, seen.stateAt(0, 0), "known, not seen");
+        assertFalse(seen.canSee(5f, 5f), "nothing there shown");
+        seen.fromSight(null);
+        assertEquals(40 * 30, seen.exploredCells(), "kept when the simulation's cells say nothing is seen");
+
+        seen.reset(GRID);
+        assertEquals(Discovery.State.UNSEEN, seen.stateAt(0, 0), "a new floor begins black");
+    }
+
     /** Standing somewhere opens what is around it — and only what is around it. */
     @Test
     void heOpensTheGroundWithinHisSight() {

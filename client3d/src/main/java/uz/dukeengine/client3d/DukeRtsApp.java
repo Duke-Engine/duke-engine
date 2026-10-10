@@ -3347,6 +3347,9 @@ final class DukeRtsApp extends SimpleApplication {
         } else {
             discovery.reset(builtFrom);
         }
+        if (visuals.fogStartsExploredFor(game.getMapRecord())) {
+            discovery.startExplored(); // a world whose lie he knows: remembered, not seen
+        }
         // On a world whose ground is built round the camera, its dark is kept round the camera too.
         discovery.window(fogWindowCells());
         discovery.follow(camera.targetX(), camera.targetZ());

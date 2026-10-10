@@ -368,6 +368,9 @@ E16, in parts.
   `Duke3D.worldPicture(mostTexels, forMap, handed)`, asked of each map's record as it is laid, as E18's streaming is —
   an open world fading at its edge and pictured whole, the floors of a descent neither. The forms without `forMap`
   apply to every map, as before.
+- **A world that starts explored** (E38): `Visuals.fogStartsExplored(forMap)`, asked of each map's record as it is laid —
+  every cell remembered and none in sight, ground, cliffs and scenery drawn at the remembered light and no creature
+  shown, the minimap and the world's picture the same; only the eyes make cells visible. Other maps begin black.
 - **Streaming chosen per map** (E18): `Visuals.streamGround(cells, forMap)` builds round the camera only the maps
   `forMap` says, asked of each map's record as it is laid — an open world streamed, the small floors of a descent built
   whole, in one game; `streamGroundFor(map)` is the reach for a map, 0 for one built whole. `streamGround(cells)` streams
