@@ -142,7 +142,11 @@ public record EffectLayer(
         float rise,
         float riseEase,
         boolean follows,
-        boolean renews) {
+        boolean renews,
+        float bounce,
+        boolean home,
+        float homeDelay,
+        float flip) {
 
     // ---- the types: a new one is code, the rest is the settings file ----
 
@@ -247,6 +251,8 @@ public record EffectLayer(
         seconds = Math.max(0f, seconds);
         fall = Math.max(0f, fall);
         rise = Math.clamp(rise, 0f, 1f);
+        bounce = Math.clamp(bounce, 0f, 1f);
+        homeDelay = Math.max(0f, homeDelay);
     }
 
     /** Whether it lets particles out over time rather than all at once. */
@@ -330,6 +336,10 @@ public record EffectLayer(
         private float riseEase = 3f;
         private boolean follows = false;
         private boolean renews = false;
+        private float bounce = 0f;
+        private boolean home = false;
+        private float homeDelay = 0f;
+        private float flip = 0f;
 
         private Builder() {
         }
@@ -559,12 +569,36 @@ public record EffectLayer(
             return this;
         }
 
+        /** What share of its speed a particle keeps on striking the floor at the effect's own height, 0 to 1. */
+        public Builder bounce(float value) {
+            this.bounce = value;
+            return this;
+        }
+
+        /** Whether its particles fly into the thing the effect was played toward, after {@link #homeDelay}. */
+        public Builder home(boolean value) {
+            this.home = value;
+            return this;
+        }
+
+        /** How many seconds of its life a particle goes its own way before it turns home. */
+        public Builder homeDelay(float value) {
+            this.homeDelay = value;
+            return this;
+        }
+
+        /** How many times a second a particle turns over across the screen, as a coin does. */
+        public Builder flip(float value) {
+            this.flip = value;
+            return this;
+        }
+
         public EffectLayer build() {
             return new EffectLayer(type, texture, additive, count, rate, delay, seconds, lifeMin, lifeMax,
                     sizeStart, sizeEnd, sizeEase, sizeJitter, colourStart, colourEnd, alphaStart, alphaEnd,
                     colourEase, fadeIn, fadeOut, speedMin, speedMax, direction, spread, radius, height, gravity,
                     drag, stretch, spin, turn, turnJitter, pulseRate, pulseDepth, at, lightColour, lightPower,
-                    lightRadius, fall, measure, cover, rise, riseEase, follows, renews);
+                    lightRadius, fall, measure, cover, rise, riseEase, follows, renews, bounce, home, homeDelay, flip);
         }
     }
 }

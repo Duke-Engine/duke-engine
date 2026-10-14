@@ -14,5 +14,11 @@ import uz.dukeengine.core.thing.ObjectId;
  * @param facing the way it is turned, in radians, as a thing's orientation
  * @param riding the thing it rides, its particles that attach to a thing following it; null for a point of the world
  */
-public record EffectPlayed(int frame, String name, Coord3D where, float facing, ObjectId riding) implements WorldEvent {
+public record EffectPlayed(int frame, String name, Coord3D where, float facing, ObjectId riding, ObjectId toward)
+        implements WorldEvent {
+
+    /** An effect played toward nothing. */
+    public EffectPlayed(int frame, String name, Coord3D where, float facing, ObjectId riding) {
+        this(frame, name, where, facing, riding, null);
+    }
 }

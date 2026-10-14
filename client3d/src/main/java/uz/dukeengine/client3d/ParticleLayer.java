@@ -127,6 +127,10 @@ final class ParticleLayer {
         material.setFloat("Spin", (float) Math.toRadians(layer.spin()));
         material.setFloat("Rise", layer.rise());
         material.setFloat("RiseEase", layer.riseEase());
+        material.setFloat("Bounce", layer.bounce());
+        material.setFloat("Flip", layer.flip());
+        material.setFloat("HomeDelay", layer.homeDelay());
+        material.setFloat("Homing", 0f); // until the thing it flies to is told: see home()
         pulse(layer.pulseRate(), layer.pulseDepth());
         opacity(1f);
         // One blend for all of it, premultiplied: the colour is added, and Cover's
@@ -176,6 +180,17 @@ final class ParticleLayer {
         mesh.getBuffer(VertexBuffer.Type.Normal).updateData(velocities);
         mesh.getBuffer(VertexBuffer.Type.TexCoord2).updateData(lives);
         mesh.getBuffer(VertexBuffer.Type.TexCoord3).updateData(extras);
+    }
+
+    /** The height of the floor its particles bounce on, in the world: the effect's own. */
+    void floor(float y) {
+        material.setFloat("Floor", y);
+    }
+
+    /** Where the thing its particles fly into stands this frame, in the world. */
+    void home(Vector3f at) {
+        material.setVector3("Home", at);
+        material.setFloat("Homing", 1f);
     }
 
     /** How long the layer has been burning, which is all the shader asks. */

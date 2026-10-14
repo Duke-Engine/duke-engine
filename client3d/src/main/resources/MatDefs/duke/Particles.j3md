@@ -59,6 +59,16 @@ MaterialDef Duke Particles {
         // life, along RiseEase: up out of the floor, or down onto it.
         Float Rise : 0.0
         Float RiseEase : 1.0
+        // The share of its speed a particle keeps on striking the floor at height Floor; 0 falls through.
+        Float Bounce : 0.0
+        Float Floor : 0.0
+        // Turns a second about the screen's up, the picture squeezed by the cosine: a coin turning over.
+        Float Flip : 0.0
+        // 1 while a thing to fly into is known: past HomeDelay seconds of its life a particle is drawn to Home, and
+        // reaches it as its life ends.
+        Float Homing : 0.0
+        Float HomeDelay : 0.0
+        Vector3 Home
 
         // How it faces. None of these: towards the camera, turning.
         Boolean Ground

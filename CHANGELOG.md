@@ -388,6 +388,20 @@ E16, in parts.
   `margin` pixels in from the edge, and only that strip darkened; `MenuSide.MIDDLE`, the default, as ever. A front menu
   over a live `Duke3D.backdrop` is drawn over it, dimmed, rather than on the stone that hid it.
 
+### Coins that bounce and fly home
+
+Three fields of an effect's `Layer` (E39), each drawn in the particles' shader and out of the checksum:
+
+- **`Bounce`**, 0 to 1: the share of its speed a particle keeps on striking the floor under where the effect was
+  played — a coin lands and hops; 0, as ever, falls through.
+- **`Home = Yes`** with **`HomeDelay`**: played toward a thing — `World.effect(name, where, facing, toward)`,
+  `EffectPlayed.toward` — a layer's particles go their own way for `HomeDelay` seconds, then are drawn to the thing
+  where it stands as drawn, every frame, and are there as their life ends; the thing gone, they fade where they are.
+- **`Flip`**: turns a second across the screen, the picture squeezed by its cosine — a coin turning over.
+
+`EffectLayer.Builder` takes `bounce`, `home`, `homeDelay` and `flip`, as a game's reader of `Layer.fields()` hands
+them on.
+
 ### A map's scenery: its picture, its tint, and walls in the way
 
 - **`SceneryLine`** (core.map): a map's scenery line read and written by the engine —

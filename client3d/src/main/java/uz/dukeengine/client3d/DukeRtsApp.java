@@ -6002,7 +6002,12 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         if (layered != null && !layered.rides(played.name(), riding)) {
-            layered.cast(played.name(), new LayeredEffects.Moment(cue.at(), null, null, 0f, 1f, 0f, on, on), cam);
+            var moment = new LayeredEffects.Moment(cue.at(), null, null, 0f, 1f, 0f, on, on);
+            if (played.toward() == null) {
+                layered.cast(played.name(), moment, cam);
+            } else {
+                layered.cast(played.name(), moment, cam, played.toward().value());
+            }
         }
     }
 

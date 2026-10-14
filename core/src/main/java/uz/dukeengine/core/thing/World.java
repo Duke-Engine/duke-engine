@@ -347,6 +347,15 @@ public interface World {
     }
 
     /**
+     * The same, played toward {@code toward}: the layers that home ({@code Home = Yes}) turn toward that thing, where
+     * it stands as drawn, and are gone on reaching it — a kill's coins flying into the hero who took them.
+     */
+    default void effect(String name, uz.dukeengine.core.math.Coord3D where, float facing, GameObject toward) {
+        post(new uz.dukeengine.core.event.EffectPlayed(getFrame(), name, where, facing, null,
+                toward == null ? null : toward.getId()));
+    }
+
+    /**
      * Make a beam the simulation owns — a laser, the reference's orbital cannon — drawn between two points of the
      * world as the game's look {@code look} says ({@code Laser}), at {@code width} of its full width, 0 to 1, by every
      * client that sees either end, until {@link #endBeam}. Moved as often as the simulation likes with {@link

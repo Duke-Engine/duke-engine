@@ -21,6 +21,12 @@ import java.util.Map;
  * @param life   the least and the most a particle lives, {@code [0.2, 0.5]}; so too
  *               {@code size}, {@code alpha} (start and end), {@code speed} and {@code colour}
  * @param measure UNITS, or REACH for a shape as wide as the skill's own radius
+ * @param bounce what share of its speed a particle keeps on striking the floor at the effect's own height, 0 to 1 —
+ *               a coin that lands and hops; none, as ever, falls through
+ * @param home   whether its particles turn, after {@code homeDelay} seconds of their life, toward the thing the effect
+ *               was played toward ({@code World.effect(name, where, facing, toward)}), and are gone on reaching it
+ * @param flip   how many times a second a particle turns over across the screen, its picture squeezed by the cosine:
+ *               a coin turning
  */
 public record Layer(String name, String type, String texture, String blend, Float cover, Integer count,
         Float rate, Float delay, Float seconds, Float sizeEase, Float sizeJitter, Float colourEase, Float fadeIn,
@@ -28,7 +34,7 @@ public record Layer(String name, String type, String texture, String blend, Floa
         Float spin, Float turn, Float turnJitter, Float pulseRate, Float pulseDepth, Float lightPower,
         Float lightRadius, Float fall, Float rise, Float riseEase, Boolean follows, Boolean renews, List<Float> life,
         List<Float> size, List<Float> alpha, List<Float> speed, List<Integer> colour, Integer lightColour,
-        String direction, String at, String measure) {
+        String direction, String at, String measure, Float bounce, Boolean home, Float homeDelay, Float flip) {
 
     public Layer {
         for (var pair : List.of(life, size, alpha, speed, colour)) {
@@ -83,6 +89,10 @@ public record Layer(String name, String type, String texture, String blend, Floa
         upper(said, "direction", direction);
         upper(said, "at", at);
         upper(said, "measure", measure);
+        text(said, "bounce", bounce);
+        text(said, "home", home);
+        text(said, "homeDelay", homeDelay);
+        text(said, "flip", flip);
         return said;
     }
 

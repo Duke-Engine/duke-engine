@@ -32,6 +32,12 @@ uniform float m_PulseDepth;
 uniform float m_Opacity;
 uniform float m_Rise;
 uniform float m_RiseEase;
+uniform float m_Bounce;
+uniform float m_Floor;
+uniform float m_Flip;
+uniform float m_Homing;
+uniform float m_HomeDelay;
+uniform vec3 m_Home;
 
 // Where it was born, in the geometry's own space.
 attribute vec3 inPosition;
@@ -98,6 +104,30 @@ void main() {
     vec3 here = born + leaving * carried + 0.5 * m_Gravity * age * age;
     vec3 moving = leaving * slowed + m_Gravity * age;
 
+    // A floor to bounce on, at the effect's own height: its fall worked out hop by hop, a few of them, each leaving
+    // the floor at Bounce of the speed it struck it with, and lying on it after. Its height alone: across, it goes on.
+    if (m_Bounce > 0.0 && m_Gravity.y < 0.0) {
+        float g = -m_Gravity.y;
+        float above = max(born.y - m_Floor, 0.0);
+        float rising = leaving.y;
+        float left = age;
+        for (int hop = 0; hop < 4; hop++) {
+            float landing = (rising + sqrt(max(rising * rising + 2.0 * g * above, 0.0))) / g;
+            if (left <= landing) {
+                break;
+            }
+            left -= landing;
+            rising = -(rising - g * landing) * m_Bounce;
+            above = 0.0;
+        }
+        here.y = m_Floor + max(above + rising * left - 0.5 * g * left * left, 0.0);
+    }
+    // A thing to fly into: past its delay drawn to it, slowly and then sudden, and there as its life ends.
+    if (m_Homing > 0.5 && age > m_HomeDelay) {
+        float drawn = clamp((age - m_HomeDelay) / max(life - m_HomeDelay, 0.0001), 0.0, 1.0);
+        here = mix(here, m_Home, drawn * drawn);
+    }
+
     float size = mix(m_SizeStart, m_SizeEnd, ease(t, m_SizeEase)) * scale;
     vec2 corner = inTexCoord * 2.0 - 1.0;
     // Turned by the angle it was born at and by however far it has spun since.
@@ -149,7 +179,9 @@ void main() {
     world = here + side * corner.x * size * 0.5
             + along * corner.y * size * 0.5 * (1.0 + m_Stretch * speed);
 #else
-    vec2 turned = turn(corner, spin) * size * 0.5;
+    // Turned over across the screen as a coin is, its picture squeezed by the cosine, each from its own start.
+    vec2 squeezed = m_Flip != 0.0 ? vec2(corner.x * cos((age * m_Flip + seed) * 6.2831853), corner.y) : corner;
+    vec2 turned = turn(squeezed, spin) * size * 0.5;
     // Pulled towards the eye by half its size. A flat card standing in the world
     // passes through the floor wherever it is bigger than its height above it,
     // and the floor cuts it off along a hard straight line -- the one thing a

@@ -110,6 +110,48 @@ class LayeredEffectsTest {
         return found;
     }
 
+    // ---- coins: a floor to bounce on, and a thing to fly into (E39) ----
+
+    private static Geometry particles(Node root) {
+        for (var child : root.getChildren()) {
+            if (child instanceof Geometry geometry && "particles".equals(geometry.getName())) {
+                return geometry;
+            }
+        }
+        return null;
+    }
+
+    private static Object param(Geometry drawn, String name) {
+        var param = drawn.getMaterial().getParam(name);
+        return param == null ? null : param.getValue();
+    }
+
+    @Test
+    void homingCoinsAreToldWhereTheirCreatureStandsEveryFrameAndFadeOnceItHasGone() {
+        var rig = rig(1000, 2);
+        rig.visuals().effect("Coins", recipe -> recipe.layer(burst(8).lifeMin(2f).lifeMax(2f).gravity(30f)
+                .bounce(0.5f).home(true).homeDelay(0.6f).flip(1.5f).build()));
+        rig.place().creatures.put(42, new Vector3f(30f, 0f, 10f));
+
+        rig.effects().cast("Coins", new LayeredEffects.Moment(new Vector3f(0f, 4f, 0f), null, null, 0f, 1f, 0f,
+                LayeredEffects.NOBODY, LayeredEffects.NOBODY), rig.camera(), 42);
+        var drawn = particles(rig.root());
+        assertEquals(1f, param(drawn, "Homing"), "told its creature");
+        assertEquals(0f, (Float) param(drawn, "Floor"), 1e-6f, "it bounces on the floor under where it was played");
+        assertEquals(0.5f, (Float) param(drawn, "Bounce"), 1e-6f);
+        assertEquals(1.5f, (Float) param(drawn, "Flip"), 1e-6f);
+
+        rig.place().creatures.put(42, new Vector3f(50f, 0f, 20f));
+        run(rig, 0.1f);
+        var home = (Vector3f) param(drawn, "Home");
+        assertEquals(50f, home.x, 1e-6f, "where it stands now");
+        assertEquals(20f, home.z, 1e-6f);
+
+        rig.place().creatures.remove(42);
+        run(rig, 0.5f);
+        assertEquals(0f, (Float) param(drawn, "Opacity"), 1e-6f, "gone: faded where they are");
+    }
+
     // ---- lent and given back ----
 
     @Test

@@ -141,6 +141,9 @@ final class LayeredEffects {
         private float fall;
         private boolean local;
         private int projectile = NOBODY;
+        /** The creature its homing particles fly into, or none; and, once it has gone, when they began to fade. */
+        private int homeTo = NOBODY;
+        private float homeLostAt = -1f;
         /** What one of its sizes is: 1 for units, or the skill's reach. */
         private float unit = 1f;
         /** Everywhere a fed layer has let particles out, for the camera to test. */
@@ -201,6 +204,41 @@ final class LayeredEffects {
     void cast(String recipeName, Moment moment, Camera camera) {
         cast(recipeName, moment, camera, 1f);
     }
+
+    /**
+     * The same, played toward creature {@code toward}: its homing layers' particles fly into it where it stands as
+     * drawn, every frame, and fade where they are once it has gone.
+     */
+    void cast(String recipeName, Moment moment, Camera camera, int toward) {
+        int before = playing.size();
+        cast(recipeName, moment, camera, 1f);
+        for (int index = before; index < playing.size(); index++) {
+            var one = playing.get(index);
+            if (one.layer.home()) {
+                one.homeTo = toward;
+                homeIn(one, one.clock - one.layer.delay());
+            }
+        }
+    }
+
+    /** A homing layer told where its creature stands this frame; once it is gone, faded out where they are. */
+    private void homeIn(Playing one, float local) {
+        if (one.homeTo == NOBODY || one.drawn == null) {
+            return;
+        }
+        var at = world == null ? null : world.whereIs(one.homeTo);
+        if (at != null && one.homeLostAt < 0f) {
+            one.drawn.home(at.add(0f, Math.max(1f, one.layer.height()), 0f));
+            return;
+        }
+        if (one.homeLostAt < 0f) {
+            one.homeLostAt = local;
+        }
+        one.drawn.opacity(Math.max(0f, 1f - (local - one.homeLostAt) / HOME_FADE_SECONDS));
+    }
+
+    /** How long homing particles take to fade once what they fly into has gone. */
+    private static final float HOME_FADE_SECONDS = 0.4f;
 
     /**
      * The same, drawn bigger or smaller than it is written: its sizes, its reach and
@@ -465,6 +503,7 @@ final class LayeredEffects {
         going.until = untilFor(going, lasting);
 
         if (drawn != null) {
+            drawn.floor(going.anchor.y); // what a bouncing layer lands on: the floor where it was played
             lay(going, moment);
             root.attachChild(drawn.geometry());
             drawn.show(layer.delay() <= 0f);
@@ -789,6 +828,7 @@ final class LayeredEffects {
                 one.drawn.show(true);
             }
             place(one, local);
+            homeIn(one, local);
             feed(one, local, tpf);
             fadeOutAnAura(one, local);
             lightUp(one, local);
