@@ -82,4 +82,17 @@ class DodgeTest {
         stunned.findModule(StatusUpdate.class).apply(ObjectStatus.DISABLED, 30);
         assertFalse(stunned.findModule(SkillBook.class).cast(' ', 1, null, new Coord3D(200f, 50f, 0f)));
     }
+
+    /** A dodge whose line meets a low way across is taken over it (E81). */
+    @Test
+    void aDodgeAcrossALowWayGoesOverIt() {
+        var world = world(true);
+        world.setTraversalLinks(List.of(new uz.dukeengine.core.pathfind.TraversalLink(new Coord3D(105f, 100f, 0f),
+                new Coord3D(125f, 100f, 0f), "vault", 12, 6f, "Vault", false, true)));
+        var hero = world.put("Hero", world.heroes, 100f, 100f);
+        world.run(1);
+        assertTrue(hero.findModule(SkillBook.class).cast(' ', 1, null, new Coord3D(200f, 100f, 0f)));
+        world.run(10);
+        assertEquals(125f, hero.getPosition().x(), 1e-3f, "over the low wall, at its far end");
+    }
 }

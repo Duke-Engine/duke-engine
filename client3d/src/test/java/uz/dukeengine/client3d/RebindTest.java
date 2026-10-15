@@ -46,4 +46,29 @@ class RebindTest {
 
         assertTrue(hotkeys.claims(com.jme3.input.KeyInput.KEY_SPACE), "Space, a key a game binds");
     }
+
+    /** The client's own control put on a key of the player's; one already on it takes the moved one's old key. */
+    @Test
+    void aClientControlIsRebindableAndAClashChangesPlaces() {
+        var map = KeyMap.standard();
+        var up = map.keysOf(KeyMap.Control.PAN_UP).getFirst();
+        var left = map.keysOf(KeyMap.Control.PAN_LEFT).getFirst();
+        DukeRtsApp.putOn(map, KeyMap.Control.PAN_UP, left);
+        assertEquals(List.of(left), map.keysOf(KeyMap.Control.PAN_UP), "up on left's key");
+        assertTrue(map.keysOf(KeyMap.Control.PAN_LEFT).contains(up), "and left on up's old one");
+        assertEquals(left, DukeRtsApp.unpacked(DukeRtsApp.packed(left)), "kept and read back");
+        var withCtrl = new KeyMap.Key(com.jme3.input.KeyInput.KEY_K, true, false, true);
+        assertEquals(withCtrl, DukeRtsApp.unpacked(DukeRtsApp.packed(withCtrl)), "its modifiers too");
+    }
+
+    /** A quick cast takes the creature nearest the pointer within six of it (E78). */
+    @Test
+    void aQuickCastTakesTheCreatureNearestThePointerWithinSix() {
+        var near = new uz.dukeengine.core.view.UnitView(4, "Skeleton", 1, 105f, 100f, 0f, 50f, 50f, false, true,
+                false, false, -1);
+        var far = new uz.dukeengine.core.view.UnitView(5, "Skeleton", 1, 120f, 100f, 0f, 50f, 50f, false, true,
+                false, false, -1);
+        assertEquals(4, DukeRtsApp.nearestWithin(List.of(far, near), 100f, 100f, DukeRtsApp.QUICK_CAST_REACH));
+        assertEquals(-1, DukeRtsApp.nearestWithin(List.of(far), 100f, 100f, DukeRtsApp.QUICK_CAST_REACH));
+    }
 }

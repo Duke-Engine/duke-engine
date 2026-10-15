@@ -974,7 +974,8 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                 var from = owner.getPosition();
                 float facing = owner.getOrientation();
                 Facing.turnToward(owner, towards);
-                var end = rollEnd(owner, world, skill.distance());
+                var over = lowLinkAcross(owner, world, skill.distance());
+                var end = over != null ? over : rollEnd(owner, world, skill.distance());
                 if (seal.parts(world, from, end)) {
                     owner.setOrientation(facing);
                     return false; // over a seal: refused, nothing spent
@@ -1318,6 +1319,43 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
         }
         return from;
     }
+
+    /**
+     * The far end of a low way across ({@code TraversalLink.low}) whose near end lies on the dodge's line — within its
+     * distance along it and {@link #LOW_LINK_REACH} of it — and whose far end lies the way he rolls: the roll takes him
+     * over it. The first such on the map's list; null for none.
+     */
+    private static Coord3D lowLinkAcross(GameObject owner, World world, float distance) {
+        float facing = owner.getOrientation();
+        float dx = (float) StrictMath.cos(facing);
+        float dy = (float) StrictMath.sin(facing);
+        var from = owner.getPosition();
+        for (var link : world.traversalLinks()) {
+            if (!link.low()) {
+                continue;
+            }
+            for (int way = 0; way < (link.bothWays() ? 2 : 1); way++) {
+                var entry = way == 0 ? link.a() : link.b();
+                var exit = way == 0 ? link.b() : link.a();
+                float ex = entry.x() - from.x();
+                float ey = entry.y() - from.y();
+                float along = ex * dx + ey * dy;
+                float aside = Math.abs(ex * dy - ey * dx);
+                float wx = exit.x() - entry.x();
+                float wy = exit.y() - entry.y();
+                float length = (float) Math.sqrt(wx * wx + wy * wy);
+                if (along >= 0f && along <= distance && aside <= LOW_LINK_REACH && length > 0f
+                        && (wx * dx + wy * dy) / length >= LOW_LINK_HEADING) {
+                    return new Coord3D(exit.x(), exit.y(), world.groundHeight(exit));
+                }
+            }
+        }
+        return null;
+    }
+
+    /** How near a dodge's line a low way's near end must lie, and how nearly the way must head as he rolls. */
+    private static final float LOW_LINK_REACH = 6f;
+    private static final float LOW_LINK_HEADING = 0.7f;
 
     /** How far past his own size a dodge's end looks for creatures it would stand in. */
     private static final float DODGE_LOOK = 20f;

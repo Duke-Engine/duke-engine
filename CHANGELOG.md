@@ -532,6 +532,9 @@ E16, in parts.
   by `GameLogic.setTraversalLinks` — a walker whose goal no walk reaches walks to the near end of the link that brings
   it nearest, is carried across in its frames on its arc, busy at its clip, and walks on from the far end; a link one
   way is crossed only from `a`. One link a route, taken only where no walk reaches the goal.
+- **Fewer limits** (E78, E79, E81): a quick cast with no creature under the pointer takes the nearest within 6 of it
+  (`DukeRtsApp.QUICK_CAST_REACH`); the client's own controls are rebound on the keys page too, a clash changing places,
+  kept as `ctl.<CONTROL>`; a dodge whose line meets a low way across (`TraversalLink.low`) is taken over it.
 
 ### A route that keeps to the roads
 

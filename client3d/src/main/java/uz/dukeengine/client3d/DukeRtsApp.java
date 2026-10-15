@@ -2790,21 +2790,32 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * The lines of the Settings screen's list of keys: each letter the game claimed or said something of, with its
-     * word; then each control of the client's own on its keys, called by its English name said the game's way.
+     * What each line of the keys page puts elsewhere, line for line with {@link #keyLines}: a game binding by its letter,
+     * the four walking keys as {@code 1} to {@code 4}, nothing ({@code null}) for a letter the game only describes, and
+     * each control of the client's own.
      */
-    /**
-     * The game's keys a player may put elsewhere, in the order the keys page lists them first: each binding by its
-     * letter, then the four walking keys as {@code 1} to {@code 4}.
-     */
-    static List<Character> rebindable(Hotkeys hotkeys) {
-        var actions = new ArrayList<Character>(new java.util.TreeSet<>(hotkeys.claimedKeys()));
+    static List<Object> rebindable(Hotkeys hotkeys) {
+        var actions = new ArrayList<Object>(new java.util.TreeSet<>(hotkeys.claimedKeys()));
         if (hotkeys.directionChanged() != null) {
             actions.addAll(List.of('1', '2', '3', '4'));
+        }
+        for (char letter : new java.util.TreeSet<Character>(hotkeys.describedKeys())) {
+            if (!hotkeys.claimedKeys().contains(letter)) {
+                actions.add(null);
+            }
+        }
+        for (var control : KeyMap.Control.values()) {
+            if (!hotkeys.keyMap().keysOf(control).isEmpty()) {
+                actions.add(control);
+            }
         }
         return actions;
     }
 
+    /**
+     * The lines of the Settings screen's list of keys: each letter the game claimed or said something of, with its
+     * word; then each control of the client's own on its keys, called by its English name said the game's way.
+     */
     static List<String> keyLines(Hotkeys hotkeys, java.util.function.UnaryOperator<String> say) {
         var lines = new ArrayList<String>();
         for (char letter : new java.util.TreeSet<Character>(hotkeys.claimedKeys())) {
@@ -2933,8 +2944,8 @@ final class DukeRtsApp extends SimpleApplication {
                         }));
             }
         }
-        // Every key the game uses and every control of the client's own, each in the game's words; one of the game's
-        // taken, the next key pressed is its key. ponytail: the client's own controls are read, not rebound, yet.
+        // Every key the game uses and every control of the client's own, each in the game's words; one taken, the
+        // next key pressed is its key.
         var keys = keyLines(hotkeys, this::say);
         if (!keys.isEmpty()) {
             var actions = rebindable(hotkeys);
@@ -4044,6 +4055,7 @@ final class DukeRtsApp extends SimpleApplication {
         map("ZoomOut", new MouseAxisTrigger(MouseInput.AXIS_WHEEL, true));
         // Every key anything is on, one mapping each: what it does is worked out in one place, pressKey, and
         // never by two listeners racing to it.
+        takeTheRebindings(); // before the keys are counted: a control put on a key of his own is listened for
         for (int code : listenedKeys()) {
             map(KEY + code, new KeyTrigger(code));
         }
@@ -4156,7 +4168,6 @@ final class DukeRtsApp extends SimpleApplication {
                 }
             }
         };
-        takeTheRebindings();
         mapTheHotkeys();
         // Everything that was bound, in one call. Not a list typed out here: see
         // the note on `bound`.
@@ -4271,16 +4282,23 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    /** The game's key waiting for the next key pressed to be its own, or null — see the keys page. */
-    private Character capturing;
+    /** What waits for the next key pressed to be its own — a game key, a walking key, a control — or null. */
+    private Object capturing;
 
     /** The next key pressed made the waiting key's own, kept, and the keys page shown again with it. */
-    private void capture(int code) {
-        char action = capturing;
+    private void capture(KeyMap.Key pressed) {
+        var waiting = capturing;
         capturing = null;
+        int code = pressed.code();
         if (code == KeyInput.KEY_ESCAPE) {
             return; // asked and let go
         }
+        if (waiting instanceof KeyMap.Control control) {
+            rebindControl(control, pressed);
+            showSettingsMenu(settingsReturn);
+            return;
+        }
+        char action = (Character) waiting;
         if (action >= '1' && action <= '4') {
             char letter = letterOf(code);
             if (letter == 0) {
@@ -4306,8 +4324,75 @@ final class DukeRtsApp extends SimpleApplication {
         showSettingsMenu(settingsReturn);
     }
 
+    /**
+     * A control of the client's own put on {@code pressed} alone, kept as {@code ctl.<CONTROL>}; a control already on it
+     * takes the moved control's old key, so the two change places.
+     */
+    private void rebindControl(KeyMap.Control control, KeyMap.Key pressed) {
+        for (var touched : putOn(controls.map(), control, pressed)) {
+            var keys = controls.map().keysOf(touched);
+            preferences.set("ctl." + touched.name(), packed(keys.isEmpty() ? null : keys.getFirst()));
+        }
+        listenFor(pressed.code());
+    }
+
+    /**
+     * {@code control} put on {@code pressed} alone; a control already on it given the moved one's old key in its place.
+     *
+     * @return the controls whose keys changed, the moved one first
+     */
+    static List<KeyMap.Control> putOn(KeyMap map, KeyMap.Control control, KeyMap.Key pressed) {
+        var touched = new ArrayList<KeyMap.Control>(List.of(control));
+        var was = map.keysOf(control);
+        for (var other : KeyMap.Control.values()) {
+            if (other != control && map.keysOf(other).contains(pressed)) {
+                var theirs = new ArrayList<>(map.keysOf(other));
+                theirs.remove(pressed);
+                if (!was.isEmpty()) {
+                    theirs.add(was.getFirst());
+                }
+                map.bind(other, theirs.toArray(new KeyMap.Key[0]));
+                touched.add(other);
+            }
+        }
+        map.bind(control, pressed);
+        return touched;
+    }
+
+    /** A key with its modifiers in one number, as the settings file keeps it: -1 for none. */
+    static int packed(KeyMap.Key key) {
+        return key == null ? -1 : key.code() | (key.ctrl() ? 1 << 16 : 0) | (key.shift() ? 1 << 17 : 0)
+                | (key.alt() ? 1 << 18 : 0);
+    }
+
+    /** The key a number kept by {@link #packed} names, or null for none. */
+    static KeyMap.Key unpacked(int packed) {
+        return packed < 0 ? null : new KeyMap.Key(packed & 0xFFFF, (packed & 1 << 16) != 0, (packed & 1 << 17) != 0,
+                (packed & 1 << 18) != 0);
+    }
+
+    /** A key heard from now on, where nothing listened for it yet. */
+    private void listenFor(int code) {
+        String mapping = KEY + code;
+        if (inputManager.hasMapping(mapping)) {
+            return;
+        }
+        inputManager.addMapping(mapping, new KeyTrigger(code));
+        bound.add(mapping);
+        if (hotkeyListener != null) {
+            inputManager.addListener(hotkeyListener, mapping);
+        }
+    }
+
     /** The keys he put the game's bindings and walking on, as he kept them last. */
     private void takeTheRebindings() {
+        for (var control : KeyMap.Control.values()) {
+            int kept = preferences.number("ctl." + control.name(), Integer.MIN_VALUE);
+            if (kept != Integer.MIN_VALUE) {
+                var key = unpacked(kept);
+                controls.map().bind(control, key == null ? new KeyMap.Key[0] : new KeyMap.Key[] {key});
+            }
+        }
         for (var bound : java.util.List.copyOf(hotkeys.all().keySet())) {
             int code = preferences.number("key." + (int) bound, -1);
             if (code >= 0) {
@@ -4324,7 +4409,7 @@ final class DukeRtsApp extends SimpleApplication {
     /** A key on a menu: the pan keys and the arrows walk it, Enter and Space take, Escape goes back. */
     private void menuKey(int code, KeyMap.Key key) {
         if (capturing != null) {
-            capture(code);
+            capture(key);
             return;
         }
         var control = controls.controlOn(key);
@@ -4678,7 +4763,12 @@ final class DukeRtsApp extends SimpleApplication {
         }
         arm(key, byMouse);
         if (mouseScheme.modern() && mouseScheme.quickCast() && !byMouse) {
-            aimArmedKey(); // cast at once, as if its aim were clicked where the pointer is
+            quickCasting = true;
+            try {
+                aimArmedKey(); // cast at once, as if its aim were clicked where the pointer is
+            } finally {
+                quickCasting = false;
+            }
         }
     }
 
@@ -4771,6 +4861,41 @@ final class DukeRtsApp extends SimpleApplication {
      * The click that completes an armed key. Clicking nothing usable drops it,
      * rather than leaving the player armed and wondering why nothing happened.
      */
+    /** Whether the aim is a quick cast's, where a creature near the pointer counts as under it. */
+    private boolean quickCasting;
+
+    /** How near the pointer a quick cast takes a creature that is not under it. */
+    static final float QUICK_CAST_REACH = 6f;
+
+    /** The creature nearest {@code ground} within {@link #QUICK_CAST_REACH} of it, the lowest id on a tie; or null. */
+    private UnitNode nearTheGround(Vector3f ground) {
+        var views = new ArrayList<uz.dukeengine.core.view.UnitView>();
+        for (var node : unitNodes.values()) {
+            if (node.view != null) {
+                views.add(node.view);
+            }
+        }
+        int id = nearestWithin(views, ground.x, ground.z, QUICK_CAST_REACH);
+        return id < 0 ? null : unitNodes.get(id);
+    }
+
+    /** The living creature nearest ({@code x}, {@code y}) within {@code reach}, the lowest id on a tie; -1 for none. */
+    static int nearestWithin(List<uz.dukeengine.core.view.UnitView> views, float x, float y, float reach) {
+        int best = -1;
+        float bestGap = Float.MAX_VALUE;
+        for (var view : views) {
+            if (view.maxHealth() <= 0f || view.health() <= 0f) {
+                continue;
+            }
+            float gap = (float) Math.hypot(view.x() - x, view.y() - y);
+            if (gap <= reach && (gap < bestGap || gap == bestGap && view.id() < best)) {
+                best = view.id();
+                bestGap = gap;
+            }
+        }
+        return best;
+    }
+
     private void aimArmedKey() {
         // ★ Read BEFORE disarming, which nulls it. The clamp below asks what the
         // armed key reaches, and asking after the disarm got null every time --
@@ -4786,6 +4911,10 @@ final class DukeRtsApp extends SimpleApplication {
                 || binding.aim() == Hotkeys.Aim.UNIT_OR_GROUND;
         if (mayBeACreature) {
             var unit = pickUnit();
+            if (unit == null && quickCasting) {
+                var under = pickGround();
+                unit = under == null ? null : nearTheGround(under);
+            }
             if (unit != null) {
                 binding.run().accept(game, new Hotkeys.Aimed(unit.view.id(), null));
                 markOrder(unit.view.x(), unit.view.y(), unit.view.id(),
