@@ -241,7 +241,41 @@ public final class DukeGame {
      * game is not driving it.
      */
     public void setCameraSeen(float x, float y, float angle) {
-        camera.seen(new uz.dukeengine.core.view.CameraView(x, y, angle, Float.NaN, Float.NaN));
+        setCameraSeen(x, y, angle, Float.NaN, Float.NaN);
+    }
+
+    /** The card showing, or about to: see {@link #titleCard}. */
+    private final java.util.concurrent.atomic.AtomicReference<TitleCard> card =
+            new java.util.concurrent.atomic.AtomicReference<>();
+
+    /**
+     * Show a title card — {@code text} large in the middle of a darkened screen, {@code subtext} under it — faded in
+     * over {@code fadeIn} seconds, held {@code hold}, faded out over {@code fadeOut}: an act's end, a chapter's name.
+     * Drawn only, out of the checksum; the player's keys and clicks go to nothing while it shows. From any thread; a
+     * card already up is replaced.
+     */
+    public void titleCard(String text, String subtext, float fadeIn, float hold, float fadeOut) {
+        titleCard(text, subtext, fadeIn, hold, fadeOut, true);
+    }
+
+    /** The same, saying whether it takes the player's input while it shows. */
+    public void titleCard(String text, String subtext, float fadeIn, float hold, float fadeOut, boolean takesInput) {
+        card.set(new TitleCard(text, subtext, fadeIn, hold, fadeOut, takesInput));
+    }
+
+    /** The card showing, or null once the client has said it is gone — from any thread. */
+    public TitleCard titleCardShowing() {
+        return card.get();
+    }
+
+    /** Told by the client when {@code shown} has played out; a card put up since stays. */
+    public void titleCardGone(TitleCard shown) {
+        card.compareAndSet(shown, null);
+    }
+
+    /** The same with its pitch and how far back it stands, so a shot that tilts or draws back starts from them. */
+    public void setCameraSeen(float x, float y, float angle, float pitch, float distance) {
+        camera.seen(new uz.dukeengine.core.view.CameraView(x, y, angle, pitch, distance));
     }
 
     private final java.util.concurrent.atomic.AtomicReference<uz.dukeengine.core.math.Coord2D> viewMove =

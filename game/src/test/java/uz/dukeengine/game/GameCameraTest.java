@@ -101,4 +101,34 @@ class GameCameraTest {
         assertNull(game.takeViewMove(), "taken: nothing more to move to");
         assertFalse(game.camera().isDriven(), "and the camera never the game's");
     }
+
+    /** A shot that moves, turns, tilts and draws back together, eased in and out, ending exactly where asked. */
+    @Test
+    void aMoveATurnATiltAndAZoomTogetherEaseInAndOutAndEndExactly() {
+        var game = watched();
+        game.onStart(started -> {
+            var camera = started.camera();
+            camera.moveTo(100f, 100f, 0);
+            camera.angle(0f);
+            camera.pitch(0.5f);
+            camera.zoom(100f);
+            camera.moveTo(400f, 100f, 30, GameCamera.Ease.IN_OUT);
+            camera.turnTo(1f, 30, GameCamera.Ease.IN_OUT);
+            camera.pitchTo(1f, 30, GameCamera.Ease.IN_OUT);
+            camera.zoomTo(300f, 30, GameCamera.Ease.IN_OUT);
+        });
+
+        game.runHeadless(7);
+        var early = game.camera().current();
+        assertTrue(early.x() < 100f + 300f * 7f / 30f, "slow to set off: " + early.x());
+        assertTrue(game.camera().isMoving());
+
+        game.runHeadless(23);
+        var there = game.camera().current();
+        assertEquals(400f, there.x(), 0f);
+        assertEquals(1f, there.angle(), 0f);
+        assertEquals(1f, there.pitch(), 0f);
+        assertEquals(300f, there.zoom(), 0f);
+        assertFalse(game.camera().isMoving());
+    }
 }

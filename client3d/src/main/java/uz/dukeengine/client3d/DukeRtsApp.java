@@ -834,6 +834,8 @@ final class DukeRtsApp extends SimpleApplication {
             backdrop = new Backdrop(backdropRecipe, built -> new ArtLoad(built.templatesThisMatchCanDraw()),
                     backdropEar == null ? percent -> { } : backdropEar);
         }
+        // First of all: a title card that takes the input takes it before the game's canvas or any control.
+        inputManager.addRawInputListener(new CardInput(() -> titleCard != null && titleCard.takesInput()));
         if (canvasInput != null) {
             canvasInputs = new CanvasInputs(canvasInput, () -> cam.getHeight());
             inputManager.addRawInputListener(canvasInputs);
@@ -1049,6 +1051,9 @@ final class DukeRtsApp extends SimpleApplication {
         }
     };
 
+    /** The title card up, as the client draws it — see {@link DukeGame#titleCard}; null for none. */
+    private TitleCardShow titleCard;
+
     /** The live portrait of {@code unitId} a part keeps for the canvas, or null — see {@link Canvas#drawPortrait}. */
     private com.jme3.texture.Texture portraitOf(int unitId) {
         for (var part : parts) {
@@ -1062,20 +1067,33 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** The game's drawing for this frame, over whatever else is on the screen. */
     private void paintTheCanvas(float tpf) {
-        if (painter == null) {
+        var wanted = game.titleCardShowing();
+        if (wanted == null) {
+            titleCard = null;
+        } else if (titleCard == null || titleCard.card() != wanted) {
+            titleCard = new TitleCardShow(wanted);
+        }
+        if (painter == null && titleCard == null) {
             return;
         }
         int width = cam.getWidth();
         int height = cam.getHeight();
-        if (paintedFor != width * 100_000 + height) {
+        if (painter != null && paintedFor != width * 100_000 + height) {
             paintedFor = width * 100_000 + height;
             painter.resized(width, height);
         }
         var frame = new CanvasFrame(width, height, canvasText, canvasDrawing::sizeOf, canvasWorld);
         try {
-            painter.paint(frame);
+            if (painter != null) {
+                painter.paint(frame);
+            }
         } catch (RuntimeException e) {
             warnOnce(String.valueOf(e), "canvas painter failure");
+        }
+        // Over everything the game painted: the card is the story's, and says so above its own screens too.
+        if (titleCard != null && !titleCard.paint(frame, tpf)) {
+            game.titleCardGone(titleCard.card());
+            titleCard = null;
         }
         if (snapshot != null) {
             var asked = frame.portraitsAsked();
@@ -5708,7 +5726,7 @@ final class DukeRtsApp extends SimpleApplication {
         } else {
             steerTheCamera(tpf);
             cameraPitch = camera.pitch();
-            game.setCameraSeen(camera.targetX(), camera.targetZ(), camera.yaw());
+            game.setCameraSeen(camera.targetX(), camera.targetZ(), camera.yaw(), camera.pitch(), camera.distance());
         }
         placeTheCamera(tpf);
     }

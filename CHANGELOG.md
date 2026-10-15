@@ -388,6 +388,19 @@ E16, in parts.
   `margin` pixels in from the edge, and only that strip darkened; `MenuSide.MIDDLE`, the default, as ever. A front menu
   over a live `Duke3D.backdrop` is drawn over it, dimmed, rather than on the stone that hid it.
 
+### The story's moves, its camera and its cards
+
+- **`ScriptedMove`** (E40, core): a thing moved by the story over so many frames — `along(thing, to, frames, arcHeight)`,
+  a slide or a leap, or `fall(thing, to, height, frames)`, from the sky — taking no orders meanwhile and kept from giving
+  way (`keepsBusy`), down on the point on its last frame; `onLanded` tells the story on the simulation's thread and
+  `ThingLanded` the picture. In the checksum by where it stands.
+- **An eased camera** (E41): `GameCamera.moveTo(x, y, frames, Ease)`, `turnTo`, `pitchTo`, `zoomTo` — each with an
+  `Ease` (`LINEAR`, `IN`, `OUT`, `IN_OUT`), stepped with the world, all at once; `isMoving` while any is under way. A
+  shot that tilts or draws back starts from the player's own view (`DukeGame.setCameraSeen` with pitch and distance).
+- **A title card** (E42): `DukeGame.titleCard(text, subtext, fadeIn, hold, fadeOut[, takesInput])` — large in the middle
+  of a darkened screen, over everything, drawn only; the player's keys and clicks go to nothing while it shows unless
+  the game says otherwise. `titleCardShowing()` until the client says it is gone.
+
 ### For a game's player screens
 
 - **A list of keys in Settings** (E46): every letter the game claimed or said something of — `Hotkeys.on(key, word,
