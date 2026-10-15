@@ -510,6 +510,11 @@ public interface World {
      * Whether scenery standing in the way refuses {@code mover} a step from {@code from} to {@code to}: one that
      * takes it deeper into a piece's footprint than it already stands, more than a touch. None, in a world with none.
      */
+    /** The ways across what no walk crosses — see {@code GameLogic.setTraversalLinks}; none by default. */
+    default java.util.List<uz.dukeengine.core.pathfind.TraversalLink> traversalLinks() {
+        return java.util.List.of();
+    }
+
     default boolean sceneryInTheWay(GameObject mover, Coord3D from, Coord3D to) {
         return false;
     }

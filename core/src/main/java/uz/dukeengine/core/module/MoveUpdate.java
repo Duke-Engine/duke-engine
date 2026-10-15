@@ -419,6 +419,9 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     private void head(Coord3D destination, boolean place, Band band) {
         this.alongAngle = -1;
+        if (linkPlan != null && !linkPlan.goal().equals(destination)) {
+            linkPlan = null; // a new order: whatever link it meant to cross is forgotten
+        }
         this.band = band;
         this.exactly = false;
         this.then = null;
@@ -531,6 +534,21 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             }
             lastRouteFrame = world.getFrame();
             plans++;
+            if (linkPlan != null) {
+                var toEntry = world.findPath(getOwner(), linkPlan.entry());
+                if (toEntry != null) {
+                    path = toEntry; // planned again on its way to a link: still to its near end
+                }
+            } else if (!path.reachesGoal()) {
+                var across = linkToward(world, destination);
+                if (across != null) {
+                    var toEntry = world.findPath(getOwner(), across.entry());
+                    if (toEntry != null && toEntry.reachesGoal()) {
+                        linkPlan = across;
+                        path = toEntry; // to the near end first; the rest from the far end
+                    }
+                }
+            }
             this.waypoints = path.getWaypoints();
             this.route = path;
             this.goalReachable = path.reachesGoal();
@@ -674,11 +692,96 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         return waiting || waypointIndex < waypoints.size() || alongAngle >= 0;
     }
 
+    /** A link it means to cross: from which end, to which, and the goal it walks on to from there. */
+    private record LinkPlan(uz.dukeengine.core.pathfind.TraversalLink link, Coord3D entry, Coord3D exit, Coord3D goal) {
+    }
+
+    private LinkPlan linkPlan;
+
+    /**
+     * The link whose far end lies nearest {@code goal} and nearer it than this one stands — crossed from {@code a}, or
+     * from {@code b} where it goes both ways — the first listed on a tie; null for none.
+     * ponytail: one link a route, taken only where no walk reaches the goal; a graph of links when a map wants two.
+     */
+    private LinkPlan linkToward(World world, Coord3D goal) {
+        var here = getOwner().getPosition();
+        LinkPlan best = null;
+        float bestAway = across(here, goal);
+        for (var link : world.traversalLinks()) {
+            for (int way = 0; way < (link.bothWays() ? 2 : 1); way++) {
+                var entry = way == 0 ? link.a() : link.b();
+                var exit = way == 0 ? link.b() : link.a();
+                float away = across(exit, goal);
+                if (away < bestAway) {
+                    best = new LinkPlan(link, entry, exit, goal);
+                    bestAway = away;
+                }
+            }
+        }
+        return best;
+    }
+
+    /** Carried across the link it stands at — or, where it is not at its near end, given it up and stood. */
+    private void crossTheLink(GameObject owner) {
+        var plan = linkPlan;
+        linkPlan = null;
+        if (across(owner.getPosition(), plan.entry()) > Math.max(data.closeEnough(), LINK_REACH)) {
+            return; // it never came to the near end
+        }
+        var link = plan.link();
+        owner.busy(link.clip(), link.frames());
+        // Carried here, as a ScriptedMove carries a thing, rather than by one: no module joins it mid-update.
+        crossing = new Crossing(owner.getPosition(), plan.exit(), link.frames(), link.arcHeight(), plan.goal());
+    }
+
+    /** A link being crossed: from where, to where, over how many frames, how high, and the goal walked on to. */
+    private static final class Crossing {
+        final Coord3D from;
+        final Coord3D to;
+        final int frames;
+        final float arc;
+        final Coord3D goal;
+        int gone;
+
+        Crossing(Coord3D from, Coord3D to, int frames, float arc, Coord3D goal) {
+            this.from = from;
+            this.to = to;
+            this.frames = frames;
+            this.arc = arc;
+            this.goal = goal;
+        }
+    }
+
+    private Crossing crossing;
+
+    /** A frame across the link: along the line, an arc over it, and on to the goal from the far end. */
+    private void carryAcross(GameObject owner) {
+        var going = crossing;
+        going.gone++;
+        float t = going.gone / (float) going.frames;
+        if (going.gone >= going.frames) {
+            crossing = null;
+            stepTo(owner, going.to, -1);
+            moveTo(going.goal);
+            return;
+        }
+        float x = going.from.x() + (going.to.x() - going.from.x()) * t;
+        float y = going.from.y() + (going.to.y() - going.from.y()) * t;
+        var world = owner.getWorld();
+        float ground = world == null ? 0f : world.groundHeight(new Coord3D(x, y, 0f));
+        owner.setPosition(new Coord3D(x, y, ground + 4f * going.arc * t * (1f - t)));
+    }
+
+    /** How near its near end a walker must stand to cross a link. */
+    private static final float LINK_REACH = 6f;
+
     /** The direction it walks along, in 256ths of a turn, or -1 for none — see {@link #moveAlong}. */
     private int alongAngle = -1;
 
     @Override
     public void moveAlong(int angle) {
+        linkPlan = null;
+        crossing = null;
         stop();
         alongAngle = angle < 0 ? -1 : angle & 0xFF;
     }
@@ -749,6 +852,14 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         lastPosition = here;
         if (world != null) {
             world.markStanding(owner);
+        }
+        if (crossing != null) {
+            carryAcross(owner);
+            return;
+        }
+        if (!isMoving() && linkPlan != null && world != null) {
+            crossTheLink(owner); // at its near end: carried across, and on from the far end
+            return;
         }
         if (!isMoving()) {
             speedNow = 0f;

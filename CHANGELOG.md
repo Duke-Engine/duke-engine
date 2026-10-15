@@ -528,6 +528,10 @@ E16, in parts.
   is put on it (`Hotkeys.rebind`, `codeFor`, `actionOn`; a clash changes places), kept as `key.<letter>`; the four
   walking keys too (`walk.keys`). Space is a key a game may bind (`Hotkeys.on(' ', …)`). `HeroCard.skills(…, letterOf)`
   writes a `letter` field; the bar draws a slot's letter and a click on it presses that letter.
+- **Ways across** (E81): `TraversalLink(a, b, kind, frames, arcHeight, clip, bothWays, low)`, a map's `Linked`, laid
+  by `GameLogic.setTraversalLinks` — a walker whose goal no walk reaches walks to the near end of the link that brings
+  it nearest, is carried across in its frames on its arc, busy at its clip, and walks on from the far end; a link one
+  way is crossed only from `a`. One link a route, taken only where no walk reaches the goal.
 
 ### A route that keeps to the roads
 

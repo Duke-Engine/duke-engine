@@ -670,6 +670,7 @@ public final class DukeGame {
             logic.setPathGrid(grid, navigationCellsPerCell());
             logic.setRouteSectors(routeSectors());
             logic.setSceneryFootprints(sceneryFootprints());
+            logic.setTraversalLinks(traversalLinks());
             logic.setSceneryBoxes(sceneryBoxes());
         }
     }
@@ -704,6 +705,15 @@ public final class DukeGame {
             }
         }
         return footprints;
+    }
+
+    /** The current map's ways across what no walk crosses ({@code Linked}), in world units. */
+    private List<uz.dukeengine.core.pathfind.TraversalLink> traversalLinks() {
+        if (terrain == null || !(mapRecord instanceof uz.dukeengine.core.map.Linked linked)) {
+            return List.of();
+        }
+        float cell = terrain.getCellSize();
+        return linked.traversalLinks().stream().map(link -> link.scaled(cell)).toList();
     }
 
     /** The scenery of the current map that stands in the way along its length ({@code Dressed}), in world units. */
@@ -1255,6 +1265,7 @@ public final class DukeGame {
             logic.setPathGrid(terrain, navigationCellsPerCell());
             logic.setRouteSectors(routeSectors());
             logic.setSceneryFootprints(sceneryFootprints());
+            logic.setTraversalLinks(traversalLinks());
             logic.setSceneryBoxes(sceneryBoxes());
         }
         progress.accept(20);

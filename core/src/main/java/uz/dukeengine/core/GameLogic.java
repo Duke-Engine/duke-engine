@@ -1046,6 +1046,23 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         layTheScenery();
     }
 
+    /** The ways across what no walk crosses — see {@link #setTraversalLinks}. */
+    private List<uz.dukeengine.core.pathfind.TraversalLink> traversalLinks = List.of();
+
+    /**
+     * The ways across what no walk crosses, in world units: a walker whose goal no walk reaches walks to the nearer end
+     * of one that brings it nearer, is carried across ({@code ScriptedMove}, busy at the link's clip) and walks on from
+     * the other end. Set with the map they belong to, as every machine lays them.
+     */
+    public final void setTraversalLinks(List<uz.dukeengine.core.pathfind.TraversalLink> links) {
+        this.traversalLinks = links == null ? List.of() : List.copyOf(links);
+    }
+
+    @Override
+    public final List<uz.dukeengine.core.pathfind.TraversalLink> traversalLinks() {
+        return traversalLinks;
+    }
+
     /** The pieces of scenery taken away, by their index — see {@link #removeScenery}. */
     private final java.util.TreeSet<Integer> removedScenery = new java.util.TreeSet<>();
 
