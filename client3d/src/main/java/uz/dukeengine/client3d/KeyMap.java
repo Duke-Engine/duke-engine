@@ -71,13 +71,15 @@ public final class KeyMap {
         CENTRE_ON_BASE,
         /** The camera to where the latest alert was raised. */
         LATEST_ALERT,
-        OPTIONS, TOGGLE_COMMAND_BAR, CHAT_ALL, CHAT_ALLIES, SCREENSHOT, PAUSE, FULLSCREEN;
+        OPTIONS, TOGGLE_COMMAND_BAR, CHAT_ALL, CHAT_ALLIES, SCREENSHOT, PAUSE, FULLSCREEN,
+        /** Held: the pointer let go while the mouse is captured — see {@code Duke3D.captureMouse}. */
+        FREE_POINTER;
 
         /** Whether it is held down rather than pressed: it lasts as long as its key does. */
         public boolean isHeld() {
             return switch (this) {
                 case PAN_UP, PAN_LEFT, PAN_DOWN, PAN_RIGHT, TURN_LEFT, TURN_RIGHT, ZOOM_IN, ZOOM_OUT, FORCE_ATTACK,
-                        QUEUE_WAYPOINTS, ADD_TO_SELECTION -> true;
+                        QUEUE_WAYPOINTS, ADD_TO_SELECTION, FREE_POINTER -> true;
                 default -> false;
             };
         }
@@ -140,7 +142,9 @@ public final class KeyMap {
                 .bind(Control.OPTIONS, Key.of(KeyInput.KEY_ESCAPE))
                 .bind(Control.CENTRE_ON_BASE, Key.of(KeyInput.KEY_RETURN), Key.of(KeyInput.KEY_NUMPADENTER),
                         Key.of(KeyInput.KEY_SPACE))
-                .bind(Control.ADD_TO_SELECTION, Key.of(KeyInput.KEY_LSHIFT), Key.of(KeyInput.KEY_RSHIFT));
+                .bind(Control.ADD_TO_SELECTION, Key.of(KeyInput.KEY_LSHIFT), Key.of(KeyInput.KEY_RSHIFT))
+                // Alt as it goes down: the key with itself held.
+                .bind(Control.FREE_POINTER, Key.alt(KeyInput.KEY_LMENU), Key.alt(KeyInput.KEY_RMENU));
     }
 
     /** Put a control on these keys, instead of any it had; none leaves it on no key at all. */

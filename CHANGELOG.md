@@ -571,6 +571,25 @@ E16, in parts.
   as the rider. `walking.`, `hurt.` and `died.` are heard by the look drawn where the game named any for it
   (`GameSounds.heardAs`), else by the thing's own template.
 
+### Action controls
+
+- **A held mouse** (E90): `Duke3D.captureMouse(true)` — the pointer hidden and the mouse's motion read as how far it
+  moved (`onMouseMotion`), the first motion after it is held none; let go while a screen holds the keys, a menu or a
+  cutscene is up, `KeyMap.Control.FREE_POINTER` (Alt) is held or another window has the focus.
+- **A follow the mouse turns** (E91): `CameraFollow.orbiting(sensitivity, invertX, pitchBand)` — the held mouse's x
+  turns the camera round him, its y tilting it within the band (none at 0); `CameraFollow.ORBIT_SENSITIVITY`.
+- **Skills aimed ahead** (E92): `Hotkeys.aimBy(AimBy.FORWARD, releaseToCast)` — an aimed key aims from him along the
+  camera's forward, at its reach down a lane and two thirds of it at a spot, the held mouse's y nearer and further; a
+  creature aim takes the nearest within six of where it points; the left button or the key again casts, the right
+  button or Escape gives it up.
+- **A strike ahead** (E93): `MouseScheme.ACTION` — the left button swings at the point his reach ahead (a reach of
+  `meleeReach` or less), else soft-locks the nearest enemy within `softLockCone` of the forward or shoots straight
+  ahead at his full reach; held, sent again as the forward turns; `WeaponUpdate.reach`.
+- **Interact on a key** (E94): `Hotkeys.onInteract(key, reach, coneDegrees, prompt)` — the nearest thing a context rule
+  names a word for, inside the cone round his facing (the camera's forward while he walks), found with each snapshot
+  (`DukeGame.interactTarget`), its prompt drawn over it, and the key giving it what a click on it gives
+  (`DukeGame.interact`).
+
 ### A route that keeps to the roads
 
 - **`PathGrid.setStepCosts(percentByCell)`** (E52): what a step into each cell costs, as a share of its plain cost — a

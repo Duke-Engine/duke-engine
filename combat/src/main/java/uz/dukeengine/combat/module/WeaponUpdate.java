@@ -578,6 +578,12 @@ public final class WeaponUpdate extends UpdateModule {
         }
     }
 
+    /** How far its first weapon in use reaches now, its bonuses counted; 0 with none in use. */
+    public float reach() {
+        var armed = armed();
+        return armed.isEmpty() ? 0f : range(getOwner(), armed.getFirst().weapon());
+    }
+
     /** Whether it never picks a target by itself — see {@link #acquiresNothing(boolean)}. */
     private boolean acquiresNothing;
 

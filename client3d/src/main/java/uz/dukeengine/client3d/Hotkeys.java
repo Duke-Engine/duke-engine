@@ -223,6 +223,67 @@ public final class Hotkeys {
 
     private KeyMap keyMap = KeyMap.standard();
     private BiConsumer<DukeGame, Boolean> chat;
+    /** How a key's aim is taken: by the pointer, or — the action scheme's — from the hero along the camera's forward. */
+    public enum AimBy { POINTER, FORWARD }
+
+    private AimBy aimBy = AimBy.POINTER;
+    private boolean releaseToCast;
+
+    /**
+     * How an aimed key is aimed — {@link AimBy#FORWARD}: from the hero along the camera's forward, the held mouse's
+     * motion up and down its distance; confirmed by the left button or the key again, or — {@code releaseToCast} — by
+     * letting the key go; given up by the right button, Escape or another skill's key.
+     */
+    public Hotkeys aimBy(AimBy by, boolean castOnRelease) {
+        this.aimBy = by == null ? AimBy.POINTER : by;
+        this.releaseToCast = castOnRelease;
+        return this;
+    }
+
+    AimBy aimBy() {
+        return aimBy;
+    }
+
+    boolean releasesToCast() {
+        return releaseToCast;
+    }
+
+    /** The key that orders the nearest thing worth an order, how near and how wide it looks, and its prompt. */
+    private char interactKey;
+    private float interactReach = 14f;
+    private float interactCone = (float) Math.toRadians(100);
+    private java.util.function.BiFunction<String, Character, String> interactPrompt;
+
+    /**
+     * Order the nearest thing worth an order on {@code key}: among the things a click on would give a word — the game's
+     * context rules — the nearest within {@code reach} of the hero whose middle lies inside {@code coneDegrees} round
+     * his facing (the camera's forward while he walks), ties to the smaller angle; {@code prompt(word, key)} drawn
+     * over it, null leaving it unoffered. The key sends what a click on it sends.
+     */
+    public Hotkeys onInteract(char key, float reach, float coneDegrees, java.util.function.BiFunction<String, Character, String> prompt) {
+        this.interactKey = Character.toUpperCase(key);
+        this.interactReach = reach;
+        this.interactCone = (float) Math.toRadians(coneDegrees);
+        this.interactPrompt = prompt;
+        return bind(key, Aim.NOW, (game, aimed) -> game.interact());
+    }
+
+    char interactKey() {
+        return interactKey;
+    }
+
+    float interactReach() {
+        return interactReach;
+    }
+
+    float interactCone() {
+        return interactCone;
+    }
+
+    java.util.function.BiFunction<String, Character, String> interactPrompt() {
+        return interactPrompt;
+    }
+
     private DirectionKeys directionKeys;
     private BiConsumer<DukeGame, Integer> directionChanged;
 

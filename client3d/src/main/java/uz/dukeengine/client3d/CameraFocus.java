@@ -263,6 +263,11 @@ final class CameraFocus {
         distance = eases() ? aimed + (distance - aimed) * (float) Math.pow(1f - zoomEase, seconds * EASE_STEPS) : aimed;
     }
 
+    /** Tilt it by {@code radians}, held within {@code band} of {@code base}. */
+    void tilt(float radians, float base, float band) {
+        pitch = Math.clamp(pitch + radians, base - band, base + band);
+    }
+
     /** Turn it about the point it looks at. */
     void turnBy(float radians) {
         yaw = (yaw + radians) % (2f * (float) Math.PI);

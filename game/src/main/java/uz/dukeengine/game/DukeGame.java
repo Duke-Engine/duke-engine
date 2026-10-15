@@ -1218,7 +1218,10 @@ public final class DukeGame {
         client.setAimAnswer(this::aimAnswerNow);
         client.hearThroughFog(hearsThroughFog);
         client.setAttackable(this::attackableNow);
-        client.setContextOrder(this::contextOrderNow);
+        client.setContextOrder(() -> {
+            interactTarget = interactNow(); // with each snapshot, as the pointer's word is
+            return contextOrderNow();
+        });
         engine = new MatchEngine(logic, client);
         if (recorder != null) {
             logic.setFrameLog(recorder);
@@ -2030,6 +2033,92 @@ public final class DukeGame {
             return word != null ? word : rule.orderOn(selection, target);
         };
         return this;
+    }
+
+    /** The thing a key would give an order to now: who, the word, and where it stands. */
+    public record Interact(int unit, String word, float x, float y) {
+    }
+
+    /** How near and how wide the nearest thing worth an order is looked for, 0 for not at all — see {@link #interact}. */
+    private volatile float interactReach;
+    private volatile float interactCone;
+    private volatile Interact interactTarget;
+
+    /** Look for the nearest thing worth an order within {@code reach} and a cone of {@code cone} radians; 0 for none. */
+    public void interactWithin(float reach, float cone) {
+        this.interactReach = reach;
+        this.interactCone = cone;
+    }
+
+    /** The thing a key would give an order to now, or null — worked out with each snapshot. */
+    public Interact interactTarget() {
+        return interactTarget;
+    }
+
+    /**
+     * Give the nearest thing worth an order what a click on it gives — {@code GameOrder(player, word, selection, place,
+     * target, 0)} — where there is one, and no cutscene runs. From any thread.
+     */
+    public void interact() {
+        var target = interactTarget;
+        if (target == null || camera.isDriven()) {
+            return;
+        }
+        var units = new java.util.ArrayList<uz.dukeengine.core.thing.ObjectId>();
+        for (var id : orderedNow()) {
+            units.add(new uz.dukeengine.core.thing.ObjectId(id));
+        }
+        postCommand(new uz.dukeengine.combat.message.GameOrder(getLocalPlayerIndex(), target.word(), units,
+                new Coord3D(target.x(), target.y(), 0f), new uz.dukeengine.core.thing.ObjectId(target.unit()), 0));
+    }
+
+    /**
+     * The nearest thing a context rule names a word for, within reach of the first of the player's things selected and
+     * inside the cone round his facing — the camera's forward while he walks — ties to the smaller angle; null for none,
+     * none looked for, or he is stunned or held. On the simulation thread.
+     */
+    private Interact interactNow() {
+        var world = logic;
+        float reach = interactReach;
+        var rule = contextOrder;
+        if (world == null || reach <= 0f || rule == null) {
+            return null;
+        }
+        var selected = selectedOwn(world, null);
+        if (selected.isEmpty()) {
+            return null;
+        }
+        var hero = selected.getFirst();
+        if (hero.hasStatus(uz.dukeengine.core.thing.ObjectStatus.DISABLED)
+                || hero.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HELD)) {
+            return null;
+        }
+        var legs = hero.getLocomotor();
+        float yaw = camera.current().angle();
+        float facing = legs != null && legs.isMoving() ? (float) StrictMath.atan2(-StrictMath.cos(yaw),
+                -StrictMath.sin(yaw)) : hero.getOrientation();
+        var here = hero.getPosition();
+        Interact best = null;
+        float bestGap = Float.MAX_VALUE;
+        float bestOff = Float.MAX_VALUE;
+        for (var thing : world.objectsInRange(here, reach, other -> other != hero)) {
+            var at = thing.getPosition();
+            float dx = at.x() - here.x();
+            float dy = at.y() - here.y();
+            float gap = (float) Math.sqrt(dx * dx + dy * dy);
+            double turn = StrictMath.atan2(dy, dx) - facing;
+            float off = (float) Math.abs(StrictMath.atan2(StrictMath.sin(turn), StrictMath.cos(turn)));
+            if (off > interactCone / 2f || gap > bestGap || gap == bestGap && off >= bestOff) {
+                continue;
+            }
+            var word = rule.orderOn(selected, thing);
+            if (word != null) {
+                best = new Interact(thing.getId().value(), word, at.x(), at.y());
+                bestGap = gap;
+                bestOff = off;
+            }
+        }
+        return best;
     }
 
     private String contextOrderNow() {

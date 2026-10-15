@@ -456,6 +456,21 @@ public final class Duke3D {
         return this;
     }
 
+    /**
+     * Hold the mouse — the action scheme's: the pointer hidden and its motion turning the camera and aiming — let go,
+     * the pointer back where it was, while a screen holds the keys, a menu or a cutscene is up, Alt is held
+     * ({@code KeyMap.Control.FREE_POINTER}) or another window has the focus. From any thread.
+     */
+    public void captureMouse(boolean held) {
+        later(client -> client.captureMouse(held));
+    }
+
+    /** Told each frame the captured mouse moved: how far, in pixels — see {@link #captureMouse}. */
+    public Duke3D onMouseMotion(java.util.function.BiConsumer<Float, Float> motion) {
+        later(client -> client.onMouseMotion(motion));
+        return this;
+    }
+
     /** How the mouse plays — {@link MouseScheme#MODERN} or {@link MouseScheme#CLASSIC} — switched live, from any thread. */
     public void mouseScheme(MouseScheme scheme) {
         later(client -> client.mouseScheme(scheme));
