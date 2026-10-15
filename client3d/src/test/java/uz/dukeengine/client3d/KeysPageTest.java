@@ -24,7 +24,9 @@ class KeysPageTest {
     @Test
     void aKeysCodeAndItsNameAreTheGamesToRead() {
         assertEquals(KeyInput.KEY_C, Hotkeys.codeOf('c'));
-        assertEquals(-1, Hotkeys.codeOf('1'));
+        assertEquals(KeyInput.KEY_1, Hotkeys.codeOf('1'), "a digit is bindable too");
+        assertEquals(KeyInput.KEY_0, Hotkeys.codeOf('0'));
+        assertEquals(-1, Hotkeys.codeOf('-'));
         assertEquals(KeyInput.KEY_ESCAPE, CanvasInput.ESCAPE);
         assertEquals(KeyInput.KEY_RETURN, CanvasInput.ENTER);
         assertEquals(KeyInput.KEY_SPACE, CanvasInput.SPACE);

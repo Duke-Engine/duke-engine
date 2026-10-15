@@ -38,12 +38,14 @@ import java.util.List;
  * @param slot       the worn slot it goes in, one of the words a bag that wears things names
  *                   ({@link LootBag#wornSlots}); blank for a thing that cannot be worn — a key, a potion, a thing to
  *                   sell
+ * @param affixes    the figures it gives beside its own, each a {@link Affix}: as many as the game rolls; none for most
+ *                   things
  * @param skills     the passives it lends whoever wears it, while he wears it — see {@link
  *                   uz.dukeengine.rpg.skill.SkillBook#lendFrom}; none for most things
  */
 public record Loot(String id, String name, String icon, String kind, int value, int weight, int minTier,
         String attribute, String extra, int extraValue, int extraStep, int level, ItemUse use, String liesAs,
-        String slot, List<uz.dukeengine.rpg.skill.Skill> skills) {
+        String slot, List<uz.dukeengine.rpg.skill.Skill> skills, List<Affix> affixes) {
 
     public Loot {
         attribute = attribute == null ? "" : attribute;
@@ -54,6 +56,15 @@ public record Loot(String id, String name, String icon, String kind, int value, 
         liesAs = liesAs == null ? "" : liesAs;
         slot = slot == null ? "" : slot.strip();
         skills = skills == null ? List.of() : List.copyOf(skills);
+        affixes = affixes == null ? List.of() : List.copyOf(affixes);
+    }
+
+    /** A thing with no affixes. */
+    public Loot(String id, String name, String icon, String kind, int value, int weight, int minTier,
+            String attribute, String extra, int extraValue, int extraStep, int level, ItemUse use, String liesAs,
+            String slot, List<uz.dukeengine.rpg.skill.Skill> skills) {
+        this(id, name, icon, kind, value, weight, minTier, attribute, extra, extraValue, extraStep, level, use, liesAs,
+                slot, skills, List.of());
     }
 
     /** A thing that lends no skills. */
@@ -61,7 +72,7 @@ public record Loot(String id, String name, String icon, String kind, int value, 
             String attribute, String extra, int extraValue, int extraStep, int level, ItemUse use, String liesAs,
             String slot) {
         this(id, name, icon, kind, value, weight, minTier, attribute, extra, extraValue, extraStep, level, use, liesAs,
-                slot, List.of());
+                slot, List.of(), List.of());
     }
 
     /** A thing worn in no slot. */
@@ -105,12 +116,12 @@ public record Loot(String id, String name, String icon, String kind, int value, 
     public Loot joined(int count) {
         return new Loot(id, name, icon, kind, value * count, weight, minTier, attribute, extra,
                 extraValue * count + (level == 1 ? extraStep : 0), extraStep, level + 1, use, liesAs, slot,
-                skills);
+                skills, affixes);
     }
 
     /** The same thing, worth {@code value} instead. */
     public Loot worth(int value) {
         return new Loot(id, name, icon, kind, value, weight, minTier, attribute, extra, extraValue, extraStep, level,
-                use, liesAs, slot, skills);
+                use, liesAs, slot, skills, affixes);
     }
 }

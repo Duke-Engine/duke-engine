@@ -20,6 +20,8 @@ final class Drawn implements Canvas {
 
     final List<Picture> pictures = new ArrayList<>();
     final List<String> text = new ArrayList<>();
+    /** Each line drawn, by its words, and the colour it was drawn in. */
+    final java.util.Map<String, Integer> colours = new java.util.HashMap<>();
     /** Where each thing's bar stands, by its id: nowhere, unless a test says. */
     IntFunction<Box> bars = id -> null;
     /** Where the client's panel stands: nowhere, unless a test says. */
@@ -80,6 +82,7 @@ final class Drawn implements Canvas {
     @Override
     public void drawText(Font font, String line, float x, float y, int argb) {
         text.add(line);
+        colours.put(line, argb);
     }
 
     @Override

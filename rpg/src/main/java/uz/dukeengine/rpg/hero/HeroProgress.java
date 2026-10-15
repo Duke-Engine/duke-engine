@@ -246,6 +246,8 @@ public final class HeroProgress {
             recovery.rate(hero.healthRegen() + 10 * loot.healthRegen());
         }
         applyAttackSpeed(body, loot.attackSpeedPercent());
+        applyCriticals(body, loot.total(uz.dukeengine.rpg.item.Stat.CRIT_CHANCE),
+                loot.total(uz.dukeengine.rpg.item.Stat.CRIT_DAMAGE));
         appliedTo = body.getId();
         bare = levelled;
     }
@@ -289,6 +291,17 @@ public final class HeroProgress {
         }
         if (bonus != null) {
             bonus.multiplier(multiplier);
+        }
+    }
+
+    private static void applyCriticals(GameObject body, int chance, int damage) {
+        var critical = body.findModule(CriticalStrike.class);
+        if (critical == null && chance > 0) {
+            critical = new CriticalStrike(body);
+            body.addModule(critical);
+        }
+        if (critical != null) {
+            critical.figures(chance, damage);
         }
     }
 
@@ -336,7 +349,7 @@ public final class HeroProgress {
      */
     public HeroFigures.Found found() {
         return new HeroFigures.Found(loot.attributes(attributeRules), loot.health(), loot.mana(),
-                loot.attackPercent());
+                loot.attackPercent(), loot.total(uz.dukeengine.rpg.item.Stat.MOVE_SPEED));
     }
 
     /**

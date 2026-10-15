@@ -84,10 +84,11 @@ class HotkeysTest {
         assertTrue(claiming('q').claims(KeyInput.KEY_Q));
     }
 
-    /** And anything that is not a letter is not a key this can bind. */
+    /** A digit is a key this can bind too (the belt's 1 to 4); anything else is not. */
     @Test
-    void whatIsNotALetterIsNotBound() {
-        assertEquals(-1, Hotkeys.codeOf('1'));
+    void lettersAndDigitsAreBoundAndNothingElse() {
+        assertEquals(KeyInput.KEY_1, Hotkeys.codeOf('1'));
+        assertTrue(claiming('4').claims(KeyInput.KEY_4));
         assertEquals(-1, Hotkeys.codeOf(' '));
     }
 

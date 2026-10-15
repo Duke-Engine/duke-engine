@@ -25,6 +25,15 @@ public final class Stat {
     /** Percent faster between blows. */
     public static final String ATTACK_SPEED = "ATTACK_SPEED";
 
+    /** Percent chance that a blow or a skill's damage is a critical one, drawn from the world's own random numbers. */
+    public static final String CRIT_CHANCE = "CRIT_CHANCE";
+    /** Percent more a critical blow deals. */
+    public static final String CRIT_DAMAGE = "CRIT_DAMAGE";
+    /** Percent faster on his feet. */
+    public static final String MOVE_SPEED = "MOVE_SPEED";
+    /** Ranks on a key's skill while it is worn: the word, a colon and the key — {@code SKILL_RANK:Q}. */
+    public static final String SKILL_RANK = "SKILL_RANK";
+
     private Stat() {
     }
 }

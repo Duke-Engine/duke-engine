@@ -416,8 +416,14 @@ public final class Hotkeys {
         };
     }
 
-    /** The jME key code for a letter — what a {@link CanvasInput.Key} carries — or -1 for anything that is not one. */
+    /** The jME key code for a letter or a digit — what a {@link CanvasInput.Key} carries — or -1 for anything else. */
     public static int codeOf(char key) {
+        if (key == '0') {
+            return KeyInput.KEY_0;
+        }
+        if (key >= '1' && key <= '9') {
+            return KeyInput.KEY_1 + (key - '1'); // the row of digits is in order on the keyboard, 0 after 9
+        }
         char letter = Character.toUpperCase(key);
         return letter < 'A' || letter > 'Z' ? -1 : LETTERS[letter - 'A'];
     }

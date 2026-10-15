@@ -735,9 +735,10 @@ public final class WeaponUpdate extends UpdateModule {
         lastFiredAt = victim.getId();
         leeching |= weapon.leechRange();
         float wider = bonus(owner, weapon, WeaponBonus.Kind.RADIUS);
+        float rolled = BlowRoll.of(owner, world); // once a shot: a critical blow is critical in both its rings
         var shot = new Shot(owner.getId(), owner.getPlayerIndex(), weapon, chosen.index(),
-                dealt(owner, weapon, weapon.damage()), weapon.splashRadius() * wider,
-                dealt(owner, weapon, weapon.secondaryDamage()), weapon.secondaryRadius() * wider);
+                dealt(owner, weapon, weapon.damage()) * rolled, weapon.splashRadius() * wider,
+                dealt(owner, weapon, weapon.secondaryDamage()) * rolled, weapon.secondaryRadius() * wider);
         for (var listener : shotListeners(owner)) {
             listener.onFired(shot, victim);
         }

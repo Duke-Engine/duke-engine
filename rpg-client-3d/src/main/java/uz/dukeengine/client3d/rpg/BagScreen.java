@@ -82,6 +82,30 @@ public final class BagScreen implements Painter, CanvasInput {
         }
     }
 
+    /** One line of a thing's card in a colour the game gives, {@code 0xRRGGBB}. */
+    public record Line(String text, int colour) {
+    }
+
+    /** The game's coloured lines for a thing's card, in place of {@link #gives}'s; null for {@code gives}'. */
+    private Function<Loot, List<Line>> colouredLines;
+    /** The colour of a thing's name — its rarity — or null for the torch's. */
+    private java.util.function.ToIntFunction<Loot> nameColour;
+    /** Lines under a thing's hints — how it compares with what is worn — or null for none. */
+    private java.util.function.BiFunction<Loot, LootBag, List<Line>> under;
+
+    /**
+     * Draw a thing's card in the game's colours: its lines as {@code lines} gives them, its name in
+     * {@code nameColour}'s colour, and {@code under}'s lines beneath its hints — the comparison with what is worn.
+     * Any of them null keeps the bag's own.
+     */
+    public BagScreen colouredBy(Function<Loot, List<Line>> lines, java.util.function.ToIntFunction<Loot> nameColour,
+            java.util.function.BiFunction<Loot, LootBag, List<Line>> under) {
+        this.colouredLines = lines;
+        this.nameColour = nameColour;
+        this.under = under;
+        return this;
+    }
+
     /** The id of the aim that puts {@code slot} down. */
     private static final String DROP = "drop:";
     /** The id of the aim that takes {@code slot} to a thing, to be used on it. */
@@ -281,28 +305,14 @@ public final class BagScreen implements Painter, CanvasInput {
             }
         } else if (over >= 0 && slots.get(over) != null) {
             var item = slots.get(over);
-            tip(canvas, lines(item, bag), hintsIn(bag, over, item), slotX(over) - gap, slotY(over), true);
+            tip(canvas, cardOf(item, bag, hintsIn(bag, over, item)), slotX(over) - gap, slotY(over), true);
         } else if (card != null) {
             tip(canvas, card.said(), card.hints(), card.x(), card.y(), false);
         } else if (!onTheBag(mouseX, mouseY) && lying.get(now.game().getPointedAt()) instanceof Loot under) {
-            tip(canvas, lines(under, bag), List.of(words.takeHint()), mouseX + 20, mouseY + 20, false);
+            tip(canvas, cardOf(under, bag, List.of(words.takeHint())), mouseX + 20, mouseY + 20, false);
         }
     }
 
-    /** Its name, the slot it is worn in where the bag wears it, and what it gives if it gives anything. */
-    private List<String> lines(Loot item, LootBag bag) {
-        var said = new ArrayList<String>();
-        said.add(LootBag.nameOf(item));
-        if (bag.wornPlace(item.slot()) >= 0 && !words.wornIn().isEmpty()) {
-            said.add(words.wornIn() + item.slot());
-        }
-        for (var line : gives.apply(item)) {
-            if (!line.isEmpty()) {
-                said.add(line);
-            }
-        }
-        return said;
-    }
 
     /** On its card in the bag: how to take it, how to use it if it does something, and how to put it on or off. */
     private List<String> hintsIn(LootBag bag, int place, Loot item) {
@@ -324,13 +334,53 @@ public final class BagScreen implements Painter, CanvasInput {
      * alone has its first as its heading. Beside {@code (x, y)}, to its left when {@code leftOf}, and on the screen.
      */
     private void tip(Canvas canvas, List<String> said, List<String> hints, float x, float y, boolean leftOf) {
-        var lines = new ArrayList<>(said);
-        lines.addAll(hints);
+        var lines = new ArrayList<Line>();
+        for (int i = 0; i < said.size(); i++) {
+            lines.add(new Line(said.get(i), i == 0 ? look.torchColour() : look.boneColour()));
+        }
+        for (var hint : hints) {
+            lines.add(new Line(hint, look.hintColour()));
+        }
+        tip(canvas, lines, x, y, leftOf);
+    }
+
+    /** A thing's card: its name, the slot it is worn in, what it gives, the hints, and the game's lines under them. */
+    private List<Line> cardOf(Loot item, LootBag bag, List<String> hints) {
+        var lines = new ArrayList<Line>();
+        lines.add(new Line(LootBag.nameOf(item), nameColour == null ? look.torchColour()
+                : nameColour.applyAsInt(item)));
+        if (bag.wornPlace(item.slot()) >= 0 && !words.wornIn().isEmpty()) {
+            lines.add(new Line(words.wornIn() + item.slot(), look.boneColour()));
+        }
+        if (colouredLines != null) {
+            for (var line : colouredLines.apply(item)) {
+                if (!line.text().isEmpty()) {
+                    lines.add(line);
+                }
+            }
+        } else {
+            for (var said : gives.apply(item)) {
+                if (!said.isEmpty()) {
+                    lines.add(new Line(said, look.boneColour()));
+                }
+            }
+        }
+        for (var hint : hints) {
+            lines.add(new Line(hint, look.hintColour()));
+        }
+        if (under != null) {
+            lines.addAll(under.apply(item, bag));
+        }
+        return lines;
+    }
+
+    /** A card of {@code lines}, the first its heading, beside {@code (x, y)} — to its left when {@code leftOf}. */
+    private void tip(Canvas canvas, List<Line> lines, float x, float y, boolean leftOf) {
         float across = 0f;
         float down = 0f;
         for (int i = 0; i < lines.size(); i++) {
             var font = i == 0 ? big() : small();
-            var measure = canvas.measure(font, lines.get(i));
+            var measure = canvas.measure(font, lines.get(i).text());
             across = Math.max(across, measure.width());
             down += measure.lineHeight() + (i == 0 ? 0f : 2f);
         }
@@ -344,9 +394,8 @@ public final class BagScreen implements Painter, CanvasInput {
         float line = from + pad;
         for (int i = 0; i < lines.size(); i++) {
             var font = i == 0 ? big() : small();
-            int colour = i == 0 ? look.torchColour() : i >= said.size() ? look.hintColour() : look.boneColour();
-            canvas.drawText(font, lines.get(i), at + pad, line, 0xFF000000 | colour);
-            line += canvas.measure(font, lines.get(i)).lineHeight() + 2f;
+            canvas.drawText(font, lines.get(i).text(), at + pad, line, 0xFF000000 | lines.get(i).colour());
+            line += canvas.measure(font, lines.get(i).text()).lineHeight() + 2f;
         }
     }
 

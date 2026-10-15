@@ -621,6 +621,9 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
      *                  caster's current facing
      */
     public boolean cast(char key, int level, ObjectId at, Coord3D towards) {
+        if (level > 0 && wornFrom != null) {
+            level += wornFrom.skillRanks(key); // what he wears raises a skill he has learnt, while he wears it
+        }
         int slot = slotOf(key);
         if (slot < 0 || cooldowns[slot] > 0) {
             return false;
@@ -1047,7 +1050,10 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
      * carries a level of its own, so a hero's figure is untouched by that last.
      */
     private float damageOf(Skill skill, int rank) {
-        return skill.damageAt(rank) * damageMultiplier() * bonusOf(getOwner());
+        // A critical strike rolls on a skill's damage as on a blow, once a cast.
+        var owner = getOwner();
+        return skill.damageAt(rank) * damageMultiplier() * bonusOf(owner)
+                * uz.dukeengine.combat.module.BlowRoll.of(owner, owner.getWorld());
     }
 
     /**
@@ -1610,7 +1616,8 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
 
     /** Its rank: what the game said, 0 for not held; the first where it never said. */
     private int rankOf(Skill skill) {
-        return Math.max(0, ranks.getOrDefault(Character.toUpperCase(skill.key()), 1));
+        int learnt = Math.max(0, ranks.getOrDefault(Character.toUpperCase(skill.key()), 1));
+        return learnt > 0 && wornFrom != null ? learnt + wornFrom.skillRanks(skill.key()) : learnt;
     }
 
     /** A {@code DRAGON_BLOOD}'s armour held on his body's damage scale and its health given back, while he has one. */

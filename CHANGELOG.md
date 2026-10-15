@@ -388,6 +388,21 @@ E16, in parts.
   `margin` pixels in from the edge, and only that strip darkened; `MenuSide.MIDDLE`, the default, as ever. A front menu
   over a live `Duke3D.backdrop` is drawn over it, dimmed, rather than on the stone that hid it.
 
+### A thing's affixes, crits, and its card in colours
+
+- **Affixes** (E43): `Loot`'s new last component `affixes`, each an `Affix(stat, value)` — a `Stat` word, an
+  attribute, or the game's own — kept through `joined`, `worth` and every copy. `LootBag.total`, `extra` and
+  `attributes` add every acting thing's affixes beside its own figure (`LootBag.affixes(stat)`); in the backpack they
+  move nothing. The sixteen-part constructor is kept.
+- **Crits, move speed, a worn skill rank** (E44): `Stat.CRIT_CHANCE` and `CRIT_DAMAGE` — a hero's `CriticalStrike`,
+  set from what he wears, rolled on the world's random numbers once a blow and once a skill's cast through combat's new
+  `BlowRoll`, which the weapon asks once a shot and never to estimate one; `Stat.MOVE_SPEED`, a share of his whole speed
+  (`HeroFigures.Found.movePercent`); and `SKILL_RANK:Q`, ranks on that key's skill while worn, for a skill he has
+  learnt (`LootBag.skillRanks`).
+- **The card in the game's colours** (E45): `BagScreen.colouredBy(lines, nameColour, under)` — coloured
+  `BagScreen.Line`s for what a thing gives, its name by rarity, and lines under the hints for the comparison.
+- **Digits bindable** — `Hotkeys.on('1', …)` fires: `Hotkeys.codeOf` knows the digits.
+
 ### The story's moves, its camera and its cards
 
 - **`ScriptedMove`** (E40, core): a thing moved by the story over so many frames — `along(thing, to, frames, arcHeight)`,

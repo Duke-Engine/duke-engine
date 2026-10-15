@@ -126,4 +126,24 @@ class BagScreenTest {
                 "put on from the backpack, taken off from its slot");
         assertTrue(armed.isEmpty(), "nothing taken in hand");
     }
+
+    /** A thing's card in the game's colours: its name by rarity, a blue affix, a green comparison under it (E45). */
+    @Test
+    void aCardIsDrawnInTheGamesColours() {
+        var game = shown();
+        screen.colouredBy(item -> List.of(new BagScreen.Line("+9% Zarba", 0x6080FF)), item -> 0xFFD700,
+                (item, carried) -> List.of(new BagScreen.Line("+4 kiyilgandan", 0x40C040)));
+        bag.take(SWORD, 0, 0);
+        game.runHeadless(1);
+        var canvas = new Drawn();
+        screen.paint(canvas);
+        var sword = canvas.picture(SWORD.icon());
+        screen.take(new CanvasInput.Pointer(sword.middleX(), sword.middleY()));
+        canvas = new Drawn();
+        screen.paint(canvas);
+
+        assertEquals(0xFF6080FF, canvas.colours.get("+9% Zarba"), "the affix in blue");
+        assertEquals(0xFFFFD700, canvas.colours.get("Qilich"), "the name in its rarity's gold");
+        assertEquals(0xFF40C040, canvas.colours.get("+4 kiyilgandan"), "the comparison under the hints");
+    }
 }

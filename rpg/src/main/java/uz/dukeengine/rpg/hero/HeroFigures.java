@@ -26,10 +26,16 @@ public record HeroFigures(Attributes attributes, int bonusHealth, float maxHealt
      * @param health        flat maximum health
      * @param mana          flat maximum mana
      * @param attackPercent percent added to his attack
+     * @param movePercent   percent added to his speed on his feet
      */
-    public record Found(Attributes attributes, int health, int mana, int attackPercent) {
+    public record Found(Attributes attributes, int health, int mana, int attackPercent, int movePercent) {
 
-        public static final Found NOTHING = new Found(Attributes.NONE, 0, 0, 0);
+        public static final Found NOTHING = new Found(Attributes.NONE, 0, 0, 0, 0);
+
+        /** What he has found that makes him no quicker on his feet. */
+        public Found(Attributes attributes, int health, int mana, int attackPercent) {
+            this(attributes, health, mana, attackPercent, 0);
+        }
     }
 
     public static HeroFigures of(HeroBase base, int baseMana, HeroAttributes hero,
@@ -37,6 +43,9 @@ public record HeroFigures(Attributes attributes, int bonusHealth, float maxHealt
         var attributes = hero.atLevel(level).plus(found.attributes());
         int bonusHealth = Math.addExact(rules.health(attributes), found.health());
         float speed = base.speed() + rules.speed(attributes);
+        if (found.movePercent() != 0) {
+            speed = speed * (100 + found.movePercent()) / 100f; // a share of his whole speed, agility's included
+        }
         // The percentage is of the whole blow, attributes included, so a blade found on
         // the first floor is worth the same share of his swing on the fourth. Left out
         // entirely when there is none, so the blow he was built with is exactly his

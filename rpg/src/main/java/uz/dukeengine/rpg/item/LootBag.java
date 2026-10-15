@@ -385,7 +385,28 @@ public final class LootBag {
                 total += item.extraValue();
             }
         }
+        return total + affixes(extra);
+    }
+
+    /** What every acting thing's affixes of {@code stat} come to. */
+    public int affixes(String stat) {
+        int total = 0;
+        for (var item : actingSlots()) {
+            if (item == null) {
+                continue;
+            }
+            for (var affix : item.affixes()) {
+                if (affix.stat().equals(stat)) {
+                    total = Math.addExact(total, affix.value());
+                }
+            }
+        }
         return total;
+    }
+
+    /** The ranks what he wears adds to the skill on {@code key}: every {@code SKILL_RANK:key} affix. */
+    public int skillRanks(char key) {
+        return affixes(Stat.SKILL_RANK + ":" + Character.toUpperCase(key));
     }
 
     /**
@@ -405,6 +426,14 @@ public final class LootBag {
                 points[at] = Math.addExact(points[at], item.value());
             }
         }
+        for (var item : actingSlots()) {
+            for (var affix : item == null ? java.util.List.<Affix>of() : item.affixes()) {
+                int at = rules.indexOf(affix.stat()); // an affix naming an attribute, as the hero's block names it
+                if (at >= 0) {
+                    points[at] = Math.addExact(points[at], affix.value());
+                }
+            }
+        }
         return uz.dukeengine.rpg.hero.Attributes.ofWhole(points);
     }
 
@@ -416,6 +445,6 @@ public final class LootBag {
                 total += item.value();
             }
         }
-        return total;
+        return total + affixes(kind);
     }
 }
