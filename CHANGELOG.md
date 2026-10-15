@@ -472,6 +472,13 @@ E16, in parts.
   flinch played while the thing moves goes on a composer layer masked to that joint and those below it
   (`UpperBody`), the walk going on in its legs; standing, or naming none, as before.
 
+### A flinch that keeps out of the fight
+
+- **Flinches** (E71): a hurt creature flinches only while it does nothing else — not over a swing, a cast or its
+  work, and not while it has a target — and, with `Visuals.flinch(new Flinch(seconds, heavyOnly))`, at most once in
+  `seconds`, or only at a critical blow or one of at least `HitNumbers.bigAt`. A creature in a crowd fights rather
+  than trembles.
+
 ### A route that keeps to the roads
 
 - **`PathGrid.setStepCosts(percentByCell)`** (E52): what a step into each cell costs, as a share of its plain cost — a

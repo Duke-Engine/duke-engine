@@ -455,6 +455,7 @@ final class DukeRtsApp extends SimpleApplication {
     /** The creatures a critical blow struck this frame, their numbers drawn as critical. */
     private final java.util.Set<Integer> criticalThisFrame = new java.util.HashSet<>();
     private final HitStops hitStops = new HitStops();
+    private final Flinch.Clock flinches = new Flinch.Clock();
 
     /**
      * The bars over everybody's heads. Screen-space and pooled — see UnitBars.
@@ -7751,7 +7752,14 @@ final class DukeRtsApp extends SimpleApplication {
         // Nothing on the first sight of a unit, and nothing on the blow that
         // killed it: that one has a death to play and this would talk over it.
         if (!Float.isNaN(before) && view.health() < before && view.health() > 0f) {
-            playOnce(node, visualFor(view).hurtAnim);
+            float now = timer.getTimeInSeconds();
+            // Never over a swing, a cast or its work: a hero in a crowd fights rather than trembles.
+            boolean busy = now < node.actionUntil || now < node.gestureUntil || view.busyClip() != null
+                    || view.attacking();
+            if (flinches.flinches(visuals.getFlinch(), view.id(), now, busy, before - view.health(),
+                    criticalThisFrame.contains(view.id()), visuals.getHitNumbers().bigAt())) {
+                playOnce(node, visualFor(view).hurtAnim);
+            }
         }
     }
 

@@ -3128,6 +3128,17 @@ public final class Visuals {
     }
 
     private HitStop hitStop;
+    private Flinch flinch = Flinch.DEFAULTS;
+
+    /** When a hurt creature flinches — see {@link Flinch}; at every blow it is free for, unless said. */
+    public Visuals flinch(Flinch flinch) {
+        this.flinch = flinch == null ? Flinch.DEFAULTS : flinch;
+        return this;
+    }
+
+    public Flinch getFlinch() {
+        return flinch;
+    }
 
     /** A heavy blow felt as a catch in the motion — see {@link HitStop}; none unless said. */
     public Visuals hitStop(HitStop hitStop) {
