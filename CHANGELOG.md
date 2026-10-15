@@ -564,6 +564,10 @@ E16, in parts.
   weapon holding fire, off at a second press, a blow (`EndsOnHurt`) or another cast (`EndsOnCast`, else refused);
   `SkillBook.dismount` for an ordered attack. `Skill.NotIn` — zones a skill is refused in, nothing spent, read from
   `World.zonesAt`, the game's rule (`GameLogic.setZones`). The buff row shows `MOVE_SPEED` (`Words.moveSpeed`).
+  A clicked route is quickened too: the share lifts the speed a way is walked and given way at, not only the step.
+- **A push that throws a crowd** (E95): `PUSH` throws its victims farthest first, one of its own victims in the way
+  flying with the rest — stone, a seal and a body that is no victim still stop it — and each stops short of where one
+  thrown before it comes down, so a packed column lands whole, in order, none in another.
 - **The hour while the world is drawn** (E86 day/night): `Duke3D.sunlight(Sunlight, seconds)` — the sun and ambient
   lights, the shadows and the painted ground (`AmbientShift`, `SunShift`, `SunDirection` laid over the root) eased to
   it; `hazeColour(rgb, seconds)` the haze and the void behind the world; `lightScale(times)` every light layer's power
@@ -592,6 +596,9 @@ E16, in parts.
   names a word for, inside the cone round his facing (the camera's forward while he walks), found with each snapshot
   (`DukeGame.interactTarget`), its prompt drawn over it, and the key giving it what a click on it gives
   (`DukeGame.interact`).
+- **Interact with the map's scenery** (E96): the search takes in the standing scenery pieces within its reach and cone
+  (`GameLogic.sceneryWithin`), each offered by the ground rule asked at its place (`DukeGame.groundOrder`), the nearest
+  of things and pieces alike; the key gives a piece what a click on the ground under it gives (`Interact.unit` -1).
 
 ### A route that keeps to the roads
 

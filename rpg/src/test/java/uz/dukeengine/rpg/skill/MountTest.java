@@ -90,4 +90,22 @@ class MountTest {
         world.run(20);
         assertEquals(1f, book.speedShare(), 1e-6f, "run out");
     }
+
+    /** A route walked by a click, not by keys: the buff lifts the pace it is walked at as well. */
+    @Test
+    void aMoveSpeedBuffQuickensAClickedRouteToo() {
+        float[] covered = new float[2];
+        for (int buffed = 0; buffed < 2; buffed++) {
+            var world = world();
+            var hero = world.put("Hero", world.heroes, 100f, 100f);
+            world.run(1);
+            if (buffed == 1) {
+                hero.findModule(SkillBook.class).give(SkillEffect.MOVE_SPEED, 9, 100, world.getFrame() + 1000);
+            }
+            hero.getLocomotor().moveTo(new Coord3D(1000f, 100f, 0f));
+            world.run(30);
+            covered[buffed] = hero.getPosition().x() - 100f;
+        }
+        assertEquals(2f * covered[0], covered[1], 2f, "twice the ground in the same frames");
+    }
 }

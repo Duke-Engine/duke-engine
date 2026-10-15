@@ -2038,7 +2038,7 @@ public final class DukeGame {
         return this;
     }
 
-    /** The thing a key would give an order to now: who, the word, and where it stands. */
+    /** The thing a key would give an order to now: who (-1 for a piece of the map's scenery), the word, and where. */
     public record Interact(int unit, String word, float x, float y) {
     }
 
@@ -2071,8 +2071,10 @@ public final class DukeGame {
         for (var id : orderedNow()) {
             units.add(new uz.dukeengine.core.thing.ObjectId(id));
         }
+        // A piece of scenery is given what a click on the ground under it gives: the place, and no thing.
         postCommand(new uz.dukeengine.combat.message.GameOrder(getLocalPlayerIndex(), target.word(), units,
-                new Coord3D(target.x(), target.y(), 0f), new uz.dukeengine.core.thing.ObjectId(target.unit()), 0));
+                new Coord3D(target.x(), target.y(), 0f),
+                target.unit() < 0 ? null : new uz.dukeengine.core.thing.ObjectId(target.unit()), 0));
     }
 
     /**
@@ -2084,7 +2086,8 @@ public final class DukeGame {
         var world = logic;
         float reach = interactReach;
         var rule = contextOrder;
-        if (world == null || reach <= 0f || rule == null) {
+        var ground = groundOrder;
+        if (world == null || reach <= 0f || rule == null && ground == null) {
             return null;
         }
         var selected = selectedOwn(world, null);
@@ -2114,9 +2117,30 @@ public final class DukeGame {
             if (off > interactCone / 2f || gap > bestGap || gap == bestGap && off >= bestOff) {
                 continue;
             }
-            var word = rule.orderOn(selected, thing);
+            var word = rule == null ? null : rule.orderOn(selected, thing);
             if (word != null) {
                 best = new Interact(thing.getId().value(), word, at.x(), at.y());
+                bestGap = gap;
+                bestOff = off;
+            }
+        }
+        // The map's own scenery too — a forest's trees are pieces, not things — by the ground rule under each (E96).
+        var cells = ground == null ? null : world.getSightCells();
+        for (var piece : ground == null ? List.<uz.dukeengine.core.pathfind.SceneryFootprint>of()
+                : world.sceneryWithin(here, reach)) {
+            float dx = piece.x() - here.x();
+            float dy = piece.y() - here.y();
+            float gap = (float) Math.sqrt(dx * dx + dy * dy);
+            double turn = StrictMath.atan2(dy, dx) - facing;
+            float off = (float) Math.abs(StrictMath.atan2(StrictMath.sin(turn), StrictMath.cos(turn)));
+            if (off > interactCone / 2f || gap > bestGap || gap == bestGap && off >= bestOff) {
+                continue;
+            }
+            var place = new Coord3D(piece.x(), piece.y(), 0f);
+            boolean seen = cells == null || cells.everSeen(getLocalPlayerIndex(), place);
+            var word = ground.orderAt(selected, place, seen);
+            if (word != null) {
+                best = new Interact(-1, word, piece.x(), piece.y());
                 bestGap = gap;
                 bestOff = off;
             }

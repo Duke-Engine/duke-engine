@@ -895,7 +895,10 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             }
         }
         boolean slowed = owner.hasStatus(ObjectStatus.SLOWED);
-        float step = (slowed ? stepPerFrame * 0.5f : stepPerFrame) * speedShare(owner);
+        float share = speedShare(owner);
+        float step = (slowed ? stepPerFrame * 0.5f : stepPerFrame) * share;
+        // Its quickeners lift the cap a way is walked at, as they lift its step: a rider on a route rides (E89).
+        float top = (slowed ? topSpeed * 0.5f : topSpeed) * share;
 
         if (waiting) {
             planRoute(); // its turn, if this frame's searching has room for it
@@ -933,7 +936,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         var heading = steer == null || across(steer, position) < 1e-4f ? delta : steer.sub(position);
         float desired = (float) StrictMath.atan2(heading.y(), heading.x());
         float rest = distance + legsAfter(waypointIndex);
-        float allowed = giveWay(owner, world, desired, slowed ? topSpeed * 0.5f : topSpeed);
+        float allowed = giveWay(owner, world, desired, top);
         if (!isMoving()) {
             return; // it stepped aside, or planned again and has nowhere to go
         }
@@ -943,7 +946,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         }
         step = Math.min(step, allowed * GameConstants.SECONDS_PER_LOGICFRAME);
         if (data.acceleration() > 0f || data.braking() > 0f) {
-            speedNow = approach(speedNow, (slowed ? topSpeed * 0.5f : topSpeed), acceleration(owner), 0f);
+            speedNow = approach(speedNow, top, acceleration(owner), 0f);
             step = Math.min(step, speedNow * GameConstants.SECONDS_PER_LOGICFRAME);
         }
         if (turnPerFrame > 0f && distance > step) {

@@ -1051,7 +1051,16 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                 float facing = owner.getOrientation();
                 float each = damageOf(skill, level);
                 int frames = Math.max(1, skill.durationFrames());
-                for (var victim : enemiesWithin(owner, world, middle, skill.radius())) {
+                // The farthest first, so the outer ones clear the way the inner are thrown along; a victim in the way
+                // flies with the rest, and only where one already went stops the next (E95).
+                var victims = new java.util.ArrayList<>(enemiesWithin(owner, world, middle, skill.radius()));
+                victims.sort(java.util.Comparator.comparingDouble((GameObject v) -> -flat(v.getPosition(), middle))
+                        .thenComparingInt(v -> v.getId().value()));
+                var thrown = new java.util.HashSet<uz.dukeengine.core.thing.ObjectId>();
+                victims.forEach(v -> thrown.add(v.getId()));
+                var landed = new java.util.ArrayList<GameObject>();
+                var ends = new java.util.ArrayList<Coord3D>();
+                for (var victim : victims) {
                     var stands = victim.getPosition();
                     float dx = stands.x() - middle.x();
                     float dy = stands.y() - middle.y();
@@ -1063,7 +1072,9 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                         dx /= length;
                         dy /= length;
                     }
-                    var end = pushEnd(victim, world, dx, dy, skill.distance());
+                    var end = pushEnd(victim, world, dx, dy, skill.distance(), thrown, landed, ends);
+                    landed.add(victim);
+                    ends.add(end);
                     if (skill.damage() > 0f) {
                         hurt(owner, victim, each);
                     }
@@ -1451,18 +1462,40 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     private static final float LOW_LINK_HEADING = 0.7f;
 
     /** Where a push of {@code distance} along ({@code dx}, {@code dy}) leaves {@code victim}: short of stone and seals. */
-    private Coord3D pushEnd(GameObject victim, World world, float dx, float dy, float distance) {
+    private Coord3D pushEnd(GameObject victim, World world, float dx, float dy, float distance,
+            java.util.Set<uz.dukeengine.core.thing.ObjectId> thrown, List<GameObject> landed, List<Coord3D> ends) {
         var from = victim.getPosition();
         var end = new Coord3D(from.x(), from.y(), from.z());
         for (float gone = ROLL_STEP; gone <= distance + 1e-3f; gone += ROLL_STEP) {
             var step = new Coord3D(from.x() + dx * gone, from.y() + dy * gone, from.z());
-            if (world.isGroundBlocked(step) || world.findBlocker(victim, step) != null
-                    || seal.parts(world, from, step)) {
+            if (world.isGroundBlocked(step) || world.findBlocker(victim, step, thing -> thrown.contains(thing.getId()))
+                    != null || seal.parts(world, from, step) || onALanding(victim, step, landed, ends)) {
                 break;
             }
             end = step;
         }
         return new Coord3D(end.x(), end.y(), world.groundHeight(end));
+    }
+
+    /** Whether {@code victim} at {@code step} would stand in one thrown before it, where that one comes down. */
+    private static boolean onALanding(GameObject victim, Coord3D step, List<GameObject> landed, List<Coord3D> ends) {
+        for (int i = 0; i < landed.size(); i++) {
+            float room = radiusOf(victim) + radiusOf(landed.get(i));
+            if (flat(step, ends.get(i)) < room) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static float radiusOf(GameObject thing) {
+        return thing.getGeometry() == null ? 0f : thing.getGeometry().footprintRadius();
+    }
+
+    private static float flat(Coord3D a, Coord3D b) {
+        float x = a.x() - b.x();
+        float y = a.y() - b.y();
+        return (float) Math.sqrt(x * x + y * y);
     }
 
     /** How far past his own size a dodge's end looks for creatures it would stand in. */

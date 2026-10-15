@@ -1158,6 +1158,19 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return best;
     }
 
+    /** The standing pieces of scenery whose middles lie within {@code reach} of {@code place}, by index. */
+    public final List<uz.dukeengine.core.pathfind.SceneryFootprint> sceneryWithin(Coord3D place, float reach) {
+        var near = new java.util.ArrayList<uz.dukeengine.core.pathfind.SceneryFootprint>();
+        for (var piece : scenery) {
+            float dx = piece.x() - place.x();
+            float dy = piece.y() - place.y();
+            if (dx * dx + dy * dy <= reach * reach && !removedScenery.contains(piece.index())) {
+                near.add(piece);
+            }
+        }
+        return near;
+    }
+
     /** The piece of scenery at {@code index}, standing or not, or null where the map has no such piece in the way. */
     public final uz.dukeengine.core.pathfind.SceneryFootprint sceneryPiece(int index) {
         for (var piece : scenery) {

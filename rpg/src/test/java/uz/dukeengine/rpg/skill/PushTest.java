@@ -71,4 +71,24 @@ class PushTest {
         assertTrue(skeleton.getPosition().x() < 160f && skeleton.getPosition().x() > 150f,
                 "short of the stone: " + skeleton.getPosition());
     }
+
+    /** A column of five, one behind the other: all thrown the whole way, in order, none in another (E95). */
+    @Test
+    void aColumnIsThrownTogether() {
+        var world = world(false);
+        world.getThingFactory().addTemplate(uz.dukeengine.core.thing.ObjectTemplate.named("Packed")
+                .geometry(new uz.dukeengine.core.thing.Geometry.Cylinder(3f, 6f))
+                .module(new ActiveBody.Data(100f)).module(new StatusUpdate.Data()).build());
+        var hero = world.put("Hero", world.heroes, 100f, 100f);
+        var column = new java.util.ArrayList<uz.dukeengine.core.thing.GameObject>();
+        for (int i = 0; i < 5; i++) {
+            column.add(world.put("Packed", world.monsters, 110f + 7f * i, 100f));
+        }
+        world.run(1);
+        assertTrue(hero.findModule(SkillBook.class).cast('R', 1));
+        world.run(11);
+        for (int i = 0; i < 5; i++) {
+            assertEquals(140f + 7f * i, column.get(i).getPosition().x(), 1e-3f, "the whole thirty, in its place");
+        }
+    }
 }
