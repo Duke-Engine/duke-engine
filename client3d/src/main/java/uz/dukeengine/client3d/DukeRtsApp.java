@@ -220,6 +220,53 @@ final class DukeRtsApp extends SimpleApplication {
     private Strips strips;
     private Water water;
     private TrackMarks trackMarks;
+    private OcclusionMarks occlusionMarks;
+    private BorderRing border;
+
+    /** The game's sky, hung behind everything; none where it names none or its pictures will not load. */
+    private void hangTheSky() {
+        var pictures = visuals.getSkybox();
+        if (pictures.isEmpty()) {
+            return;
+        }
+        try {
+            var sky = pictures.size() == 1
+                    ? com.jme3.util.SkyFactory.createSky(assetManager, pictures.getFirst(),
+                            com.jme3.util.SkyFactory.EnvMapType.CubeMap)
+                    : com.jme3.util.SkyFactory.createSky(assetManager, assetManager.loadTexture(pictures.get(0)),
+                            assetManager.loadTexture(pictures.get(1)), assetManager.loadTexture(pictures.get(2)),
+                            assetManager.loadTexture(pictures.get(3)), assetManager.loadTexture(pictures.get(4)),
+                            assetManager.loadTexture(pictures.get(5)));
+            rootNode.attachChild(sky);
+        } catch (RuntimeException notThere) {
+            LOG.warning(() -> "the sky names pictures that will not load: " + pictures);
+        }
+    }
+
+    /** The things shown behind what stands in front this frame — see {@link Visuals#occlusionMarks}. */
+    private void markTheHidden() {
+        if (!visuals.getOcclusionMarks() || snapshot == null) {
+            if (occlusionMarks != null) {
+                occlusionMarks.mark(Map.of());
+            }
+            return;
+        }
+        if (occlusionMarks == null) {
+            occlusionMarks = new OcclusionMarks(assetManager);
+            viewPort.getProcessors().add(0, occlusionMarks); // before a filter takes the picture and its depth
+        }
+        int local = game.getLocalPlayerIndex();
+        var marked = new java.util.HashMap<Spatial, ColorRGBA>();
+        for (var view : snapshot.units()) {
+            var node = unitNodes.get(view.id());
+            if (node == null || view.structure()
+                    || view.playerIndex() != local && !visuals.getOcclusionMarked().test(view)) {
+                continue;
+            }
+            marked.put(node.root, toColor(game.getColor(view.playerIndex())));
+        }
+        occlusionMarks.mark(marked);
+    }
     private ShoreWaves shoreWaves;
 
     /** A picture drawn flat in the world by the game's look: an unshaded material, or null where it will not load. */
@@ -769,6 +816,8 @@ final class DukeRtsApp extends SimpleApplication {
         strips = new Strips(listNode, this::drawnGround, this::stripLook, visuals::getGroundLight);
         water = new Water(listNode, this::waterLook);
         trackMarks = new TrackMarks(listNode, this::flatPicture);
+        border = new BorderRing(listNode, assetManager);
+        hangTheSky();
         shoreWaves = new ShoreWaves(listNode, this::flatPicture);
         listShow = new ListShow(assetManager, listNode, effects.lights(), (cue, at) -> {
             if (noises != null) {
@@ -3758,6 +3807,9 @@ final class DukeRtsApp extends SimpleApplication {
             water.rebuild(game.getMapRecord() instanceof uz.dukeengine.core.map.Zoned zoned ? zoned.areas()
                     : java.util.List.of(), drawnGround(), visuals.getWater());
         }
+        if (border != null) {
+            border.lay(drawnGround(), visuals.getBorderCells());
+        }
         if (trackMarks != null) {
             trackMarks.clear();
             shoreWaves.lay(visuals.getShoreWaves());
@@ -5912,6 +5964,10 @@ final class DukeRtsApp extends SimpleApplication {
             trackMarks.see(snapshot.units(), visuals.getTrackMarks(), snapshot.frame(), this::floorHeightAt,
                     (x, y) -> !Float.isNaN(water.surfaceAt(x, y)));
             shoreWaves.see(snapshot.frame(), this::waterOrGround);
+        }
+        markTheHidden();
+        if (border != null) {
+            border.colour(viewPort.getBackgroundColor()); // the unexplored colour, whatever the theme makes it
         }
         reapTheDead();
         followWithTheMinimap();

@@ -35,11 +35,11 @@ public final class Visuals {
     record AnimationSource(String assetPath, String clipName) {
     }
 
-    /** Per-template visual/audio configuration. All fields optional. */
     /** A bone the game drives: see {@link UnitVisual#driveBone}. */
     record DrivenBone(String bone, BoneDrive drive, int easeFrames) {
     }
 
+    /** Per-template visual/audio configuration. All fields optional. */
     public static final class UnitVisual {
         String modelPath;
         String modelPart;
@@ -2422,6 +2422,66 @@ public final class Visuals {
         public TrackLook(String picture, float width, int lifeFrames, int fadeFrames, float minSpeed, int sides) {
             this(picture, width, lifeFrames, fadeFrames, minSpeed, sides, width * 3f);
         }
+    }
+
+    private int borderCells;
+    private java.util.List<String> skybox = java.util.List.of();
+
+    /**
+     * Ground drawn {@code cells} past every edge of the map — the reference's border, under the shroud: its edge's
+     * heights carried outward, always in the unexplored colour, never a place for an order, a path or a sight. None by
+     * default.
+     */
+    public Visuals border(int cells) {
+        this.borderCells = Math.max(0, cells);
+        return this;
+    }
+
+    int getBorderCells() {
+        return borderCells;
+    }
+
+    /**
+     * A sky drawn behind everything at the eye, not sliding with a pan — the reference's {@code W3DSkyBox}: six pictures,
+     * west, east, north, south, up and down, or one cube picture. None by default.
+     */
+    public Visuals skybox(String... pictures) {
+        if (pictures.length != 0 && pictures.length != 1 && pictures.length != 6) {
+            throw new IllegalArgumentException("a sky is one cube picture or six, not " + pictures.length);
+        }
+        this.skybox = java.util.List.of(pictures);
+        return this;
+    }
+
+    java.util.List<String> getSkybox() {
+        return skybox;
+    }
+
+    private boolean occlusionMarks;
+    private java.util.function.Predicate<uz.dukeengine.core.view.UnitView> occlusionMarked = view -> false;
+
+    /**
+     * Whether the local player's things — and any {@link #occlusionMarked} — are shown where a building, the ground or
+     * anything else stands in front of them, as a flat shape of their owner's colour at 40%: the reference's building
+     * occlusion. One more pass for those things only; off by default.
+     */
+    public Visuals occlusionMarks(boolean on) {
+        this.occlusionMarks = on;
+        return this;
+    }
+
+    /** Other things shown so behind what stands in front, beside the local player's own — see {@link #occlusionMarks}. */
+    public Visuals occlusionMarked(java.util.function.Predicate<uz.dukeengine.core.view.UnitView> marked) {
+        this.occlusionMarked = marked == null ? view -> false : marked;
+        return this;
+    }
+
+    boolean getOcclusionMarks() {
+        return occlusionMarks;
+    }
+
+    java.util.function.Predicate<uz.dukeengine.core.view.UnitView> getOcclusionMarked() {
+        return occlusionMarked;
     }
 
     private final Map<String, TrackLook> trackMarks = new java.util.HashMap<>();

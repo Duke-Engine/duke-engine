@@ -606,6 +606,11 @@ E16, in parts.
    (`Placement.Fit.TOO_CLOSE_TO_KIND`) within `border` of any thing `from` accepts, outline to outline, after
    `IN_THE_WAY`: the reference's `SupplyBuildBorder`. The ghost and the order ask the same check; rules without it
    change nothing (the eight-part constructor kept).
+3. **Ground past the edge, and a sky**: `Visuals.border(cells)` — a ring of that many cells round the map, its edge's
+   heights carried outward, drawn in the unexplored colour (the view's own clear colour), never picked or ordered to:
+   the reference's border under the shroud (`BorderRing`). `Visuals.skybox(pictures...)` — one cube picture, or west,
+   east, north, south, up and down — hung behind everything at the eye (jME's `SkyFactory`), so it never slides with a
+   pan; a sky has no height or size of its own here, being drawn at infinity. Neither by default.
 2. **The speed the world runs at**: `GameEngine.setLogicRate(multiplier)` — 0.25 to 8, 0 a pause — scales the wall
    time counted toward a step, each step still a thirtieth of the world's second, so frames, checksums and the order of
    orders are what they were; `stepOnce()` runs one frame while paused or at 0. A match of several machines agrees on
@@ -621,6 +626,11 @@ E16, in parts.
    order clears them (`RtsSimulation.waypointsOf`, walked by `RtsLogic` in id order). The client sends a ground move
    so while `KeyMap.Control.QUEUE_WAYPOINTS` is held, and a selected unit's queued places are shown as a rally line is
    (`RallyView`, the game's rally look), from where it stands through each.
+5. **Silhouettes behind what stands in front**: `Visuals.occlusionMarks(true)`, and `occlusionMarked(view -> …)` for
+   things beside the local player's own: each such thing that is no structure drawn once more, after the world and
+   before any filter, in its owner's colour at 40% where the depth already there is nearer (`OcclusionMarks`, a
+   processor first on the world's view; `Silhouette.j3md`, skinned). One pass with no stencil, so a unit in front, and
+   a thing's own parts in front of its others, show it too. Off by default.
 6. **An answer by its target**: `Visuals.orderAnswerBy(word, target -> moment)`, `AnswerTarget(template, relation,
    airborne)` — null for a click on the ground; where it gives null the word's own `orderAnswer` answers. Named apart
    so `orderAnswer(word, null)` stays unambiguous; a thing's kinds are not in the picture, so a rule reads its template.

@@ -1,0 +1,35 @@
+// A thing drawn again where something stands in front of it: one flat colour, read from an override its owner's
+// colour is put in, so one material draws every owner's.
+MaterialDef Silhouette {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Color OcclusionColour
+        Int NumberOfBones
+        Matrix4Array BoneMatrices
+        Boolean UseInstancing
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 GLSL100 : MatDefs/duke/Silhouette.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 GLSL100 : MatDefs/duke/Silhouette.frag
+
+        WorldParameters {
+            WorldViewProjectionMatrix
+            ViewProjectionMatrix
+            ViewMatrix
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+            NUM_BONES : NumberOfBones
+            INSTANCING : UseInstancing
+        }
+
+        RenderState {
+            DepthFunc Greater
+            DepthWrite Off
+            Blend Alpha
+        }
+    }
+}
