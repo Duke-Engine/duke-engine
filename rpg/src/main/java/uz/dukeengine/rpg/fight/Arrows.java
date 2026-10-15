@@ -75,6 +75,13 @@ public final class Arrows {
     public static boolean looseAlong(GameObject shooter, Coord3D towards, float damage,
             DamageType type, String template, float speed, float muzzleOffset, float distance,
             float blast, int stun) {
+        return looseAlong(shooter, towards, damage, type, template, speed, muzzleOffset, distance, blast, stun, false);
+    }
+
+    /** The same, its damage a critical one where said: told on each hurt it deals. */
+    public static boolean looseAlong(GameObject shooter, Coord3D towards, float damage,
+            DamageType type, String template, float speed, float muzzleOffset, float distance,
+            float blast, int stun, boolean critical) {
         var world = shooter.getWorld();
         if (world == null || template == null || template.isBlank() || towards == null) {
             return false;
@@ -90,6 +97,7 @@ public final class Arrows {
             arrow.markDestroyed();
             return false;
         }
+        flight.critical(critical);
         flight.looseAlong(shooter, towards, damage, type, speed, distance, blast, stun);
         return true;
     }
@@ -102,6 +110,13 @@ public final class Arrows {
      */
     public static boolean waveAlong(GameObject shooter, Coord3D towards, float damage, DamageType type,
             String template, float speed, float muzzleOffset, float distance, float width, int stun) {
+        return waveAlong(shooter, towards, damage, type, template, speed, muzzleOffset, distance, width, stun, false);
+    }
+
+    /** The same, its damage a critical one where said: told on each hurt it deals. */
+    public static boolean waveAlong(GameObject shooter, Coord3D towards, float damage, DamageType type,
+            String template, float speed, float muzzleOffset, float distance, float width, int stun,
+            boolean critical) {
         var world = shooter.getWorld();
         if (world == null || template == null || template.isBlank() || towards == null) {
             return false;
@@ -116,6 +131,7 @@ public final class Arrows {
             wave.markDestroyed();
             return false;
         }
+        flight.critical(critical);
         flight.waveAlong(shooter, towards, damage, type, speed, distance, width, stun);
         return true;
     }

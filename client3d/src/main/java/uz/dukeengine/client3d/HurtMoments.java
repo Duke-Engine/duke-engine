@@ -14,7 +14,7 @@ import uz.dukeengine.core.event.ObjectHurt;
  *
  * <p>The name falls back by the dotted rule, as {@code died.*} does: a game that names only {@code hurt.Tank}
  * shows it for every blow a tank takes, and one that names {@code hurt.Tank.small_arms.major} shows that for the
- * heavy ones of that kind.
+ * heavy ones of that kind. A critical blow is {@code .crit} where the game names that, else {@code .major}.
  */
 final class HurtMoments {
 
@@ -32,6 +32,14 @@ final class HurtMoments {
      * fewer than the rule's frames ago.
      */
     String nameFor(ObjectHurt hurt) {
+        return nameFor(hurt, name -> false);
+    }
+
+    /**
+     * The same, a critical blow showing {@code hurt.<template>.<type>.crit} where the game {@code names} it, and its
+     * {@code .major} where it does not.
+     */
+    String nameFor(ObjectHurt hurt, java.util.function.Predicate<String> names) {
         var type = hurt.damageType().name();
         var rule = rules.apply(hurt.templateName(), type);
         var key = hurt.object().value() + "|" + type;
@@ -41,8 +49,11 @@ final class HurtMoments {
             return null;
         }
         lastShown.put(key, hurt.frame());
-        return "hurt." + hurt.templateName() + "." + type.toLowerCase(Locale.ROOT) + "."
-                + (hurt.amount() >= rule.majorAt() ? "major" : "minor");
+        var kind = "hurt." + hurt.templateName() + "." + type.toLowerCase(Locale.ROOT) + ".";
+        if (hurt.critical()) {
+            return names.test(kind + "crit") ? kind + "crit" : kind + "major";
+        }
+        return kind + (hurt.amount() >= rule.majorAt() ? "major" : "minor");
     }
 
     /** A victim gone: what it last showed is forgotten. */

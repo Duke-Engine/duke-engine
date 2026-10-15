@@ -64,6 +64,34 @@ class KnightSkillsTest {
     }
 
     @Test
+    void aCriticalWaveAndChargeTellTheirHurtsCritical() {
+        for (var effect : List.of(SkillEffect.WAVE, SkillEffect.SKEWER)) {
+            var world = world(skill(effect, new Numbers(30f, 10f, 0f, 150f, 12f, 0, 0, 0, 0f, "Wave", 200f)),
+                    Seal.NONE);
+            var knight = world.put("Knight", world.heroes, 0f, 0f);
+            world.put("Skeleton", world.monsters, 40f, 0f);
+            var critical = new uz.dukeengine.rpg.hero.CriticalStrike(knight);
+            knight.addModule(critical);
+            critical.figures(100, 50);
+            world.run(1);
+            world.drainEvents();
+
+            assertTrue(knight.findModule(SkillBook.class).cast('Q', 1, null, new Coord3D(150f, 0f, 0f)));
+            var hurts = new java.util.ArrayList<uz.dukeengine.core.event.ObjectHurt>();
+            for (int frame = 0; frame < 60; frame++) {
+                world.run(1);
+                world.drainEvents().forEach(event -> {
+                    if (event instanceof uz.dukeengine.core.event.ObjectHurt hurt) {
+                        hurts.add(hurt);
+                    }
+                });
+            }
+            assertFalse(hurts.isEmpty(), effect + " hurt something");
+            assertTrue(hurts.stream().allMatch(uz.dukeengine.core.event.ObjectHurt::critical), effect + ": " + hurts);
+        }
+    }
+
+    @Test
     void aShieldChargeCarriesWhatItMeetsAndDropsItStunnedAtHisFront() {
         var world = world(skill(SkillEffect.SKEWER, new Numbers(20f, 10f, 0f, 120f, 0f, 0, 0, 30, 0f, "", 0f)),
                 Seal.NONE);

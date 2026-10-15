@@ -3212,6 +3212,11 @@ public final class Visuals {
      * dotted part, as a sound's cue does: {@code died.Soldier.exploded}, then {@code died.Soldier}, then {@code
      * died}. {@code null} for a moment nothing it falls back to was given a look.
      */
+    /** Whether the game named this moment itself, no shorter name standing in for it. */
+    public boolean namesMoment(String name) {
+        return moments.containsKey(name);
+    }
+
     public MomentLook getMoment(String name) {
         for (var key = name; key != null; key = key.lastIndexOf('.') < 0 ? null
                 : key.substring(0, key.lastIndexOf('.'))) {

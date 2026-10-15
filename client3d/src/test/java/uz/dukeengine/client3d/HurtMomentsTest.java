@@ -29,6 +29,19 @@ class HurtMomentsTest {
     }
 
     @Test
+    void aCriticalBlowShowsItsCritWhereNamedAndItsMajorWhereNot() {
+        var visuals = Visuals.create().hurt("Tank", "SMALL_ARMS", 2f, 0);
+        var moments = new HurtMoments(visuals::hurtRule);
+        var critical = new ObjectHurt(1, new ObjectId(7), "Tank", 2, SMALL_ARMS, 1f, new ObjectId(3), null, null, true);
+
+        assertEquals("hurt.Tank.small_arms.major", moments.nameFor(critical, visuals::namesMoment),
+                "no crit named: its major, however small");
+        visuals.moment("hurt.Tank.small_arms.crit", "CritShake", 1f);
+        assertEquals("hurt.Tank.small_arms.crit", moments.nameFor(critical, visuals::namesMoment));
+        assertEquals("CritShake", visuals.getMoment("hurt.Tank.small_arms.crit").effect());
+    }
+
+    @Test
     void theSameKindTooSoonShowsOnceAndAnotherKindInBetweenShowsItsOwn() {
         // A throttle of 100 ms is three of the game's frames; blows 50 ms apart are one or two frames apart.
         var visuals = Visuals.create().hurt("Tank", null, 2f, 3);

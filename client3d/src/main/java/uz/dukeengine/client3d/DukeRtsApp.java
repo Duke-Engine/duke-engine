@@ -6337,7 +6337,7 @@ final class DukeRtsApp extends SimpleApplication {
                     criticalThisFrame.add(hurt.object().value());
                 }
                 hitStops.heard(hurt, visuals.getHitStop(), visuals.getHitNumbers().bigAt(), timer.getTimeInSeconds());
-                var name = hurtMoments.nameFor(hurt);
+                var name = hurtMoments.nameFor(hurt, visuals::namesMoment);
                 if (name != null) {
                     var victim = unitNodes.get(hurt.object().value());
                     var cue = WorldMoments.hurt(hurt, victim == null ? null : victim.root, this::floorHeightAt);

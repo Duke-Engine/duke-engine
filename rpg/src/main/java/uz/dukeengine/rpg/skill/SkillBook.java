@@ -285,13 +285,15 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     private static final class Charge {
         final Skill skill;
         final float each;
+        final boolean critical;
         float left;
         final Coord3D from;
         final List<ObjectId> caught = new java.util.ArrayList<>();
 
-        Charge(Skill skill, float each, float distance, Coord3D from) {
+        Charge(Skill skill, float each, boolean critical, float distance, Coord3D from) {
             this.skill = skill;
             this.each = each;
+            this.critical = critical;
             this.left = distance;
             this.from = from;
         }
@@ -354,7 +356,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                 continue;
             }
             going.caught.add(victim.getId());
-            hurt(owner, victim, going.each);
+            hurt(owner, victim, going.each, going.critical);
             drink(owner, going.each);
         }
     }
@@ -822,7 +824,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                 Facing.turnToward(owner, towards);
                 if (!Arrows.waveAlong(owner, towards, damageOf(skill, level), DamageType.NORMAL, skill.projectile(),
                         speedOf(skill), rules.muzzleOffset(), skill.distance(), skill.hitWidth(),
-                        skill.stunFrames())) {
+                        skill.stunFrames(), rolledCritical)) {
                     return false; // no wave to throw; the cooldown is not spent
                 }
                 world.post(new WeaponFired(world.getFrame(), owner.getId(), null, owner.getPosition(), towards));
@@ -835,7 +837,8 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                 if (legs != null) {
                     legs.stop();
                 }
-                charge = new Charge(skill, damageOf(skill, level), reachOf(skill, owner, towards),
+                float each = damageOf(skill, level);
+                charge = new Charge(skill, each, rolledCritical, reachOf(skill, owner, towards),
                         owner.getPosition());
                 // A charge of no speed is over in the frame it is cast, as a dash is.
                 if (skill.projectileSpeed() <= 0f) {
@@ -866,7 +869,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                 if (!Arrows.looseAlong(owner, towards, damageOf(skill, level), DamageType.NORMAL,
                         skill.projectile(), speedOf(skill),
                         rules.muzzleOffset(), skill.range(), skill.radius(),
-                        skill.stunFrames())) {
+                        skill.stunFrames(), rolledCritical)) {
                     return false; // no arrow to throw; the cooldown is not spent
                 }
                 world.post(new WeaponFired(world.getFrame(), owner.getId(), null,
@@ -1410,8 +1413,12 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
 
     /** A blow of his: it names him and his side, so a kill it makes is his to be credited with. */
     private void hurt(GameObject owner, GameObject victim, float amount) {
+        hurt(owner, victim, amount, rolledCritical);
+    }
+
+    private static void hurt(GameObject owner, GameObject victim, float amount, boolean critical) {
         victim.getBody().damage(amount, DamageType.NORMAL, new uz.dukeengine.core.module.Death(
-                uz.dukeengine.core.module.DeathType.NORMAL, owner.getId(), owner.getPlayerIndex(), rolledCritical));
+                uz.dukeengine.core.module.DeathType.NORMAL, owner.getId(), owner.getPlayerIndex(), critical));
     }
 
     /** Whether the last cast's damage was made critical by its roll — see {@link #damageOf}. */

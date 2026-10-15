@@ -410,6 +410,9 @@ E16, in parts.
   simulation's frames; a second blow within the first's time does not lengthen it. None unless said.
 - **Shakes obey `ShakeScale`** (E58): an effect list's `Shake` is multiplied by `Visuals.shakeScale`, as a skill's
   knock already was; 0 moves the camera not at all.
+- **A crit's own moment** (E58): a critical blow shows `hurt.<Template>.<type>.crit` where the game names it
+  (`Visuals.namesMoment`), else its `.major`. A wave, a line shot (`Arrows.waveAlong`, `looseAlong`, each with a
+  trailing `critical`), a charge and a trample tell their hurts critical too.
 
 ### A route that keeps to the roads
 
