@@ -103,6 +103,14 @@ public interface Drawn extends ThingTemplate {
     }
 
     /**
+     * The joint its upper body hangs from — {@code spine} — or null: a blow or a flinch while it moves is played from
+     * that joint up, the walk going on in its legs.
+     */
+    default String upperBody() {
+        return null;
+    }
+
+    /**
      * The name of an {@code Effect} block it wears — a glow, an aura, eyes in the dark — or null.
      *
      * <p>Here because the kit ships effects every game may draw from, and until a template could name one there

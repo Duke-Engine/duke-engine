@@ -209,8 +209,18 @@ public record Weapon(String name, float damage, float attackRange, int reloadFra
 
     /** The one weapon a {@link WeaponUpdate} block writes in place, named as that block names it. */
     static Weapon of(WeaponUpdate.Data data) {
-        return new Weapon(data.name(), data.damage(), data.attackRange(), data.reloadFrames(), data.reloadFramesMax(),
-                data.damageType(), data.splashRadius(), data.attackOnTheMove(), data.targets(), data.clipSize(),
-                data.clipReloadFrames(), data.autoReload(), data.deathType());
+        var plain = new Weapon(data.name(), data.damage(), data.attackRange(), data.reloadFrames(),
+                data.reloadFramesMax(), data.damageType(), data.splashRadius(), data.attackOnTheMove(), data.targets(),
+                data.clipSize(), data.clipReloadFrames(), data.autoReload(), data.deathType());
+        if (data.preAttackFrames() <= 0) {
+            return plain;
+        }
+        // A wind-up before every swing: the shot lands as it ends.
+        return new Weapon(plain.name(), plain.damage(), plain.attackRange(), plain.reloadFrames(),
+                plain.reloadFramesMax(), plain.damageType(), plain.splashRadius(), plain.attackOnTheMove(),
+                plain.targets(), plain.clipSize(), plain.clipReloadFrames(), plain.autoReload(), plain.deathType(),
+                plain.bonuses(), plain.affects(), plain.secondaryDamage(), plain.secondaryRadius(),
+                plain.shownWhenHidden(), plain.minTargetPitch(), plain.maxTargetPitch(), plain.minimumAttackRange(),
+                data.preAttackFrames(), PreAttack.PER_SHOT, plain.leechRange());
     }
 }

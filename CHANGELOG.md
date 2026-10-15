@@ -462,6 +462,16 @@ E16, in parts.
 - **A loop at a place** (E68): `Duke3D.loopAt(key, cue, x, y)` and `stopLoopAt(key, fadeOut)` — a campfire's crackle,
   heard as a placed cue is and started again when the listener comes back within its reach.
 
+### A blow that lands with its swing
+
+- **A swing from its wind-up** (E69): `WeaponUpdate.Data.preAttackFrames` — a weapon written in place winds up as a named
+  `Weapon`'s `PreAttackFrames` does, before every shot; `WeaponWoundUp` tells the wind-up as it begins, and the client
+  starts the attack clip then, not again on the `WeaponFired` it ends in, so the whole wind-up plays and the blow lands
+  at its end. A weapon that winds up not at all swings on `WeaponFired` as ever.
+- **A blow on the move drawn above the waist** (E70): `Drawn.upperBody()` (`UpperBody = spine`) — an attack or a
+  flinch played while the thing moves goes on a composer layer masked to that joint and those below it
+  (`UpperBody`), the walk going on in its legs; standing, or naming none, as before.
+
 ### A route that keeps to the roads
 
 - **`PathGrid.setStepCosts(percentByCell)`** (E52): what a step into each cell costs, as a share of its plain cost — a

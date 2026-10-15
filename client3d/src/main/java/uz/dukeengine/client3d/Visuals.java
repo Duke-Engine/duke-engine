@@ -1206,6 +1206,14 @@ public final class Visuals {
             return this;
         }
 
+        /** The joint its upper body hangs from, or null — see {@code Drawn.upperBody}. */
+        String upperBody;
+
+        public UnitVisual upperBody(String joint) {
+            this.upperBody = joint == null || joint.isBlank() ? null : joint;
+            return this;
+        }
+
         /**
          * A walk one play of which carries it {@code distance}: while it moves, the clip plays at the rate that covers
          * that at its speed, the simulation's — the reference's {@code Animation = [AIRngr_RNA 30]}, 30 units a cycle
@@ -1654,6 +1662,7 @@ public final class Visuals {
             drawn.walk(clipOf(template.walk(), set == null ? null : set.walk()));
             drawn.attack(clipOf(template.attack(), set == null ? null : set.attack()));
             drawn.die(clipOf(template.death(), set == null ? null : set.death()));
+            drawn.upperBody(template.upperBody());
             if (template.effect() != null && !template.effect().isBlank()) {
                 drawn.effect(template.effect());
             }

@@ -122,10 +122,11 @@ public final class WeaponUpdate extends UpdateModule {
             DamageType damageType, float splashRadius,
             boolean attackOnTheMove, List<String> targets,
             int reloadFramesMax, int clipSize, int clipReloadFrames, boolean autoReload,
-            String name, List<WeaponSet> weaponSets, DeathType deathType, int targetScanFrames) implements ModuleData {
+            String name, List<WeaponSet> weaponSets, DeathType deathType, int targetScanFrames,
+            int preAttackFrames) implements ModuleData {
         /** What a block leaves out: plain damage, no splash, a shot taken on the move, at anything, no clip. */
         static final Data DEFAULTS = new Data(0f, 0f, 0, DamageType.NORMAL, 0f, true, List.of(),
-                0, 0, 0, true, null, List.of(), DeathType.NORMAL, 0);
+                0, 0, 0, true, null, List.of(), DeathType.NORMAL, 0, 0);
 
         public Data {
             damageType = damageType == null ? DamageType.NORMAL : damageType;
@@ -133,6 +134,17 @@ public final class WeaponUpdate extends UpdateModule {
             targets = targets == null ? List.of() : List.copyOf(targets);
             weaponSets = weaponSets == null ? List.of() : List.copyOf(weaponSets);
             targetScanFrames = Math.max(0, targetScanFrames);
+            preAttackFrames = Math.max(0, preAttackFrames);
+        }
+
+        /** A weapon written in place that winds up before no shot, as every one did before one could. */
+        public Data(float damage, float attackRange, int reloadFrames, DamageType damageType, float splashRadius,
+                boolean attackOnTheMove, List<String> targets, int reloadFramesMax, int clipSize,
+                int clipReloadFrames, boolean autoReload, String name, List<WeaponSet> weaponSets,
+                DeathType deathType, int targetScanFrames) {
+            this(damage, attackRange, reloadFrames, damageType, splashRadius, attackOnTheMove, targets,
+                    reloadFramesMax, clipSize, clipReloadFrames, autoReload, name, weaponSets, deathType,
+                    targetScanFrames, 0);
         }
 
         /** A weapon that looks for a target as often as the world says, as every one did before one could say. */
@@ -804,6 +816,9 @@ public final class WeaponUpdate extends UpdateModule {
         windUpAt = victim.getId();
         windUpEnds = world.getFrame() + weapon.preAttackFrames();
         leeching |= weapon.leechRange();
+        // Told so the picture starts the swing now, its blow meeting the shot at the wind-up's end.
+        world.post(new uz.dukeengine.combat.event.WeaponWoundUp(world.getFrame(), getOwner().getId(), victim.getId(),
+                weapon.name(), chosen.index(), weapon.preAttackFrames()));
         return true;
     }
 

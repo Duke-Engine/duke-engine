@@ -466,6 +466,8 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private static final class UnitNode {
         Node root;
+        /** Whether its swing began with a wind-up, so the shot that ends it does not swing again. */
+        boolean swungFromWindUp;
         Geometry ring;
         /** The disc the ring is laid as, over the ground under it — see {@link #layRing}. */
         final GroundDisc ringDisc = new GroundDisc(24);
@@ -6384,9 +6386,18 @@ final class DukeRtsApp extends SimpleApplication {
                 if (node != null) {
                     playSound(visualFor(node.view).fireSound,
                             node.root.getLocalTranslation());
-                    // The swing, on the frame the weapon let go. Nothing else in
-                    // the snapshot says when that was.
+                    // The swing, on the frame the weapon let go — unless it began with the wind-up this shot ends.
+                    if (!node.swungFromWindUp) {
+                        playOnce(node, visualFor(node.view).attackAnim);
+                    }
+                    node.swungFromWindUp = false;
+                }
+            } else if (event instanceof uz.dukeengine.combat.event.WeaponWoundUp wound) {
+                var node = unitNodes.get(wound.shooter().value());
+                if (node != null) {
+                    // The whole wind-up drawn: the swing begins now and its blow meets the shot.
                     playOnce(node, visualFor(node.view).attackAnim);
+                    node.swungFromWindUp = true;
                 }
             } else if (event instanceof uz.dukeengine.core.event.ObjectHurt hurt) {
                 if (hurt.critical()) {
@@ -7852,6 +7863,12 @@ final class DukeRtsApp extends SimpleApplication {
         var clip = node.composer.getAnimClip(clipName);
         if (clip == null) {
             return;
+        }
+        var joint = node.view.moving() ? visualFor(node.view).upperBody : null;
+        var skin = joint == null ? null
+                : AnimationLibrary.findControl(node.body, com.jme3.anim.SkinningControl.class);
+        if (skin != null && UpperBody.play(node.composer, skin.getArmature(), joint, clipName)) {
+            return; // on the move: the blow above, the walk going on below
         }
         play(node, node.view.looksAs(), clipName, false);
         node.actionUntil = (float) (timer.getTimeInSeconds() + clip.getLength());
