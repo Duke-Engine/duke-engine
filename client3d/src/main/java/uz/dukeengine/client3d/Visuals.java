@@ -2404,6 +2404,76 @@ public final class Visuals {
         return water;
     }
 
+    /**
+     * How a template's tracks are laid — see {@link #trackMarks}.
+     *
+     * @param picture    the track's picture, from the resource root, laid across its width and along each piece
+     * @param width      how wide a line is, world units
+     * @param lifeFrames how long a piece lies, the game's frames
+     * @param fadeFrames over how many of its last it fades out
+     * @param minSpeed   the least speed, world units a second, it lays at
+     * @param sides      how many lines: one, or two for a car's wheels or a tank's treads
+     * @param apart      how far apart the outer lines' middles are, world units
+     */
+    public record TrackLook(String picture, float width, int lifeFrames, int fadeFrames, float minSpeed, int sides,
+            float apart) {
+
+        /** Lines three widths apart. */
+        public TrackLook(String picture, float width, int lifeFrames, int fadeFrames, float minSpeed, int sides) {
+            this(picture, width, lifeFrames, fadeFrames, minSpeed, sides, width * 3f);
+        }
+    }
+
+    private final Map<String, TrackLook> trackMarks = new java.util.HashMap<>();
+
+    /**
+     * A thing of {@code template} moving faster than {@code look}'s least speed, off water, leaves its tracks behind it
+     * — the reference's {@code W3DTreadMarks}: a line behind each of its sides at the ground's height, lying its life
+     * and fading. Drawing only.
+     */
+    public Visuals trackMarks(String template, TrackLook look) {
+        trackMarks.put(template, look);
+        return this;
+    }
+
+    Map<String, TrackLook> getTrackMarks() {
+        return trackMarks;
+    }
+
+    /**
+     * One wave along a shore — see {@link #shoreWave}. Points are the world's, {@code x} and {@code y}.
+     *
+     * @param startA       one end of its front where it starts, out on the water
+     * @param startB       the other
+     * @param endA         where the first end comes to, on the shore
+     * @param endB         and the other
+     * @param frames       how long it slides, the game's frames
+     * @param fadeFrames   over how many of its last it fades out
+     * @param repeatFrames how often it starts again
+     * @param width        how deep its body is behind its front, world units
+     */
+    public record WaveLook(String picture, uz.dukeengine.core.math.Coord3D startA,
+            uz.dukeengine.core.math.Coord3D startB,
+            uz.dukeengine.core.math.Coord3D endA, uz.dukeengine.core.math.Coord3D endB, int frames, int fadeFrames,
+            int repeatFrames, float width) {
+    }
+
+    private final java.util.List<WaveLook> shoreWaves = new java.util.ArrayList<>();
+
+    /**
+     * A wave sliding in over a shore — the reference's {@code W3DWaterTracks}: its picture from the first pair of points
+     * to the second over its frames, at the water's height, fading at the end and starting again; the game turns its
+     * map's waves into one of these each. Drawing only.
+     */
+    public Visuals shoreWave(WaveLook look) {
+        shoreWaves.add(look);
+        return this;
+    }
+
+    java.util.List<WaveLook> getShoreWaves() {
+        return shoreWaves;
+    }
+
     private java.util.List<Sun> thingSuns = java.util.List.of();
 
     /**

@@ -219,6 +219,25 @@ final class DukeRtsApp extends SimpleApplication {
     private Scorches scorches;
     private Strips strips;
     private Water water;
+    private TrackMarks trackMarks;
+    private ShoreWaves shoreWaves;
+
+    /** A picture drawn flat in the world by the game's look: an unshaded material, or null where it will not load. */
+    private Material flatPicture(String path) {
+        var picture = path == null ? null : groundTexture(path);
+        if (picture == null) {
+            return null;
+        }
+        var material = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+        material.setTexture("ColorMap", picture);
+        return material;
+    }
+
+    /** The water's height over a point, else the ground's. */
+    private float waterOrGround(float worldX, float worldY) {
+        float surface = water == null ? Float.NaN : water.surfaceAt(worldX, worldY);
+        return Float.isNaN(surface) ? floorHeightAt(worldX, worldY) : surface;
+    }
     /** How many of the game's pieces laid along the ground are laid, and for which game. */
     private int stripsLaid;
     private DukeGame stripsOf;
@@ -749,6 +768,8 @@ final class DukeRtsApp extends SimpleApplication {
         scorches = new Scorches(listNode, this::drawnGround, this::scorchLook);
         strips = new Strips(listNode, this::drawnGround, this::stripLook, visuals::getGroundLight);
         water = new Water(listNode, this::waterLook);
+        trackMarks = new TrackMarks(listNode, this::flatPicture);
+        shoreWaves = new ShoreWaves(listNode, this::flatPicture);
         listShow = new ListShow(assetManager, listNode, effects.lights(), (cue, at) -> {
             if (noises != null) {
                 noises.sounds().play(cue, at, timer.getTimeInSeconds());
@@ -3737,6 +3758,10 @@ final class DukeRtsApp extends SimpleApplication {
             water.rebuild(game.getMapRecord() instanceof uz.dukeengine.core.map.Zoned zoned ? zoned.areas()
                     : java.util.List.of(), drawnGround(), visuals.getWater());
         }
+        if (trackMarks != null) {
+            trackMarks.clear();
+            shoreWaves.lay(visuals.getShoreWaves());
+        }
         if (!visuals.drawsFog()) {
             return;
         }
@@ -5884,6 +5909,9 @@ final class DukeRtsApp extends SimpleApplication {
         slideTheShades();
         if (water != null && snapshot != null) {
             water.update(snapshot.gameTimeSeconds());
+            trackMarks.see(snapshot.units(), visuals.getTrackMarks(), snapshot.frame(), this::floorHeightAt,
+                    (x, y) -> !Float.isNaN(water.surfaceAt(x, y)));
+            shoreWaves.see(snapshot.frame(), this::waterOrGround);
         }
         reapTheDead();
         followWithTheMinimap();

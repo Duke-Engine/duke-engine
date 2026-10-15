@@ -30,6 +30,19 @@ final class Water {
     private final BiFunction<Visuals.WaterLook, Boolean, Material> looks;
     private final List<Laid> laid = new ArrayList<>();
     private Visuals.WaterLook look;
+    /** Each area of water laid: its outline in the client's frame and its surface's height. */
+    private final List<float[]> outlines = new ArrayList<>();
+    private final List<Float> surfaces = new ArrayList<>();
+
+    /** The height of the water's surface over {@code (x, z)}, or NaN where no water is laid there. */
+    float surfaceAt(float x, float z) {
+        for (int i = 0; i < outlines.size(); i++) {
+            if (inside(outlines.get(i), x, z)) {
+                return surfaces.get(i);
+            }
+        }
+        return Float.NaN;
+    }
 
     /**
      * @param node  where the water is hung
@@ -59,6 +72,8 @@ final class Water {
             if (material == null) {
                 continue;
             }
+            outlines.add(outlineOf(area, ground.cellSize()));
+            surfaces.add(surfaceOf(area, ground));
             var water = new Geometry(area.river() ? "river" : "water", mesh);
             water.setMaterial(material);
             water.setQueueBucket(RenderQueue.Bucket.Transparent);
@@ -247,6 +262,8 @@ final class Water {
 
     /** Every piece of water gone, for a new world. */
     void clear() {
+        outlines.clear();
+        surfaces.clear();
         laid.forEach(one -> one.drawn().removeFromParent());
         laid.clear();
     }

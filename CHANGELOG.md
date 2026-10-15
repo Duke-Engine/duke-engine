@@ -629,6 +629,14 @@ E16, in parts.
    selecting, orders, camera keys and wheel kept off (Esc still reaches the menu), and `follow(thing, frames)`, the eye
    closing on a moving thing a share a frame while the game has it, let go by `release` or the thing's death. The client
    reads `GameCamera.screen()` (`Screen`) each frame (`SceneVeil`).
+10. **Tracks on the ground**: `Visuals.trackMarks(template, TrackLook(picture, width, lifeFrames, fadeFrames,
+   minSpeed, sides[, apart]))` — while such a thing moves faster than `minSpeed` off water, a piece is laid behind each
+   side every width it goes, at the ground's height, lying its life and fading over its last frames: the reference's
+   `W3DTreadMarks`. A pool of 512 pieces a look, one mesh.
+11. **Waves on a shore**: `Visuals.shoreWave(WaveLook(picture, startA, startB, endA, endB, frames, fadeFrames,
+   repeatFrames, width))` — its front sliding from the first pair of points to the second at the water's height, its
+   body `width` behind, fading at the end and starting again: the reference's `W3DWaterTracks`. Drawn without the
+   fog's dark, as the track marks are.
 12. **Reloads shared**: `WeaponUpdate.delaySlots(fromSlot, frames)` keeps every other slot from firing for at least
    that long (the reference's `ShareWeaponReloadTime`, done by a module told of a shot), and `reloadFramesOf(slot)`
    says how long a slot waits between shots.
