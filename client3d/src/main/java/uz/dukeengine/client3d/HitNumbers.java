@@ -54,14 +54,28 @@ package uz.dukeengine.client3d;
  * @param brightness  what every colour is multiplied by
  * @param shown       whether numbers are drawn at all. Without them a blow still flashes what it hurt, as the hit flash
  *                    says, and a blow to one of his still marks the place the view goes to
+ * @param bigAt       a blow he deals of at least this much is a big one, drawn {@code bigScale} times its size in
+ *                    {@code bigColour}; 0 for none
+ * @param bigScale    how much bigger a big blow's number is
+ * @param bigColour   packed RGB for a big blow
+ * @param critColour  packed RGB for a critical blow he deals — {@code ObjectHurt.critical}
+ * @param critScale   how much bigger a critical blow's number is. Heals and blows he takes keep their own look
  */
 public record HitNumbers(float seconds, float popScale, float textScale, float spread,
         float fanDegrees, float height, float leastWorth, int hurtColour, int takenColour,
-        int healColour, float brightness, boolean shown) {
+        int healColour, float brightness, boolean shown, float bigAt, float bigScale, int bigColour, int critColour,
+        float critScale) {
 
     /** What a game that asks for nothing gets. */
     public static final HitNumbers DEFAULTS = new HitNumbers(
             0.40f, 2.1f, 0.85f, 34f, 38f, 14f, 1f, 0xFFE0A0, 0xC22A22, 0x4FBF4F, 1f, true);
+
+    /** Numbers with no big blow, and critical ones drawn larger in orange: every look from before either was told. */
+    public HitNumbers(float seconds, float popScale, float textScale, float spread, float fanDegrees, float height,
+            float leastWorth, int hurtColour, int takenColour, int healColour, float brightness, boolean shown) {
+        this(seconds, popScale, textScale, spread, fanDegrees, height, leastWorth, hurtColour, takenColour,
+                healColour, brightness, shown, 0f, 1.3f, hurtColour, 0xFF7A1E, 1.6f);
+    }
 
     /**
      * No numbers — the reference's, which throws none off a site going up or a building under fire. The flash and the
@@ -83,6 +97,9 @@ public record HitNumbers(float seconds, float popScale, float textScale, float s
         textScale = Math.max(0.1f, textScale);
         leastWorth = Math.max(0f, leastWorth);
         brightness = Math.max(0f, brightness);
+        bigAt = Math.max(0f, bigAt);
+        bigScale = Math.max(0.1f, bigScale);
+        critScale = Math.max(0.1f, critScale);
     }
 
     /**
@@ -137,5 +154,31 @@ public record HitNumbers(float seconds, float popScale, float textScale, float s
             return healColour;
         }
         return his ? takenColour : hurtColour;
+    }
+
+    /** Which colour a change of {@code amount} is drawn in, critical or not: only a blow he deals is big or critical. */
+    public int colourOf(boolean healed, boolean his, float amount, boolean critical) {
+        if (healed || his) {
+            return colourOf(healed, his);
+        }
+        if (critical) {
+            return critColour;
+        }
+        return isBig(amount) ? bigColour : hurtColour;
+    }
+
+    /** How much bigger than its plain size a change of {@code amount} is drawn, critical or not. */
+    public float sizeOf(boolean healed, boolean his, float amount, boolean critical) {
+        if (healed || his) {
+            return 1f;
+        }
+        if (critical) {
+            return critScale;
+        }
+        return isBig(amount) ? bigScale : 1f;
+    }
+
+    private boolean isBig(float amount) {
+        return bigAt > 0f && amount >= bigAt;
     }
 }

@@ -10,8 +10,14 @@ import uz.dukeengine.core.thing.ObjectId;
  * @param killer            what dealt it, or {@code null} for a death by no one — a script, a fall, a timer running out
  * @param killerPlayerIndex whose side dealt it, as it stood when the blow landed — a shell's shooter may be gone by
  *                          the time the shell lands — or -1 for nobody, or not yet known
+ * @param critical          whether a roll made the blow harder than it was — a critical strike — told on its hurt
  */
-public record Death(DeathType type, ObjectId killer, int killerPlayerIndex) {
+public record Death(DeathType type, ObjectId killer, int killerPlayerIndex, boolean critical) {
+
+    /** A blow that was no critical one, as every blow was before one could be. */
+    public Death(DeathType type, ObjectId killer, int killerPlayerIndex) {
+        this(type, killer, killerPlayerIndex, false);
+    }
 
     /** A plain death that nobody dealt: what a thing that died without being told how died of. */
     public static final Death NORMAL = new Death(DeathType.NORMAL, null, -1);

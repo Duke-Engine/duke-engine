@@ -44,6 +44,7 @@ final class FloatingNumbers {
         private float worldY;
         private float height;
         private int colour;
+        private float size = 1f;
         private int unitId;
         private float direction;
 
@@ -70,6 +71,11 @@ final class FloatingNumbers {
      *               creature's head rather than at its feet
      */
     void add(HealthWatch.Change change, float now, float height) {
+        add(change, now, height, false);
+    }
+
+    /** The same, {@code critical} where a critical blow made it — drawn in the look's critical colour and size. */
+    void add(HealthWatch.Change change, float now, float height, boolean critical) {
         if (!look.shown()) {
             return; // a game that draws none: the flash and the alert are the caller's, and go on
         }
@@ -78,7 +84,8 @@ final class FloatingNumbers {
         mark.worldX = change.x();
         mark.worldY = change.y();
         mark.height = height;
-        mark.colour = look.colourOf(change.healed(), change.his());
+        mark.colour = look.colourOf(change.healed(), change.his(), change.amount(), critical);
+        mark.size = look.sizeOf(change.healed(), change.his(), change.amount(), critical);
         mark.unitId = change.unitId();
         // Counted per creature and only among the ones still up, so the fan opens
         // out while several are landing on the same thing and closes again by
@@ -110,7 +117,7 @@ final class FloatingNumbers {
                 continue;
             }
             float age = now - mark.bornAt;
-            float scale = look.scaleAt(age);
+            float scale = look.scaleAt(age) * mark.size;
             float out = look.outAt(age);
             mark.text.setCullHint(Spatial.CullHint.Inherit);
             mark.text.setLocalScale(scale);

@@ -171,7 +171,7 @@ public abstract class BodyModule extends Module {
                 : new Coord3D(middle.x(), middle.y(), middle.z() + owner.getGeometry().height() / 2f);
         world.post(new ObjectHurt(world.getFrame(), owner.getId(), owner.getTemplate().name(),
                 owner.getPlayerIndex(), type, worth, attacker, where,
-                from != null ? from : dealer == null ? null : dealer.getPosition()));
+                from != null ? from : dealer == null ? null : dealer.getPosition(), blow != null && blow.critical()));
     }
 
     /**

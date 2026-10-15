@@ -24,7 +24,13 @@ import uz.dukeengine.core.thing.ObjectId;
  *                        its launcher rather than the shooter's maker
  */
 public record Shot(ObjectId shooter, int side, Weapon weapon, int slot, float damage, float radius,
-        float secondaryDamage, float secondaryRadius, String wentOff) {
+        float secondaryDamage, float secondaryRadius, String wentOff, boolean critical) {
+
+    /** A shot no roll made harder. */
+    public Shot(ObjectId shooter, int side, Weapon weapon, int slot, float damage, float radius,
+            float secondaryDamage, float secondaryRadius, String wentOff) {
+        this(shooter, side, weapon, slot, damage, radius, secondaryDamage, secondaryRadius, wentOff, false);
+    }
 
     /** A shot the shooter itself goes off with, as every shot was before one could say otherwise. */
     public Shot(ObjectId shooter, int side, Weapon weapon, int slot, float damage, float radius,
@@ -34,7 +40,8 @@ public record Shot(ObjectId shooter, int side, Weapon weapon, int slot, float da
 
     /** This shot gone off as {@code template} — the shell a launcher made of it — rather than as its shooter. */
     public Shot wentOffAs(String template) {
-        return new Shot(shooter, side, weapon, slot, damage, radius, secondaryDamage, secondaryRadius, template);
+        return new Shot(shooter, side, weapon, slot, damage, radius, secondaryDamage, secondaryRadius, template,
+                critical);
     }
 
     /** A shot whose blast is its weapon's own, with no bonus to it. */

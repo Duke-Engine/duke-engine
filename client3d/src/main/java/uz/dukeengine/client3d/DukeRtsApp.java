@@ -452,6 +452,9 @@ final class DukeRtsApp extends SimpleApplication {
      * from the outside looks exactly like one that walked into the dark.
      */
     private final List<HealthWatch.Death> killedThisFrame = new ArrayList<>();
+    /** The creatures a critical blow struck this frame, their numbers drawn as critical. */
+    private final java.util.Set<Integer> criticalThisFrame = new java.util.HashSet<>();
+    private final HitStops hitStops = new HitStops();
 
     /**
      * The bars over everybody's heads. Screen-space and pooled — see UnitBars.
@@ -737,6 +740,7 @@ final class DukeRtsApp extends SimpleApplication {
             }
         }, () -> new Vector3f(camera.targetX(), 0f, camera.targetZ()), this::floorHeightAt, this::debrisPiece,
                 (name, at) -> lists.play(name, EffectLists.Cue.at(at)), this::paintThrown, scorches);
+        listShow.shakeScale(visuals.getShakeScale());
         rootNode.attachChild(listNode);
         lists = new EffectLists(visuals::effectListNamed, particles, listShow, new java.util.Random().nextLong());
         lasers = new Lasers(assetManager, listNode, visuals::laserNamed, this::floorHeightAt);
@@ -1684,7 +1688,7 @@ final class DukeRtsApp extends SimpleApplication {
                 controls.gamesAlert(game.latestAlert());
             }
             for (var change : changes) {
-                hitNumbers.add(change, now, look.height());
+                hitNumbers.add(change, now, look.height(), criticalThisFrame.contains(change.unitId()));
                 if (!change.healed() && !change.his()) {
                     flash(change.unitId());
                 }
@@ -1698,7 +1702,14 @@ final class DukeRtsApp extends SimpleApplication {
         // Read once. handleEvents runs earlier in the frame and fills this; a
         // second reading would throw the finishing blow twice.
         killedThisFrame.clear();
+        criticalThisFrame.clear();
         hitNumbers.update(now, cam, this::floorHeightAt);
+        hitStops.apply(now, (id, speed) -> {
+            var node = unitNodes.get(id);
+            if (node != null && node.composer != null) {
+                node.composer.setGlobalSpeed(speed);
+            }
+        });
     }
 
     /**
@@ -3839,6 +3850,7 @@ final class DukeRtsApp extends SimpleApplication {
         stealthLook.clear();
         selectionFlash.clear();
         hitNumbers.clear();
+        hitStops.clear();
         floatingTexts.clear();
         pictureStrips.clear();
         unitBars.clear();
@@ -6321,6 +6333,10 @@ final class DukeRtsApp extends SimpleApplication {
                     playOnce(node, visualFor(node.view).attackAnim);
                 }
             } else if (event instanceof uz.dukeengine.core.event.ObjectHurt hurt) {
+                if (hurt.critical()) {
+                    criticalThisFrame.add(hurt.object().value());
+                }
+                hitStops.heard(hurt, visuals.getHitStop(), visuals.getHitNumbers().bigAt(), timer.getTimeInSeconds());
                 var name = hurtMoments.nameFor(hurt);
                 if (name != null) {
                     var victim = unitNodes.get(hurt.object().value());

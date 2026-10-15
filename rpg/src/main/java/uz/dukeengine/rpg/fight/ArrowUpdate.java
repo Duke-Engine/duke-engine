@@ -290,7 +290,14 @@ public final class ArrowUpdate extends UpdateModule {
     /** Whose blow it is: its archer's, and his side's as the arrow carries it, so a kill is credited to him. */
     private uz.dukeengine.core.module.Death blow() {
         return new uz.dukeengine.core.module.Death(uz.dukeengine.core.module.DeathType.NORMAL, shooter,
-                getOwner().getPlayerIndex());
+                getOwner().getPlayerIndex(), critical);
+    }
+
+    /** Whether the roll that set its damage made it a critical one: told on each hurt it deals. */
+    private boolean critical;
+
+    void critical(boolean critical) {
+        this.critical = critical;
     }
 
     /** Everyone a wave is over this frame and has not hurt yet, hurt in id order: it goes on through them. */

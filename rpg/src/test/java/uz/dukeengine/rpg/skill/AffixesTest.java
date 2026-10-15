@@ -1,6 +1,7 @@
 package uz.dukeengine.rpg.skill;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
@@ -69,6 +70,8 @@ class AffixesTest {
 
         hero.findModule(SkillBook.class).cast('Q', 1);
         assertEquals(1000f - 30f, skeleton.getBody().getHealth(), 1e-3f, "a skill's twenty, critical");
+        assertTrue(world.drainEvents().stream().anyMatch(event -> event instanceof uz.dukeengine.core.event.ObjectHurt hurt
+                && hurt.critical()), "its hurt told critical");
         critical.figures(0, 50);
         assertEquals(1f, BlowRoll.of(hero, world), "taken off: none");
     }

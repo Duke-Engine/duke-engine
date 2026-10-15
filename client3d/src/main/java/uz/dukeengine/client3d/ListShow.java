@@ -147,10 +147,17 @@ final class ListShow implements EffectLists.Show {
         float angle = random.nextFloat() * FastMath.TWO_PI;
         shakeCos = FastMath.cos(angle);
         shakeSin = FastMath.sin(angle);
-        shake += SHAKE[strength.ordinal()] * (1f - distance / SHAKE_RANGE);
+        shake += SHAKE[strength.ordinal()] * (1f - distance / SHAKE_RANGE) * shakeScale;
         if (shake > SHAKE_MOST) {
             shake = SHAKE_PAST_MOST;
         }
+    }
+
+    /** Every knock against what its effect asked for — {@link Visuals#shakeScale}; 0 for a camera that never moves. */
+    private float shakeScale = 1f;
+
+    void shakeScale(float scale) {
+        this.shakeScale = Math.max(0f, scale);
     }
 
     /** Where the knock puts the camera this frame, across the ground. */

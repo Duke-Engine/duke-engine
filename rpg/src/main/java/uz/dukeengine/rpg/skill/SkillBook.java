@@ -1032,7 +1032,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     private void land(Skill skill, int level, GameObject owner, GameObject victim) {
         float damage = damageOf(skill, level);
         if (skill.hasProjectile() && Arrows.loose(owner, victim, damage, DamageType.NORMAL,
-                skill.projectile(), speedOf(skill), rules.muzzleOffset())) {
+                skill.projectile(), speedOf(skill), rules.muzzleOffset(), rolledCritical)) {
             // The client draws a muzzle flash and plays the shooting sound off this
             // — the same moment the bow announces, for the same reason.
             var world = owner.getWorld();
@@ -1052,8 +1052,9 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     private float damageOf(Skill skill, int rank) {
         // A critical strike rolls on a skill's damage as on a blow, once a cast.
         var owner = getOwner();
-        return skill.damageAt(rank) * damageMultiplier() * bonusOf(owner)
-                * uz.dukeengine.combat.module.BlowRoll.of(owner, owner.getWorld());
+        float rolled = uz.dukeengine.combat.module.BlowRoll.of(owner, owner.getWorld());
+        rolledCritical = rolled > 1f;
+        return skill.damageAt(rank) * damageMultiplier() * bonusOf(owner) * rolled;
     }
 
     /**
@@ -1408,10 +1409,13 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     }
 
     /** A blow of his: it names him and his side, so a kill it makes is his to be credited with. */
-    private static void hurt(GameObject owner, GameObject victim, float amount) {
+    private void hurt(GameObject owner, GameObject victim, float amount) {
         victim.getBody().damage(amount, DamageType.NORMAL, new uz.dukeengine.core.module.Death(
-                uz.dukeengine.core.module.DeathType.NORMAL, owner.getId(), owner.getPlayerIndex()));
+                uz.dukeengine.core.module.DeathType.NORMAL, owner.getId(), owner.getPlayerIndex(), rolledCritical));
     }
+
+    /** Whether the last cast's damage was made critical by its roll — see {@link #damageOf}. */
+    private boolean rolledCritical;
 
     /** The enemies within {@code radius} of the way from {@code from} to {@code to}, each once, in id order. */
     private List<GameObject> swept(GameObject owner, World world, Coord3D from, Coord3D to, float radius) {

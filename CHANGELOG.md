@@ -399,6 +399,18 @@ E16, in parts.
   `item_drop` through the game's bank (`sounding`, `isOpen`); on a painted map a creature walks to
   `walking.<Template>.<surface>`, the surface its cell's picture's file name, falling back to `walking.<Template>`.
 
+### How a blow feels
+
+- **Critical numbers** (E58): `ObjectHurt.critical` (and `Death.critical`, `Shot.critical`), set where a `BlowRoll`
+  made the blow harder than 1 — a weapon's shot, a skill's cast, an arrow either looses. `HitNumbers` gains `bigAt`,
+  `bigScale`, `bigColour`, `critColour` and `critScale`: a blow he deals of at least `bigAt` (0, none) or a critical
+  one is drawn larger in its own colour; heals and blows he takes keep theirs. The old constructors keep working.
+- **Hit-stop** (E58): `Visuals.hitStop(new HitStop(seconds, slow, majorOnly, critOnly))` — on a blow that catches, the
+  struck and the striker play their animation at `slow` (0 freezes) for `seconds`, the window's alone, never the
+  simulation's frames; a second blow within the first's time does not lengthen it. None unless said.
+- **Shakes obey `ShakeScale`** (E58): an effect list's `Shake` is multiplied by `Visuals.shakeScale`, as a skill's
+  knock already was; 0 moves the camera not at all.
+
 ### A route that keeps to the roads
 
 - **`PathGrid.setStepCosts(percentByCell)`** (E52): what a step into each cell costs, as a share of its plain cost — a

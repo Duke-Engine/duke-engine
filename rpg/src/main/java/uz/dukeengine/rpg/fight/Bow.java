@@ -67,6 +67,12 @@ public final class Bow extends Module implements ProjectileLauncher {
      * weapon.
      */
     @Override
+    public boolean launch(GameObject shooter, GameObject victim, uz.dukeengine.combat.module.Shot shot) {
+        return Arrows.loose(shooter, victim, shot.damage(), shot.weapon().damageType(), projectile(), speed(),
+                muzzleOffset(), shot.critical());
+    }
+
+    @Override
     public boolean launch(GameObject shooter, GameObject victim, float damage, DamageType type) {
         return Arrows.loose(shooter, victim, damage, type, projectile(), speed(), muzzleOffset());
     }

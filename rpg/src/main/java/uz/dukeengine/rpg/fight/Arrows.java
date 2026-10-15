@@ -29,6 +29,12 @@ public final class Arrows {
      */
     public static boolean loose(GameObject shooter, GameObject victim, float damage,
             DamageType type, String template, float speed, float muzzleOffset) {
+        return loose(shooter, victim, damage, type, template, speed, muzzleOffset, false);
+    }
+
+    /** The same, its damage a critical one where said: told on the hurt it deals. */
+    public static boolean loose(GameObject shooter, GameObject victim, float damage, DamageType type, String template,
+            float speed, float muzzleOffset, boolean critical) {
         var world = shooter.getWorld();
         if (world == null || template == null || template.isBlank()) {
             return false;
@@ -44,6 +50,7 @@ public final class Arrows {
             arrow.markDestroyed();
             return false; // the template exists but is not an arrow
         }
+        flight.critical(critical);
         flight.loose(shooter, victim, damage, type, speed);
         return true;
     }

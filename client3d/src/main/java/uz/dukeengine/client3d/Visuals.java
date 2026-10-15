@@ -3118,6 +3118,18 @@ public final class Visuals {
         return hitFlash;
     }
 
+    private HitStop hitStop;
+
+    /** A heavy blow felt as a catch in the motion — see {@link HitStop}; none unless said. */
+    public Visuals hitStop(HitStop hitStop) {
+        this.hitStop = hitStop;
+        return this;
+    }
+
+    public HitStop getHitStop() {
+        return hitStop;
+    }
+
     private float shakeScale = 1f;
 
     /**

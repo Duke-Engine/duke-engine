@@ -24,7 +24,13 @@ import uz.dukeengine.core.thing.ObjectId;
  *                 face the way it came
  */
 public record ObjectHurt(int frame, ObjectId object, String templateName, int playerIndex, DamageType damageType,
-        float amount, ObjectId attacker, Coord3D where, Coord3D from) implements WorldEvent {
+        float amount, ObjectId attacker, Coord3D where, Coord3D from, boolean critical) implements WorldEvent {
+
+    /** A blow that was no critical one. */
+    public ObjectHurt(int frame, ObjectId object, String templateName, int playerIndex, DamageType damageType,
+            float amount, ObjectId attacker, Coord3D where, Coord3D from) {
+        this(frame, object, templateName, playerIndex, damageType, amount, attacker, where, from, false);
+    }
 
     @Override
     public Coord3D where() {

@@ -531,7 +531,8 @@ public final class WeaponUpdate extends UpdateModule {
         float rolled = BlowRoll.of(owner, world);
         var shot = new Shot(owner.getId(), owner.getPlayerIndex(), weapon, chosen.index(),
                 dealt(owner, weapon, weapon.damage()) * rolled, weapon.splashRadius() * wider,
-                dealt(owner, weapon, weapon.secondaryDamage()) * rolled, weapon.secondaryRadius() * wider);
+                dealt(owner, weapon, weapon.secondaryDamage()) * rolled, weapon.secondaryRadius() * wider,
+                null, rolled > 1f);
         boolean inFlight = false;
         for (var module : owner.getModules()) {
             if (module instanceof ProjectileLauncher launcher && launcher.launchAt(owner, groundTarget, shot)) {
@@ -825,7 +826,8 @@ public final class WeaponUpdate extends UpdateModule {
         float rolled = BlowRoll.of(owner, world); // once a shot: a critical blow is critical in both its rings
         var shot = new Shot(owner.getId(), owner.getPlayerIndex(), weapon, chosen.index(),
                 dealt(owner, weapon, weapon.damage()) * rolled, weapon.splashRadius() * wider,
-                dealt(owner, weapon, weapon.secondaryDamage()) * rolled, weapon.secondaryRadius() * wider);
+                dealt(owner, weapon, weapon.secondaryDamage()) * rolled, weapon.secondaryRadius() * wider,
+                null, rolled > 1f);
         for (var listener : shotListeners(owner)) {
             listener.onFired(shot, victim);
         }
@@ -947,7 +949,7 @@ public final class WeaponUpdate extends UpdateModule {
 
     /** The death a shot deals if it kills, and whose it is: its weapon's, its shooter's, and the side it fired for. */
     private static Death blow(Shot shot) {
-        return new Death(shot.weapon().deathType(), shot.shooter(), shot.side());
+        return new Death(shot.weapon().deathType(), shot.shooter(), shot.side(), shot.critical());
     }
 
     /**
