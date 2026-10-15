@@ -412,6 +412,11 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
 
     private void letOut(GameObject passenger) {
         passenger.setSeesOut(false);
+        var world = passenger.getWorld();
+        if (world != null) {
+            world.post(new uz.dukeengine.core.event.ObjectCreated(world.getFrame(), passenger.getId(),
+                    uz.dukeengine.core.event.ObjectCreated.How.UNLOADED));
+        }
         if (outAlongThePath(passenger)) {
             return;
         }

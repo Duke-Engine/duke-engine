@@ -44,6 +44,15 @@ final class Clip {
     }
 
     /** A frame has passed where this weapon runs. */
+    /** Its next shot no sooner than {@code frames} from now. */
+    void delay(int frames) {
+        wait = Math.max(wait, frames);
+    }
+
+    int leastDelay() {
+        return leastDelay;
+    }
+
     void tick() {
         if (wait > 0) {
             wait--;

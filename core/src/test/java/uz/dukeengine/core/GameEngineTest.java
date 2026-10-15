@@ -80,4 +80,33 @@ class GameEngineTest {
         assertEquals(0, engine.getLogic().getFrame());
         assertTrue(engine.getClient().getFrame() > 0);
     }
+
+    @Test
+    void aRateOfNothingStepsOnlyWhenAsked() {
+        var engine = new TestEngine(1000);
+        engine.init();
+        engine.setLogicRate(0f);
+        engine.update();
+        assertEquals(0, engine.getLogic().getFrame());
+
+        engine.stepOnce();
+        engine.update();
+        engine.update();
+        assertEquals(1, engine.getLogic().getFrame(), "one step, once");
+    }
+
+    @Test
+    void aFasterRateRunsTheSameFramesSooner() {
+        var engine = new TestEngine(GameConstants.LOGICFRAMES_PER_SECOND);
+        engine.setMaxFps(0);
+        engine.init();
+        engine.setLogicRate(8f);
+        long start = System.nanoTime();
+        engine.execute();
+
+        assertEquals(GameConstants.LOGICFRAMES_PER_SECOND, engine.getLogic().getFrame());
+        assertTrue(System.nanoTime() - start < 700_000_000L, "a second of the world in an eighth of one");
+        engine.setLogicRate(100f);
+        assertEquals(8f, engine.getLogicRate());
+    }
 }

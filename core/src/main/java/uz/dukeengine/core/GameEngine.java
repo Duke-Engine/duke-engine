@@ -36,6 +36,27 @@ public abstract class GameEngine extends SubsystemInterface {
 
     private long accumulatedNanos;
     private long lastFrameMark;
+    /** How many logic seconds pass in a wall second — see {@link #setLogicRate}; and a step asked while paused. */
+    private volatile float logicRate = 1f;
+    private volatile boolean stepAsked;
+
+    /**
+     * Run the simulation {@code multiplier} times as fast as the wall clock — 0.25 to 8, 0 a pause — each step still a
+     * thirtieth of a second of the world, so its checksums and the order of its orders are what they were. In a match
+     * of several machines it is the game's to agree on, as an order; the engine applies what it is told.
+     */
+    public final void setLogicRate(float multiplier) {
+        this.logicRate = multiplier <= 0f ? 0f : Math.clamp(multiplier, 0.25f, 8f);
+    }
+
+    public final float getLogicRate() {
+        return logicRate;
+    }
+
+    /** One frame of the world now, while it is paused or held at a rate of 0: stepping through to find a change. */
+    public final void stepOnce() {
+        stepAsked = true;
+    }
 
     private GameLogic logic;
     private GameClient client;
@@ -81,6 +102,12 @@ public abstract class GameEngine extends SubsystemInterface {
      */
     @Override
     public void update() {
+        if (stepAsked) {
+            stepAsked = false;
+            if ((logic.isGamePaused() || logicRate == 0f) && isLogicFrameReady()) {
+                logic.update();
+            }
+        }
         while (accumulatedNanos >= STEP_NANOS) {
             if (logic.isGamePaused()) {
                 accumulatedNanos -= STEP_NANOS; // sim frozen, but let real time pass
@@ -110,7 +137,9 @@ public abstract class GameEngine extends SubsystemInterface {
         lastFrameMark = prevTime;
         while (!quitting) {
             long now = System.nanoTime();
-            accumulatedNanos = Math.min(accumulatedNanos + (now - prevTime), MAX_ACCUMULATED_NANOS);
+            float rate = logicRate;
+            accumulatedNanos = Math.min(accumulatedNanos + (long) ((now - prevTime) * (double) rate),
+                    (long) (MAX_ACCUMULATED_NANOS * Math.max(1f, rate)));
             prevTime = now;
             try {
                 update();

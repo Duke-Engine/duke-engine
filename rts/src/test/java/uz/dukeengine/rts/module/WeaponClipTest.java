@@ -249,4 +249,29 @@ class WeaponClipTest {
 
         assertEquals(List.of(0, 1, 2, 17, 18, 19), shooting.fromTheFirst());
     }
+
+    /** Another slot's shot keeps this one from firing as long as it is told — and how long it waits is asked. */
+    @Test
+    void aSlotDelayedByAnotherFiresWhenTold() {
+        var shooting = shooting(clip(0, 3, 0, 60, true));
+        shooting.run(1);
+        shooting.weapon().delaySlots(1, 30);
+        shooting.run(40);
+
+        assertEquals(List.of(0, 30, 33, 36, 39), shooting.fromTheFirst());
+        assertEquals(3, shooting.weapon().reloadFramesOf(0));
+        assertEquals(-1, shooting.weapon().reloadFramesOf(1));
+    }
+
+    /** A shooter with no experience fires as rank 0, its moment the weapon's own. */
+    @Test
+    void aShotSaysItsShootersRank() {
+        var shooting = shooting(clip(0, 3, 0, 60, true));
+        shooting.logic().update();
+        var fired = shooting.logic().drainEvents().stream().filter(WeaponFired.class::isInstance)
+                .map(WeaponFired.class::cast).findFirst().orElseThrow();
+
+        assertEquals(0, fired.rank());
+        assertEquals(2, fired.ranked(2).rank());
+    }
 }

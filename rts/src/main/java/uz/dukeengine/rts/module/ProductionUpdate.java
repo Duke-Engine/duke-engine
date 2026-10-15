@@ -595,6 +595,8 @@ public final class ProductionUpdate extends UpdateModule {
     private GameObject outOfTheSide(World world, GameObject owner, ThingTemplate unit) {
         var produced = world.spawn(unit, exitPosition(world, owner, unit), owner.getPlayerIndex(),
                 made -> made.setProducer(owner.getId()));
+        world.post(new uz.dukeengine.core.event.ObjectCreated(world.getFrame(), produced.getId(),
+                uz.dukeengine.core.event.ObjectCreated.How.PRODUCED));
         var ai = produced.getLocomotor();
         if (rallyPoint != null && ai != null) {
             ai.moveTo(rallyPoint);
@@ -611,6 +613,8 @@ public final class ProductionUpdate extends UpdateModule {
         var made = inFrameOf(owner, exit.createPoint());
         var produced = world.spawn(unit, new Coord3D(made.x(), made.y(), world.groundHeight(made)),
                 owner.getPlayerIndex(), thing -> thing.setProducer(owner.getId()));
+        world.post(new uz.dukeengine.core.event.ObjectCreated(world.getFrame(), produced.getId(),
+                uz.dukeengine.core.event.ObjectCreated.How.PRODUCED));
         produced.setOrientation(owner.getOrientation());
         var door = inFrameOf(owner, exit.rallyPoint());
         var ai = produced.getLocomotor();

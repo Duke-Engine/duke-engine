@@ -41,7 +41,19 @@ public record WeaponFired(
         String weapon,
         int slot,
         boolean contact,
-        float radius) implements WorldEvent {
+        float radius,
+        int rank) implements WorldEvent {
+
+    /** A shot from a shooter of no rank, as every one was before a shot could say. */
+    public WeaponFired(int frame, ObjectId shooter, ObjectId target, Coord3D from, Coord3D to, String weapon, int slot,
+            boolean contact, float radius) {
+        this(frame, shooter, target, from, to, weapon, slot, contact, radius, 0);
+    }
+
+    /** The same shot, told its shooter's rank. */
+    public WeaponFired ranked(int rank) {
+        return new WeaponFired(frame, shooter, target, from, to, weapon, slot, contact, radius, rank);
+    }
 
     /** A shot from a weapon with no name of its own. */
     public WeaponFired(int frame, ObjectId shooter, ObjectId target, Coord3D from, Coord3D to) {

@@ -600,6 +600,22 @@ E16, in parts.
   far out of the way. Every search weighs it, and a route is never straightened across a cell dearer than where the
   straight line starts. Shares of 100 or more keep routes the cheapest; a grid given none routes as ever.
 
+### Engine asks, round 22 (duke-generals)
+
+2. **The speed the world runs at**: `GameEngine.setLogicRate(multiplier)` — 0.25 to 8, 0 a pause — scales the wall
+   time counted toward a step, each step still a thirtieth of the world's second, so frames, checksums and the order of
+   orders are what they were; `stepOnce()` runs one frame while paused or at 0. A match of several machines agrees on
+   its rate as an order of its own.
+7. **A greeting only as a thing was made**: `ObjectCreated(frame, object, how)` — `PRODUCED` by a factory, `UNLOADED`
+   from a hold, `RELEASED` as it is handed over; a thing new to the picture with no word of how came `SPAWNED`.
+   `Visuals.voicedWhen(how...)` keeps `spawned.<template>` to the ways named (the reference's `VoiceCreate`); a game
+   that never asks greets every new thing, as before.
+8. **A veteran's shot**: `WeaponFired.rank`, the shooter's experience rank (0 for none; the nine-part constructor
+   kept); its moment and sound are looked up as `fired.<weapon>.<rank>` first, falling back to `fired.<weapon>`.
+12. **Reloads shared**: `WeaponUpdate.delaySlots(fromSlot, frames)` keeps every other slot from firing for at least
+   that long (the reference's `ShareWeaponReloadTime`, done by a module told of a shot), and `reloadFramesOf(slot)`
+   says how long a slot waits between shots.
+
 ### Engine asks, round 21 (duke-generals)
 
 1. **A box picks things where they are drawn**: a drag box tests each thing's drawn middle — its body's bounds, or the

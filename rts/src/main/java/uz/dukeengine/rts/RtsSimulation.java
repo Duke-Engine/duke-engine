@@ -197,8 +197,10 @@ public abstract class RtsSimulation extends GameLogic implements uz.dukeengine.c
      */
     public final void handOver(java.util.Collection<uz.dukeengine.core.thing.GameObject> things, int to) {
         for (var thing : things) {
-            if (thing != null && !thing.isDestroyed()) {
+            if (thing != null && !thing.isDestroyed() && thing.getPlayerIndex() != to) {
                 thing.setPlayerIndex(to);
+                post(new uz.dukeengine.core.event.ObjectCreated(getFrame(), thing.getId(),
+                        uz.dukeengine.core.event.ObjectCreated.How.RELEASED));
             }
         }
     }

@@ -118,6 +118,12 @@ final class GameSounds {
     }
 
     GameSounds(Sounds sounds, float touching, java.util.function.Function<String, Map<String, Float>> hurtWords) {
+        this(sounds, touching, hurtWords, null);
+    }
+
+    GameSounds(Sounds sounds, float touching, java.util.function.Function<String, Map<String, Float>> hurtWords,
+            java.util.Set<uz.dukeengine.core.event.ObjectCreated.How> greeted) {
+        this.greeted = greeted == null ? null : java.util.Set.copyOf(greeted);
         this.sounds = sounds;
         this.touching = touching;
         this.hurtWords = hurtWords;
@@ -156,6 +162,20 @@ final class GameSounds {
         return kind + "." + view.templateName();
     }
 
+    /**
+     * How a thing must have come into the world for its voice to greet it — see {@code ObjectCreated}; null, every
+     * thing new to the picture, as it always was. A thing new with no word of how came in {@code SPAWNED}.
+     */
+    private final java.util.Set<uz.dukeengine.core.event.ObjectCreated.How> greeted;
+
+    private boolean greets(uz.dukeengine.core.event.ObjectCreated.How how, boolean isNew) {
+        if (greeted == null) {
+            return isNew;
+        }
+        var came = how != null ? how : isNew ? uz.dukeengine.core.event.ObjectCreated.How.SPAWNED : null;
+        return came != null && greeted.contains(came);
+    }
+
     void frame(WorldSnapshot snapshot, int localPlayer, float now) {
         var after = index(snapshot.units());
         var hidden = index(snapshot.hiddenUnits());
@@ -171,16 +191,24 @@ final class GameSounds {
                 stopLoop(died.object().value());
             } else if (event instanceof WeaponFired fired) {
                 var shooter = after.get(fired.shooter().value());
-                fired(fired.weapon(), at(fired.from()), now,
+                fired(fired.weapon() == null || fired.rank() <= 0 ? fired.weapon() : fired.weapon() + "." + fired.rank(),
+                        at(fired.from()), now,
                         shooter != null && shooter.playerIndex() == localPlayer);
+            }
+        }
+        var how = new java.util.HashMap<Integer, uz.dukeengine.core.event.ObjectCreated.How>();
+        for (var event : snapshot.events()) {
+            if (event instanceof uz.dukeengine.core.event.ObjectCreated created) {
+                how.put(created.object().value(), created.how());
             }
         }
         for (var view : snapshot.units()) {
             boolean owned = view.playerIndex() == localPlayer;
             var was = before.get(view.id());
-            if (was == null) {
+            if (greets(how.get(view.id()), was == null)) {
                 sounds.play("spawned." + view.templateName(), at(view), now, owned, view.id());
-            } else if (view.health() < was.health()) {
+            }
+            if (was != null && view.health() < was.health()) {
                 sounds.play(heardAs("hurt", view), at(view), now, owned, view.id());
             }
             if (view.moving() && was != null && !was.moving()) {

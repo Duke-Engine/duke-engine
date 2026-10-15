@@ -1534,7 +1534,7 @@ final class DukeRtsApp extends SimpleApplication {
                 grid == null ? uz.dukeengine.core.pathfind.PathGrid.DEFAULT_CELL_SIZE
                         : grid.getCellSize(),
                 // A thing sounds hurt where it starts to look hurt: its look's own words and shares.
-                template -> visuals.of(template).whenHurt);
+                template -> visuals.of(template).whenHurt, visuals.getVoicedWhen());
         hearTheGround();
         // What happens where he does not see, for the sounds fog does not hide.
         game.hearThroughFog(visuals.getSounds().hearsThroughFog());
@@ -6835,7 +6835,8 @@ final class DukeRtsApp extends SimpleApplication {
                 // Its barrel flashes and kicks whether or not the shot was given a look of its own.
                 var bone = node == null ? null : barrels.fire(fired.shooter().value(), fired.slot());
                 if (fired.weapon() != null) {
-                    moment("fired." + fired.weapon(),
+                    // By the shooter's rank first, a veteran's flash: fired.<weapon>.<rank>, falling back by its dots.
+                    moment("fired." + fired.weapon() + (fired.rank() > 0 ? "." + fired.rank() : ""),
                             WorldMoments.fired(fired, bone, node == null ? null : node.root, this::floorHeightAt),
                             fired.shooter().value());
                 }

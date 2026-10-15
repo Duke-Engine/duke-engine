@@ -572,10 +572,38 @@ public final class WeaponUpdate extends UpdateModule {
         }
         chosen.clip().fired(world.random(), rateOfFire(owner, weapon));
         world.post(new WeaponFired(world.getFrame(), owner.getId(), null, here, groundTarget, weapon.name(),
-                chosen.index(), weapon.isContact(world.cellSize()), shot.radius()));
+                chosen.index(), weapon.isContact(world.cellSize()), shot.radius()).ranked(rankOf(owner)));
         if (!inFlight) {
             struck(world, shot, owner, null, groundTarget, groundTarget, here);
         }
+    }
+
+    /**
+     * Every slot in use but {@code fromSlot} kept from firing for at least {@code frames} from now — the reference's
+     * {@code ShareWeaponReloadTime}, all of a thing's weapons reloading when one fires, done by a module told of a shot.
+     */
+    public void delaySlots(int fromSlot, int frames) {
+        for (var one : armed()) {
+            if (one.index() != fromSlot) {
+                one.clip().delay(frames);
+            }
+        }
+    }
+
+    /** How long slot {@code slot}'s weapon waits between shots, its least; -1 for a slot not in use. */
+    public int reloadFramesOf(int slot) {
+        for (var one : armed()) {
+            if (one.index() == slot) {
+                return one.clip().leastDelay();
+            }
+        }
+        return -1;
+    }
+
+    /** The rank its experience has reached, 0 for none — told with each shot. */
+    private static int rankOf(GameObject owner) {
+        var experience = owner.findModule(ExperienceModule.class);
+        return experience == null ? 0 : experience.getLevel();
     }
 
     /** How far its first weapon in use reaches now, its bonuses counted; 0 with none in use. */
@@ -700,7 +728,7 @@ public final class WeaponUpdate extends UpdateModule {
             firedOn.put(chosen.index(), world.getFrame());
             chosen.clip().fired(world.random(), rateOfFire(owner, weapon));
             world.post(new WeaponFired(world.getFrame(), owner.getId(), null, here, along, weapon.name(),
-                    chosen.index(), false, shot.radius()));
+                    chosen.index(), false, shot.radius()).ranked(rankOf(owner)));
         } else {
             var victim = inTheSwing(world, owner, weapon, (float) facing);
             if (victim != null) {
@@ -709,7 +737,7 @@ public final class WeaponUpdate extends UpdateModule {
                 firedOn.put(chosen.index(), world.getFrame());
                 chosen.clip().fired(world.random(), rateOfFire(owner, weapon));
                 world.post(new WeaponFired(world.getFrame(), owner.getId(), null, here, along, weapon.name(),
-                        chosen.index(), weapon.isContact(world.cellSize()), shot.radius()));
+                        chosen.index(), weapon.isContact(world.cellSize()), shot.radius()).ranked(rankOf(owner)));
             }
         }
         // A blow that killed lets its target go; the swing toward the point is not over for that.
@@ -1062,7 +1090,7 @@ public final class WeaponUpdate extends UpdateModule {
         }
         world.post(new WeaponFired(world.getFrame(), owner.getId(), victim.getId(),
                 owner.getPosition(), aimPoint(victim), weapon.name(), chosen.index(),
-                weapon.isContact(world.cellSize()), shot.radius()));
+                weapon.isContact(world.cellSize()), shot.radius()).ranked(rankOf(owner)));
 
         if (inFlight) {
             return; // nothing has been hit yet; the blast and the kill wait for land()

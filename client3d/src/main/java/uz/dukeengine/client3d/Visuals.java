@@ -3491,6 +3491,22 @@ public final class Visuals {
         return sounds;
     }
 
+    private java.util.Set<uz.dukeengine.core.event.ObjectCreated.How> voicedWhen;
+
+    /**
+     * A thing's {@code spawned.<template>} voice heard only as it came in one of these ways — the reference's
+     * {@code VoiceCreate}, said as a factory makes a unit and not as a hold lets it out. Never asked, every thing new to
+     * the picture is greeted, as it always was; a thing new with no word of how counts as {@code SPAWNED}.
+     */
+    public Visuals voicedWhen(uz.dukeengine.core.event.ObjectCreated.How... hows) {
+        this.voicedWhen = java.util.Set.of(hows);
+        return this;
+    }
+
+    java.util.Set<uz.dukeengine.core.event.ObjectCreated.How> getVoicedWhen() {
+        return voicedWhen;
+    }
+
     // ---- what all of this adds up to ----
 
     /**
