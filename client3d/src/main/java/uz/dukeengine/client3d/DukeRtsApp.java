@@ -836,7 +836,12 @@ final class DukeRtsApp extends SimpleApplication {
                     backdropEar == null ? percent -> { } : backdropEar);
         }
         // First of all: a title card that takes the input takes it before the game's canvas or any control.
-        inputManager.addRawInputListener(new CardInput(() -> titleCard != null && titleCard.takesInput()));
+        inputManager.addRawInputListener(new CardInput(() -> titleCard != null && titleCard.takesInput()
+                || credits != null, () -> {
+                    if (credits != null) {
+                        credits.skip(); // Esc or a click: the rest of the roll is skipped
+                    }
+                }));
         if (canvasInput != null) {
             canvasInputs = new CanvasInputs(canvasInput, () -> cam.getHeight());
             inputManager.addRawInputListener(canvasInputs);
@@ -1079,6 +1084,9 @@ final class DukeRtsApp extends SimpleApplication {
         preferences.save();
     }
 
+    /** The credits rolling, as the client draws them — see {@link DukeGame#creditsRoll}; null for none. */
+    private CreditsRollShow credits;
+
     /** The title card up, as the client draws it — see {@link DukeGame#titleCard}; null for none. */
     private TitleCardShow titleCard;
 
@@ -1101,7 +1109,13 @@ final class DukeRtsApp extends SimpleApplication {
         } else if (titleCard == null || titleCard.card() != wanted) {
             titleCard = new TitleCardShow(wanted);
         }
-        if (painter == null && titleCard == null) {
+        var rolling = game.creditsShowing();
+        if (rolling == null) {
+            credits = null;
+        } else if (credits == null || credits.roll() != rolling) {
+            credits = new CreditsRollShow(rolling);
+        }
+        if (painter == null && titleCard == null && credits == null) {
             return;
         }
         int width = cam.getWidth();
@@ -1122,6 +1136,10 @@ final class DukeRtsApp extends SimpleApplication {
         if (titleCard != null && !titleCard.paint(frame, tpf)) {
             game.titleCardGone(titleCard.card());
             titleCard = null;
+        }
+        if (credits != null && !credits.paint(frame, tpf)) {
+            game.creditsGone(credits.roll());
+            credits = null;
         }
         if (snapshot != null) {
             var asked = frame.portraitsAsked();

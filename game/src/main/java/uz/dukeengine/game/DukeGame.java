@@ -244,6 +244,31 @@ public final class DukeGame {
         setCameraSeen(x, y, angle, Float.NaN, Float.NaN);
     }
 
+    /** The credits rolling, or about to: see {@link #creditsRoll}. */
+    private final java.util.concurrent.atomic.AtomicReference<CreditsRoll> credits =
+            new java.util.concurrent.atomic.AtomicReference<>();
+
+    /**
+     * Roll the credits — {@code lines}, headings and names in order — up a darkened screen over {@code seconds}, over
+     * everything; drawn only, out of the checksum. Esc or a click skips them; {@code ended} is told on the window's
+     * thread when they have rolled out or been skipped. From any thread; a roll already going is replaced.
+     */
+    public void creditsRoll(java.util.List<CreditsRoll.Line> lines, float seconds, Runnable ended) {
+        credits.set(new CreditsRoll(lines, seconds, ended));
+    }
+
+    /** The credits rolling, or null once the client has said they are gone — from any thread. */
+    public CreditsRoll creditsShowing() {
+        return credits.get();
+    }
+
+    /** Told by the client when {@code rolled} is over; a roll put up since stays. */
+    public void creditsGone(CreditsRoll rolled) {
+        if (credits.compareAndSet(rolled, null)) {
+            rolled.ended().run();
+        }
+    }
+
     /** The card showing, or about to: see {@link #titleCard}. */
     private final java.util.concurrent.atomic.AtomicReference<TitleCard> card =
             new java.util.concurrent.atomic.AtomicReference<>();

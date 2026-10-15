@@ -429,6 +429,9 @@ E16, in parts.
 - **An eased camera** (E41): `GameCamera.moveTo(x, y, frames, Ease)`, `turnTo`, `pitchTo`, `zoomTo` — each with an
   `Ease` (`LINEAR`, `IN`, `OUT`, `IN_OUT`), stepped with the world, all at once; `isMoving` while any is under way. A
   shot that tilts or draws back starts from the player's own view (`DukeGame.setCameraSeen` with pitch and distance).
+- **A credits roll** (E49): `DukeGame.creditsRoll(lines, seconds, ended)` — `CreditsRoll.Line` headings and names rising
+  up a darkened screen over the seconds, over everything, drawn only; Esc or a click skips it, and `ended` is told on the
+  window's thread when it has rolled out or been skipped. `creditsShowing()` until then.
 - **A title card** (E42): `DukeGame.titleCard(text, subtext, fadeIn, hold, fadeOut[, takesInput])` — large in the middle
   of a darkened screen, over everything, drawn only; the player's keys and clicks go to nothing while it shows unless
   the game says otherwise. `titleCardShowing()` until the client says it is gone.
