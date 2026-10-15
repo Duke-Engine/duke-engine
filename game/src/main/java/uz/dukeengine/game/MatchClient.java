@@ -111,11 +111,19 @@ final class MatchClient extends GameClient {
     private static java.util.List<String> busyIn(java.util.List<String> words,
             uz.dukeengine.core.thing.GameObject object, boolean moving) {
         var clip = moving ? null : object.getBusyClip();
-        if (clip == null) {
+        var mount = object.getMount();
+        if (clip == null && mount == null) {
             return words;
         }
         var all = new java.util.ArrayList<>(words);
-        all.add(uz.dukeengine.core.view.UnitView.BUSY + clip);
+        if (clip != null) {
+            all.add(uz.dukeengine.core.view.UnitView.BUSY + clip);
+        }
+        if (mount != null) {
+            var at = object.getMountOffset();
+            all.add(uz.dukeengine.core.view.UnitView.RIDE + mount.value() + ":" + object.getMountBone() + ":"
+                    + at.x() + "," + at.y() + "," + at.z());
+        }
         return all;
     }
 

@@ -11,11 +11,19 @@ MaterialDef Flakes {
         // The fewest and the most pixels it is drawn across.
         Float Least
         Float Most
+        // What the picture is multiplied by, and how many of its widths long a streak is along its fall.
+        Color Colour
+        Float Stretch
     }
 
     Technique {
         VertexShader   GLSL310 GLSL300 GLSL150 GLSL100 : MatDefs/duke/Flakes.vert
         FragmentShader GLSL310 GLSL300 GLSL150 GLSL100 : MatDefs/duke/Flakes.frag
+
+        Defines {
+            COLOUR : Colour
+            STRETCH : Stretch
+        }
 
         WorldParameters {
             WorldViewProjectionMatrix

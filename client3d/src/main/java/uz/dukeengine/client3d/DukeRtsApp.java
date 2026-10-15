@@ -612,6 +612,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (ambient != null) {
             ambient.setColor(ambientColour);
         }
+        lightTheHour(); // a world built anew keeps the game's hour over its own sun
     }
 
     /**
@@ -3862,6 +3863,13 @@ final class DukeRtsApp extends SimpleApplication {
      * picture is sent again only as the colour moves by a step it can hold.
      */
     private void followTheLookUnderTheCamera(float tpf) {
+        if (hour != null && hour.step(tpf)) {
+            lightTheHour(); // the hour's sun easing on, on the frames it moves
+        }
+        if (hazeWanted != null) {
+            easeTheHaze(tpf); // the game's haze over the look's
+            return;
+        }
         if (cellLooks == null || fogMap == null || builtFrom == null) {
             return;
         }
@@ -4645,7 +4653,8 @@ final class DukeRtsApp extends SimpleApplication {
         float closest = Float.MAX_VALUE;
         for (var node : unitNodes.values()) {
             // A rider is clicked as what it rides on.
-            var picked = node.view == null ? null : node.view.ridesOn() >= 0 ? unitNodes.get(node.view.ridesOn()) : node;
+            var picked = node.view == null ? null : node.view.ridesOn() >= 0 ? unitNodes.get(node.view.ridesOn())
+                    : riderOf.getOrDefault(node.view.id(), node); // a ridden mount is clicked as its rider
             if (picked == null || !picked.view.selectable() || node.body == null) {
                 continue;
             }
@@ -5746,6 +5755,7 @@ final class DukeRtsApp extends SimpleApplication {
         keepHisOwnSelected();
         tellTheGameWhatHeIsLookingAt();
         syncUnits();
+        seatTheRiders();
         flashTheNewlySelected(tpf);
         showUnitBars();
         // After the units, because a burst lit this frame has to reach the stone
@@ -6376,8 +6386,9 @@ final class DukeRtsApp extends SimpleApplication {
         var plain = visuals.getUnitBars().plain();
         var pointed = plain == null ? null : pickUnit();
         for (var node : unitNodes.values()) {
-            if (node.view == null || node.view.maxHealth() <= 0f || node.view.remembered()) {
-                continue; // a prop or an arrow: nothing with a life to show; or a thing remembered through the fog
+            if (node.view == null || node.view.maxHealth() <= 0f || node.view.remembered()
+                    || riderOf.containsKey(node.view.id())) {
+                continue; // a prop or an arrow, a thing remembered through the fog, or a mount barred as its rider
             }
             var template = game.getLogic().getThingFactory().findTemplate(node.view.templateName());
             var shape = template == null ? null : uz.dukeengine.core.thing.Solid.of(template);
@@ -8130,6 +8141,9 @@ final class DukeRtsApp extends SimpleApplication {
      * standing, which is what it looks like.
      */
     private void animate(UnitNode node, UnitView view) {
+        if (riderOf.containsKey(view.id())) {
+            return; // a ridden mount walks as its rider does — see paceTheMount
+        }
         if (node.carryingAgainAt > 0f && timer.getTimeInSeconds() >= node.carryingAgainAt) {
             carrying(node, true);
             node.carryingAgainAt = 0f;
@@ -9050,6 +9064,164 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private static final float MARK_SIZE = 7f;
+
+    /** The world's sun on its way from one hour to the next — see {@link Duke3D#sunlight}; null before any was asked. */
+    private HourOfDay hour;
+    /** The ground's sun parameters laid over every material under the root at once. */
+    private com.jme3.material.MatParamOverride sunDirectionOverride;
+    private com.jme3.material.MatParamOverride ambientShiftOverride;
+    private com.jme3.material.MatParamOverride sunShiftOverride;
+
+    void sunlight(Sunlight light, float seconds) {
+        if (light == null) {
+            return;
+        }
+        if (hour == null) {
+            hour = new HourOfDay(new HourOfDay.Sun(sunDirection.clone(), sunColour.clone(), ambientColour.clone()));
+        }
+        hour.toward(HourOfDay.Sun.of(light), seconds);
+        lightTheHour();
+    }
+
+    /** The hour's sun on the lights, the shadows and the painted ground, as far as it has eased. */
+    private void lightTheHour() {
+        if (hour == null) {
+            return;
+        }
+        var now = hour.now();
+        if (sun != null) {
+            sun.setDirection(now.direction());
+            sun.setColor(now.colour());
+        }
+        if (ambient != null) {
+            ambient.setColor(now.ambient());
+        }
+        if (sunShadows != null) {
+            sunShadows.sun(now.direction());
+        }
+        // The ground's materials were built with the sun of their world: told the hour's share of it, all at once.
+        if (sunDirectionOverride == null) {
+            sunDirectionOverride = new com.jme3.material.MatParamOverride(com.jme3.shader.VarType.Vector3,
+                    "SunDirection", now.direction().clone());
+            ambientShiftOverride = new com.jme3.material.MatParamOverride(com.jme3.shader.VarType.Vector4,
+                    "AmbientShift", HourOfDay.shift(now.ambient(), ambientColour));
+            sunShiftOverride = new com.jme3.material.MatParamOverride(com.jme3.shader.VarType.Vector4,
+                    "SunShift", HourOfDay.shift(now.colour(), sunColour));
+            rootNode.addMatParamOverride(sunDirectionOverride);
+            rootNode.addMatParamOverride(ambientShiftOverride);
+            rootNode.addMatParamOverride(sunShiftOverride);
+        } else {
+            sunDirectionOverride.setValue(now.direction().clone());
+            ambientShiftOverride.setValue(HourOfDay.shift(now.ambient(), ambientColour));
+            sunShiftOverride.setValue(HourOfDay.shift(now.colour(), sunColour));
+        }
+    }
+
+    /** The colour the haze is eased to, or null for the fog's own; and how quickly. */
+    private ColorRGBA hazeWanted;
+    private float hazeSeconds;
+
+    void hazeColour(int rgb, float seconds) {
+        hazeWanted = rgb < 0 ? null : new ColorRGBA(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f,
+                (rgb & 0xFF) / 255f, 1f);
+        hazeSeconds = Math.max(0f, seconds);
+    }
+
+    /** The haze eased to the game's colour, the fog map and the void behind the world with it. */
+    private void easeTheHaze(float tpf) {
+        var from = fogTintNow != null ? fogTintNow : viewPort.getBackgroundColor().clone();
+        float share = hazeSeconds <= 0f ? 1f : 1f - (float) Math.exp(-tpf / hazeSeconds);
+        var eased = from.clone().interpolateLocal(hazeWanted, share);
+        if (fogMap != null && packedRgb(eased) != packedRgb(from)) {
+            fogMap.recolour(eased);
+        }
+        viewPort.setBackgroundColor(eased);
+        fogTintNow = eased;
+    }
+
+    void lightScale(float times) {
+        if (layered != null) {
+            layered.lightScale(times);
+        }
+    }
+
+    /** The colour over the world alone, drawn in a view of its own after the world's and before the interface's. */
+    private Geometry worldTintQuad;
+
+    void worldTint(int argb) {
+        float alpha = ((argb >>> 24) & 0xFF) / 255f;
+        if (worldTintQuad == null) {
+            if (alpha <= 0f) {
+                return;
+            }
+            var view = renderManager.createMainView("world-tint", cam);
+            view.setClearFlags(false, false, false);
+            var tintNode = new Node("world-tint");
+            worldTintQuad = new Geometry("world-tint", new com.jme3.scene.shape.Quad(1f, 1f));
+            var material = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+            material.getAdditionalRenderState().setBlendMode(com.jme3.material.RenderState.BlendMode.Alpha);
+            material.getAdditionalRenderState().setDepthTest(false);
+            worldTintQuad.setMaterial(material);
+            worldTintQuad.setQueueBucket(com.jme3.renderer.queue.RenderQueue.Bucket.Gui);
+            worldTintQuad.setCullHint(Spatial.CullHint.Never);
+            tintNode.attachChild(worldTintQuad);
+            view.attachScene(tintNode);
+        }
+        worldTintQuad.setLocalScale(cam.getWidth(), cam.getHeight(), 1f);
+        worldTintQuad.getMaterial().setColor("Color", new ColorRGBA(((argb >> 16) & 0xFF) / 255f,
+                ((argb >> 8) & 0xFF) / 255f, (argb & 0xFF) / 255f, alpha));
+        worldTintQuad.setCullHint(alpha <= 0f ? Spatial.CullHint.Always : Spatial.CullHint.Never);
+        var root = worldTintQuad.getParent();
+        root.updateLogicalState(0f);
+        root.updateGeometricState();
+    }
+
+    /** Each ridden mount's rider, by the mount's id — see {@code GameObject.rideOn}; filled each frame. */
+    private final Map<Integer, UnitNode> riderOf = new HashMap<>();
+
+    /**
+     * Every rider hung on its mount's bone, the mount drawn where the rider stands and walking as he walks; one that
+     * got off put back among the units where it stands.
+     */
+    private void seatTheRiders() {
+        riderOf.clear();
+        for (var node : unitNodes.values()) {
+            var riding = node.view == null ? null : node.view.riding();
+            var mount = riding == null ? null : unitNodes.get(riding.mount());
+            if (mount == null || mount.view == null) {
+                if (node.root.getParent() != unitsNode) {
+                    unitsNode.attachChild(node.root); // got off: its own place again, set next frame by its view
+                }
+                continue;
+            }
+            mount.root.setLocalTranslation(UnitPlacement.where(node.view, this::floorHeightAt));
+            mount.root.setLocalRotation(UnitPlacement.turn(node.view));
+            if (Riders.seat(node.root, mount.body, riding.bone(), new Vector3f(riding.x(), riding.z(), riding.y()))) {
+                riderOf.put(mount.view.id(), node);
+                paceTheMount(mount, node.view);
+            }
+        }
+    }
+
+    /** A ridden mount walking as its rider walks, at his speed — the rider is what moves — else standing. */
+    private void paceTheMount(UnitNode mount, UnitView rider) {
+        var visual = visualFor(mount.view);
+        if (mount.composer == null) {
+            return;
+        }
+        String wanted = rider.moving() && visual.walkAnim != null ? visual.walkAnim
+                : visual.idleFor(mount.view.id(), snapshot.frame());
+        if (wanted != null && !wanted.equals(mount.currentAnim)) {
+            play(mount, mount.view.looksAs(), wanted, true);
+        }
+        if (rider.moving() && visual.walkDistance > 0f) {
+            var action = mount.composer.getCurrentAction();
+            var clip = mount.composer.getAnimClip(visual.walkAnim);
+            if (action != null && clip != null) {
+                action.setSpeed(Visuals.paced(clip.getLength(), visual.walkDistance, rider.speed(), 1.0));
+            }
+        }
+    }
 
     /** The camera following one of his units, as the game set it last — see {@link Duke3D#cameraFollow}. */
     private CameraFollow following;

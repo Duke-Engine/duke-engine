@@ -19,6 +19,9 @@ MaterialDef Fogged Terrain {
         Color Ambient
         Color Sun
         Vector3 SunDirection
+        // The hour's shift of the ambient and the sun each was built with, laid over all the ground at once.
+        Color AmbientShift
+        Color SunShift
 
         // The dark: rgb is its colour, a is how much of it there is.
         Texture2D FogMap
@@ -93,6 +96,8 @@ MaterialDef Fogged Terrain {
         }
 
         Defines {
+            AMBIENT_SHIFT : AmbientShift
+            SUN_SHIFT : SunShift
             BOUND_DRAW_BUFFER: BoundDrawBuffer
             HAS_COLORMAP : ColorMap
             VERTEX_ALPHA : VertexAlpha

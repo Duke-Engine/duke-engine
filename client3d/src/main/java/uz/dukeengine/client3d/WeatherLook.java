@@ -20,7 +20,20 @@ package uz.dukeengine.client3d;
  *                    snow 0.5, rain 0.1 — in place of the size in pixels; 0 for the size in pixels
  */
 public record WeatherLook(String picture, float box, float spacing, float speed, float amplitude, float frequencyX,
-        float frequencyY, float size, float leastPixels, float mostPixels, float square) {
+        float frequencyY, float size, float leastPixels, float mostPixels, float square, int colour, float stretch) {
+
+    /** Flakes in the picture's own colours, square: snow, as every weather was before rain could be told from it. */
+    public WeatherLook(String picture, float box, float spacing, float speed, float amplitude, float frequencyX,
+            float frequencyY, float size, float leastPixels, float mostPixels, float square) {
+        this(picture, box, spacing, speed, amplitude, frequencyX, frequencyY, size, leastPixels, mostPixels, square,
+                0xFFFFFFFF, 1f);
+    }
+
+    /** The same weather as rain: its flakes multiplied by {@code argb}, each a streak {@code stretch} widths long. */
+    public WeatherLook rain(int argb, float stretch) {
+        return new WeatherLook(picture, box, spacing, speed, amplitude, frequencyX, frequencyY, size, leastPixels,
+                mostPixels, square, argb, stretch);
+    }
 
     /** The most pixels across a square flake is drawn, however near the eye. */
     static final float MOST_SQUARE_PIXELS = 256f;
@@ -31,6 +44,7 @@ public record WeatherLook(String picture, float box, float spacing, float speed,
         speed = Math.max(0f, speed);
         mostPixels = Math.max(leastPixels, mostPixels);
         square = Math.max(0f, square);
+        stretch = Math.max(1f, stretch);
     }
 
     /** A flake drawn by its size in pixels. */

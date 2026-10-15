@@ -144,13 +144,27 @@ final class GameSounds {
         return "died." + died.templateName() + "." + died.deathType().name().toLowerCase(java.util.Locale.ROOT);
     }
 
+    /**
+     * What a moment of {@code kind} on {@code view} is heard by: under the look it is drawn as where the game named any
+     * cue for that look — {@code walking.KnightRiding} — else under its own template's name.
+     */
+    String heardAs(String kind, uz.dukeengine.core.view.UnitView view) {
+        var looks = view.looksAs();
+        if (!looks.equals(view.templateName()) && sounds.names(kind + "." + looks)) {
+            return kind + "." + looks;
+        }
+        return kind + "." + view.templateName();
+    }
+
     void frame(WorldSnapshot snapshot, int localPlayer, float now) {
         var after = index(snapshot.units());
         var hidden = index(snapshot.hiddenUnits());
         for (var event : snapshot.events()) {
             if (event instanceof ObjectDied died) {
-                sounds.play(diedMoment(died), at(died.position()), now,
-                        died.playerIndex() == localPlayer);
+                var drawn = before.get(died.object().value());
+                var name = drawn == null ? diedMoment(died) : heardAs("died", drawn) + "."
+                        + died.deathType().name().toLowerCase(java.util.Locale.ROOT);
+                sounds.play(name, at(died.position()), now, died.playerIndex() == localPlayer);
                 if (died.playerIndex() != localPlayer) {
                     sounds.play("vo.kill", now);
                 }
@@ -167,7 +181,7 @@ final class GameSounds {
             if (was == null) {
                 sounds.play("spawned." + view.templateName(), at(view), now, owned, view.id());
             } else if (view.health() < was.health()) {
-                sounds.play("hurt." + view.templateName(), at(view), now, owned, view.id());
+                sounds.play(heardAs("hurt", view), at(view), now, owned, view.id());
             }
             if (view.moving() && was != null && !was.moving()) {
                 sounds.play("moving." + view.templateName(), at(view), now, owned, view.id());
@@ -176,8 +190,7 @@ final class GameSounds {
                 // Every frame he is walking, which is what walking looks like from
                 // out here. The stride is the cue's own business — see GapSeconds.
                 var surface = surfaceAt.apply(view.x(), view.y());
-                sounds.play("walking." + view.templateName() + (surface == null ? "" : "." + surface), at(view), now,
-                        owned);
+                sounds.play(heardAs("walking", view) + (surface == null ? "" : "." + surface), at(view), now, owned);
             }
             var deepest = hurtWordsNow(view, was != null, now, owned);
             if (anyLoops) {

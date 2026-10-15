@@ -194,6 +194,20 @@ class LayeredEffectsTest {
         assertEquals(0, rig.effects().particlesInUse());
     }
 
+    /** The night's fires: a light layer at twice its power and reach (E86). */
+    @Test
+    void aLightScaleOfTwoDoublesALitLayersPowerAndReach() {
+        var rig = rig(1000, 2);
+        rig.visuals().effect("Fire", recipe -> recipe.layer(EffectLayer.builder()
+                .type(EffectLayer.LIGHT).seconds(2f).lightPower(1f).lightRadius(40f).lightColour(0xFF8000).build()));
+        rig.effects().lightScale(2f);
+        rig.effects().cast("Fire", at(0f, 0f), rig.camera());
+        run(rig, 0.5f);
+        var lit = rig.lights().all().stream().filter(light -> light.getRadius() > 1f).findFirst().orElseThrow();
+        assertEquals(80f, lit.getRadius(), 1e-3f, "twice its reach");
+        assertTrue(lit.getColor().r > 1.0f, "and more than its colour's whole power: " + lit.getColor());
+    }
+
     // ---- ceilings ----
 
     @Test

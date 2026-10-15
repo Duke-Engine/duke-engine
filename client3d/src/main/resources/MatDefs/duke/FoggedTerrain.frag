@@ -4,6 +4,12 @@ uniform vec4 m_Color;
 uniform vec4 m_Ambient;
 uniform vec4 m_Sun;
 uniform vec3 m_SunDirection;
+#ifdef AMBIENT_SHIFT
+uniform vec4 m_AmbientShift;
+#endif
+#ifdef SUN_SHIFT
+uniform vec4 m_SunShift;
+#endif
 uniform sampler2D m_FogMap;
 #ifdef FOG_WINDOW
 uniform vec4 m_FogWindow;
@@ -185,7 +191,15 @@ void main() {
     vec3 lit = albedo.rgb * vertexLight;
     #else
     float lambert = max(dot(normal, -m_SunDirection), 0.0);
-    vec3 lit = albedo.rgb * (m_Ambient.rgb + m_Sun.rgb * lambert);
+    vec3 ambientNow = m_Ambient.rgb;
+    vec3 sunNow = m_Sun.rgb;
+    #ifdef AMBIENT_SHIFT
+        ambientNow *= m_AmbientShift.rgb;
+    #endif
+    #ifdef SUN_SHIFT
+        sunNow *= m_SunShift.rgb;
+    #endif
+    vec3 lit = albedo.rgb * (ambientNow + sunNow * lambert);
     #endif
 
     // What is burning nearby. Squared falloff rather than inverse-square: a light

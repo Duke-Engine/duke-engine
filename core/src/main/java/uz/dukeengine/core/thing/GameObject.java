@@ -659,6 +659,35 @@ public final class GameObject {
         this.roll = roll;
     }
 
+    /** The mount it rides, the bone of the mount's model it sits at, and where on it; see {@link #rideOn}. */
+    private ObjectId mount;
+    private String mountBone;
+    private Coord3D mountOffset;
+
+    /**
+     * Drawn riding {@code mount} at {@code bone} of its model, {@code offset} from it — a hero on a horse: the rider's
+     * look hung on the mount's bone, the mount drawn where the rider stands and walking as he does, the pair picked and
+     * barred as the rider. Drawing only: out of the checksum, and nothing the simulation decides reads it. Null to get
+     * off.
+     */
+    public void rideOn(ObjectId mount, String bone, Coord3D offset) {
+        this.mount = mount;
+        this.mountBone = mount == null ? null : bone;
+        this.mountOffset = mount == null ? null : offset == null ? Coord3D.ZERO : offset;
+    }
+
+    public ObjectId getMount() {
+        return mount;
+    }
+
+    public String getMountBone() {
+        return mountBone;
+    }
+
+    public Coord3D getMountOffset() {
+        return mountOffset;
+    }
+
     /** The clip it loops while it works, and the frame its work ends on; see {@link #busy}. Out of the checksum. */
     private String busyClip;
     private int busyUntil;

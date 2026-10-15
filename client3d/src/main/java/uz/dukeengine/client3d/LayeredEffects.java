@@ -963,12 +963,23 @@ final class LayeredEffects {
         float in = one.layer.fadeIn() <= 0f ? 1f : smooth(0f, one.layer.fadeIn(), through);
         float out = one.layer.fadeOut() <= 0f || Float.isInfinite(span) ? 1f
                 : 1f - smooth(1f - one.layer.fadeOut(), 1f, through);
-        float strength = one.layer.lightPower() * in * out;
+        float strength = one.layer.lightPower() * in * out * lightScale;
         int packed = one.layer.lightColour();
         one.light.setColor(new ColorRGBA(((packed >> 16) & 0xFF) / 255f * strength,
                 ((packed >> 8) & 0xFF) / 255f * strength, (packed & 0xFF) / 255f * strength,
                 1f));
-        one.light.setRadius(Math.max(0.001f, one.layer.lightRadius()));
+        one.light.setRadius(Math.max(0.001f, one.layer.lightRadius() * lightScale));
+    }
+
+    /** Every light layer's power and radius times this — the night's fires reaching further; 1 as written. */
+    private float lightScale = 1f;
+
+    void lightScale(float times) {
+        this.lightScale = Math.max(0f, times);
+    }
+
+    float lightScale() {
+        return lightScale;
     }
 
     // ---- putting things away ----

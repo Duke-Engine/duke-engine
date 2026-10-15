@@ -74,6 +74,31 @@ public record UnitView(
     /** The word a busy thing's clip is carried under among its conditions: {@code busy:<clip>}. */
     public static final String BUSY = "busy:";
 
+    /** The word a rider's mount is carried under among its conditions: {@code ride:<mount>:<bone>:<x>,<y>,<z>}. */
+    public static final String RIDE = "ride:";
+
+    /** Where it rides: the mount, its bone, and the offset there. */
+    public record Riding(int mount, String bone, float x, float y, float z) {
+    }
+
+    /** The mount it rides this frame — see {@code GameObject.rideOn} — or null. */
+    public Riding riding() {
+        for (var word : conditions) {
+            if (word.startsWith(RIDE)) {
+                var parts = word.substring(RIDE.length()).split(":", 3);
+                var at = parts.length > 2 ? parts[2].split(",") : new String[0];
+                try {
+                    return new Riding(Integer.parseInt(parts[0]), parts.length > 1 ? parts[1] : "",
+                            at.length == 3 ? Float.parseFloat(at[0]) : 0f, at.length == 3 ? Float.parseFloat(at[1]) : 0f,
+                            at.length == 3 ? Float.parseFloat(at[2]) : 0f);
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            }
+        }
+        return null;
+    }
+
     /** The clip it loops at work this frame — see {@code GameObject.busy} — or null. */
     public String busyClip() {
         for (var word : conditions) {

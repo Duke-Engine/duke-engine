@@ -113,6 +113,14 @@ final class Weather {
             material.setFloat("Size", scale(look, tanHalfHeight));
             material.setFloat("Least", look.leastPixels());
             material.setFloat("Most", look.mostPixels());
+            if (look.colour() != 0xFFFFFFFF) {
+                int argb = look.colour();
+                material.setColor("Colour", new com.jme3.math.ColorRGBA(((argb >> 16) & 0xFF) / 255f,
+                        ((argb >> 8) & 0xFF) / 255f, (argb & 0xFF) / 255f, ((argb >>> 24) & 0xFF) / 255f));
+            }
+            if (look.stretch() > 1f) {
+                material.setFloat("Stretch", look.stretch());
+            }
             material.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.Alpha);
             material.getAdditionalRenderState().setDepthWrite(false);
             flakes = new Geometry("weather", mesh);

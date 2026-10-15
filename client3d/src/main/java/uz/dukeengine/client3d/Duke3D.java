@@ -519,6 +519,30 @@ public final class Duke3D {
         later(client -> client.shadowColour(colour));
     }
 
+    /**
+     * The world's sun changed while it is drawn — its direction, its colour and the ambient — eased to {@code light}
+     * over {@code seconds}: the lights, the shadows and the painted ground alike. Drawing only; from any thread, as
+     * often as the game's hour moves.
+     */
+    public void sunlight(Sunlight light, float seconds) {
+        later(client -> client.sunlight(light, seconds));
+    }
+
+    /** The colour the wide world's edge fades into and the void behind it, eased over {@code seconds}; -1 for the fog's own. */
+    public void hazeColour(int rgb, float seconds) {
+        later(client -> client.hazeColour(rgb, seconds));
+    }
+
+    /** Every light layer's power and radius times {@code times} — the night's fires reaching further; 1 as written. */
+    public void lightScale(float times) {
+        later(client -> client.lightScale(times));
+    }
+
+    /** A colour over the world alone, under the panel, the bars and the numbers; alpha 0 for none. */
+    public void worldTint(int argb) {
+        later(client -> client.worldTint(argb));
+    }
+
     /** The camera kept on one of the player's units, or let go — {@link CameraFollow#NONE} — from any thread. */
     public void cameraFollow(CameraFollow follow) {
         later(client -> client.cameraFollow(follow));

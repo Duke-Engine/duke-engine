@@ -561,6 +561,15 @@ E16, in parts.
   weapon holding fire, off at a second press, a blow (`EndsOnHurt`) or another cast (`EndsOnCast`, else refused);
   `SkillBook.dismount` for an ordered attack. `Skill.NotIn` — zones a skill is refused in, nothing spent, read from
   `World.zonesAt`, the game's rule (`GameLogic.setZones`). The buff row shows `MOVE_SPEED` (`Words.moveSpeed`).
+- **The hour while the world is drawn** (E86 day/night): `Duke3D.sunlight(Sunlight, seconds)` — the sun and ambient
+  lights, the shadows and the painted ground (`AmbientShift`, `SunShift`, `SunDirection` laid over the root) eased to
+  it; `hazeColour(rgb, seconds)` the haze and the void behind the world; `lightScale(times)` every light layer's power
+  and reach; `worldTint(argb)` a colour over the world alone, in a view of its own under the interface;
+  `WeatherLook.rain(argb, stretch)` flakes in a colour, drawn as streaks.
+- **A rider on a mount** (E88): `GameObject.rideOn(mount, bone, offset)`, drawing only — the rider's look hung on the
+  mount's bone (`UnitView.riding`), the mount drawn where he stands and walking at his speed, the pair clicked and barred
+  as the rider. `walking.`, `hurt.` and `died.` are heard by the look drawn where the game named any for it
+  (`GameSounds.heardAs`), else by the thing's own template.
 
 ### A route that keeps to the roads
 

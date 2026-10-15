@@ -66,6 +66,24 @@ class BusyClipTest {
         assertEquals(true, viewOf(game, id).moving(), "its walk kept for when it can go on");
     }
 
+    /** A rider's mount, bone and seat carried to the window, and gone when he gets off (E88). */
+    @Test
+    void aRidersMountIsCarriedToTheWindow() {
+        var game = DukeGame.create("ride").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40);
+        var me = game.addPlayer("Me", Color.BLUE);
+        game.localPlayer(me).spawn("Rifleman", me, 100f, 100f);
+        game.runHeadless(1);
+        var rider = game.getLogic().getObjects().getFirst();
+        rider.rideOn(new uz.dukeengine.core.thing.ObjectId(99), "Spine_Back",
+                new uz.dukeengine.core.math.Coord3D(0f, 0.5f, 1.5f));
+        game.runHeadless(1);
+        assertEquals(new uz.dukeengine.core.view.UnitView.Riding(99, "Spine_Back", 0f, 0.5f, 1.5f),
+                viewOf(game, rider.getId().value()).riding());
+        rider.rideOn(null, null, null);
+        game.runHeadless(1);
+        assertNull(viewOf(game, rider.getId().value()).riding(), "off");
+    }
+
     private static uz.dukeengine.core.view.UnitView viewOf(DukeGame game, int id) {
         return game.getSnapshot().units().stream().filter(one -> one.id() == id).findFirst().orElseThrow();
     }
