@@ -647,7 +647,9 @@ final class DukeRtsApp extends SimpleApplication {
 
     @Override
     public void destroy() {
-        // Abandon, Quit and the window closing all come here.
+        // Abandon, Quit and the window closing all come here. What the settings screen applied is kept: a player
+        // who chose a window and closed it by its X has chosen a window.
+        preferences.keep();
         leave();
         if (backdrop != null) {
             backdrop.stop();
@@ -4163,11 +4165,11 @@ final class DukeRtsApp extends SimpleApplication {
                 }
             }
             case SETTINGS -> {
-                // The open list first, then the screen. Escaping the screen throws away what was not saved --
-                // and puts back what had already been applied, which is the promise a Cancel button makes and
-                // Escape is the same answer.
+                // The open list first, then the screen. Escaping the screen keeps what he has seen applied, as
+                // closing the window does; Cancel is the one way back.
                 if (!menu.escape()) {
-                    undoSettings();
+                    preferences.keep();
+                    leaveSettings();
                 }
             }
             case PLAYING, MENU -> {
@@ -5992,8 +5994,13 @@ final class DukeRtsApp extends SimpleApplication {
      * see. What is left is filtered again by the edge of the screen inside
      * {@link UnitBars}, which is the one of the three that the camera decides.
      */
+    /** Whether no bar is laid over the world: behind a game's front end, or the match a menu shows behind it. */
+    static boolean barsHidden(Screen screen, boolean backdropShown) {
+        return screen == Screen.FRONT || backdropShown;
+    }
+
     private void showUnitBars() {
-        if (screen == Screen.FRONT) {
+        if (barsHidden(screen, backdropShown())) {
             unitBars.clear(); // behind a front end: a picture, with nothing of play laid over it
             return;
         }
@@ -7275,6 +7282,14 @@ final class DukeRtsApp extends SimpleApplication {
         if (material == null) {
             return null;
         }
+        // Asked by its role first: jME lists a glTF piece's normal and emissive maps before its base colour, and a
+        // piece dressed in its normal map comes out pale lavender.
+        for (var role : SKIN_ROLES) {
+            var param = material.getTextureParam(role);
+            if (param != null && param.getTextureValue() != null) {
+                return param.getTextureValue();
+            }
+        }
         for (var param : material.getParams()) {
             if (param.getValue() instanceof com.jme3.texture.Texture texture) {
                 return texture;
@@ -7288,6 +7303,9 @@ final class DukeRtsApp extends SimpleApplication {
      * which is also where a hit flash starts from and fades back to.
      */
     private static final float CREATURE_AMBIENT = 0.55f;
+
+    /** The names a material holds its base colour's picture by, in the order asked. */
+    private static final String[] SKIN_ROLES = {"BaseColorMap", "DiffuseMap", "ColorMap"};
 
     /**
      * Flat lighting over a kit's own colour map, tinted.

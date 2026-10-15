@@ -125,6 +125,20 @@ class ModelColourTest {
         assertEquals(ColorRGBA.White, DukeRtsApp.ownColour(gate, picture, "gate.gltf"));
     }
 
+    /** A piece with a normal and an emissive map is dressed in its base colour, whichever jME lists first (E64). */
+    @Test
+    void aPieceWithANormalMapIsDressedInItsBaseColour() {
+        // As the glTF loader makes a piece: its emissive and normal maps beside its base colour, in whatever order.
+        var knight = new Material(ASSETS, "Common/MatDefs/Light/PBRLighting.j3md");
+        var emissive = new com.jme3.texture.Texture2D(1, 1, com.jme3.texture.Image.Format.RGBA8);
+        var normal = new com.jme3.texture.Texture2D(1, 1, com.jme3.texture.Image.Format.RGBA8);
+        var base = new com.jme3.texture.Texture2D(1, 1, com.jme3.texture.Image.Format.RGBA8);
+        knight.setTexture("EmissiveMap", emissive);
+        knight.setTexture("NormalMap", normal);
+        knight.setTexture("BaseColorMap", base);
+        assertEquals(base, DukeRtsApp.skinOf(knight));
+    }
+
     /** A piece given the look's own picture is drawn in that picture, whatever colour its file gives it. */
     @Test
     void aPieceWearingTheLooksPictureIsDrawnInIt() throws IOException {

@@ -171,7 +171,9 @@ public final class HeroCard {
                 }
             } else {
                 int left = book.cooldownOf(skill.key());
-                if (left <= 0) {
+                if (skill.effect().isPassive()) {
+                    line.append("passive"); // never cast: a framed picture, not a button
+                } else if (left <= 0) {
                     line.append("ready");
                 } else {
                     line.append("cool,").append(left).append(',').append(skill.cooldownAt(rank));

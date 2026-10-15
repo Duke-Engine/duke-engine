@@ -123,6 +123,16 @@ final class GameSettings {
         write();
     }
 
+    /**
+     * What he has seen applied, kept as he leaves — by Escape, or by closing the window — and written only where there
+     * is anything to write: Cancel is the one way back.
+     */
+    void keep() {
+        if (dirty()) {
+            save();
+        }
+    }
+
     /** Forget it. The caller puts back whatever it had already applied. */
     void cancel() {
         draft.clear();

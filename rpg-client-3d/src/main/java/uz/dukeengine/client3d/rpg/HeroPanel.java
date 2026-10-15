@@ -962,6 +962,26 @@ final class HeroPanel {
         return null;
     }
 
+    /** Whether a click on the slot or its key does anything: a passive's does not, though its card still shows. */
+    boolean pressable(char key) {
+        for (var slot : slots) {
+            if (slot.key == key) {
+                return slot.state != Reading.State.PASSIVE;
+            }
+        }
+        return true; // an order button, which is no skill slot
+    }
+
+    /** The letter drawn in the slot's corner: its key, or nothing for a passive. */
+    String keyLetter(char key) {
+        for (var slot : slots) {
+            if (slot.key == key && slot.keyText != null) {
+                return slot.keyText.getText();
+            }
+        }
+        return "";
+    }
+
     Character slotAt(float screenX, float screenY) {
         if (!showing) {
             return null;
@@ -2199,6 +2219,8 @@ final class HeroPanel {
         private boolean canRaise;
         private float sweptTo = -1f;
         private Reading.State state = Reading.State.READY;
+        /** The key's letter in the corner, gone from a passive: no key casts it. */
+        private BitmapText keyText;
 
         private Slot(char key, float size) {
             this.key = key;
@@ -2467,6 +2489,7 @@ final class HeroPanel {
         key.setText(slot.key == BLANK ? "" : String.valueOf(slot.key));
         key.setLocalTranslation(0f, key.getLocalTranslation().y, 8f);
         slot.node.attachChild(key);
+        slot.keyText = key;
 
         // What it costs, in the corner opposite the key. Small, because it is a
         // number he checks rather than reads -- and in the mana bar's own blue,
@@ -2661,6 +2684,10 @@ final class HeroPanel {
 
     private void dress(Slot slot, Reading.SkillReading skill) {
         slot.state = skill.state;
+        boolean passive = skill.state == Reading.State.PASSIVE;
+        if (slot.keyText != null) {
+            slot.keyText.setText(passive || slot.key == BLANK ? "" : String.valueOf(slot.key));
+        }
         boolean locked = skill.state == Reading.State.LOCKED;
         boolean cooling = skill.state == Reading.State.COOLING;
         // Three ways a slot can be unusable and they must not look alike. Locked
@@ -2687,7 +2714,7 @@ final class HeroPanel {
         if (slot.rim != null) {
             var gold = rgb(skin.piece(PanelSkin.SLOT).tint().getRGB());
             slot.rim.getMaterial().setColor("Color",
-                    linear(locked ? darker(gold, 0.6f) : cooling ? darker(gold, 0.3f) : gold));
+                    linear(locked ? darker(gold, 0.6f) : cooling || passive ? darker(gold, 0.3f) : gold));
         }
         slot.locked.setText(locked ? skill.label : "");
         slot.seconds.setText(cooling ? skill.label : "");
@@ -3658,7 +3685,7 @@ final class HeroPanel {
         record RankReading(char key, int rank, int max, boolean canRaise, String word) {
         }
 
-        enum State { READY, COOLING, LOCKED }
+        enum State { READY, COOLING, LOCKED, PASSIVE }
 
         /**
          * One slot: its key, the picture to draw in it, its state, the words on it,
@@ -3953,6 +3980,7 @@ final class HeroPanel {
             try {
                 return switch (parts[2]) {
                     case "ready" -> new SkillReading(key, icon, State.READY, "", 0f);
+                    case "passive" -> new SkillReading(key, icon, State.PASSIVE, "", 0f);
                     // An ordinary skill nobody has bought says "lock" and stops
                     // there: it waits for a POINT rather than for a level, so
                     // there is no level to name. Only an ultimate has one.

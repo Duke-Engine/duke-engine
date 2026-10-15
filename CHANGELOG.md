@@ -434,6 +434,18 @@ E16, in parts.
   the window's thread — a world point, a colour, a picture or a plain diamond, blinking or not — drawn over the dots,
   and held to the edge on the line from the minimap's middle while off it (`MinimapProjection.markAt`).
 
+### Settings kept, a quiet backdrop, models in their colours, passives framed
+
+- **Settings kept as he leaves** (E62): leaving the settings screen by Escape, or closing the window, keeps and writes
+  what he has seen applied (`GameSettings.keep`); Cancel is the one way back.
+- **Nothing of play over the backdrop** (E63): the match behind the client's own menu wears no bar, medallion or name,
+  as behind a game's front end (`DukeRtsApp.barsHidden`).
+- **A model dressed in its base colour** (E64): `skinOf` asks for `BaseColorMap`, `DiffuseMap` and `ColorMap` by name
+  before any picture, so a glTF piece with a normal or emissive map is no longer dressed in it.
+- **A passive framed on the hero's bar** (E65): `HeroCard.skills` writes `passive` for a learnt skill whose effect is
+  passive; `HeroPanel` draws it in a dimmer frame with no key letter, no hover wash and no sweep, and takes no click on
+  it (`pressable`) — its card still shows, and its raise badge still takes a point.
+
 ### A route that keeps to the roads
 
 - **`PathGrid.setStepCosts(percentByCell)`** (E52): what a step into each cell costs, as a share of its plain cost — a

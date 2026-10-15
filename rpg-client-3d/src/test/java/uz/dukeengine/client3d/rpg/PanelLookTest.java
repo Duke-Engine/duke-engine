@@ -109,6 +109,20 @@ class PanelLookTest {
     }
 
     @Test
+    void aPassiveIsAFramedPictureNoClickPressesAndNoKeyNames() {
+        var assets = new DesktopAssetManager(true);
+        var font = assets.loadFont("Interface/Fonts/Default.fnt");
+        var hero = new HeroPanel(assets, font, null, new Node("gui"), 1600f, 900f, PanelSkin.NONE, RangeLook.DEFAULT,
+                IconLook.DEFAULT, StatLook.DEFAULT, PanelLook.DEFAULTS);
+        assertTrue(hero.show(PanelLayoutTest.LINE.replace("skill=E,,ready", "skill=E,,passive"), 0f));
+
+        assertFalse(hero.pressable('E'), "a passive takes no click");
+        assertEquals("", hero.keyLetter('E'), "and names no key");
+        assertTrue(hero.pressable('Q'));
+        assertEquals("Q", hero.keyLetter('Q'));
+    }
+
+    @Test
     void aBlockLeftOffAnswersNoClick() throws ReflectiveOperationException {
         var built = panel(with("blocks", List.of(PanelBlock.HERO, PanelBlock.DEPTH)));
         var hero = built.hero();

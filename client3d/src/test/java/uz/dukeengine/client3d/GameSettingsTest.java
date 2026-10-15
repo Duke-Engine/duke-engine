@@ -139,4 +139,25 @@ class GameSettingsTest {
         settings.cancel();
         assertEquals(java.util.Set.of(), settings.pending());
     }
+
+    /** What he saw applied is kept as he leaves by Escape or closes the window — both keep — and read back (E62). */
+    @Test
+    void whatWasAppliedIsKeptOnLeavingAndReadNextLaunch() {
+        var byEscape = settings();
+        byEscape.set("fullscreen", false);
+        byEscape.keep();
+        assertEquals(false, settings().flag("fullscreen", true), "in the file after Escape");
+
+        var byClosing = settings();
+        byClosing.set("width", 1280);
+        byClosing.keep();
+        assertEquals(1280, settings().number("width", 0), "in the file after the window closed");
+    }
+
+    @Test
+    void noBarIsLaidOverTheMatchBehindTheMenu() {
+        assertEquals(true, DukeRtsApp.barsHidden(DukeRtsApp.Screen.MENU, true), "the menu over a backdrop (E63)");
+        assertEquals(true, DukeRtsApp.barsHidden(DukeRtsApp.Screen.FRONT, false));
+        assertEquals(false, DukeRtsApp.barsHidden(DukeRtsApp.Screen.PLAYING, false));
+    }
 }
