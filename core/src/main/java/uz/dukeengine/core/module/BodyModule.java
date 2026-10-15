@@ -73,6 +73,9 @@ public abstract class BodyModule extends Module {
         if (world != null) {
             world.blowLanded(getOwner());
         }
+        if (getOwner().hasStatus(uz.dukeengine.core.thing.ObjectStatus.INVULNERABLE)) {
+            return; // out of harm's way for now: nothing taken, nothing told
+        }
         boolean wasAlive = !isDead();
         float worth = worthOf(amount, type);
         if (leastHealth > 0f && worth > 0f) {

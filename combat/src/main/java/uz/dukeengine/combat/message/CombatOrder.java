@@ -16,7 +16,7 @@ import uz.dukeengine.core.thing.ObjectId;
  */
 public sealed interface CombatOrder extends Command
         permits CombatOrder.MoveTo, CombatOrder.AttackObject, CombatOrder.AttackGround, CombatOrder.StopMoving,
-        CombatOrder.MoveAlong {
+        CombatOrder.MoveAlong, CombatOrder.AttackToward {
 
     /** The things it is given to. */
     List<ObjectId> units();
@@ -89,6 +89,17 @@ public sealed interface CombatOrder extends Command
         public MoveAlong {
             units = List.copyOf(units);
             angle = angle < 0 ? NONE : angle & 0xFF;
+        }
+    }
+
+    /**
+     * An attack toward a point, no target named — a click on open ground: turned to it, one attack at the weapon's own
+     * timing, the enemy nearest its front within reach and its swing's arc struck, or a projectile loosed along the
+     * line; {@code held}, again each time the weapon is ready toward the latest point, until an order with it false.
+     */
+    record AttackToward(int playerIndex, List<ObjectId> units, Coord3D point, boolean held) implements CombatOrder {
+        public AttackToward {
+            units = List.copyOf(units);
         }
     }
 

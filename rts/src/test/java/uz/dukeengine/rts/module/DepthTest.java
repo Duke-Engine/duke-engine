@@ -41,6 +41,8 @@ class DepthTest {
                 }
                 case CombatOrder.MoveAlong a -> {
                 }
+                case CombatOrder.AttackToward t -> {
+                }
             }
         }
 

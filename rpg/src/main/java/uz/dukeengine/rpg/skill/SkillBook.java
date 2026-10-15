@@ -967,6 +967,30 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                     world.effect(skill.look(), hastened);
                 }
             }
+            case DODGE -> {
+                if (owner.hasStatus(ObjectStatus.HELD) || towards == null) {
+                    return false;
+                }
+                var from = owner.getPosition();
+                float facing = owner.getOrientation();
+                Facing.turnToward(owner, towards);
+                var end = rollEnd(owner, world, skill.distance());
+                if (seal.parts(world, from, end)) {
+                    owner.setOrientation(facing);
+                    return false; // over a seal: refused, nothing spent
+                }
+                var weapon = owner.findModule(WeaponUpdate.class);
+                if (weapon != null) {
+                    weapon.holdFire(); // its wind-up cut: no blow of it lands
+                }
+                int frames = Math.max(1, skill.durationFrames());
+                var timers = owner.findModule(StatusUpdate.class);
+                if (timers != null) {
+                    timers.apply(ObjectStatus.INVULNERABLE, skill.tickFrames());
+                }
+                owner.busy(skill.castAnim(), frames);
+                roll = new Roll(from, end, frames);
+            }
             case DASH -> {
                 float facing = owner.getOrientation();
                 if (towards != null) {
@@ -1233,6 +1257,74 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
      * it, and a unit whose centre is in stone stays the bug it was the day it took
      * an afternoon to find.
      */
+    /** A dodge under way: from where, to where, over how many frames, and how many are gone. */
+    private static final class Roll {
+        final Coord3D from;
+        final Coord3D to;
+        final int frames;
+        int gone;
+
+        Roll(Coord3D from, Coord3D to, int frames) {
+            this.from = from;
+            this.to = to;
+            this.frames = frames;
+        }
+    }
+
+    private Roll roll;
+
+    /** A frame of the dodge: a share of the way, on the ground under it. */
+    private void rollOn() {
+        var owner = getOwner();
+        var world = owner.getWorld();
+        roll.gone++;
+        float share = Math.min(1f, roll.gone / (float) roll.frames);
+        var at = new Coord3D(roll.from.x() + (roll.to.x() - roll.from.x()) * share,
+                roll.from.y() + (roll.to.y() - roll.from.y()) * share, 0f);
+        owner.setPosition(new Coord3D(at.x(), at.y(), world == null ? at.z() : world.groundHeight(at)));
+        if (roll.gone >= roll.frames) {
+            roll = null;
+        }
+    }
+
+    /**
+     * Where a dodge of {@code distance} along his facing ends: walked out a step at a time to the last open ground
+     * before stone or anything that stands, then back to where no creature stands, so he passes through them and ends
+     * inside none.
+     */
+    private static Coord3D rollEnd(GameObject owner, World world, float distance) {
+        float facing = owner.getOrientation();
+        float dx = (float) StrictMath.cos(facing);
+        float dy = (float) StrictMath.sin(facing);
+        var from = owner.getPosition();
+        float reach = 0f;
+        for (float gone = ROLL_STEP; gone <= distance + 1e-3f; gone += ROLL_STEP) {
+            var step = new Coord3D(from.x() + dx * gone, from.y() + dy * gone, from.z());
+            if (world.isGroundBlocked(step) || world.findBlocker(owner, step) != null) {
+                break;
+            }
+            reach = gone;
+        }
+        float radius = uz.dukeengine.core.thing.Solid.of(owner.getTemplate()).footprintRadius();
+        for (float gone = reach; gone > 0f; gone -= ROLL_STEP) {
+            var at = new Coord3D(from.x() + dx * gone, from.y() + dy * gone, from.z());
+            var shape = uz.dukeengine.core.thing.Footprint.of(owner, at);
+            boolean clear = world.objectsInRange(at, radius + DODGE_LOOK, other -> other != owner
+                    && other.getLocomotor() != null && !other.isEffectivelyDead()
+                    && shape.overlaps(uz.dukeengine.core.thing.Footprint.of(other))).isEmpty();
+            if (clear) {
+                return new Coord3D(at.x(), at.y(), world.groundHeight(at));
+            }
+        }
+        return from;
+    }
+
+    /** How far past his own size a dodge's end looks for creatures it would stand in. */
+    private static final float DODGE_LOOK = 20f;
+
+    /** How finely a dodge's line is walked: a unit at a time, so a roll ends exactly where it is sent. */
+    private static final float ROLL_STEP = 1f;
+
     private static Coord3D dashEnd(GameObject owner, World world, float distance) {
         float facing = owner.getOrientation();
         float dx = (float) StrictMath.cos(facing);
@@ -1984,6 +2076,9 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     public void update() {
         if (charge != null) {
             driveTheCharge();
+        }
+        if (roll != null) {
+            rollOn();
         }
         holdTheFloor();
         runTheBlood();

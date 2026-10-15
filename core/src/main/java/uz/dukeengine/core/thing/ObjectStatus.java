@@ -50,5 +50,10 @@ public enum ObjectStatus {
      * click, the pointer and a game's own selection all pass it by, and a selected thing that gets it leaves the
      * selection that frame.
      */
-    UNSELECTABLE
+    UNSELECTABLE,
+    /**
+     * Not to be harmed for now — a dodge's roll: no blow takes health from it, nor is told as one, and no stun or slow
+     * takes hold of it while it lasts.
+     */
+    INVULNERABLE
 }

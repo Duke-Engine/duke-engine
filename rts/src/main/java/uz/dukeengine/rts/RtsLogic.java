@@ -140,7 +140,7 @@ public final class RtsLogic extends RtsSimulation {
                     uz.dukeengine.combat.module.Errand.giveUpAll(unit);
                     var weapon = unit.findModule(WeaponUpdate.class);
                     if (weapon != null) {
-                        weapon.holdFire(); // its own way overrides the current target, as a move does
+                        weapon.dropTarget(); // its own way overrides a target; a swing toward a point goes on
                     }
                     var ai = unit.getLocomotor();
                     if (ai != null) {
@@ -148,6 +148,20 @@ public final class RtsLogic extends RtsSimulation {
                     }
                 }
                 tellOrder(along, along.units(), along.playerIndex());
+            }
+            case CombatOrder.AttackToward toward -> {
+                for (var id : toward.units()) {
+                    var unit = findObject(id);
+                    if (unit == null || unit.getPlayerIndex() != toward.playerIndex()) {
+                        continue;
+                    }
+                    uz.dukeengine.combat.module.Errand.giveUpAll(unit);
+                    var weapon = unit.findModule(WeaponUpdate.class);
+                    if (weapon != null) {
+                        weapon.attackToward(toward.point(), toward.held());
+                    }
+                }
+                tellOrder(toward, toward.units(), toward.playerIndex());
             }
             case CombatOrder.StopMoving stop -> {
                 for (var id : stop.units()) {

@@ -889,6 +889,56 @@ final class DukeRtsApp extends SimpleApplication {
         this.mouse = chosen == null ? Mouse.RIGHT_COMMANDS : chosen;
     }
 
+    /** How the mouse plays — see {@link Duke3D#mouseScheme}. */
+    private MouseScheme mouseScheme = MouseScheme.CLASSIC;
+    private final MouseScheme.Swing swing = new MouseScheme.Swing();
+
+    void mouseScheme(MouseScheme scheme) {
+        this.mouseScheme = scheme == null ? MouseScheme.CLASSIC : scheme;
+    }
+
+    /** The left button, the modern way: a lock on the enemy under it, else a swing toward the ground, held. */
+    private void modernLeft(boolean pressed) {
+        var hero = selectedIds();
+        if (hero.isEmpty()) {
+            return;
+        }
+        int me = game.getLocalPlayerIndex();
+        int frame = snapshot == null ? 0 : snapshot.frame();
+        if (!pressed) {
+            swing.release(me, hero).forEach(game::postCommand);
+            return;
+        }
+        var unit = pickUnit();
+        int enemy = unit != null && unit.view.hostile() ? unit.view.id() : -1;
+        float gap = Float.MAX_VALUE;
+        var mine = unitNodes.get(hero.getFirst().value());
+        if (enemy >= 0 && mine != null && mine.view != null) {
+            gap = (float) Math.hypot(unit.view.x() - mine.view.x(), unit.view.y() - mine.view.y());
+        }
+        var ground = pickGround();
+        swing.press(mouseScheme, me, hero, enemy, gap,
+                ground == null ? null : new uz.dukeengine.core.math.Coord3D(ground.x, ground.z, ground.y), frame)
+                .forEach(game::postCommand);
+    }
+
+    /** A held swing's point followed as the pointer moves. */
+    private void followTheSwing() {
+        if (!swing.isHeld() || snapshot == null) {
+            return;
+        }
+        if (screen != Screen.PLAYING || !buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+            swing.release(game.getLocalPlayerIndex(), selectedIds()).forEach(game::postCommand);
+            return;
+        }
+        var ground = pickGround();
+        if (ground != null) {
+            swing.drag(game.getLocalPlayerIndex(), selectedIds(),
+                    new uz.dukeengine.core.math.Coord3D(ground.x, ground.z, ground.y), snapshot.frame())
+                    .forEach(game::postCommand);
+        }
+    }
+
     /** The player's own scroll speed — see {@link Duke3D#scrollSpeed}. */
     void scrollSpeed(float share) {
         this.scrollSpeed = Math.max(0f, share);
@@ -3990,6 +4040,8 @@ final class DukeRtsApp extends SimpleApplication {
                             // The release is swallowed with it, or letting go would
                             // end a drag that never began.
                             aimArmedKey();
+                        } else if (mouseScheme.modern()) {
+                            modernLeft(pressed); // no selecting by the left button: a lock, or a swing
                         } else if (pressed) {
                             beginDrag();
                         } else if (dragFrom != null) {
@@ -4021,7 +4073,8 @@ final class DukeRtsApp extends SimpleApplication {
                         }
                     } else if (pressed && (aiming.isArmed() || arming != null || mouse.rightClickLetsGo())) {
                         secondThoughts();
-                    } else if (pressed && pointerOnTheWorld() && !onAPanel(over.x, over.y)) {
+                    } else if (pressed && pointerOnTheWorld() && !onAPanel(over.x, over.y)
+                            && mouseScheme.rightOrders(snapshot.contextOrder() != null, pickUnit() != null)) {
                         order(); // a right-click on the bar, or off the world, is not an order to the world
                     }
                 }
@@ -4507,6 +4560,9 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         arm(key, byMouse);
+        if (mouseScheme.modern() && mouseScheme.quickCast() && !byMouse) {
+            aimArmedKey(); // cast at once, as if its aim were clicked where the pointer is
+        }
     }
 
     /** Answer a key that was refused, where a part's panel does not already show why. */
@@ -5894,6 +5950,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     private void updateCamera(float tpf) {
         readTheHeldDirection(); // a scene the game directs or not: a key let go is always told
+        followTheSwing();
         var directed = snapshot.camera();
         if (directed != null) {
             // The game has the camera: it goes where the game's code put it, and the player's controls wait.

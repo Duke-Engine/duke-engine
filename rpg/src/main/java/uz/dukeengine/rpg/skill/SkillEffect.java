@@ -256,6 +256,14 @@ public enum SkillEffect {
     STAGGER(Aim.SELF, true),
 
     /**
+     * A dodge: aimed at a point, he rolls {@code Distance} toward it, whatever its distance, over {@code DurationFrames}
+     * — playing {@code CastAnim} as long — out of harm's way for its first {@code TickFrames}: no blow takes health,
+     * staggers or stuns him. He passes through creatures and never ends inside one, stops at stone, and is refused over
+     * a seal as a dash is, nothing spent; not while held, and it cuts his own weapon's wind-up.
+     */
+    DODGE(Aim.GROUND),
+
+    /**
      * Cannot be killed, only beaten: its bearer's body never falls below {@code HealBelowPercent} of its most health —
      * the blow that would take it lower leaves it there ({@code BodyModule.setLeastHealth}), so no death is reaped and
      * no kill is credited — and then it is beaten ({@link SkillBook#isBeaten}). What being beaten does is the game's.

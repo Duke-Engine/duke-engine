@@ -36,8 +36,9 @@ public final class StatusUpdate extends UpdateModule {
 
     /** Apply {@code status} to the owner for {@code frames} logic frames. */
     public void apply(ObjectStatus status, int frames) {
-        if (frames <= 0) {
-            return;
+        if (frames <= 0 || getOwner().hasStatus(ObjectStatus.INVULNERABLE)
+                && (status == ObjectStatus.DISABLED || status == ObjectStatus.SLOWED)) {
+            return; // nothing takes hold of a thing out of harm's way
         }
         timers.put(status, frames);
         getOwner().setStatus(status);

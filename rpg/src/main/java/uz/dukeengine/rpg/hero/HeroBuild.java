@@ -47,7 +47,7 @@ public final class HeroBuild {
         return new WeaponUpdate.Data(built.attack(), data.attackRange(), data.reloadFrames(), data.damageType(),
                 data.splashRadius(), data.attackOnTheMove(), data.targets(), data.reloadFramesMax(), data.clipSize(),
                 data.clipReloadFrames(), data.autoReload(), data.name(), data.weaponSets(), data.deathType(),
-                data.targetScanFrames(), data.preAttackFrames());
+                data.targetScanFrames(), data.preAttackFrames(), data.swingArcDegrees());
     }
 
     /**

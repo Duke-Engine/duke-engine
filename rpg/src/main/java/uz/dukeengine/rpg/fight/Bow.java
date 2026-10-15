@@ -72,6 +72,14 @@ public final class Bow extends Module implements ProjectileLauncher {
                 muzzleOffset(), shot.critical());
     }
 
+    /** A shot toward a place — an attack toward a point: an arrow down the line, the first body it meets struck. */
+    @Override
+    public boolean launchAt(GameObject shooter, uz.dukeengine.core.math.Coord3D place,
+            uz.dukeengine.combat.module.Shot shot) {
+        return Arrows.looseAlong(shooter, place, shot.damage(), shot.weapon().damageType(), projectile(), speed(),
+                muzzleOffset(), shot.weapon().attackRange(), 0f, 0, shot.critical());
+    }
+
     @Override
     public boolean launch(GameObject shooter, GameObject victim, float damage, DamageType type) {
         return Arrows.loose(shooter, victim, damage, type, projectile(), speed(), muzzleOffset());

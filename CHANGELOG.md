@@ -505,6 +505,24 @@ E16, in parts.
   point looked at eases after the unit (0.15 s) and 8 ahead of it while it walks (0.4 s); a pan looks away and it eases
   back a second after; `CameraFollow.NONE` is the free camera. A scene the game directs still wins.
 
+### Modern controls: fighting by the mouse
+
+- **An attack toward a point** (E76): `CombatOrder.AttackToward(player, units, point, held)`, codec line `TOWARD` — turned to
+  the point, one attack at the weapon's own timing (its wind-up, then the blow, then its reload): a launcher that
+  carries to a place looses along the line to the weapon's range (`ProjectileLauncher.launchAt`; the RPG's `Bow` by
+  `Arrows.looseAlong`), else the enemy nearest its front within reach and its arc (`WeaponUpdate.Data.swingArcDegrees`,
+  120 unless said) is struck as a targeted blow, or nothing is. `held`, again each time it is ready; let go, it ends
+  after the swing under way. A `MoveAlong` keeps it (`WeaponUpdate.dropTarget`); any other order ends it.
+- **The modern mouse** (E78): `Duke3D.mouseScheme(MouseScheme.MODERN | CLASSIC)`, live — the left button on an enemy
+  within `lockReach` (60) of the hero locks on (`AttackObject`), else swings toward the ground held, its point sent
+  again as it moves 2 or more, at most every 3 frames, and let go on release; no selecting by the left button. The right
+  button orders only where the game names a word or on a thing (`rmbOnGroundWalks` to walk); `quickCast` casts a skill
+  at the pointer on its letter. `CLASSIC` is everything as it was.
+- **A dodge** (E80): `SkillEffect.DODGE` — `Distance` toward the point over `DurationFrames`, `CastAnim` as long, out of
+  harm's way its first `TickFrames` (`ObjectStatus.INVULNERABLE`: no blow takes health or is told, no stun or slow takes
+  hold), through creatures and never ending inside one, short of stone, refused over a seal or while held, its own
+  weapon's wind-up cut.
+
 ### A route that keeps to the roads
 
 - **`PathGrid.setStepCosts(percentByCell)`** (E52): what a step into each cell costs, as a share of its plain cost — a

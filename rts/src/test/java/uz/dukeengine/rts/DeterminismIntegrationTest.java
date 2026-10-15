@@ -83,6 +83,12 @@ class DeterminismIntegrationTest {
                         weapon.attackGround(ground.place());
                     }
                 });
+                case CombatOrder.AttackToward toward -> forEach(toward.units(), unit -> {
+                    var weapon = unit.findModule(WeaponUpdate.class);
+                    if (weapon != null) {
+                        weapon.attackToward(toward.point(), toward.held());
+                    }
+                });
                 case CombatOrder.MoveAlong along -> forEach(along.units(), unit -> {
                     var ai = unit.findModule(MoveUpdate.class);
                     if (ai != null) {

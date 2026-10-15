@@ -440,6 +440,11 @@ public final class Duke3D {
         later(client -> client.mouse(arrangement));
     }
 
+    /** How the mouse plays — {@link MouseScheme#MODERN} or {@link MouseScheme#CLASSIC} — switched live, from any thread. */
+    public void mouseScheme(MouseScheme scheme) {
+        later(client -> client.mouseScheme(scheme));
+    }
+
     /**
      * The player's own scroll speed, as a share of the pan speed the game framed ({@link CameraFrame}) — an options
      * screen's slider: 1 as framed, 0.5 half as fast. The pan keys and the window's edges take it. From any thread,

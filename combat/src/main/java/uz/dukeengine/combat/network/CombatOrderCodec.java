@@ -40,6 +40,9 @@ public final class CombatOrderCodec {
                     + "," + Float.toString(g.place().z()) + (g.forced() ? ",forced" : "");
             case CombatOrder.StopMoving s -> "STOP," + s.playerIndex() + "," + ids(s.units());
             case CombatOrder.MoveAlong a -> "ALONG," + a.playerIndex() + "," + ids(a.units()) + "," + a.angle();
+            case CombatOrder.AttackToward t -> "TOWARD," + t.playerIndex() + "," + ids(t.units())
+                    + "," + Float.toString(t.point().x()) + "," + Float.toString(t.point().y())
+                    + "," + Float.toString(t.point().z()) + (t.held() ? ",held" : "");
         };
     }
 
@@ -75,6 +78,9 @@ public final class CombatOrderCodec {
             case "STOP" -> new CombatOrder.StopMoving(Integer.parseInt(parts[1]), parseIds(parts[2]));
             case "ALONG" -> new CombatOrder.MoveAlong(Integer.parseInt(parts[1]), parseIds(parts[2]),
                     Integer.parseInt(parts[3]));
+            case "TOWARD" -> new CombatOrder.AttackToward(Integer.parseInt(parts[1]), parseIds(parts[2]),
+                    new Coord3D(Float.parseFloat(parts[3]), Float.parseFloat(parts[4]), Float.parseFloat(parts[5])),
+                    parts.length > 6 && "held".equals(parts[6]));
             case "ORDER" -> new GameOrder(Integer.parseInt(parts[1]),
                     java.net.URLDecoder.decode(parts[2], java.nio.charset.StandardCharsets.UTF_8),
                     parseIds(parts[3]),
