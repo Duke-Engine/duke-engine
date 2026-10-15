@@ -23,11 +23,23 @@ public sealed interface CombatOrder extends Command
 
     /**
      * Order the given units to move to a destination, placed there as one group by the side that applies it; {@code
-     * click} says it is the player's own click, which gathers a group clicked in its middle.
+     * click} says it is the player's own click, which gathers a group clicked in its middle; {@code append}, a place
+     * added to the end of each unit's moves rather than in their stead — the reference's {@code MSG_ADD_WAYPOINT}.
      */
-    record MoveTo(int playerIndex, List<ObjectId> units, Coord3D destination, boolean click) implements CombatOrder {
+    record MoveTo(int playerIndex, List<ObjectId> units, Coord3D destination, boolean click, boolean append)
+            implements CombatOrder {
         public MoveTo {
             units = List.copyOf(units);
+        }
+
+        /** A move in place of the units' others, as every move was before one could be added to them. */
+        public MoveTo(int playerIndex, List<ObjectId> units, Coord3D destination, boolean click) {
+            this(playerIndex, units, destination, click, false);
+        }
+
+        /** The same move, added to the end of the units' moves. */
+        public MoveTo appended() {
+            return new MoveTo(playerIndex, units, destination, click, true);
         }
 
         /** An order the game's own code gives, not the player's click. */

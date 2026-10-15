@@ -2585,6 +2585,26 @@ public final class Visuals {
         return word != null && orderAnswers.containsKey(word) ? orderAnswers.get(word) : "move";
     }
 
+    private final Map<String, java.util.function.Function<AnswerTarget, String>> aimedAnswers =
+            new java.util.HashMap<>();
+
+    /**
+     * Which moment answers a click giving {@code word}, by what it was aimed at — {@code target -> target != null &&
+     * target.airborne() ? "attackair" : "attack"} — the target null for a click on the ground. Where it gives null,
+     * {@link #orderAnswer(String, String) the word's own answer} answers.
+     */
+    public Visuals orderAnswerBy(String word, java.util.function.Function<AnswerTarget, String> moment) {
+        aimedAnswers.put(word, moment);
+        return this;
+    }
+
+    /** The moment that answers a click giving {@code word} on {@code target} (null for the ground). */
+    String orderAnswerFor(String word, AnswerTarget target) {
+        var aimed = word == null ? null : aimedAnswers.get(word);
+        var moment = aimed == null ? null : aimed.apply(target);
+        return moment != null ? moment : orderAnswerFor(word);
+    }
+
     /**
      * How a thing flashes as it is selected — the reference's {@code Drawable::flashAsSelected}: white, or the colour
      * it is drawn in where {@code ownersColour} ({@code SelectionFlashHouseColor}), saturated as the reference

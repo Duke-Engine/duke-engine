@@ -18,8 +18,8 @@ record ThingAnswer(OrderMarkers.Kind mark, boolean flash, String voice) {
      * the game's own orders, in its colour, or a move's arrowheads where its look rings none, the thing flashed, or
      * nothing — and voiced as {@link Visuals#orderAnswer} says.
      */
-    static ThingAnswer toTheWord(String word, Visuals visuals) {
-        var voice = visuals.orderAnswerFor(word);
+    static ThingAnswer toTheWord(String word, Visuals visuals, AnswerTarget target) {
+        var voice = visuals.orderAnswerFor(word, target);
         return switch (visuals.wordMarkFor(word)) {
             case MARK -> new ThingAnswer(visuals.getOrderMark().ringsContextOrders()
                     ? OrderMarkers.Kind.CONTEXT : OrderMarkers.Kind.MOVE, false, voice);
@@ -33,9 +33,9 @@ record ThingAnswer(OrderMarkers.Kind mark, boolean flash, String voice) {
      * CommandButton#answeredAs()}), and a button naming none as an ability aimed at an enemy is — the attack's ring,
      * and the button's own name voiced.
      */
-    static ThingAnswer toThePress(CommandButton button, Visuals visuals) {
+    static ThingAnswer toThePress(CommandButton button, Visuals visuals, AnswerTarget target) {
         return button.answeredAs() == null
                 ? new ThingAnswer(OrderMarkers.Kind.ATTACK, false, button.id())
-                : toTheWord(button.answeredAs(), visuals);
+                : toTheWord(button.answeredAs(), visuals, target);
     }
 }

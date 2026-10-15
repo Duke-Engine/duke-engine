@@ -30,7 +30,7 @@ public final class CombatOrderCodec {
                     + "," + Float.toString(m.destination().x())
                     + "," + Float.toString(m.destination().y())
                     + "," + Float.toString(m.destination().z())
-                    + (m.click() ? ",click" : "");
+                    + (m.click() ? ",click" : "") + (m.append() ? ",append" : "");
             case CombatOrder.AttackObject a -> "ATTACK," + a.playerIndex() + "," + ids(a.units())
                     + "," + a.target().value()
                     + (a.source() == OrderSource.PLAYER && a.slot() < 0 ? (a.forced() ? ",forced" : "")
@@ -67,7 +67,7 @@ public final class CombatOrderCodec {
         return switch (parts[0]) {
             case "MOVE" -> new CombatOrder.MoveTo(Integer.parseInt(parts[1]), parseIds(parts[2]),
                     new Coord3D(Float.parseFloat(parts[3]), Float.parseFloat(parts[4]), Float.parseFloat(parts[5])),
-                    parts.length > 6 && "click".equals(parts[6]));
+                    tail(parts, 6, "click"), tail(parts, 6, "append"));
             case "ATTACK" -> new CombatOrder.AttackObject(Integer.parseInt(parts[1]), parseIds(parts[2]),
                     new ObjectId(Integer.parseInt(parts[3])), parts.length > 4 && "forced".equals(parts[4]),
                     parts.length > 5 ? OrderSource.valueOf(parts[5]) : OrderSource.PLAYER,
@@ -107,5 +107,15 @@ public final class CombatOrderCodec {
             ids.add(new ObjectId(Integer.parseInt(token)));
         }
         return ids;
+    }
+
+    /** Whether {@code word} is one of the order's parts from {@code from} on. */
+    private static boolean tail(String[] parts, int from, String word) {
+        for (int i = from; i < parts.length; i++) {
+            if (word.equals(parts[i])) {
+                return true;
+            }
+        }
+        return false;
     }
 }

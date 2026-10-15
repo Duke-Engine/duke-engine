@@ -34,7 +34,9 @@ public final class Placement {
         /** The ground under it rises and falls further than the game allows. */
         TOO_STEEP,
         /** Something that does not move is already standing there. */
-        IN_THE_WAY
+        IN_THE_WAY,
+        /** Within the border its template keeps from a kind of thing — see {@link PlacementRules.KeptClear}. */
+        TOO_CLOSE_TO_KIND
     }
 
     private Placement() {
@@ -104,6 +106,17 @@ public final class Placement {
         for (var other : world.getObjects()) {
             if (refuses(other, rules) && Footprint.of(other).overlaps(print)) {
                 return Fit.IN_THE_WAY;
+            }
+        }
+        for (var clear : rules.keptClear()) {
+            if (!clear.template().equals(template.name())) {
+                continue;
+            }
+            for (var other : world.getObjects()) {
+                if (!other.isEffectivelyDead() && clear.from().test(other)
+                        && Footprint.of(other).separation(print) < clear.border()) {
+                    return Fit.TOO_CLOSE_TO_KIND;
+                }
             }
         }
         return Fit.FITS;

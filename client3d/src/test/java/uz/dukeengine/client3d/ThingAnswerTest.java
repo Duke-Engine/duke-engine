@@ -27,11 +27,12 @@ class ThingAnswerTest {
     void aPressAnsweredAsTheGamesWordIsAnsweredAsAClickGivingItIs() {
         var visuals = ringing().orderAnswer("use", "use");
 
-        var press = ThingAnswer.toThePress(KEY.answeredAs("use"), visuals);
+        var press = ThingAnswer.toThePress(KEY.answeredAs("use"), visuals, null);
 
         assertEquals(new ThingAnswer(OrderMarkers.Kind.CONTEXT, false, "use"), press,
                 "the ring of the game's own orders, in its colour, and the word's voice");
-        assertEquals(ThingAnswer.toTheWord("use", visuals), press, "exactly a right click's answer on the gate");
+        assertEquals(ThingAnswer.toTheWord("use", visuals, null), press,
+                "exactly a right click's answer on the gate");
     }
 
     @Test
@@ -39,9 +40,10 @@ class ThingAnswerTest {
         var strike = new CommandButton("power:strike", null, "Strike", "S", true, CommandButton.Aim.UNIT, null);
 
         assertEquals(new ThingAnswer(OrderMarkers.Kind.ATTACK, false, "power:strike"),
-                ThingAnswer.toThePress(strike, ringing()), "the attack's ring, and the button's own name voiced");
+                ThingAnswer.toThePress(strike, ringing(), null), "the attack's ring, and the button's own name voiced");
         assertEquals(new ThingAnswer(OrderMarkers.Kind.ATTACK, false, "use:3"),
-                ThingAnswer.toThePress(KEY.answeredAs("use").answeredAs(null), ringing()), "answered as none again");
+                ThingAnswer.toThePress(KEY.answeredAs("use").answeredAs(null), ringing(), null),
+                "answered as none again");
     }
 
     @Test
@@ -49,9 +51,10 @@ class ThingAnswerTest {
         var visuals = ringing().wordMark("open", Visuals.WordMark.FLASH).wordMark("take", Visuals.WordMark.NONE)
                 .orderAnswer("take", null);
 
-        assertEquals(new ThingAnswer(null, true, "move"), ThingAnswer.toThePress(KEY.answeredAs("open"), visuals),
+        assertEquals(new ThingAnswer(null, true, "move"),
+                ThingAnswer.toThePress(KEY.answeredAs("open"), visuals, null),
                 "the gate flashed as when it is selected, and a word with no voice of its own answered as a move");
-        assertEquals(new ThingAnswer(null, false, null), ThingAnswer.toThePress(KEY.answeredAs("take"), visuals),
+        assertEquals(new ThingAnswer(null, false, null), ThingAnswer.toThePress(KEY.answeredAs("take"), visuals, null),
                 "nothing drawn and nothing said");
     }
 
@@ -60,7 +63,21 @@ class ThingAnswerTest {
         var visuals = Visuals.create();
 
         assertEquals(new ThingAnswer(OrderMarkers.Kind.MOVE, false, "move"),
-                ThingAnswer.toThePress(KEY.answeredAs("use"), visuals));
-        assertEquals(ThingAnswer.toTheWord("use", visuals), ThingAnswer.toThePress(KEY.answeredAs("use"), visuals));
+                ThingAnswer.toThePress(KEY.answeredAs("use"), visuals, null));
+        assertEquals(ThingAnswer.toTheWord("use", visuals, null),
+                ThingAnswer.toThePress(KEY.answeredAs("use"), visuals, null));
+    }
+
+    /** One word answered two ways by what it was aimed at, its own answer where the rule gives none. */
+    @Test
+    void aWordIsAnsweredByItsTarget() {
+        var visuals = Visuals.create().orderAnswer("attack", "attack")
+                .orderAnswerBy("attack", target -> target != null && target.airborne() ? "attackair" : null);
+        var helicopter = new AnswerTarget("Comanche", AnswerTarget.Relation.HOSTILE, true);
+        var tank = new AnswerTarget("Crusader", AnswerTarget.Relation.HOSTILE, false);
+
+        assertEquals("attackair", ThingAnswer.toTheWord("attack", visuals, helicopter).voice());
+        assertEquals("attack", ThingAnswer.toTheWord("attack", visuals, tank).voice());
+        assertEquals("attack", visuals.orderAnswerFor("attack", null), "on the ground");
     }
 }

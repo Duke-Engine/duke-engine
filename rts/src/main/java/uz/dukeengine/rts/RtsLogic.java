@@ -91,6 +91,9 @@ public final class RtsLogic extends RtsSimulation {
                     if (unit == null || unit.getPlayerIndex() != move.playerIndex()) {
                         continue; // gone, or not the issuer's unit to command
                     }
+                    if (move.append() && !addWaypoint(unit, move.destination())) {
+                        continue; // walks on there once it is where it was going
+                    }
                     uz.dukeengine.combat.module.Errand.giveUpAll(unit);
                     var weapon = unit.findModule(WeaponUpdate.class);
                     if (weapon != null) {
@@ -210,5 +213,6 @@ public final class RtsLogic extends RtsSimulation {
 
     @Override
     protected void simulate() {
+        walkWaypoints();
     }
 }

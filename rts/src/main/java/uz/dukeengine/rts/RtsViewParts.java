@@ -1,6 +1,7 @@
 package uz.dukeengine.rts;
 
 import java.util.List;
+import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.core.thing.ObjectStatus;
@@ -86,8 +87,21 @@ final class RtsViewParts implements ViewParts {
     public RallyView rally(GameObject thing) {
         var production = thing.findModule(ProductionUpdate.class);
         var line = production == null ? null : production.rallyLine();
-        return line == null ? null : new RallyView(thing.getId().value(), line.rallyPoint(), line.points(),
-                line.nodes());
+        if (line != null) {
+            return new RallyView(thing.getId().value(), line.rallyPoint(), line.points(), line.nodes());
+        }
+        // A unit's queued places, shown as a rally line is: from where it stands, through where it walks, through each.
+        var queued = thing.getWorld() instanceof RtsSimulation rts ? rts.waypointsOf(thing) : List.<Coord3D>of();
+        if (queued.isEmpty()) {
+            return null;
+        }
+        var points = new java.util.ArrayList<Coord3D>();
+        points.add(thing.getPosition());
+        if (thing.getLocomotor() instanceof uz.dukeengine.core.module.MoveUpdate walker && walker.getGoal() != null) {
+            points.add(walker.getGoal());
+        }
+        points.addAll(queued);
+        return new RallyView(thing.getId().value(), queued.getLast(), points, points.subList(1, points.size()));
     }
 
     @Override

@@ -17,9 +17,22 @@ package uz.dukeengine.rts.construction;
  *                    down when its builder arrives, and a builder that gives up on the way has the money back
  * @param seenGround  whose sites must stand on ground their side has seen — see {@link SeenGround}. Nobody's, unless
  *                    the game says otherwise
+ * @param keptClear   the things a template's sites keep a border from — see {@link KeptClear}; none unless the game
+ *                    says
  */
 public record PlacementRules(float maxRise, float edgeMargin, float refundShare, float startShare, SiteWords words,
-        boolean siteAtOrder, java.util.Set<uz.dukeengine.core.thing.Kind> standsOver, SeenGround seenGround) {
+        boolean siteAtOrder, java.util.Set<uz.dukeengine.core.thing.Kind> standsOver, SeenGround seenGround,
+        java.util.List<KeptClear> keptClear) {
+
+    /**
+     * A site of {@code template} kept at least {@code border} from every thing {@code from} accepts, outline to
+     * outline — the reference's {@code SupplyBuildBorder}, which {@code BuildAssistant::isLocationLegalToBuild} answers
+     * {@code LBC_TOO_CLOSE_TO_SUPPLIES} to: a depot not sat on the heap its gatherers take. Refused as {@link
+     * Placement.Fit#TOO_CLOSE_TO_KIND}.
+     */
+    public record KeptClear(String template, float border,
+            java.util.function.Predicate<uz.dukeengine.core.thing.GameObject> from) {
+    }
 
     /**
      * Whose sites must stand on ground their side has seen — the reference's {@code SHROUD_REVEALED}, which {@code
@@ -68,6 +81,13 @@ public record PlacementRules(float maxRise, float edgeMargin, float refundShare,
         words = words == null ? SiteWords.NONE : words;
         standsOver = standsOver == null ? java.util.Set.of() : java.util.Set.copyOf(standsOver);
         seenGround = seenGround == null ? SeenGround.NOBODY : seenGround;
+        keptClear = keptClear == null ? java.util.List.of() : java.util.List.copyOf(keptClear);
+    }
+
+    /** Rules whose sites keep clear of nothing: every rule from before a site could be kept from a heap. */
+    public PlacementRules(float maxRise, float edgeMargin, float refundShare, float startShare, SiteWords words,
+            boolean siteAtOrder, java.util.Set<uz.dukeengine.core.thing.Kind> standsOver, SeenGround seenGround) {
+        this(maxRise, edgeMargin, refundShare, startShare, words, siteAtOrder, standsOver, seenGround, null);
     }
 
     /** Rules whose sites stand on ground never seen: every rule from before a site could be refused there. */
@@ -95,7 +115,7 @@ public record PlacementRules(float maxRise, float edgeMargin, float refundShare,
     /** The same rules, with sites put down the moment their order is taken, or not. */
     public PlacementRules siteAtOrder(boolean atOrder) {
         return new PlacementRules(maxRise, edgeMargin, refundShare, startShare, words, atOrder, standsOver,
-                seenGround);
+                seenGround, keptClear);
     }
 
     /**
@@ -105,12 +125,21 @@ public record PlacementRules(float maxRise, float edgeMargin, float refundShare,
      */
     public PlacementRules standsOver(java.util.Set<uz.dukeengine.core.thing.Kind> kinds) {
         return new PlacementRules(maxRise, edgeMargin, refundShare, startShare, words, siteAtOrder, kinds,
-                seenGround);
+                seenGround, keptClear);
     }
 
     /** The same rules, the sites of {@code whose} sides standing only on ground their side has seen. */
     public PlacementRules seenGround(SeenGround whose) {
         return new PlacementRules(maxRise, edgeMargin, refundShare, startShare, words, siteAtOrder, standsOver,
-                whose);
+                whose, keptClear);
+    }
+
+    /** The same rules, sites of {@code template} kept {@code border} from every thing {@code from} accepts. */
+    public PlacementRules keepClear(String template, float border,
+            java.util.function.Predicate<uz.dukeengine.core.thing.GameObject> from) {
+        var more = new java.util.ArrayList<>(keptClear);
+        more.add(new KeptClear(template, border, from));
+        return new PlacementRules(maxRise, edgeMargin, refundShare, startShare, words, siteAtOrder, standsOver,
+                seenGround, more);
     }
 }

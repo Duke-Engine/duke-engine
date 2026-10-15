@@ -5368,7 +5368,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** A click that gave the game's word answered as the game names: its moment, none, or a move's. */
     private void answerWord(String word, List<ObjectId> units) {
-        var answer = visuals.orderAnswerFor(word);
+        var answer = visuals.orderAnswerFor(word, null);
         if (answer != null) {
             answerOrder(answer, units);
         }
@@ -5454,7 +5454,8 @@ final class DukeRtsApp extends SimpleApplication {
             // The order the game said a click on this thing gives — see DukeGame.contextOrder.
             game.postCommand(new uz.dukeengine.combat.message.GameOrder(local, snapshot.contextOrder(), units,
                     new Coord3D(enemy.view.x(), enemy.view.y(), 0f), new ObjectId(enemy.view.id()), 0));
-            answer(ThingAnswer.toTheWord(snapshot.contextOrder(), visuals), enemy.view, units);
+            answer(ThingAnswer.toTheWord(snapshot.contextOrder(), visuals, AnswerTarget.of(enemy.view, local)),
+                    enemy.view, units);
             return;
         }
         // With the force-attack key held, any thing is fired on — his own and an ally's too, as the reference's
@@ -5498,6 +5499,9 @@ final class DukeRtsApp extends SimpleApplication {
         }
         var click = groundClick(local, selectedOwn(), enemy == null ? snapshot.contextOrder() : null,
                 game.namesGroundOrders(), ground, parts);
+        if (click instanceof CombatOrder.MoveTo plain && controls.isHeld(KeyMap.Control.QUEUE_WAYPOINTS)) {
+            click = plain.appended(); // the waypoint key held: a place added to the walk (MSG_ADD_WAYPOINT)
+        }
         switch (click) {
             case null -> {
                 // nothing selected may take it: the pointer already said so
@@ -6090,7 +6094,8 @@ final class DukeRtsApp extends SimpleApplication {
             var press = aiming.target(unit.view.id());
             forgetTheAim();
             game.pressCommand(press.button().id(), null, 0f, press.target());
-            answer(ThingAnswer.toThePress(button, visuals), unit.view, selectedIds());
+            answer(ThingAnswer.toThePress(button, visuals, AnswerTarget.of(unit.view, game.getLocalPlayerIndex())),
+                    unit.view, selectedIds());
             return;
         }
         var ground = pickGround();

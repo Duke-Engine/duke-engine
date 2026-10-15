@@ -602,6 +602,10 @@ E16, in parts.
 
 ### Engine asks, round 22 (duke-generals)
 
+1. **A site kept from a heap**: `PlacementRules.keepClear(template, border, from)` — a site of that template refused
+   (`Placement.Fit.TOO_CLOSE_TO_KIND`) within `border` of any thing `from` accepts, outline to outline, after
+   `IN_THE_WAY`: the reference's `SupplyBuildBorder`. The ghost and the order ask the same check; rules without it
+   change nothing (the eight-part constructor kept).
 2. **The speed the world runs at**: `GameEngine.setLogicRate(multiplier)` — 0.25 to 8, 0 a pause — scales the wall
    time counted toward a step, each step still a thirtieth of the world's second, so frames, checksums and the order of
    orders are what they were; `stepOnce()` runs one frame while paused or at 0. A match of several machines agrees on
@@ -612,6 +616,14 @@ E16, in parts.
    that never asks greets every new thing, as before.
 8. **A veteran's shot**: `WeaponFired.rank`, the shooter's experience rank (0 for none; the nine-part constructor
    kept); its moment and sound are looked up as `fired.<weapon>.<rank>` first, falling back to `fired.<weapon>`.
+4. **A path of places**: `CombatOrder.MoveTo.append` (`appended()`; on the wire as `,append`, the four-part
+   constructor kept) adds the place to the end of each unit's moves — a unit going nowhere goes now — and any other
+   order clears them (`RtsSimulation.waypointsOf`, walked by `RtsLogic` in id order). The client sends a ground move
+   so while `KeyMap.Control.QUEUE_WAYPOINTS` is held, and a selected unit's queued places are shown as a rally line is
+   (`RallyView`, the game's rally look), from where it stands through each.
+6. **An answer by its target**: `Visuals.orderAnswerBy(word, target -> moment)`, `AnswerTarget(template, relation,
+   airborne)` — null for a click on the ground; where it gives null the word's own `orderAnswer` answers. Named apart
+   so `orderAnswer(word, null)` stays unambiguous; a thing's kinds are not in the picture, so a rule reads its template.
 12. **Reloads shared**: `WeaponUpdate.delaySlots(fromSlot, frames)` keeps every other slot from firing for at least
    that long (the reference's `ShareWeaponReloadTime`, done by a module told of a shot), and `reloadFramesOf(slot)`
    says how long a slot waits between shots.

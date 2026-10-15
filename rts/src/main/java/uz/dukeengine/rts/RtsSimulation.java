@@ -691,14 +691,61 @@ public abstract class RtsSimulation extends GameLogic implements uz.dukeengine.c
      */
     protected final void tellOrder(Command order, java.util.List<uz.dukeengine.core.thing.ObjectId> units,
             int player) {
+        boolean adds = order instanceof uz.dukeengine.combat.message.CombatOrder.MoveTo move && move.append();
         for (var id : units) {
             var unit = findObject(id);
             if (unit == null || unit.getPlayerIndex() != player) {
                 continue; // gone, or not the issuer's to command
             }
+            if (!adds) {
+                waypoints.remove(id.value()); // any other order is in place of the places it had still to go
+            }
             for (var module : java.util.List.copyOf(unit.getModules())) {
                 if (module instanceof uz.dukeengine.rts.module.OrderListener listener) {
                     listener.onOrder(order);
+                }
+            }
+        }
+    }
+
+    /** Each unit's places still to go after the one it walks to, by id — the reference's waypoint path. */
+    private final java.util.SortedMap<Integer, java.util.ArrayDeque<uz.dukeengine.core.math.Coord3D>> waypoints =
+            new java.util.TreeMap<>();
+
+    /**
+     * Add {@code place} to the end of {@code unit}'s moves; a unit going nowhere goes there now. True where it went
+     * now, for the caller to send as a plain move.
+     */
+    protected final boolean addWaypoint(uz.dukeengine.core.thing.GameObject unit,
+            uz.dukeengine.core.math.Coord3D place) {
+        var queue = waypoints.get(unit.getId().value());
+        if (queue == null && (unit.getLocomotor() == null || !unit.getLocomotor().isMoving())) {
+            return true;
+        }
+        waypoints.computeIfAbsent(unit.getId().value(), id -> new java.util.ArrayDeque<>()).add(place);
+        return false;
+    }
+
+    /** The places {@code unit} still has to go after the one it walks to, in turn; none for most. */
+    public final java.util.List<uz.dukeengine.core.math.Coord3D> waypointsOf(
+            uz.dukeengine.core.thing.GameObject unit) {
+        var queue = waypoints.get(unit.getId().value());
+        return queue == null ? java.util.List.of() : java.util.List.copyOf(queue);
+    }
+
+    /** Each unit with places still to go and none it walks to now sent on to the next, in the order of their ids. */
+    protected final void walkWaypoints() {
+        for (var it = waypoints.entrySet().iterator(); it.hasNext();) {
+            var entry = it.next();
+            var unit = findObject(new uz.dukeengine.core.thing.ObjectId(entry.getKey()));
+            if (unit == null || unit.isEffectivelyDead() || unit.getLocomotor() == null) {
+                it.remove();
+                continue;
+            }
+            if (!unit.getLocomotor().isMoving()) {
+                unit.getLocomotor().moveTo(entry.getValue().poll());
+                if (entry.getValue().isEmpty()) {
+                    it.remove();
                 }
             }
         }
