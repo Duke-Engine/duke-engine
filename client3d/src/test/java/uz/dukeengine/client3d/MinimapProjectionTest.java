@@ -130,4 +130,19 @@ class MinimapProjectionTest {
         assertEquals(2550f, round.toWorldY(175f), 1e-3f);
         assertEquals(false, round.contains(round.toMinimap(3990f, 2600f).x(), 100f), "past its left edge");
     }
+
+    @Test
+    void aGamesMarkStandsAtItsPlaceOrOnTheEdgePointingTheWay() {
+        var minimap = new MinimapProjection(1000f, 1000f, 100f);
+        var key = new MinimapMark(250f, 750f, 0xFFD040);
+        var quest = new MinimapMark(2000f, 500f, 0x40C0FF, null, true);
+
+        var inside = minimap.markAt(key.x(), key.y());
+        assertEquals(25f, inside.x(), 1e-4f);
+        assertEquals(25f, inside.y(), 1e-4f);
+
+        var outside = minimap.markAt(quest.x(), quest.y());
+        assertEquals(100f, outside.x(), 1e-4f, "on the right edge");
+        assertEquals(50f, outside.y(), 1e-4f, "on the line from the middle toward it");
+    }
 }

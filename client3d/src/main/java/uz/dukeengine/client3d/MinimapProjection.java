@@ -74,6 +74,24 @@ final class MinimapProjection {
     }
 
     /**
+     * Where a mark at a world point stands: its place on the minimap, or — off it — where the line from the minimap's
+     * middle toward it crosses the edge, so it points the way.
+     */
+    Point markAt(float worldX, float worldY) {
+        var point = toMinimap(worldX, worldY);
+        if (contains(point.x(), point.y())) {
+            return point;
+        }
+        float midX = widthPixels() / 2f;
+        float midY = heightPixels() / 2f;
+        float dx = point.x() - midX;
+        float dy = point.y() - midY;
+        float share = Math.min(dx == 0f ? Float.MAX_VALUE : midX / Math.abs(dx),
+                dy == 0f ? Float.MAX_VALUE : midY / Math.abs(dy));
+        return new Point(midX + dx * share, midY + dy * share);
+    }
+
+    /**
      * The same point, pulled inside the minimap if it fell outside.
      *
      * <p>The camera can look past the edge of the map — at a corner, most of what

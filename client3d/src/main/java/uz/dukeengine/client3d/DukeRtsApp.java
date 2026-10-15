@@ -5401,6 +5401,7 @@ final class DukeRtsApp extends SimpleApplication {
         reapTheDead();
         followWithTheMinimap();
         syncMinimap();
+        syncMinimapMarks();
         syncViewportOutline();
         syncDragRectangle();
         syncOrderMarkers();
@@ -8563,6 +8564,64 @@ final class DukeRtsApp extends SimpleApplication {
     private volatile boolean shadesShown = true;
 
     /** The pictures laid over all the ground shown or put away — see {@link Duke3D#groundShades}. */
+    /** The game's marks on the minimap — see {@link Duke3D#minimapMarks}. */
+    private java.util.function.Supplier<java.util.List<MinimapMark>> minimapMarks;
+    private final java.util.List<Geometry> markShapes = new java.util.ArrayList<>();
+    private final Map<String, com.jme3.texture.Texture> markPictures = new HashMap<>();
+
+    void minimapMarks(java.util.function.Supplier<java.util.List<MinimapMark>> marks) {
+        this.minimapMarks = marks;
+    }
+
+    /** The game's marks drawn over the dots, one shape each, kept from frame to frame and hidden when not asked. */
+    private void syncMinimapMarks() {
+        var marks = minimapMarks == null ? java.util.List.<MinimapMark>of() : minimapMarks.get();
+        marks = marks == null ? java.util.List.of() : marks;
+        boolean lit = (int) (timer.getTimeInSeconds() * 4f) % 2 == 0;
+        for (int at = 0; at < Math.max(marks.size(), markShapes.size()); at++) {
+            if (at >= marks.size()) {
+                markShapes.get(at).setCullHint(Spatial.CullHint.Always);
+                continue;
+            }
+            var mark = marks.get(at);
+            if (at >= markShapes.size()) {
+                var shape = new Geometry("mm-mark", new Quad(MARK_SIZE, MARK_SIZE));
+                shape.setMaterial(unshaded(ColorRGBA.White));
+                shape.getMaterial().getAdditionalRenderState().setBlendMode(
+                        com.jme3.material.RenderState.BlendMode.Alpha);
+                minimapNode.attachChild(shape);
+                markShapes.add(shape);
+            }
+            var shape = markShapes.get(at);
+            var material = shape.getMaterial();
+            var picture = mark.picture() == null ? null : markPictures.computeIfAbsent(mark.picture(), path -> {
+                try {
+                    return assetManager.loadTexture(path);
+                } catch (RuntimeException notThere) {
+                    LOG.warning(() -> "a minimap mark names a picture that will not load: " + path);
+                    return null;
+                }
+            });
+            if (picture != null) {
+                material.setTexture("ColorMap", picture);
+            } else {
+                material.clearParam("ColorMap");
+            }
+            material.setColor("Color", toColor(new java.awt.Color(mark.colour())));
+            var point = minimap.markAt(mark.x(), mark.y());
+            // A diamond is the square turned an eighth; a picture stands upright.
+            float turn = picture == null ? com.jme3.math.FastMath.QUARTER_PI : 0f;
+            shape.setLocalRotation(new com.jme3.math.Quaternion().fromAngles(0f, 0f, turn));
+            float half = MARK_SIZE / 2f;
+            float offX = picture == null ? 0f : -half;
+            float offY = picture == null ? -half * com.jme3.math.FastMath.sqrt(2f) : -half;
+            shape.setLocalTranslation(point.x() + offX, point.y() + offY, 2);
+            shape.setCullHint(!mark.blinks() || lit ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+        }
+    }
+
+    private static final float MARK_SIZE = 7f;
+
     void groundShades(boolean shown) {
         this.shadesShown = shown;
     }

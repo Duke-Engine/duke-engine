@@ -425,6 +425,15 @@ E16, in parts.
   same answer in any order. A weapon asks whether a module holds its fire without copying its owner's modules
   (`GameObject.anyModule`).
 
+### Where the hero is wanted
+
+- **A mission's leeway** (E61): `Mission.begin(…, leeway)` — the key is laid at the death that leaves no more than
+  `leeway` of the counted standing (gone from the world or dead does not stand), where that one fell; never all of
+  them, and no second key after. `killed()` stops at `outside()`; 0, and the old `begin`, keep today's rule.
+- **The game's marks on the minimap** (E61): `Duke3D.minimapMarks(Supplier<List<MinimapMark>>)`, asked each frame on
+  the window's thread — a world point, a colour, a picture or a plain diamond, blinking or not — drawn over the dots,
+  and held to the edge on the line from the minimap's middle while off it (`MinimapProjection.markAt`).
+
 ### A route that keeps to the roads
 
 - **`PathGrid.setStepCosts(percentByCell)`** (E52): what a step into each cell costs, as a share of its plain cost — a

@@ -47,15 +47,21 @@ public final class Mission {
     private final ObjectId gate;
     /** How many the floor put outside the keep, and how many of them have died. */
     private final int outside;
+    /** How many of the counted may still stand when the key is laid; 0 for none. */
+    private final int leeway;
+    /** The counted, by id, so how many still stand is read off the world. */
+    private final List<ObjectId> counted;
     private int killed;
     private boolean keyLaid;
 
-    private Mission(Loot key, String chest, int floorOwner, ObjectId gate, int outside) {
+    private Mission(Loot key, String chest, int floorOwner, ObjectId gate, List<ObjectId> counted, int leeway) {
         this.key = key;
         this.chest = chest;
         this.floorOwner = floorOwner;
         this.gate = gate;
-        this.outside = outside;
+        this.counted = counted;
+        this.outside = counted.size();
+        this.leeway = Math.clamp(leeway, 0, Math.max(0, outside - 1));
     }
 
     /**
@@ -69,7 +75,18 @@ public final class Mission {
      */
     public static Mission begin(World world, Loot key, String chest, int floorOwner, GameObject gate,
             List<GameObject> counted, Coord3D wayIn) {
-        var mission = new Mission(key, chest, floorOwner, gate == null ? null : gate.getId(), counted.size());
+        return begin(world, key, chest, floorOwner, gate, counted, wayIn, 0);
+    }
+
+    /**
+     * The same, the key laid at the death that leaves no more than {@code leeway} of the counted standing — one that has
+     * left the world or is dead does not stand — where that one fell: a straggler in a far corner keeps no gate shut.
+     * Never all of them: a leeway of as many as were counted is held to one fewer.
+     */
+    public static Mission begin(World world, Loot key, String chest, int floorOwner, GameObject gate,
+            List<GameObject> counted, Coord3D wayIn, int leeway) {
+        var mission = new Mission(key, chest, floorOwner, gate == null ? null : gate.getId(),
+                counted.stream().map(GameObject::getId).toList(), leeway);
         for (var thing : counted) {
             thing.addModule(new Counted(thing, mission));
         }
@@ -81,10 +98,24 @@ public final class Mission {
 
     /** One of the floor's own outside the keep has died: the last of them leaves the key where it fell. */
     private void fell(GameObject monster) {
-        killed++;
-        if (killed == outside && !keyLaid) {
+        killed = Math.min(killed + 1, outside);
+        if (!keyLaid && (killed == outside || leeway > 0 && standing(monster) <= leeway)) {
             lay(monster.getWorld(), monster.getPosition());
         }
+    }
+
+    /** How many of the counted stand, the one dying now not among them. */
+    private int standing(GameObject dying) {
+        var world = dying.getWorld();
+        int standing = 0;
+        for (var id : counted) {
+            var thing = world.findObject(id);
+            if (thing != null && thing != dying && !thing.isDestroyed()
+                    && (thing.getBody() == null || !thing.getBody().isDead())) {
+                standing++;
+            }
+        }
+        return standing;
     }
 
     /**

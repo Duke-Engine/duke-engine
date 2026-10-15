@@ -61,6 +61,32 @@ class MissionTest {
     }
 
     @Test
+    void aLeewayLaysTheKeyWithAFewStillStandingAndNoSecondOne() {
+        var world = world();
+        var guards = new java.util.ArrayList<GameObject>();
+        for (int at = 0; at < 5; at++) {
+            guards.add(world.put("Guard", world.monsters, 10f + 30f * at, 0f));
+        }
+        var mission = Mission.begin(world, KEY, "Chest", world.monsters, null, guards, new Coord3D(0f, 0f, 0f), 2);
+
+        for (int at = 0; at < 3; at++) {
+            guards.get(at).getBody().damage(100f);
+            world.run(1);
+        }
+        var key = lying(world);
+        assertNotNull(key, "laid with two still standing");
+        assertEquals(70f, key.getOwner().getPosition().x(), "where the third fell");
+
+        for (int at = 3; at < 5; at++) {
+            guards.get(at).getBody().damage(100f);
+            world.run(1);
+        }
+        assertEquals(1, world.getObjects().stream().filter(thing -> thing.findModule(GroundItem.class) != null)
+                .count(), "no second key");
+        assertEquals(mission.outside(), mission.killed());
+    }
+
+    @Test
     void withNothingCountedTheKeyLiesAtTheWayInAtOnce() {
         var world = world();
         var bag = new LootBag();

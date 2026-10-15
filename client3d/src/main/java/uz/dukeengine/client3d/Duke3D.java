@@ -494,6 +494,15 @@ public final class Duke3D {
     }
 
     /**
+     * The game's own marks on the minimap — {@link MinimapMark} — asked each frame on the window's thread: a floor's
+     * key, a quest's target. Null for none, as ever.
+     */
+    public Duke3D minimapMarks(java.util.function.Supplier<java.util.List<MinimapMark>> marks) {
+        later(client -> client.minimapMarks(marks));
+        return this;
+    }
+
+    /**
      * The whole world as the player knows it — a picture at most {@code mostTexels} a side, a texel for as many cells a
      * side as that takes, in the minimap's colours — for the game to draw where it likes ({@link Canvas#drawPicture}):
      * a map screen, a scroll. Handed to {@code handed} on the window's thread, and a new one each time a new world is
