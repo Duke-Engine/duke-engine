@@ -3607,6 +3607,11 @@ final class DukeRtsApp extends SimpleApplication {
                 (int) Math.floor(x / grid.mapCellSize()), (int) Math.floor(y / grid.mapCellSize())));
     }
 
+    /** The scenery a world has taken away, by index — none where there is no world yet, as behind a splash. */
+    static java.util.List<Integer> removedScenery(uz.dukeengine.core.GameLogic logic) {
+        return logic == null ? java.util.List.of() : logic.getRemovedScenery();
+    }
+
     /** The ground and its scenery laid again, as the world's terrain stands. */
     private void layTheGround() {
         terrain.rebuildLooked(builtFrom, currentKit, builtPaint, visuals.getGroundLight(), kitsOfTheCells(builtFrom),
@@ -3628,7 +3633,7 @@ final class DukeRtsApp extends SimpleApplication {
         terrain.streamWithin(visuals.streamGroundFor(game.getMapRecord()));
         terrain.blendWith(visuals.getPaintBlend());
         terrain.quarterWith(visuals.isPaintInQuarters());
-        terrain.hideScenery(game.getLogic().getRemovedScenery()); // what a save carried felled
+        terrain.hideScenery(removedScenery(game.getLogic())); // what a save carried felled
         layTheGround();
         fogTintNow = null; // a new world's dark starts in the colour of whatever the camera looks at
         if (water != null) {

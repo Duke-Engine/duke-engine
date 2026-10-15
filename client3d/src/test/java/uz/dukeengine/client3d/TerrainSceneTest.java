@@ -1161,6 +1161,18 @@ class TerrainSceneTest {
         assertEquals(grid.storeyHeight(7, 2), banner.getLocalTranslation().y, 0.001f, "on the floor of its cell");
     }
 
+    /** The front end builds its ground before there is a world: nothing taken away, and no failure (E86). */
+    @Test
+    void groundBuiltWithNoWorldYetHidesNothing() {
+        assertTrue(DukeRtsApp.removedScenery(null).isEmpty());
+        var root = new Node("terrain");
+        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles());
+        terrain.hideScenery(DukeRtsApp.removedScenery(null));
+        terrain.rebuild(twoStoreys(), kit(), null, null, null,
+                java.util.List.of(new Scenery("tree", 2.5f, 1.5f, 0f, 1f, 0xFFFFFF, 0.4f)));
+        assertEquals(1, pieces(root, "tree").size());
+    }
+
     /** A piece the world took away is not drawn, and put back is drawn again (E66). */
     @Test
     void aFelledPieceIsNotDrawnAndGrownAgainIs() {
