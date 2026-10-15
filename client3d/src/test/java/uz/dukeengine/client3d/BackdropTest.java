@@ -64,6 +64,30 @@ class BackdropTest {
         return running[0];
     }
 
+    /** A backdrop released goes on from its own frame, the same match; the next front end makes a fresh one (E83). */
+    @Test
+    void aReleasedBackdropGoesOnAsTheSameMatchAndASeatIsTaken() throws Exception {
+        var seat = new uz.dukeengine.game.GamePlayer[1];
+        var backdrop = new Backdrop(() -> {
+            var game = DukeGame.create("adopted").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(80, 40);
+            seat[0] = game.addPlayer("Hero", Color.BLUE);
+            game.spawn("Rifleman", seat[0], 100, 100);
+            return game;
+        }, built -> NOTHING, percent -> { });
+        var running = started(backdrop);
+        waitFor(() -> running.getSnapshot().frame() > 10, "ten frames");
+        var thread = backdrop.release();
+        assertNotNull(thread, "its simulation handed over");
+        assertNull(backdrop.running(), "the backdrop has given it up");
+        backdrop.stop(); // the front end's put-away no longer touches it
+        int at = running.getLogic().getFrame();
+        waitFor(() -> running.getLogic().getFrame() > at + 10, "frames going on from where they were");
+        running.runOnSimThread(() -> running.takeSeat(seat[0]));
+        waitFor(() -> running.getLocalPlayerIndex() == seat[0].getIndex(), "its seat taken");
+        running.stop();
+        thread.join(5000);
+    }
+
     @Test
     void aBackdropAdvancesWithNobodyPlayingItAndTakesNoOrders() throws Exception {
         var backdrop = new Backdrop(BackdropTest::recipe, built -> NOTHING, percent -> { });

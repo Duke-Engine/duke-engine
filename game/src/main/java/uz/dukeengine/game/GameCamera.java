@@ -1,5 +1,6 @@
 package uz.dukeengine.game;
 
+import java.util.List;
 import uz.dukeengine.core.view.CameraView;
 
 /**
@@ -83,6 +84,79 @@ public final class GameCamera {
     private final Tween turning = new Tween();
     private final Tween tilting = new Tween();
     private final Tween zooming = new Tween();
+
+    /** One point of a camera path: where it looks, which way it faces, how steeply, and how far back it stands. */
+    public record Key(float x, float y, float angle, float pitch, float zoom) {
+    }
+
+    /** A path under way: its keys, its frames, how it eases, and how many frames are gone. */
+    private List<Key> path = List.of();
+    private int pathFrames;
+    private int pathDone;
+    private Ease pathEase = Ease.LINEAR;
+
+    /**
+     * Fly through {@code keys} in one move over {@code frames}: on a smooth curve through every key's point
+     * (Catmull-Rom), its turn, pitch and zoom eased with it, the whole eased by {@code ease} — from the first key, which
+     * it starts at, to the last, where it stays. Each key's span is an equal share of the frames, so it stands still
+     * between none. Replaces any move under way; not checksummed, as the camera is not.
+     */
+    public void along(List<Key> keys, int frames, Ease ease) {
+        take();
+        movingX.stop();
+        movingY.stop();
+        turning.stop();
+        tilting.stop();
+        zooming.stop();
+        if (keys == null || keys.isEmpty()) {
+            return;
+        }
+        path = List.copyOf(keys);
+        pathFrames = Math.max(1, frames);
+        pathDone = 0;
+        pathEase = ease == null ? Ease.LINEAR : ease;
+        put(path.getFirst());
+        if (path.size() == 1) {
+            path = List.of();
+        }
+    }
+
+    private void put(Key key) {
+        x = key.x();
+        y = key.y();
+        angle = key.angle();
+        pitch = key.pitch();
+        zoom = key.zoom();
+    }
+
+    /** One frame along the path: the segment its eased share falls in, and the point on the curve there. */
+    private void stepAlong() {
+        pathDone++;
+        int last = path.size() - 1;
+        float u = pathEase.along(Math.min(1f, pathDone / (float) pathFrames)) * last;
+        int at = Math.min(last - 1, (int) Math.floor(u));
+        float t = u - at;
+        var p0 = path.get(Math.max(0, at - 1));
+        var p1 = path.get(at);
+        var p2 = path.get(at + 1);
+        var p3 = path.get(Math.min(last, at + 2));
+        x = curve(p0.x(), p1.x(), p2.x(), p3.x(), t);
+        y = curve(p0.y(), p1.y(), p2.y(), p3.y(), t);
+        angle = p1.angle() + wrap(p2.angle() - p1.angle()) * t;
+        pitch = curve(p0.pitch(), p1.pitch(), p2.pitch(), p3.pitch(), t);
+        zoom = curve(p0.zoom(), p1.zoom(), p2.zoom(), p3.zoom(), t);
+        if (pathDone >= pathFrames) {
+            put(path.getLast());
+            path = List.of();
+        }
+    }
+
+    /** The Catmull-Rom curve through {@code b} and {@code c}, shaped by {@code a} and {@code d}, at {@code t}. */
+    private static float curve(float a, float b, float c, float d, float t) {
+        float t2 = t * t;
+        float t3 = t2 * t;
+        return 0.5f * (2f * b + (c - a) * t + (2f * a - 5f * b + 4f * c - d) * t2 + (3f * b - a - 3f * c + d) * t3);
+    }
 
     /** Where the player is looking, as the client last said; taken up while the game is not driving. */
     private volatile CameraView seen;
@@ -187,6 +261,7 @@ public final class GameCamera {
     /** Give the camera back to the player, where it is. */
     public void release() {
         driven = false;
+        path = List.of();
         movingX.stop();
         movingY.stop();
         turning.stop();
@@ -196,7 +271,7 @@ public final class GameCamera {
 
     /** Whether a move, a turn, a tilt or a zoom is under way. */
     public boolean isMoving() {
-        return movingX.going() || turning.going() || tilting.going() || zooming.going();
+        return !path.isEmpty() || movingX.going() || turning.going() || tilting.going() || zooming.going();
     }
 
     /** Whether the game has the camera. */
@@ -223,6 +298,10 @@ public final class GameCamera {
     void step() {
         if (!driven) {
             adoptSeen();
+            return;
+        }
+        if (!path.isEmpty()) {
+            stepAlong();
             return;
         }
         if (movingX.going()) {

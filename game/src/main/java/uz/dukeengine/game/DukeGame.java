@@ -414,6 +414,18 @@ public final class DukeGame {
         pb.setRelationshipTo(pa, relationship);
     }
 
+    /**
+     * Take a seat in a match already running — a backdrop adopted as the played match ({@code Duke3D.adoptBackdrop}):
+     * {@code player}'s point of view and orders from the next snapshot on, through its fog; null to watch again.
+     */
+    public void takeSeat(GamePlayer player) {
+        this.localPlayer = player;
+        this.observing = player == null;
+        if (client != null) {
+            client.setViewerPlayer(player == null ? MatchClient.EVERYONE : player.getIndex());
+        }
+    }
+
     /** Choose whose point of view (and input) the window uses. */
     public DukeGame localPlayer(GamePlayer player) {
         this.localPlayer = player;

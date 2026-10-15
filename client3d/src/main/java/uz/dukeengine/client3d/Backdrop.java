@@ -98,6 +98,18 @@ final class Backdrop {
         return thread == null ? null : game;
     }
 
+    /**
+     * Give the running match up without stopping it — it is becoming the played match ({@link Duke3D#adoptBackdrop}):
+     * its simulation's thread handed over, and the next front end makes a fresh one. Null where none runs.
+     */
+    Thread release() {
+        var running = thread;
+        game = null;
+        thread = null;
+        load = null;
+        return running;
+    }
+
     /** Put it away: stopped, its last frame waited for, and forgotten — the next front end makes a fresh one. */
     void stop() {
         if (game != null) {

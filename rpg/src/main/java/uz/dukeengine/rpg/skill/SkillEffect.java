@@ -264,6 +264,14 @@ public enum SkillEffect {
     DODGE(Aim.GROUND),
 
     /**
+     * A push out from a point: every enemy within {@code Radius} of him — or of the point it is cast at — is moved, not
+     * walked, {@code Distance} straight out from the middle over {@code DurationFrames}, along an arc {@code HitWidth}
+     * high, stopping short of stone, a shut gate and a seal; hurt {@code Damage}, stunned {@code StunFrames} from the
+     * frame it lands, marked with the skill's {@code Look}. One at the very middle goes the way he faces.
+     */
+    PUSH(Aim.SELF),
+
+    /**
      * Cannot be killed, only beaten: its bearer's body never falls below {@code HealBelowPercent} of its most health —
      * the blow that would take it lower leaves it there ({@code BodyModule.setLeastHealth}), so no death is reaped and
      * no kill is credited — and then it is beaten ({@link SkillBook#isBeaten}). What being beaten does is the game's.

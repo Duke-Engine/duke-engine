@@ -76,7 +76,6 @@ public sealed interface CombatOrder extends Command
         }
     }
 
-    /** Order the given units to halt. */
     /**
      * Walk along a direction until told otherwise — a held W A S D: {@code angle} in 256ths of a turn, 0 along +x and
      * counter-clockwise seen from above, or {@link #NONE} to stop where it stands. No route: it slides along what
@@ -103,6 +102,7 @@ public sealed interface CombatOrder extends Command
         }
     }
 
+    /** Order the given units to halt. */
     record StopMoving(int playerIndex, List<ObjectId> units) implements CombatOrder {
         public StopMoving {
             units = List.copyOf(units);

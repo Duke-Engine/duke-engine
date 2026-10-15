@@ -701,11 +701,6 @@ final class HeroPanel {
         hide();
     }
 
-    /**
-     * Show what the status line describes, or hide the panel if it describes
-     * something else. Returns whether the panel took the line — the caller then
-     * knows not to print it as text as well.
-     */
     /** The letter each slot is drawn and pressed on, by its skill's key, where the game moved it. */
     private final Map<Character, Character> letters = new java.util.HashMap<>();
 
@@ -726,6 +721,11 @@ final class HeroPanel {
         }
     }
 
+    /**
+     * Show what the status line describes, or hide the panel if it describes
+     * something else. Returns whether the panel took the line — the caller then
+     * knows not to print it as text as well.
+     */
     boolean show(String status, float seconds) {
         this.clock = seconds;
         readTheLetters(status);

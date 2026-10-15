@@ -3239,16 +3239,16 @@ public final class Visuals {
         return this;
     }
 
-    /**
-     * The look given to a moment, or, where none was, to the name it falls back to — the one without its last
-     * dotted part, as a sound's cue does: {@code died.Soldier.exploded}, then {@code died.Soldier}, then {@code
-     * died}. {@code null} for a moment nothing it falls back to was given a look.
-     */
     /** Whether the game named this moment itself, no shorter name standing in for it. */
     public boolean namesMoment(String name) {
         return moments.containsKey(name);
     }
 
+    /**
+     * The look given to a moment, or, where none was, to the name it falls back to — the one without its last
+     * dotted part, as a sound's cue does: {@code died.Soldier.exploded}, then {@code died.Soldier}, then {@code
+     * died}. {@code null} for a moment nothing it falls back to was given a look.
+     */
     public MomentLook getMoment(String name) {
         for (var key = name; key != null; key = key.lastIndexOf('.') < 0 ? null
                 : key.substring(0, key.lastIndexOf('.'))) {

@@ -134,6 +134,8 @@ public final class PathGrid {
         this.groundClass = new byte[width * height];
         this.laid = new byte[width * height];
         this.laidScratch = new byte[width * height];
+        this.shut = new short[width * height];
+        this.shutRegions = new java.util.LinkedHashMap<>();
         this.classNames = new java.util.concurrent.CopyOnWriteArrayList<>();
         this.root = null;
         this.surfaces = 0;
@@ -153,6 +155,8 @@ public final class PathGrid {
         this.groundClass = grid.groundClass;
         this.laid = grid.laid;
         this.laidScratch = grid.laidScratch;
+        this.shut = grid.shut;
+        this.shutRegions = grid.shutRegions;
         this.classNames = grid.classNames;
         this.root = grid;
         this.surfaces = surfaces;
@@ -493,7 +497,7 @@ public final class PathGrid {
             return true;
         }
         int index = cy * width + cx;
-        if (blocked[index] || obstacle[index] || closedUnder != null && closedUnder[index] > 0) {
+        if (blocked[index] || obstacle[index] || shut[index] > 0 || closedUnder != null && closedUnder[index] > 0) {
             return true;
         }
         int c = laid[index] != 0 ? laid[index] : groundClass[index];
@@ -541,6 +545,51 @@ public final class PathGrid {
     /** A step into the cell's share of its plain cost, in percent: 100 where none is set or outside the grid. */
     public int stepPercent(int cx, int cy) {
         return stepPercent == null || !inBounds(cx, cy) ? 100 : stepPercent[cy * width + cx];
+    }
+
+    /** How many shut regions each cell lies in — see {@link #shut}. */
+    private final short[] shut;
+    /** The cells of each region shut now, by its name. */
+    private final java.util.Map<String, int[]> shutRegions;
+
+    /**
+     * Shut the region {@code name} — its {@code cells}, each an {@code {x, y}} of this grid: no route plans through
+     * them and nothing walks into them while it is shut, on top of the terrain and what stands on it; one already in
+     * them may walk out. Shutting a region already shut shuts it as given now. A story's way, opened as it goes on.
+     */
+    public void shut(String name, java.util.Collection<int[]> cells) {
+        open(name);
+        var indices = new java.util.ArrayList<Integer>();
+        for (var cell : cells) {
+            if (cell.length >= 2 && inBounds(cell[0], cell[1])) {
+                indices.add(cell[1] * width + cell[0]);
+            }
+        }
+        var region = indices.stream().mapToInt(Integer::intValue).toArray();
+        shutRegions.put(name, region);
+        for (int index : region) {
+            shut[index]++;
+            changedAround(index % width, index / width);
+        }
+        root().shapeVersion++;
+    }
+
+    /** Open the region {@code name} again; one not shut changes nothing. */
+    public void open(String name) {
+        var region = shutRegions.remove(name);
+        if (region == null) {
+            return;
+        }
+        for (int index : region) {
+            shut[index]--;
+            changedAround(index % width, index / width);
+        }
+        root().shapeVersion++;
+    }
+
+    /** Whether the region {@code name} is shut. */
+    public boolean isShut(String name) {
+        return shutRegions.containsKey(name);
     }
 
     public void setBlocked(int cx, int cy, boolean value) {

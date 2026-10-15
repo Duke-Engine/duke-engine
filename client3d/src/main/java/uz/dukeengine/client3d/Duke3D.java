@@ -440,6 +440,22 @@ public final class Duke3D {
         later(client -> client.mouse(arrangement));
     }
 
+    /**
+     * The match running behind the front end made the played match, as it stands — no load, no world built again, its
+     * frames going on: the client's menu put away (a game drawing its own front end fades its own), play taking the
+     * input, and the game told on the simulation's thread ({@link #onBackdropAdopted}), to seat its player
+     * ({@code DukeGame.takeSeat}) and start its story. Local games only; nothing where no backdrop runs.
+     */
+    public void adoptBackdrop() {
+        later(DukeRtsApp::adoptBackdrop);
+    }
+
+    /** What the game does as its backdrop becomes the played match — see {@link #adoptBackdrop}. */
+    public Duke3D onBackdropAdopted(java.util.function.Consumer<DukeGame> adopted) {
+        later(client -> client.onBackdropAdopted(adopted));
+        return this;
+    }
+
     /** How the mouse plays — {@link MouseScheme#MODERN} or {@link MouseScheme#CLASSIC} — switched live, from any thread. */
     public void mouseScheme(MouseScheme scheme) {
         later(client -> client.mouseScheme(scheme));
@@ -503,15 +519,15 @@ public final class Duke3D {
         later(client -> client.shadowColour(colour));
     }
 
-    /**
-     * The pictures laid over all the ground ({@code Visuals.groundShade}) shown or put away — the reference's clouds,
-     * off at night and by the player's options. From any thread, before launch or while it runs.
-     */
     /** The camera kept on one of the player's units, or let go — {@link CameraFollow#NONE} — from any thread. */
     public void cameraFollow(CameraFollow follow) {
         later(client -> client.cameraFollow(follow));
     }
 
+    /**
+     * The pictures laid over all the ground ({@code Visuals.groundShade}) shown or put away — the reference's clouds,
+     * off at night and by the player's options. From any thread, before launch or while it runs.
+     */
     public void groundShades(boolean shown) {
         later(client -> client.groundShades(shown));
     }

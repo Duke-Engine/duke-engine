@@ -967,6 +967,35 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                     world.effect(skill.look(), hastened);
                 }
             }
+            case PUSH -> {
+                var middle = towards != null ? towards : owner.getPosition();
+                float facing = owner.getOrientation();
+                float each = damageOf(skill, level);
+                int frames = Math.max(1, skill.durationFrames());
+                for (var victim : enemiesWithin(owner, world, middle, skill.radius())) {
+                    var stands = victim.getPosition();
+                    float dx = stands.x() - middle.x();
+                    float dy = stands.y() - middle.y();
+                    float length = (float) Math.sqrt(dx * dx + dy * dy);
+                    if (length < 1e-3f) {
+                        dx = (float) StrictMath.cos(facing);
+                        dy = (float) StrictMath.sin(facing);
+                    } else {
+                        dx /= length;
+                        dy /= length;
+                    }
+                    var end = pushEnd(victim, world, dx, dy, skill.distance());
+                    if (skill.damage() > 0f) {
+                        hurt(owner, victim, each);
+                    }
+                    if (!skill.look().isEmpty()) {
+                        markOn(skill, victim, 0f);
+                    }
+                    int stun = skill.stunFrames();
+                    uz.dukeengine.core.module.ScriptedMove.along(victim, end, frames, skill.hitWidth())
+                            .onLanded(() -> daze(victim, stun));
+                }
+            }
             case DODGE -> {
                 if (owner.hasStatus(ObjectStatus.HELD) || towards == null) {
                     return false;
@@ -1243,21 +1272,6 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                         && !seal.parts(world, casterAt, candidate.getPosition()));
     }
 
-    /**
-     * Where the caster comes down.
-     *
-     * <p>He goes <em>over</em> what is between: a wall in the way is a wall he
-     * clears, and a skeleton in the way is one he is past before it can turn
-     * round. That is the whole point of the skill — an escape that any corridor
-     * could cancel is not an escape, and a dash that stops at the first thing it
-     * meets stops at the thing it was meant to get away from.
-     *
-     * <p>What he may not do is land inside something. So the arc is walked from
-     * the far end back, and he comes down on the first clear spot at or before
-     * where he was pointed: aimed into rock he falls short of it rather than into
-     * it, and a unit whose centre is in stone stays the bug it was the day it took
-     * an afternoon to find.
-     */
     /** A dodge under way: from where, to where, over how many frames, and how many are gone. */
     private static final class Roll {
         final Coord3D from;
@@ -1357,12 +1371,42 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     private static final float LOW_LINK_REACH = 6f;
     private static final float LOW_LINK_HEADING = 0.7f;
 
+    /** Where a push of {@code distance} along ({@code dx}, {@code dy}) leaves {@code victim}: short of stone and seals. */
+    private Coord3D pushEnd(GameObject victim, World world, float dx, float dy, float distance) {
+        var from = victim.getPosition();
+        var end = new Coord3D(from.x(), from.y(), from.z());
+        for (float gone = ROLL_STEP; gone <= distance + 1e-3f; gone += ROLL_STEP) {
+            var step = new Coord3D(from.x() + dx * gone, from.y() + dy * gone, from.z());
+            if (world.isGroundBlocked(step) || world.findBlocker(victim, step) != null
+                    || seal.parts(world, from, step)) {
+                break;
+            }
+            end = step;
+        }
+        return new Coord3D(end.x(), end.y(), world.groundHeight(end));
+    }
+
     /** How far past his own size a dodge's end looks for creatures it would stand in. */
     private static final float DODGE_LOOK = 20f;
 
     /** How finely a dodge's line is walked: a unit at a time, so a roll ends exactly where it is sent. */
     private static final float ROLL_STEP = 1f;
 
+    /**
+     * Where the caster comes down.
+     *
+     * <p>He goes <em>over</em> what is between: a wall in the way is a wall he
+     * clears, and a skeleton in the way is one he is past before it can turn
+     * round. That is the whole point of the skill — an escape that any corridor
+     * could cancel is not an escape, and a dash that stops at the first thing it
+     * meets stops at the thing it was meant to get away from.
+     *
+     * <p>What he may not do is land inside something. So the arc is walked from
+     * the far end back, and he comes down on the first clear spot at or before
+     * where he was pointed: aimed into rock he falls short of it rather than into
+     * it, and a unit whose centre is in stone stays the bug it was the day it took
+     * an afternoon to find.
+     */
     private static Coord3D dashEnd(GameObject owner, World world, float distance) {
         float facing = owner.getOrientation();
         float dx = (float) StrictMath.cos(facing);

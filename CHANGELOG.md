@@ -536,6 +536,21 @@ E16, in parts.
   (`DukeRtsApp.QUICK_CAST_REACH`); the client's own controls are rebound on the keys page too, a clash changing places,
   kept as `ctl.<CONTROL>`; a dodge whose line meets a low way across (`TraversalLink.low`) is taken over it.
 
+### A seamless campaign
+
+- **A push out from a point** (E82): `SkillEffect.PUSH` — every enemy within `Radius` of him (or of the point it is cast
+  at) is moved `Distance` straight out over `DurationFrames` on an arc `HitWidth` high, short of stone and seals, hurt
+  `Damage`, stunned `StunFrames` as it lands, marked with the skill's `Look`.
+- **The backdrop kept as the match** (E83): `Duke3D.adoptBackdrop()` makes the match running behind the front end the
+  played one, as it stands — no load, its frames going on, its art kept — and `onBackdropAdopted` tells the game on the
+  simulation thread, which seats its player with `DukeGame.takeSeat` and starts its story.
+- **Regions the story shuts** (E84): `PathGrid.shut(name, cells)` and `open(name)` — no route plans through a shut
+  region's cells and nothing walks into them, one already there walking out; a route to one goes as near as it may.
+- **A camera path** (E85): `GameCamera.along(keys, frames, ease)` — one move through every `Key`'s point on a
+  Catmull-Rom curve, its turn, pitch and zoom eased with it, each key an equal share of the frames.
+- **The ground before a world** (E86): built before there is a world — a front end behind a splash — it takes no
+  scenery away, rather than failing.
+
 ### A route that keeps to the roads
 
 - **`PathGrid.setStepCosts(percentByCell)`** (E52): what a step into each cell costs, as a share of its plain cost — a

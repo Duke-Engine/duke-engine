@@ -1270,6 +1270,39 @@ final class DukeRtsApp extends SimpleApplication {
         menu.liveBehind(false);
     }
 
+    /** What the game does as its backdrop becomes the played match — see {@link Duke3D#onBackdropAdopted}. */
+    private java.util.function.Consumer<DukeGame> backdropAdopted;
+
+    void onBackdropAdopted(java.util.function.Consumer<DukeGame> adopted) {
+        this.backdropAdopted = adopted;
+    }
+
+    /** The backdrop made the played match, as it runs — see {@link Duke3D#adoptBackdrop}. */
+    void adoptBackdrop() {
+        if (backdrop == null || !backdropShown()) {
+            LOG.warning("no backdrop runs behind the front end to adopt; start the match with Duke3D.startMatch");
+            return;
+        }
+        var match = backdrop.running();
+        simThread = backdrop.release();
+        frontMatch = null;
+        menu.liveBehind(false);
+        game = match;
+        played = match;
+        artIsReady = true; // its art was read as it was made
+        left = false;
+        listenForChat(match);
+        menu.hide();
+        if (!shell.isDrawnByTheGame() && !musicByGame) {
+            playChosenMusic();
+        }
+        screen = Screen.PLAYING;
+        var told = backdropAdopted;
+        if (told != null) {
+            match.runOnSimThread(() -> told.accept(match));
+        }
+    }
+
     /** Whether the match behind the front end waits to be made — see {@link Duke3D#holdBackdrop}. */
     void holdBackdrop(boolean hold) {
         if (backdrop != null) {
@@ -4862,10 +4895,6 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    /**
-     * The click that completes an armed key. Clicking nothing usable drops it,
-     * rather than leaving the player armed and wondering why nothing happened.
-     */
     /** Whether the aim is a quick cast's, where a creature near the pointer counts as under it. */
     private boolean quickCasting;
 
@@ -4901,6 +4930,10 @@ final class DukeRtsApp extends SimpleApplication {
         return best;
     }
 
+    /**
+     * The click that completes an armed key. Clicking nothing usable drops it,
+     * rather than leaving the player armed and wondering why nothing happened.
+     */
     private void aimArmedKey() {
         // ★ Read BEFORE disarming, which nulls it. The clamp below asks what the
         // armed key reaches, and asking after the disarm got null every time --
@@ -6319,6 +6352,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /** Whether no bar is laid over the world: behind a game's front end, or the match a menu shows behind it. */
+    static boolean barsHidden(Screen screen, boolean backdropShown) {
+        return screen == Screen.FRONT || backdropShown;
+    }
+
     /**
      * The bar over each creature that is being drawn.
      *
@@ -6328,11 +6366,6 @@ final class DukeRtsApp extends SimpleApplication {
      * see. What is left is filtered again by the edge of the screen inside
      * {@link UnitBars}, which is the one of the three that the camera decides.
      */
-    /** Whether no bar is laid over the world: behind a game's front end, or the match a menu shows behind it. */
-    static boolean barsHidden(Screen screen, boolean backdropShown) {
-        return screen == Screen.FRONT || backdropShown;
-    }
-
     private void showUnitBars() {
         if (barsHidden(screen, backdropShown())) {
             unitBars.clear(); // behind a front end: a picture, with nothing of play laid over it
@@ -8075,6 +8108,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /** Whether a busy clip has just begun: one now, and not the one it had. */
+    static boolean cutsIn(String wasBusy, String isBusy) {
+        return isBusy != null && !isBusy.equals(wasBusy);
+    }
+
     /**
      * Choose the clip that matches what the unit is doing.
      *
@@ -8091,11 +8129,6 @@ final class DukeRtsApp extends SimpleApplication {
      * {@link #playOnce}. Between blows a unit that has run out of things to do is
      * standing, which is what it looks like.
      */
-    /** Whether a busy clip has just begun: one now, and not the one it had. */
-    static boolean cutsIn(String wasBusy, String isBusy) {
-        return isBusy != null && !isBusy.equals(wasBusy);
-    }
-
     private void animate(UnitNode node, UnitView view) {
         if (node.carryingAgainAt > 0f && timer.getTimeInSeconds() >= node.carryingAgainAt) {
             carrying(node, true);
@@ -8960,7 +8993,6 @@ final class DukeRtsApp extends SimpleApplication {
     /** Whether the pictures laid over all the ground show — see {@link Duke3D#groundShades}. */
     private volatile boolean shadesShown = true;
 
-    /** The pictures laid over all the ground shown or put away — see {@link Duke3D#groundShades}. */
     /** The game's marks on the minimap — see {@link Duke3D#minimapMarks}. */
     private java.util.function.Supplier<java.util.List<MinimapMark>> minimapMarks;
     private final java.util.List<Geometry> markShapes = new java.util.ArrayList<>();
@@ -9071,6 +9103,7 @@ final class DukeRtsApp extends SimpleApplication {
                 == org.lwjgl.glfw.GLFW.GLFW_PRESS;
     }
 
+    /** The pictures laid over all the ground shown or put away — see {@link Duke3D#groundShades}. */
     void groundShades(boolean shown) {
         this.shadesShown = shown;
     }

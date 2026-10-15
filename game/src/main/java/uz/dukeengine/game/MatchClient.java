@@ -98,7 +98,6 @@ final class MatchClient extends GameClient {
         this.momentWords = words;
     }
 
-    /** The words {@code object} holds, and the game's words for its moments now. */
     /**
      * Whether it is walking as the picture sees it: a move under way, and not held where it stands — a stunned or held
      * mover keeps its order for when it can go on, but is drawn standing, not walking on the spot.
@@ -120,6 +119,7 @@ final class MatchClient extends GameClient {
         return all;
     }
 
+    /** The words {@code object} holds, and the game's words for its moments now. */
     private java.util.List<String> wordsOf(uz.dukeengine.core.thing.GameObject object, boolean moving,
             uz.dukeengine.combat.module.WeaponUpdate weapon, java.util.Map<Integer, Float> turns) {
         var words = momentWords;
