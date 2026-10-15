@@ -511,6 +511,11 @@ public interface World {
         return java.util.Set.of();
     }
 
+    /** Whether the ground joins two points — a walk from one reaches the other; true in a world with no grid. */
+    default boolean joined(Coord3D a, Coord3D b) {
+        return true;
+    }
+
     /** The ways across what no walk crosses — see {@code GameLogic.setTraversalLinks}; none by default. */
     default java.util.List<uz.dukeengine.core.pathfind.TraversalLink> traversalLinks() {
         return java.util.List.of();

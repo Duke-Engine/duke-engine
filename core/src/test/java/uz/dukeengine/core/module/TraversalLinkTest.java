@@ -78,4 +78,63 @@ class TraversalLinkTest {
         }
         assertTrue(hero.getPosition().x() > 115f, "kept to its own side: " + hero.getPosition());
     }
+
+    /** Two chasms one after the other, a jump over each: a route crosses both (E81, a graph of links). */
+    @Test
+    void aRouteCrossesTwoLinksInTurn() {
+        var things = new ThingFactory(ModuleFactory.withDefaults());
+        things.addTemplate(HERO);
+        var logic = new TestLogic(things);
+        logic.init();
+        var grid = new PathGrid(40, 20);
+        for (int cy = 0; cy < 20; cy++) {
+            grid.setBlocked(10, cy, true);
+            grid.setBlocked(25, cy, true);
+        }
+        logic.setPathGrid(grid);
+        logic.setTraversalLinks(List.of(
+                new TraversalLink(new Coord3D(95f, 100f, 0f), new Coord3D(115f, 100f, 0f), "jump", 15, 6f, "Jump",
+                        false, false),
+                new TraversalLink(new Coord3D(245f, 100f, 0f), new Coord3D(265f, 100f, 0f), "jump", 15, 6f, "Jump",
+                        false, false)));
+        var hero = hero(logic, 50f);
+        hero.getLocomotor().moveTo(new Coord3D(330f, 100f, 0f));
+        int jumps = 0;
+        boolean was = false;
+        for (int frame = 0; frame < 400; frame++) {
+            logic.update();
+            boolean now = "Jump".equals(hero.getBusyClip());
+            if (now && !was) {
+                jumps++;
+            }
+            was = now;
+        }
+        assertEquals(2, jumps, "over both");
+        assertEquals(330f, hero.getPosition().x(), 6f, "and there: " + hero.getPosition());
+    }
+
+    /** A wall with its gap far off, and a vault right before him: the vault is the shorter way, and taken. */
+    @Test
+    void aLinkIsTakenWhereItIsTheShorterWayNotOnlyTheOneWay() {
+        var things = new ThingFactory(ModuleFactory.withDefaults());
+        things.addTemplate(HERO);
+        var logic = new TestLogic(things);
+        logic.init();
+        var grid = new PathGrid(25, 40);
+        for (int cy = 0; cy < 38; cy++) {
+            grid.setBlocked(10, cy, true); // a wall down x 100, its gap at the far end, y 380 and on
+        }
+        logic.setPathGrid(grid);
+        logic.setTraversalLinks(List.of(new TraversalLink(new Coord3D(95f, 100f, 0f), new Coord3D(115f, 100f, 0f),
+                "vault", 10, 3f, "Vault", true, true)));
+        var hero = hero(logic, 60f);
+        hero.getLocomotor().moveTo(new Coord3D(160f, 100f, 0f));
+        boolean vaulted = false;
+        for (int frame = 0; frame < 200; frame++) {
+            logic.update();
+            vaulted |= "Vault".equals(hero.getBusyClip());
+        }
+        assertTrue(vaulted, "over the low wall, not round by its gap");
+        assertEquals(160f, hero.getPosition().x(), 6f, "and there: " + hero.getPosition());
+    }
 }

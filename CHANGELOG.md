@@ -531,7 +531,10 @@ E16, in parts.
 - **Ways across** (E81): `TraversalLink(a, b, kind, frames, arcHeight, clip, bothWays, low)`, a map's `Linked`, laid
   by `GameLogic.setTraversalLinks` — a walker whose goal no walk reaches walks to the near end of the link that brings
   it nearest, is carried across in its frames on its arc, busy at its clip, and walks on from the far end; a link one
-  way is crossed only from `a`. One link a route, taken only where no walk reaches the goal.
+  way is crossed only from `a`. Routes are planned over a graph of links (`LinkPlanner`): a route crosses as many
+  as it needs, one after another, and takes one where it is the shorter way, not only the one way — the walk priced
+  by its route, a link by the walker's step over its frames, the ground's zones saying which ends a walk joins
+  (`World.joined`).
 - **Fewer limits** (E78, E79, E81): a quick cast with no creature under the pointer takes the nearest within 6 of it
   (`DukeRtsApp.QUICK_CAST_REACH`); the client's own controls are rebound on the keys page too, a clash changing places,
   kept as `ctl.<CONTROL>`; a dodge whose line meets a low way across (`TraversalLink.low`) is taken over it.

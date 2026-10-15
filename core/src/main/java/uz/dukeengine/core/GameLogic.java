@@ -1080,6 +1080,13 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return traversalLinks;
     }
 
+    @Override
+    public final boolean joined(Coord3D a, Coord3D b) {
+        var connected = zones();
+        return connected == null || connected.connected(pathGrid.toCellX(a), pathGrid.toCellY(a), pathGrid.toCellX(b),
+                pathGrid.toCellY(b));
+    }
+
     /** The pieces of scenery taken away, by their index — see {@link #removeScenery}. */
     private final java.util.TreeSet<Integer> removedScenery = new java.util.TreeSet<>();
 

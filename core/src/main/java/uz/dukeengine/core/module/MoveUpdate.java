@@ -539,13 +539,15 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
                 if (toEntry != null) {
                     path = toEntry; // planned again on its way to a link: still to its near end
                 }
-            } else if (!path.reachesGoal()) {
-                var across = linkToward(world, destination);
-                if (across != null) {
-                    var toEntry = world.findPath(getOwner(), across.entry());
+            } else if (!world.traversalLinks().isEmpty()) {
+                float walk = path.reachesGoal() ? lengthOf(getOwner().getPosition(), path) : Float.MAX_VALUE;
+                var leg = uz.dukeengine.core.pathfind.LinkPlanner.first(world.traversalLinks(), getOwner().getPosition(),
+                        destination, world::joined, stepPerFrame, walk);
+                if (leg != null) {
+                    var toEntry = world.findPath(getOwner(), leg.entry());
                     if (toEntry != null && toEntry.reachesGoal()) {
-                        linkPlan = across;
-                        path = toEntry; // to the near end first; the rest from the far end
+                        linkPlan = new LinkPlan(leg.link(), leg.entry(), leg.exit(), destination);
+                        path = toEntry; // to the near end first; the rest planned again from the far end
                     }
                 }
             }
@@ -709,28 +711,6 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     private LinkPlan linkPlan;
 
-    /**
-     * The link whose far end lies nearest {@code goal} and nearer it than this one stands — crossed from {@code a}, or
-     * from {@code b} where it goes both ways — the first listed on a tie; null for none.
-     * ponytail: one link a route, taken only where no walk reaches the goal; a graph of links when a map wants two.
-     */
-    private LinkPlan linkToward(World world, Coord3D goal) {
-        var here = getOwner().getPosition();
-        LinkPlan best = null;
-        float bestAway = across(here, goal);
-        for (var link : world.traversalLinks()) {
-            for (int way = 0; way < (link.bothWays() ? 2 : 1); way++) {
-                var entry = way == 0 ? link.a() : link.b();
-                var exit = way == 0 ? link.b() : link.a();
-                float away = across(exit, goal);
-                if (away < bestAway) {
-                    best = new LinkPlan(link, entry, exit, goal);
-                    bestAway = away;
-                }
-            }
-        }
-        return best;
-    }
 
     /** Carried across the link it stands at — or, where it is not at its near end, given it up and stood. */
     private void crossTheLink(GameObject owner) {
@@ -781,6 +761,17 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         var world = owner.getWorld();
         float ground = world == null ? 0f : world.groundHeight(new Coord3D(x, y, 0f));
         owner.setPosition(new Coord3D(x, y, ground + 4f * going.arc * t * (1f - t)));
+    }
+
+    /** How long a walk along {@code path} from {@code here} is. */
+    private static float lengthOf(Coord3D here, uz.dukeengine.core.pathfind.Path path) {
+        float length = 0f;
+        var at = here;
+        for (var point : path.getWaypoints()) {
+            length += across(at, point);
+            at = point;
+        }
+        return length;
     }
 
     /** How near its near end a walker must stand to cross a link. */
