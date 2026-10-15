@@ -289,6 +289,29 @@ public final class Duke3D {
     }
 
     /**
+     * Whether the game chooses all the music itself: the client then plays no track of its own at a match's start and
+     * stops none at its menu, and its settings show the music's volume but no track to pick. False, as ever, unless
+     * said.
+     */
+    public Duke3D musicByGame(boolean byGame) {
+        later(client -> client.musicByGame(byGame));
+        return this;
+    }
+
+    /**
+     * Loop {@code cue} flat on its channel — a place's ambience — faded in over {@code fadeIn} seconds; one loop a cue,
+     * a second start of one already going doing nothing. From any thread.
+     */
+    public void loop(String cue, float fadeIn) {
+        later(client -> client.loop(cue, fadeIn));
+    }
+
+    /** The loop {@link #loop} started on {@code cue}, faded out over {@code fadeOut} seconds and stopped. */
+    public void stopLoop(String cue, float fadeOut) {
+        later(client -> client.stopLoop(cue, fadeOut));
+    }
+
+    /**
      * Play these tracks of the game's {@link SoundBank}, by their cues' names, each once through in turn and round
      * again from the first — the reference's list of music ({@code AudioManager::nextTrackName}) — the one playing
      * fading out over two seconds. The same list asked for again changes nothing; {@link #music} replaces it, and an

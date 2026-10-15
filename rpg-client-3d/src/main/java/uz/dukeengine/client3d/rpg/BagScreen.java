@@ -167,11 +167,27 @@ public final class BagScreen implements Painter, CanvasInput {
     private int lastFrame = -1;
     private long lastFrameAt;
 
-    /** A bag whose things taken in hand are armed by {@code duke}, on the window's own clock. */
+    /** A bag whose things taken in hand are armed by {@code duke}, on the window's clock, heard through its bank. */
     public static BagScreen on(Duke3D duke, MenuStyle look, Words words, Function<Loot, List<String>> gives,
             BuffScreen buffs) {
         return new BagScreen(look, words, gives, buffs, (button, ended) -> duke.aim(button, 0f, HOLDING, ended),
-                System::nanoTime);
+                System::nanoTime).sounding(duke::sound);
+    }
+
+    /** What the bag says, by cue: {@code bag_open}, {@code bag_close}, {@code item_lift}, {@code item_drop}. */
+    private Consumer<String> sound = cue -> { };
+    /** Whether it was up when last painted, to hear it open and close. */
+    private boolean wasShown;
+
+    /** Play the bag's cues through {@code sound} — the game's bank; a cue it names none of stays silent. */
+    public BagScreen sounding(Consumer<String> sound) {
+        this.sound = sound == null ? cue -> { } : sound;
+        return this;
+    }
+
+    /** Whether the bag is up on the screen: a match being played, its frames coming. */
+    public boolean isOpen() {
+        return shown;
     }
 
     /** The same, arming what is taken in hand by {@code arm}: for a test to see what it aims with, with no window. */
@@ -209,6 +225,7 @@ public final class BagScreen implements Painter, CanvasInput {
             int put = slotOf(DROP, press.id());
             if (put >= 0 && press.place() != null) {
                 game.postCommand(wire.apply(new DropItem(game.getLocalPlayerIndex(), put, press.place())));
+                sound.accept("item_drop");
             }
             int used = slotOf(USE, press.id());
             if (used >= 0 && press.target() >= 0) {
@@ -253,6 +270,10 @@ public final class BagScreen implements Painter, CanvasInput {
         var now = match;
         var bag = now == null ? null : now.bag().get();
         shown = bag != null && live(now.game().getSnapshot());
+        if (shown != wasShown) {
+            wasShown = shown;
+            sound.accept(shown ? "bag_open" : "bag_close");
+        }
         if (!shown) {
             return;
         }
@@ -536,6 +557,7 @@ public final class BagScreen implements Painter, CanvasInput {
      * orders and voiced as they are, and not as an attack on it. A drop aims at the floor, and says nothing of it.
      */
     private void hold(Match now, int at, Loot item, String kind, CommandButton.Aim aim) {
+        sound.accept("item_lift");
         int armed = ++aims;
         held = at;
         heldIn = now;

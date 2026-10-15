@@ -1244,6 +1244,23 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /** Whether the game chooses all the music, the client none of its own — see {@link Duke3D#musicByGame}. */
+    private boolean musicByGame;
+
+    void musicByGame(boolean byGame) {
+        this.musicByGame = byGame;
+    }
+
+    /** A flat loop the game started — see {@link Duke3D#loop}. */
+    void loop(String cue, float fadeIn) {
+        noises.sounds().loop(cue, fadeIn);
+    }
+
+    /** The loop the game started on {@code cue}, faded out — see {@link Duke3D#stopLoop}. */
+    void stopLoop(String cue, float fadeOut) {
+        noises.sounds().stopLoop(cue, fadeOut);
+    }
+
     /** The game's own music by name — see {@link Duke3D#music}. */
     void music(String track, float fadeOutSeconds, float fadeInSeconds) {
         noises.sounds().music(track, fadeOutSeconds, fadeInSeconds);
@@ -1357,6 +1374,7 @@ final class DukeRtsApp extends SimpleApplication {
                         : grid.getCellSize(),
                 // A thing sounds hurt where it starts to look hurt: its look's own words and shares.
                 template -> visuals.of(template).whenHurt);
+        hearTheGround();
         // What happens where he does not see, for the sounds fog does not hide.
         game.hearThroughFog(visuals.getSounds().hearsThroughFog());
         if (visuals.getSounds().hearing().placesTheListener()) {
@@ -2049,7 +2067,7 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         screen = Screen.MENU;
-        if (noises != null) {
+        if (noises != null && !musicByGame) {
             noises.sounds().music(null); // the dungeon is behind him for now
         }
         screen = Screen.MENU;
@@ -2287,9 +2305,9 @@ final class DukeRtsApp extends SimpleApplication {
         // left him hunting the map for whatever he is supposed to be controlling.
         camera.requestOwnUnit();
         menu.hide();
-        if (!shell.isDrawnByTheGame()) {
+        if (!shell.isDrawnByTheGame() && !musicByGame) {
             // Underneath everything from here on, until he goes back to the menu. A game that draws its own
-            // screens plays its own music.
+            // screens, or chooses its own music, plays its own.
             playChosenMusic();
         }
         screen = Screen.PLAYING;
@@ -2782,7 +2800,7 @@ final class DukeRtsApp extends SimpleApplication {
             rows.add(volumeRow(say("Voice"), "volVoice", 100));
             rows.add(volumeRow(say("Music"), "volMusic", 60));
             var tracks = visuals.getSounds().musicCues();
-            if (tracks.size() > 1) {
+            if (tracks.size() > 1 && !musicByGame) {
                 // A list that drops open, not cells side by side: a track is
                 // called "The Sentinel", and three of those across one row is
                 // three names too small to read.
@@ -3415,12 +3433,24 @@ final class DukeRtsApp extends SimpleApplication {
     /**
      * Build (or rebuild) the ground and rocks for the world as it stands now.
      */
+    /** Footsteps told the ground under them, by the paint of the world now laid — see {@code GameSounds.surfaces}. */
+    private void hearTheGround() {
+        if (noises == null) {
+            return; // the sounds are made after the first world's ground, and hear it then
+        }
+        var paint = builtPaint;
+        var grid = builtFrom;
+        noises.surfaces(paint == null || grid == null ? null : (x, y) -> paint.surfaceNameAt(
+                (int) Math.floor(x / grid.mapCellSize()), (int) Math.floor(y / grid.mapCellSize())));
+    }
+
     private void buildTerrain() {
         // First: every material built from here on reads the sun, and this is the world it is for.
         adoptTheSun();
         builtFrom = game.getTerrain();
         clearWhatIsBurning();
         builtPaint = GroundPaint.of(game.getMapRecord());
+        hearTheGround();
         scorchLooks.clear(); // each made for the fog of the world it was laid in
         if (strips != null) {
             strips.clear(); // a new world lays its own

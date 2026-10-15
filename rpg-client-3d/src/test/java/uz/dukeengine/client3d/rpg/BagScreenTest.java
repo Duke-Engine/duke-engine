@@ -146,4 +146,24 @@ class BagScreenTest {
         assertEquals(0xFFFFD700, canvas.colours.get("Qilich"), "the name in its rarity's gold");
         assertEquals(0xFF40C040, canvas.colours.get("+4 kiyilgandan"), "the comparison under the hints");
     }
+
+    /** The bag says it opens, and a thing lifted, through the game's bank (E57). */
+    @Test
+    void theBagIsHeardOpeningAndAThingLifted() {
+        var heard = new ArrayList<String>();
+        screen.sounding(heard::add);
+        var game = shown();
+        bag.take(SWORD, 0, 0);
+        var canvas = new Drawn();
+        screen.paint(canvas);
+        assertTrue(heard.isEmpty(), "no frame yet: not open");
+
+        game.runHeadless(1);
+        screen.paint(canvas);
+        assertEquals(List.of("bag_open"), heard);
+        assertTrue(screen.isOpen());
+        var sword = canvas.picture(SWORD.icon());
+        screen.take(new CanvasInput.Button(sword.middleX(), sword.middleY(), CanvasInput.Mouse.RIGHT, true, false));
+        assertEquals(List.of("bag_open", "item_lift"), heard);
+    }
 }

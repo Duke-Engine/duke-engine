@@ -90,7 +90,8 @@ class SoundPlayedTest {
     @Test
     void askedAgainWithinItsHoldItPlaysOnAndNotAskedItStops() {
         var heard = new Heard();
-        var noises = new GameSounds(new Sounds(BANK, heard), 5f);
+        var sounds = new Sounds(BANK, heard);
+        var noises = new GameSounds(sounds, 5f);
         for (int frame = 0; frame < 30; frame++) {
             if (frame % 3 == 0 && frame <= 18) {
                 noises.sound(new SoundPlayed(frame, "GattlingLoop", new Coord3D(50f, 60f, 0f), new ObjectId(7), 5),
@@ -102,6 +103,8 @@ class SoundPlayedTest {
             }
         }
         assertEquals(1, heard.loops, "one sound, asked every 3 frames");
-        assertEquals(1, heard.stops, "stopped once not asked within its 5 frames");
+        assertEquals(0, heard.stops, "let go of once not asked within its 5 frames: fading, not cut (E56)");
+        sounds.update(GameSounds.HELD_FADE_SECONDS + 0.01f);
+        assertEquals(1, heard.stops, "and stopped at the end of its fade");
     }
 }

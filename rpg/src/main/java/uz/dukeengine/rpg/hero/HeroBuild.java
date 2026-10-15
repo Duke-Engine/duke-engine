@@ -43,8 +43,11 @@ public final class HeroBuild {
             return data;
         }
         var built = firstLevel(new HeroBase(0f, 0f, 0f, data.damage()), hero, rules);
-        return new WeaponUpdate.Data(built.attack(), data.attackRange(), data.reloadFrames(),
-                data.damageType(), data.splashRadius(), data.attackOnTheMove());
+        // Its blow his first level's; every other part of it as it was written — its name, its targets, its clip.
+        return new WeaponUpdate.Data(built.attack(), data.attackRange(), data.reloadFrames(), data.damageType(),
+                data.splashRadius(), data.attackOnTheMove(), data.targets(), data.reloadFramesMax(), data.clipSize(),
+                data.clipReloadFrames(), data.autoReload(), data.name(), data.weaponSets(), data.deathType(),
+                data.targetScanFrames());
     }
 
     /**

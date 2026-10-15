@@ -388,6 +388,17 @@ E16, in parts.
   `margin` pixels in from the edge, and only that strip darkened; `MenuSide.MIDDLE`, the default, as ever. A front menu
   over a live `Duke3D.backdrop` is drawn over it, dimmed, rather than on the stone that hid it.
 
+### Sounds the game chooses
+
+- **Music by the game** (E55): `Duke3D.musicByGame(true)` — the client plays no track of its own at a match's start and
+  stops none at its menu, and its settings show the music's volume but no track to pick. `HeroBuild.weapon` keeps every
+  part of a hero's weapon — its name, targets, clip, scan rate — but its blow.
+- **A flat loop, faded** (E56): `Duke3D.loop(cue, fadeIn)` and `stopLoop(cue, fadeOut)`, one a cue on its channel. A
+  held `SoundPlayed` let go of fades over `GameSounds.HELD_FADE_SECONDS` (0.3) rather than cutting.
+- **The bag heard, footsteps by their ground** (E57): `BagScreen` says `bag_open`, `bag_close`, `item_lift` and
+  `item_drop` through the game's bank (`sounding`, `isOpen`); on a painted map a creature walks to
+  `walking.<Template>.<surface>`, the surface its cell's picture's file name, falling back to `walking.<Template>`.
+
 ### A route that keeps to the roads
 
 - **`PathGrid.setStepCosts(percentByCell)`** (E52): what a step into each cell costs, as a share of its plain cost — a

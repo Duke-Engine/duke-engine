@@ -92,6 +92,69 @@ final class Sounds {
     /** The track playing, and how loud it was last made. */
     private SoundSink.Playing track = SoundSink.Playing.NONE;
     private float trackLoudness;
+    /** A sound's gain going from one loudness to another over a while — and stopped at the end, where it fades out. */
+    private static final class GainFade {
+        final SoundSink.Playing sound;
+        final float from;
+        final float to;
+        final float seconds;
+        final boolean stops;
+        float elapsed;
+
+        GainFade(SoundSink.Playing sound, float from, float to, float seconds, boolean stops) {
+            this.sound = sound;
+            this.from = from;
+            this.to = to;
+            this.seconds = seconds;
+            this.stops = stops;
+        }
+    }
+
+    private final java.util.List<GainFade> gainFades = new java.util.ArrayList<>();
+    /** The flat loops the game started, by cue — see {@link #loop(String, float)}. */
+    private final java.util.Map<String, SoundSink.Playing> loops = new java.util.LinkedHashMap<>();
+
+    /** Loop {@code cueName} flat on its channel, faded in over {@code fadeIn} seconds; one a cue. */
+    void loop(String cueName, float fadeIn) {
+        if (loops.containsKey(cueName)) {
+            return;
+        }
+        var playing = loop(cueName, null, true);
+        if (playing == null || playing == SoundSink.Playing.NONE) {
+            return;
+        }
+        loops.put(cueName, playing);
+        if (fadeIn > 0f) {
+            playing.volume(0f);
+            gainFades.add(new GainFade(playing, 0f, gainOfCue(cueName), fadeIn, false));
+        }
+    }
+
+    /** The loop on {@code cueName}, faded out over {@code fadeOut} seconds and stopped. */
+    void stopLoop(String cueName, float fadeOut) {
+        var playing = loops.remove(cueName);
+        if (playing == null) {
+            return;
+        }
+        gainFades.removeIf(fade -> fade.sound == playing);
+        fadeAway(playing, gainOfCue(cueName), fadeOut);
+    }
+
+    /** {@code playing} faded from {@code from} to silence over {@code seconds} and stopped; at once for none. */
+    void fadeAway(SoundSink.Playing playing, float from, float seconds) {
+        if (seconds <= 0f) {
+            playing.stop();
+            return;
+        }
+        gainFades.add(new GainFade(playing, from, 0f, seconds, true));
+    }
+
+    /** How loud {@code cueName} plays, every knob over it counted; 1 for a cue the game never named. */
+    float gainOfCue(String cueName) {
+        var cue = bank.find(cueName);
+        return cue == null ? 1f : gainOf(cue);
+    }
+
     /** Tracks on their way out, and the one on its way in. */
     private final java.util.List<Fade> fades = new java.util.ArrayList<>();
 
@@ -807,6 +870,18 @@ final class Sounds {
         });
         voices.values().removeIf(Sounds::ended);
         tellWhatEnded();
+        for (var going = gainFades.iterator(); going.hasNext(); ) {
+            var fade = going.next();
+            fade.elapsed += seconds;
+            float share = Math.min(1f, fade.elapsed / fade.seconds);
+            fade.sound.volume(fade.from + (fade.to - fade.from) * share);
+            if (share >= 1f) {
+                if (fade.stops) {
+                    fade.sound.stop();
+                }
+                going.remove();
+            }
+        }
         for (var going = fades.iterator(); going.hasNext(); ) {
             var fade = going.next();
             fade.elapsed += seconds;

@@ -159,6 +159,23 @@ final class GroundPaint {
         return !fades.isEmpty();
     }
 
+    /**
+     * The name a cell's ground is heard by — its picture's file name without its folder or extension, {@code grass} for
+     * {@code textures/ground/grass.png} — or null for a colour, an unpainted cell or one off the map.
+     */
+    String surfaceNameAt(int cx, int cy) {
+        if (cy < 0 || cy >= rows.size() || cx < 0 || cx >= rows.get(cy).length()) {
+            return null;
+        }
+        var value = palette.get(String.valueOf(rows.get(cy).charAt(cx)));
+        if (value == null || value.isBlank() || value.startsWith("#")) {
+            return null;
+        }
+        var name = value.substring(Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\')) + 1);
+        int dot = name.lastIndexOf('.');
+        return dot > 0 ? name.substring(0, dot) : name;
+    }
+
     /** The palette's characters, in the palette's own order. */
     List<String> keys() {
         return List.copyOf(palette.keySet());

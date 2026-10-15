@@ -80,14 +80,19 @@ final class GameSounds {
     private final java.util.List<Riding> riding = new java.util.ArrayList<>();
 
     /** A cue the simulation holds going, where, riding what (-1 none), until when — see {@link #sound}. */
+    /** How long a held sound takes to fall silent once let go of. */
+    static final float HELD_FADE_SECONDS = 0.3f;
+
     private static final class Held {
         final int thing;
         final SoundSink.Playing playing;
+        final float gain;
         int until;
 
-        Held(int thing, SoundSink.Playing playing, int until) {
+        Held(int thing, SoundSink.Playing playing, float gain, int until) {
             this.thing = thing;
             this.playing = playing;
+            this.gain = gain;
             this.until = until;
         }
     }
@@ -96,6 +101,17 @@ final class GameSounds {
     private final java.util.Map<String, Held> held = new java.util.LinkedHashMap<>();
 
     private Map<Integer, UnitView> before = Map.of();
+
+    /** The name of the ground under a point of the world — its paint's picture — or null for none; see surfaces(). */
+    private java.util.function.BiFunction<Float, Float, String> surfaceAt = (x, y) -> null;
+
+    /**
+     * Footsteps by the ground under them: {@code walking.<Template>.<surface>}, the surface what {@code at} names at a
+     * point of the world, falling back to {@code walking.<Template>} as every name does.
+     */
+    void surfaces(java.util.function.BiFunction<Float, Float, String> at) {
+        this.surfaceAt = at == null ? (x, y) -> null : at;
+    }
 
     GameSounds(Sounds sounds, float touching) {
         this(sounds, touching, template -> Map.of());
@@ -159,7 +175,9 @@ final class GameSounds {
             if (view.moving()) {
                 // Every frame he is walking, which is what walking looks like from
                 // out here. The stride is the cue's own business — see GapSeconds.
-                sounds.play("walking." + view.templateName(), at(view), now, owned);
+                var surface = surfaceAt.apply(view.x(), view.y());
+                sounds.play("walking." + view.templateName() + (surface == null ? "" : "." + surface), at(view), now,
+                        owned);
             }
             var deepest = hurtWordsNow(view, was != null, now, owned);
             if (anyLoops) {
@@ -202,7 +220,8 @@ final class GameSounds {
         held.values().removeIf(one -> {
             var view = one.thing < 0 ? null : after.get(one.thing);
             if (snapshot.frame() > one.until || one.thing >= 0 && view == null) {
-                one.playing.stop(); // not asked again within its hold, or its thing gone
+                // Not asked again within its hold, or its thing gone: let go of over a moment, not cut.
+                sounds.fadeAway(one.playing, one.gain, HELD_FADE_SECONDS);
                 return true;
             }
             if (view != null) {
@@ -257,7 +276,7 @@ final class GameSounds {
         }
         var playing = sounds.loop(sound.cue(), at, owned);
         if (playing != null && playing != SoundSink.Playing.NONE) {
-            held.put(key, new Held(thing, playing, sound.frame() + sound.hold()));
+            held.put(key, new Held(thing, playing, sounds.gainOfCue(sound.cue()), sound.frame() + sound.hold()));
         }
     }
 
