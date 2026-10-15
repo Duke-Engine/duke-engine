@@ -347,6 +347,15 @@ public final class HeroProgress {
         return figuresAt(body, level, found);
     }
 
+    /** A hero's whole figures: what he comes to, with what he carries, and what his body does each second. */
+    public record Sheet(HeroFigures figures, HeroRates rates) {
+    }
+
+    /** Everything a character sheet prints of {@code body}, worked out by the code that applies it. */
+    public Sheet sheetOf(GameObject body) {
+        return new Sheet(figuresOf(body, found()), HeroRates.of(body));
+    }
+
     private HeroFigures figuresAt(GameObject body, int atLevel, HeroFigures.Found found) {
         return HeroFigures.of(HeroBase.of(body.getTemplate()), hero.maxMana(), hero.attributes(),
                 attributeRules, atLevel, found);

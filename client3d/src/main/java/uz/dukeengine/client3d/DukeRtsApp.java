@@ -2626,6 +2626,36 @@ final class DukeRtsApp extends SimpleApplication {
         return built;
     }
 
+    /**
+     * The lines of the Settings screen's list of keys: each letter the game claimed or said something of, with its
+     * word; then each control of the client's own on its keys, called by its English name said the game's way.
+     */
+    static List<String> keyLines(Hotkeys hotkeys, java.util.function.UnaryOperator<String> say) {
+        var lines = new ArrayList<String>();
+        var letters = new java.util.TreeSet<Character>(hotkeys.claimedKeys());
+        letters.addAll(hotkeys.describedKeys());
+        for (char letter : letters) {
+            var word = hotkeys.wordOf(letter);
+            lines.add(word.isEmpty() ? String.valueOf(letter) : letter + "   " + word);
+        }
+        var keyMap = hotkeys.keyMap();
+        for (var control : KeyMap.Control.values()) {
+            var on = keyMap.keysOf(control);
+            if (on.isEmpty()) {
+                continue;
+            }
+            var named = new ArrayList<String>();
+            for (var key : on) {
+                named.add((key.ctrl() ? "Ctrl+" : "") + (key.shift() ? "Shift+" : "") + (key.alt() ? "Alt+" : "")
+                        + Hotkeys.nameOf(key.code()));
+            }
+            var english = control.name().charAt(0) + control.name().substring(1).toLowerCase(java.util.Locale.ROOT)
+                    .replace('_', ' ');
+            lines.add(String.join(", ", named) + "   " + say.apply(english));
+        }
+        return lines;
+    }
+
     /** One of the client's fixed words, as the game says it — see {@link Shell#word}. */
     private String say(String english) {
         return shell.wordFor(english);
@@ -2700,6 +2730,12 @@ final class DukeRtsApp extends SimpleApplication {
                             playChosenMusic();
                         }));
             }
+        }
+        // Read, not changed: every letter the game uses and every control of the client's own, each in the game's
+        // words. ponytail: no rebinding yet; a list a player can only read is the first half of one he can change.
+        var keys = keyLines(hotkeys, this::say);
+        if (!keys.isEmpty()) {
+            rows.add(new StoneMenu.Opens(say("Keys"), keys, () -> 0, to -> { }));
         }
         // The two buttons, in sockets rather than as two more rows: they are not
         // settings, they are what happens to the settings.

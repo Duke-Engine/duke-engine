@@ -97,6 +97,8 @@ public final class Hotkeys {
 
     /** In declaration order, so a game's own listing order is what gets bound. */
     private final Map<Character, Binding> bindings = new LinkedHashMap<>();
+    /** What each letter does, in the game's words, for the Settings screen's list of keys. */
+    private final Map<Character, String> words = new LinkedHashMap<>();
 
     private Hotkeys() {
     }
@@ -117,6 +119,31 @@ public final class Hotkeys {
      */
     public Hotkeys on(char key, Consumer<DukeGame> action) {
         return bind(key, Aim.NOW, (game, aimed) -> action.accept(game));
+    }
+
+    /** The same, saying what the letter does in the game's words — shown on the Settings screen's list of keys. */
+    public Hotkeys on(char key, String word, Consumer<DukeGame> action) {
+        describe(key, word);
+        return on(key, action);
+    }
+
+    /**
+     * Say what a letter does in the game's words, for the Settings screen's list of keys — a letter bound any way, or
+     * one the game takes on its own canvas and never binds here.
+     */
+    public Hotkeys describe(char key, String word) {
+        words.put(Character.toUpperCase(key), word == null ? "" : word);
+        return this;
+    }
+
+    /** What the game says a letter does, or "" for nothing said. */
+    public String wordOf(char key) {
+        return words.getOrDefault(Character.toUpperCase(key), "");
+    }
+
+    /** The letters the game has said something about, bound or not, in the order it said them. */
+    public java.util.Set<Character> describedKeys() {
+        return java.util.Collections.unmodifiableSet(words.keySet());
     }
 
     /**
@@ -354,8 +381,43 @@ public final class Hotkeys {
         return left;
     }
 
-    /** The jME key code for a letter, or -1 for anything that is not one. */
-    static int codeOf(char key) {
+    /** What a key code is called on a keyboard, for a list of keys: the letter, the digit, F5, Esc, Space. */
+    public static String nameOf(int code) {
+        for (int at = 0; at < LETTERS.length; at++) {
+            if (LETTERS[at] == code) {
+                return String.valueOf((char) ('A' + at));
+            }
+        }
+        if (code >= KeyInput.KEY_1 && code <= KeyInput.KEY_9) {
+            return String.valueOf(code - KeyInput.KEY_1 + 1);
+        }
+        if (code >= KeyInput.KEY_F1 && code <= KeyInput.KEY_F10) {
+            return "F" + (code - KeyInput.KEY_F1 + 1);
+        }
+        return switch (code) {
+            case KeyInput.KEY_0 -> "0";
+            case KeyInput.KEY_F11 -> "F11";
+            case KeyInput.KEY_F12 -> "F12";
+            case KeyInput.KEY_ESCAPE -> "Esc";
+            case KeyInput.KEY_RETURN -> "Enter";
+            case KeyInput.KEY_SPACE -> "Space";
+            case KeyInput.KEY_TAB -> "Tab";
+            case KeyInput.KEY_BACK -> "Backspace";
+            case KeyInput.KEY_DELETE -> "Delete";
+            case KeyInput.KEY_HOME -> "Home";
+            case KeyInput.KEY_END -> "End";
+            case KeyInput.KEY_UP -> "Up";
+            case KeyInput.KEY_DOWN -> "Down";
+            case KeyInput.KEY_LEFT -> "Left";
+            case KeyInput.KEY_RIGHT -> "Right";
+            case KeyInput.KEY_PGUP -> "PageUp";
+            case KeyInput.KEY_PGDN -> "PageDown";
+            default -> "#" + code;
+        };
+    }
+
+    /** The jME key code for a letter — what a {@link CanvasInput.Key} carries — or -1 for anything that is not one. */
+    public static int codeOf(char key) {
         char letter = Character.toUpperCase(key);
         return letter < 'A' || letter > 'Z' ? -1 : LETTERS[letter - 'A'];
     }

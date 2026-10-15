@@ -1806,18 +1806,43 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
         if (book == null || dealt <= 0f || striker.isEffectivelyDead() || striker.getBody() == null) {
             return;
         }
-        int share = auraOn(striker, SkillEffect.LIFESTEAL_AURA);
-        for (var skill : book.passives()) {
-            if (skill.effect() == SkillEffect.LIFESTEAL) {
-                // ponytail: at its first rank, which is a monster's only one; a hero may not
-                // drink yet (see DungeonSettings.validate), and one who does will read his rank
-                // from SkillRanks, as a cast is handed it.
-                share += skill.boostAt(1);
-            }
-        }
+        int share = lifestealPercent(striker);
         if (share > 0) {
             striker.getBody().heal(dealt * share / 100f);
         }
+    }
+
+    /**
+     * The share of every blow {@code creature} drinks back, in percent: its own {@code LIFESTEAL}s and those lent by
+     * what it wears, each at its rank, and the strongest {@code LIFESTEAL_AURA} on it. 0 for one with no book.
+     */
+    public static int lifestealPercent(GameObject creature) {
+        var book = creature == null ? null : creature.findModule(SkillBook.class);
+        if (book == null) {
+            return 0;
+        }
+        int share = auraOn(creature, SkillEffect.LIFESTEAL_AURA);
+        for (var skill : book.passives()) {
+            if (skill.effect() == SkillEffect.LIFESTEAL) {
+                share += skill.boostAt(book.rankOf(skill));
+            }
+        }
+        return share;
+    }
+
+    /** Health its passives give back each second: a {@code DRAGON_BLOOD}'s, at its rank; 0 for none. */
+    public float healthPerSecond() {
+        for (var skill : passives()) {
+            if (skill.effect() == SkillEffect.DRAGON_BLOOD) {
+                return skill.heal() * rankOf(skill);
+            }
+        }
+        return 0f;
+    }
+
+    /** Mana that comes back each second: its pool's own trickle and the strongest {@code MANA_AURA} on it. */
+    public float manaPerSecond() {
+        return usesMana ? (manaTenthsPerSecond + auraOn(getOwner(), SkillEffect.MANA_AURA)) / (float) TENTHS : 0f;
     }
 
     /**

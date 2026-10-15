@@ -388,6 +388,18 @@ E16, in parts.
   `margin` pixels in from the edge, and only that strip darkened; `MenuSide.MIDDLE`, the default, as ever. A front menu
   over a live `Duke3D.backdrop` is drawn over it, dimmed, rather than on the stone that hid it.
 
+### For a game's player screens
+
+- **A list of keys in Settings** (E46): every letter the game claimed or said something of — `Hotkeys.on(key, word,
+  action)`, `Hotkeys.describe(key, word)` — with its word, and every control of the client's own on its keys, named
+  in English said through `Shell.word`, read as a list that drops open (`Keys`). `Hotkeys.nameOf(code)` names a key.
+  Rebinding is not yet.
+- **A hero's whole figures in one place** (E47): `HeroProgress.sheetOf(body)` — his `HeroFigures` and
+  `HeroRates`: blows a second (`WeaponUpdate.blowsPerSecond`, the same figure every wait is drawn with), health and
+  mana a second, and lifesteal — his own, a worn thing's and an aura's (`SkillBook.lifestealPercent`). There is no
+  crit in the engine yet to carry.
+- **Keys a game's canvas reads** (E48): `Hotkeys.codeOf(char)` public, and `CanvasInput.ESCAPE`, `ENTER`, `SPACE`.
+
 ### Coins that bounce and fly home
 
 Three fields of an effect's `Layer` (E39), each drawn in the particles' shader and out of the checksum:

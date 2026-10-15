@@ -13,6 +13,11 @@ public interface CanvasInput {
     /** Whether the game took this; if it did, nothing else is told of it. */
     boolean take(Event event);
 
+    /** The scan codes of the few named keys a game's canvas answers; a letter's is {@link Hotkeys#codeOf}. */
+    int ESCAPE = com.jme3.input.KeyInput.KEY_ESCAPE;
+    int ENTER = com.jme3.input.KeyInput.KEY_RETURN;
+    int SPACE = com.jme3.input.KeyInput.KEY_SPACE;
+
     /** One thing the hand did. */
     sealed interface Event permits Pointer, Button, Wheel, Key, Typed {
     }

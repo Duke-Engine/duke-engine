@@ -185,7 +185,8 @@ public final class Shell {
      * {@code Back}, the settings screen's every label, value and line
      * ({@code SETTINGS}, {@code Fullscreen}, {@code NO}, {@code YES}, {@code Size}, {@code MONITOR},
      * {@code Anti-aliasing}, {@code OFF}, {@code Volume}, {@code Effects}, {@code Voice}, {@code Music}, {@code Track},
-     * {@code Save}, {@code Cancel}, {@code anti-aliasing from the next launch}, {@code unsaved changes},
+     * {@code Save}, {@code Cancel}, {@code Keys} and every client control's name as it reads there ({@code Pan up},
+     * {@code Select all}…), {@code anti-aliasing from the next launch}, {@code unsaved changes},
      * {@code UP DOWN choose    LEFT RIGHT change    ESC back}) and the front menu's
      * {@code UP DOWN choose    ENTER take}.
      */

@@ -1193,6 +1193,20 @@ public final class WeaponUpdate extends UpdateModule {
         return weapon.attackRange() * bonus(owner, weapon, WeaponBonus.Kind.RANGE);
     }
 
+    /**
+     * How often its first weapon strikes, in blows a second: its wait after a shot divided by everything that hastens
+     * it in this unit's hands — the same figure every wait is drawn with. 0 for a unit with no weapon.
+     */
+    public float blowsPerSecond() {
+        var slots = armed();
+        if (slots.isEmpty()) {
+            return 0f;
+        }
+        var weapon = slots.getFirst().weapon();
+        return uz.dukeengine.core.GameConstants.LOGICFRAMES_PER_SECOND * rateOfFire(getOwner(), weapon)
+                / Math.max(1, weapon.reloadFrames());
+    }
+
     /** Everything that changes how fast this weapon fires in this unit's hands, multiplied together in module order. */
     private static float rateOfFire(GameObject owner, Weapon weapon) {
         float multiplier = bonus(owner, weapon, WeaponBonus.Kind.RATE_OF_FIRE);
