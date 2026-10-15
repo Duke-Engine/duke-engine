@@ -388,6 +388,13 @@ E16, in parts.
   `margin` pixels in from the edge, and only that strip darkened; `MenuSide.MIDDLE`, the default, as ever. A front menu
   over a live `Duke3D.backdrop` is drawn over it, dimmed, rather than on the stone that hid it.
 
+### A route that keeps to the roads
+
+- **`PathGrid.setStepCosts(percentByCell)`** (E52): what a step into each cell costs, as a share of its plain cost — a
+  road at 100 and open ground at 200, and a walker keeps to the road where it runs near and leaves it only where it goes
+  far out of the way. Every search weighs it, and a route is never straightened across a cell dearer than where the
+  straight line starts. Shares of 100 or more keep routes the cheapest; a grid given none routes as ever.
+
 ### Engine asks, round 21 (duke-generals)
 
 1. **A box picks things where they are drawn**: a drag box tests each thing's drawn middle — its body's bounds, or the

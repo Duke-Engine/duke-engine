@@ -508,6 +508,41 @@ public final class PathGrid {
         return blocked[cy * width + cx];
     }
 
+    /** Each cell's share of a step's cost, in percent; null for every cell its plain cost. */
+    private short[] stepPercent;
+
+    /**
+     * What a step into each cell costs, as a share of its plain cost in percent, by the cell's index
+     * ({@code cy * width + cx}) — a road a walker keeps to where it runs near, a bog it goes round. Shares of 100 or
+     * more everywhere keep a route the cheapest there is: a road at 100 and open ground at 200 says "the road, unless
+     * it goes far out of the way". Null, as every map has it, routes as ever.
+     */
+    public void setStepCosts(int[] percentByCell) {
+        if (percentByCell == null) {
+            stepPercent = null;
+        } else {
+            if (percentByCell.length != width * height) {
+                throw new IllegalArgumentException("a share for each of " + width * height + " cells, not "
+                        + percentByCell.length);
+            }
+            stepPercent = new short[percentByCell.length];
+            for (int at = 0; at < percentByCell.length; at++) {
+                stepPercent[at] = (short) Math.clamp(percentByCell[at], 1, Short.MAX_VALUE);
+            }
+        }
+        shapeVersion++;
+    }
+
+    /** Whether any cell's step is costed other than plainly — see {@link #setStepCosts}. */
+    public boolean hasStepCosts() {
+        return stepPercent != null;
+    }
+
+    /** A step into the cell's share of its plain cost, in percent: 100 where none is set or outside the grid. */
+    public int stepPercent(int cx, int cy) {
+        return stepPercent == null || !inBounds(cx, cy) ? 100 : stepPercent[cy * width + cx];
+    }
+
     public void setBlocked(int cx, int cy, boolean value) {
         if (inBounds(cx, cy) && blocked[cy * width + cx] != value) {
             blocked[cy * width + cx] = value;

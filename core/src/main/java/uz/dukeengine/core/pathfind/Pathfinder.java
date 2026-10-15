@@ -45,6 +45,12 @@ public final class Pathfinder {
     private static final int ORTHOGONAL_COST = 10;
     private static final int DIAGONAL_COST = 14;
 
+    /** A step into {@code (nx, ny)}: its plain cost, times the cell's share where the grid costs its cells. */
+    private static int stepCost(PathGrid grid, boolean diagonal, int nx, int ny) {
+        int plain = diagonal ? DIAGONAL_COST : ORTHOGONAL_COST;
+        return grid.hasStepCosts() ? Math.max(1, plain * grid.stepPercent(nx, ny) / 100) : plain;
+    }
+
     /**
      * What the movers on the ground add to a step onto a cell for the mover a route is sought for: a cost, or {@link
      * #CLOSED} for a cell it may not step onto at all — see {@code GameLogic}. Asked of every cell a search reaches.
@@ -341,7 +347,8 @@ public final class Pathfinder {
                 if (!canTake(grid, cx, cy, step, 0f) || closed.contains(next)) {
                     continue;
                 }
-                int tentative = cost.get(current) + (step[0] != 0 && step[1] != 0 ? DIAGONAL_COST : ORTHOGONAL_COST)
+                int tentative = cost.get(current)
+                        + stepCost(grid, step[0] != 0 && step[1] != 0, cx + step[0], cy + step[1])
                         + turnCost(grid, cameFrom.getOrDefault(current, -1), cx, cy, step[0], step[1]);
                 if (tentative >= cost.getOrDefault(next, Integer.MAX_VALUE)) {
                     continue;
@@ -694,7 +701,7 @@ public final class Pathfinder {
                     if (diagonal && grid.isBlocked(cx + step[0], cy) && grid.isBlocked(cx, cy + step[1])) {
                         continue;
                     }
-                    int tentative = cost + (diagonal ? DIAGONAL_COST : ORTHOGONAL_COST)
+                    int tentative = cost + stepCost(grid, diagonal, nx, ny)
                             + turnCost(grid, cameFrom, cx, cy, step[0], step[1]);
                     if (traffic != null) {
                         int extra = traffic.costOf(nx, ny);
@@ -934,7 +941,7 @@ public final class Pathfinder {
                     if (scratch.closed(next)) {
                         continue;
                     }
-                    int tentative = scratch.g(current) + (diagonal ? DIAGONAL_COST : ORTHOGONAL_COST)
+                    int tentative = scratch.g(current) + stepCost(grid, diagonal, nx, ny)
                             + turnCost(grid, scratch.came(current), cx, cy, step[0], step[1]);
                     if (traffic != null) {
                         int extra = traffic.costOf(nx, ny);
@@ -1106,7 +1113,7 @@ public final class Pathfinder {
                         continue;
                     }
                     boolean diagonal = step[0] != 0 && step[1] != 0;
-                    int cost = scratch.g(current) + (diagonal ? DIAGONAL_COST : ORTHOGONAL_COST);
+                    int cost = scratch.g(current) + stepCost(grid, diagonal, nx, ny);
                     boolean along = floor == 0
                             ? canTake(grid, cx, cy, step, clearance)
                             : grid.walks(floor, cx, cy, nx, ny) && (!diagonal
@@ -1504,7 +1511,7 @@ public final class Pathfinder {
             return;
         }
         int here = grid.index(cx, cy);
-        int tentative = scratch.g(here) + (diagonal ? DIAGONAL_COST : ORTHOGONAL_COST)
+        int tentative = scratch.g(here) + stepCost(grid, diagonal, nx, ny)
                 + turnCost(grid, scratch.came(here), cx, cy, dx, dy);
         if (traffic != null) {
             int extra = traffic.costOf(nx, ny);
@@ -1636,6 +1643,8 @@ public final class Pathfinder {
      * would be asked.
      */
     public static boolean isClearLine(PathGrid grid, Coord3D a, Coord3D b, float clearance, Traffic traffic) {
+        // A route kept to cheap ground is not cut across dearer: no straight line over a cell costed above its start.
+        int startShare = grid.stepPercent(grid.toCellX(a), grid.toCellY(a));
         float dx = b.x() - a.x();
         float dy = b.y() - a.y();
         float distance = (float) Math.sqrt(dx * dx + dy * dy);
@@ -1653,6 +1662,9 @@ public final class Pathfinder {
             int cx = (int) Math.floor(x / grid.getCellSize());
             int cy = (int) Math.floor(y / grid.getCellSize());
             if ((cx != lastX || cy != lastY) && !grid.canStep(lastX, lastY, cx, cy)) {
+                return false;
+            }
+            if (grid.hasStepCosts() && grid.stepPercent(cx, cy) > startShare) {
                 return false;
             }
             if ((cx != lastX || cy != lastY) && traffic != null
