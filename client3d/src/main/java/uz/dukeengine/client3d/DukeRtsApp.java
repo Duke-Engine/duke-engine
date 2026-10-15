@@ -660,6 +660,7 @@ final class DukeRtsApp extends SimpleApplication {
     @Override
     public void simpleInitApp() {
         flyCam.setEnabled(false);
+        anisotropy(anisotropy); // slanted ground and roofs kept sharp: the camera sees all of them at a slant
         // The whole picture, the interface over it too, drawn through the game's gamma: last of all.
         gammaPass = new GammaPass(assetManager);
         gammaPass.setGamma(gamma);
@@ -728,7 +729,7 @@ final class DukeRtsApp extends SimpleApplication {
         rootNode.attachChild(particleDrawing.node());
         layered.drawsSystemsWith(particles);
         scorches = new Scorches(listNode, this::drawnGround, this::scorchLook);
-        strips = new Strips(listNode, this::drawnGround, this::stripLook);
+        strips = new Strips(listNode, this::drawnGround, this::stripLook, visuals::getGroundLight);
         water = new Water(listNode, this::waterLook);
         listShow = new ListShow(assetManager, listNode, effects.lights(), (cue, at) -> {
             if (noises != null) {
@@ -1050,6 +1051,33 @@ final class DukeRtsApp extends SimpleApplication {
             return null;
         }
     };
+
+    /** How sharply slanted pictures are read — see {@link Duke3D#anisotropy}. */
+    private int anisotropy = 8;
+
+    /** Every picture the world draws read at {@code level} of anisotropic filtering, from the next frame. */
+    void anisotropy(int level) {
+        anisotropy = level;
+        if (renderer != null) {
+            renderer.setDefaultAnisotropicFilter(anisotropyFor(level,
+                    renderer.getLimits().get(com.jme3.renderer.Limits.TextureAnisotropy)));
+        }
+    }
+
+    /** {@code asked} as the card takes it: 1, 2, 4, 8 or 16, the highest not above it, nor above the card's own. */
+    static int anisotropyFor(int asked, Integer cardMost) {
+        int level = 1;
+        while (level * 2 <= Math.min(16, asked)) {
+            level *= 2;
+        }
+        return cardMost == null || cardMost < 1 ? level : Math.min(level, cardMost);
+    }
+
+    /** The window's sample count for the next window made: kept with the player's settings. */
+    void samplesNextLaunch(int samples) {
+        preferences.set("samples", samples);
+        preferences.save();
+    }
 
     /** The title card up, as the client draws it — see {@link DukeGame#titleCard}; null for none. */
     private TitleCardShow titleCard;
@@ -4733,7 +4761,9 @@ final class DukeRtsApp extends SimpleApplication {
             var hit = pickUnit();
             boolean onOwn = hit != null && hit.view.selectable()
                     && hit.view.playerIndex() == game.getLocalPlayerIndex();
-            if (leftClickOrders(mouse, onOwn, snapshot.contextOrder() != null, add, !selectedIds().isEmpty())) {
+            // The force-attack key held: a click on his own thing is an attack on it, not a pick.
+            boolean picks = onOwn && !controls.isHeld(KeyMap.Control.FORCE_ATTACK);
+            if (leftClickOrders(mouse, picks, snapshot.contextOrder() != null, add, !selectedIds().isEmpty())) {
                 order(); // the reference's left-click mouse: a click off his own things commands them
                 return;
             }
@@ -4817,11 +4847,21 @@ final class DukeRtsApp extends SimpleApplication {
         int local = game.getLocalPlayerIndex();
         var candidates = new java.util.ArrayList<SelectionBox.Candidate>();
         for (var view : snapshot.units()) {
-            var screen = cam.getScreenCoordinates(new Vector3f(view.x(), 0f, view.y()));
+            var node = unitNodes.get(view.id());
+            var screen = cam.getScreenCoordinates(drawnCentre(node == null ? null : node.root.getWorldBound(),
+                    view.x(), view.y(), floorHeightAt(view.x(), view.y())));
             candidates.add(new SelectionBox.Candidate(view.id(), screen.x, screen.y,
                     view.playerIndex() == local, view.selectable(), view.structure()));
         }
         return candidates;
+    }
+
+    /**
+     * Where a box tests a thing: the middle of its drawn body, as a click picks it by the body — or, with nothing drawn
+     * of it, the ground under it, not the foot of the world at height 0.
+     */
+    static Vector3f drawnCentre(com.jme3.bounding.BoundingVolume drawn, float x, float y, float floor) {
+        return drawn != null && drawn.getCenter() != null ? drawn.getCenter().clone() : new Vector3f(x, floor, y);
     }
 
     /**
@@ -4861,10 +4901,30 @@ final class DukeRtsApp extends SimpleApplication {
             answer(ThingAnswer.toTheWord(snapshot.contextOrder(), visuals), enemy.view, units);
             return;
         }
-        // With the force-attack key held, a neutral thing is fired on too — not a friend: the simulation never
-        // fires on an ally, ordered or not.
+        // With the force-attack key held, any thing is fired on — his own and an ally's too, as the reference's
+        // MSG_DO_FORCE_ATTACK_OBJECT — and open ground is shelled (MSG_DO_FORCE_ATTACK_GROUND).
         boolean forced = controls.isHeld(KeyMap.Control.FORCE_ATTACK);
-        if (enemy != null && enemy.view.playerIndex() != local && (forced || enemy.view.playerIndex() != 0)) {
+        if (forced && enemy == null) {
+            var place = pickGround();
+            if (place != null) {
+                game.postCommand(new CombatOrder.AttackGround(local, units, new Coord3D(place.x, place.z, place.y),
+                        true));
+                answerOrder("attack", units);
+                markOrder(place.x, place.z, OrderMarkers.Kind.ATTACK);
+                return;
+            }
+        }
+        if (forced && enemy != null && !units.contains(new ObjectId(enemy.view.id()))) {
+            if (!snapshot.attackable()) {
+                return;
+            }
+            game.postCommand(new CombatOrder.AttackObject(local, units, new ObjectId(enemy.view.id()), true));
+            answerOrder("attack", units);
+            markOrder(enemy.view.x(), enemy.view.y(), enemy.view.id(), OrderMarkers.Kind.ATTACK);
+            noises.moment("vo.attack", (float) timer.getTimeInSeconds());
+            return;
+        }
+        if (enemy != null && enemy.view.playerIndex() != local && enemy.view.playerIndex() != 0) {
             if (!snapshot.attackable()) {
                 return; // nothing selected may be fired at it: refused, as the pointer already said
             }
@@ -5702,7 +5762,8 @@ final class DukeRtsApp extends SimpleApplication {
         return new Cursors.Over(true, armed, canReach, overPanel,
                 over != null, over != null && over.view.playerIndex() == game.getLocalPlayerIndex(),
                 snapshot.attackable(), !own.isEmpty(), snapshot.contextOrder(), // a thing's, or the ground's
-                scrolling, groundTakes(game.getLocalPlayerIndex(), own, game.namesGroundOrders(), parts));
+                scrolling, groundTakes(game.getLocalPlayerIndex(), own, game.namesGroundOrders(), parts),
+                controls.isHeld(KeyMap.Control.FORCE_ATTACK));
     }
 
     /**

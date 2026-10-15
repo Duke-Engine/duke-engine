@@ -40,6 +40,8 @@ final class Strips {
     private final Node node;
     private final Supplier<DrawnGround> ground;
     private final Function<String, Material> looks;
+    /** The ground's own lights, which each corner of a piece is lit by as the ground's are; null for none. */
+    private final Supplier<Visuals.GroundLight> light;
     private final Map<Group, List<DukeGame.StripPiece>> groups = new LinkedHashMap<>();
     private final Map<Group, Geometry> drawn = new LinkedHashMap<>();
 
@@ -49,9 +51,16 @@ final class Strips {
      * @param looks  the material a picture is drawn with, or null where it will not load
      */
     Strips(Node node, Supplier<DrawnGround> ground, Function<String, Material> looks) {
+        this(node, ground, looks, () -> null);
+    }
+
+    /** The same, each piece lit at its corners by {@code light}, as the painted ground under it is. */
+    Strips(Node node, Supplier<DrawnGround> ground, Function<String, Material> looks,
+            Supplier<Visuals.GroundLight> light) {
         this.node = node;
         this.ground = ground;
         this.looks = looks;
+        this.light = light;
     }
 
     /** More pieces laid: the meshes of the pictures and layers they add to built again. */
@@ -74,7 +83,11 @@ final class Strips {
             if (look == null) {
                 continue;
             }
-            var laid = new Geometry("strip", mesh(ground.get(), groups.get(group)));
+            var lit = light.get();
+            var laid = new Geometry("strip", mesh(ground.get(), groups.get(group), lit));
+            if (lit != null && look.getMaterialDef().getMaterialParam("VertexLight") != null) {
+                look.setBoolean("VertexLight", true); // lit by its corners, as the ground beside it is
+            }
             laid.setMaterial(look);
             laid.setQueueBucket(RenderQueue.Bucket.Transparent);
             laid.setUserData(OverlayOrder.LAYER, ABOVE_OVERLAYS + group.layer());
@@ -85,6 +98,14 @@ final class Strips {
 
     /** Every piece laid, one mesh. */
     static Mesh mesh(DrawnGround ground, List<DukeGame.StripPiece> pieces) {
+        return mesh(ground, pieces, null);
+    }
+
+    /**
+     * The same, each corner carrying {@code light}'s colour at its own normal — the ground's own lights, as the painted
+     * ground's corners carry them — where there is one.
+     */
+    static Mesh mesh(DrawnGround ground, List<DukeGame.StripPiece> pieces, Visuals.GroundLight light) {
         var positions = new ArrayList<Vector3f>();
         var normals = new ArrayList<Vector3f>();
         var uvs = new ArrayList<float[]>();
@@ -106,6 +127,14 @@ final class Strips {
         mesh.setBuffer(VertexBuffer.Type.Position, 3, positionBuffer);
         mesh.setBuffer(VertexBuffer.Type.Normal, 3, normalBuffer);
         mesh.setBuffer(VertexBuffer.Type.TexCoord, 2, uvBuffer);
+        if (light != null) {
+            var colours = BufferUtils.createFloatBuffer(normals.size() * 4);
+            for (var normal : normals) {
+                var lit = light.at(normal);
+                colours.put(lit.r).put(lit.g).put(lit.b).put(1f);
+            }
+            mesh.setBuffer(VertexBuffer.Type.Color, 4, colours);
+        }
         mesh.setBuffer(VertexBuffer.Type.Index, 3, indexBuffer);
         mesh.updateBound();
         return mesh;

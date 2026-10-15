@@ -60,4 +60,13 @@ public interface ProjectileLauncher {
     default boolean launch(GameObject shooter, GameObject victim, float damage, DamageType type) {
         return false;
     }
+
+    /**
+     * Take a shot fired at a place of the ground, with nothing standing there it was aimed at — a ground attack — and
+     * carry it there, to land it with {@code WeaponUpdate.land(world, shot, null, place, from)}; false, the default,
+     * for a launcher that carries only to things, and the shot lands on the place at once.
+     */
+    default boolean launchAt(GameObject shooter, uz.dukeengine.core.math.Coord3D place, Shot shot) {
+        return false;
+    }
 }

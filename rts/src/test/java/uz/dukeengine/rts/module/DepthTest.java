@@ -37,6 +37,8 @@ class DepthTest {
                         findObject(id).findModule(MoveUpdate.class).moveTo(m.destination()));
                 case CombatOrder.StopMoving s -> {
                 }
+                case CombatOrder.AttackGround g -> {
+                }
             }
         }
 

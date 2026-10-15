@@ -77,6 +77,12 @@ class DeterminismIntegrationTest {
                         ai.stop();
                     }
                 });
+                case CombatOrder.AttackGround ground -> forEach(ground.units(), unit -> {
+                    var weapon = unit.findModule(WeaponUpdate.class);
+                    if (weapon != null) {
+                        weapon.attackGround(ground.place());
+                    }
+                });
             }
         }
 

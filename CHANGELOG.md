@@ -388,6 +388,23 @@ E16, in parts.
   `margin` pixels in from the edge, and only that strip darkened; `MenuSide.MIDDLE`, the default, as ever. A front menu
   over a live `Duke3D.backdrop` is drawn over it, dimmed, rather than on the stone that hid it.
 
+### Engine asks, round 21 (duke-generals)
+
+1. **A box picks things where they are drawn**: a drag box tests each thing's drawn middle — its body's bounds, or the
+   ground under it with nothing drawn — not a point at height 0 (`DukeRtsApp.drawnCentre`), as a click picks by the body.
+2. **The force-attack key**, the reference's `CommandTranslator`:
+   - `CombatOrder.AttackGround(player, units, place, forced)` — on the wire as `GROUND` — carried out by
+     `WeaponUpdate.attackGround(place)`: the first weapon that may hit ground (`Targets` naming none, or `GROUND`)
+     closes to its range and fires on the place, its blast landing there, until a new order lets it go. A launcher may
+     carry such a shot (`ProjectileLauncher.launchAt`); one that does not lands it at once.
+   - A forced `AttackObject` of a player's own fires on his own or an ally's thing; auto-targeting never does.
+   - The client, with the key held: a click on open ground shells it, a click on any thing — his own too — fires on it,
+     and the pointers `ForceAttackObj` and `ForceAttackGround` show while something is selected.
+3. **Sharper slanted pictures**: `Duke3D.anisotropy(level)` — 1, 2, 4, 8 or 16, the card's most at most, **8 by default**
+   — on every texture the world draws, live; `Duke3D.samples(n)` keeps the window's sample count for the next window.
+4. **Strips lit as the ground beside them**: each corner of a piece laid along the ground carries the ground's own
+   light (`Visuals.GroundLight`) and its material draws by it (`VertexLight`), as the painted ground's corners do.
+
 ### A thing's affixes, crits, and its card in colours
 
 - **Affixes** (E43): `Loot`'s new last component `affixes`, each an `Affix(stat, value)` — a `Stat` word, an

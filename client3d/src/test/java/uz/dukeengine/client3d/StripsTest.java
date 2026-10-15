@@ -136,4 +136,18 @@ class StripsTest {
             assertEquals(plain.get(at), laid.get(at), 1e-4f);
         }
     }
+
+    /** A piece is lit at its corners by the ground's own lights, as the ground beside it is (round 21, ask 4). */
+    @Test
+    void aPieceCarriesTheGroundsOwnLightAtEachCorner() {
+        var light = new Visuals.GroundLight(0x808080, List.of());
+        var lit = Strips.mesh(SLOPE, List.of(road(50f, 350f, 35f, 0)), light);
+        var colours = lit.getFloatBuffer(com.jme3.scene.VertexBuffer.Type.Color);
+        var normals = lit.getFloatBuffer(com.jme3.scene.VertexBuffer.Type.Normal);
+        assertEquals(normals.limit() / 3 * 4, colours.limit(), "a colour at every corner");
+        var expected = light.at(new com.jme3.math.Vector3f(normals.get(0), normals.get(1), normals.get(2)));
+        assertEquals(expected.r, colours.get(0), 1e-6f, "the ground's light at that corner");
+        assertEquals(null, Strips.mesh(SLOPE, List.of(road(50f, 350f, 35f, 0)))
+                .getBuffer(com.jme3.scene.VertexBuffer.Type.Color), "no ground light: as before");
+    }
 }

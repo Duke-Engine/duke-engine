@@ -528,6 +528,23 @@ public final class Duke3D {
         return this;
     }
 
+    /**
+     * Read every picture the world draws — the ground's, the models', the strips and marks laid on it — at
+     * {@code level} of anisotropic filtering: 1, 2, 4, 8 or 16, the highest the card takes at most, 8 unless said. The
+     * camera looks at the ground at a slant, which is where plain mipmapping blurs; 1 gives back plain mipmapping.
+     * From any thread, while it runs.
+     */
+    public Duke3D anisotropy(int level) {
+        later(client -> client.anisotropy(level));
+        return this;
+    }
+
+    /** The window's sample count — 0, 2, 4 or 8 — kept with the player's settings and taken by the next window made. */
+    public Duke3D samples(int samples) {
+        later(client -> client.samplesNextLaunch(samples));
+        return this;
+    }
+
     /** Do this on the client's own thread: at its next frame, or once it is launched. */
     private void later(Consumer<DukeRtsApp> task) {
         DukeRtsApp running;

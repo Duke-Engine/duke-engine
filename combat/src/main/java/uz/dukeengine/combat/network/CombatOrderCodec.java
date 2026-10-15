@@ -35,6 +35,9 @@ public final class CombatOrderCodec {
                     + "," + a.target().value()
                     + (a.source() == OrderSource.PLAYER && a.slot() < 0 ? (a.forced() ? ",forced" : "")
                             : "," + (a.forced() ? "forced" : "") + "," + a.source().name() + "," + a.slot());
+            case CombatOrder.AttackGround g -> "GROUND," + g.playerIndex() + "," + ids(g.units())
+                    + "," + Float.toString(g.place().x()) + "," + Float.toString(g.place().y())
+                    + "," + Float.toString(g.place().z()) + (g.forced() ? ",forced" : "");
             case CombatOrder.StopMoving s -> "STOP," + s.playerIndex() + "," + ids(s.units());
         };
     }
@@ -65,6 +68,9 @@ public final class CombatOrderCodec {
                     new ObjectId(Integer.parseInt(parts[3])), parts.length > 4 && "forced".equals(parts[4]),
                     parts.length > 5 ? OrderSource.valueOf(parts[5]) : OrderSource.PLAYER,
                     parts.length > 6 ? Integer.parseInt(parts[6]) : -1);
+            case "GROUND" -> new CombatOrder.AttackGround(Integer.parseInt(parts[1]), parseIds(parts[2]),
+                    new Coord3D(Float.parseFloat(parts[3]), Float.parseFloat(parts[4]), Float.parseFloat(parts[5])),
+                    parts.length > 6 && "forced".equals(parts[6]));
             case "STOP" -> new CombatOrder.StopMoving(Integer.parseInt(parts[1]), parseIds(parts[2]));
             case "ORDER" -> new GameOrder(Integer.parseInt(parts[1]),
                     java.net.URLDecoder.decode(parts[2], java.nio.charset.StandardCharsets.UTF_8),

@@ -57,6 +57,10 @@ final class Cursors {
 
     /** Over something a right-click would attack. */
     static final String ATTACK = "Attack";
+    /** The force-attack key held over a thing, any thing — the reference's Mouse.ini {@code ForceAttackObj}. */
+    static final String FORCE_ATTACK_OBJ = "ForceAttackObj";
+    /** The force-attack key held over open ground — the reference's {@code ForceAttackGround}. */
+    static final String FORCE_ATTACK_GROUND = "ForceAttackGround";
 
     /** A skill is armed and this is somewhere it can go. */
     static final String AIM = "Aim";
@@ -129,7 +133,15 @@ final class Cursors {
      */
     record Over(boolean playing, Hotkeys.Aim armed, boolean canReach, boolean overPanel,
             boolean overUnit, boolean ownUnit, boolean canAttack, boolean ordering, String order, String scrolling,
-            boolean groundTakes) {
+            boolean groundTakes, boolean forcing) {
+
+        /** Everything but whether the force-attack key is held, which it then is not. */
+        Over(boolean playing, Hotkeys.Aim armed, boolean canReach, boolean overPanel, boolean overUnit,
+                boolean ownUnit, boolean canAttack, boolean ordering, String order, String scrolling,
+                boolean groundTakes) {
+            this(playing, armed, canReach, overPanel, overUnit, ownUnit, canAttack, ordering, order, scrolling,
+                    groundTakes, false);
+        }
 
         /** Everything but whether open ground takes a click, which it then does from anything he has selected. */
         Over(boolean playing, Hotkeys.Aim armed, boolean canReach, boolean overPanel, boolean overUnit,
@@ -199,6 +211,13 @@ final class Cursors {
         }
         if (over.overPanel()) {
             return java.util.List.of(POINT);
+        }
+        // The force-attack key held with something selected: any thing is fired on, and open ground shelled.
+        if (over.forcing() && over.ordering()) {
+            if (over.overUnit()) {
+                return over.canAttack() ? java.util.List.of(FORCE_ATTACK_OBJ, ATTACK) : java.util.List.of(DENY);
+            }
+            return java.util.List.of(FORCE_ATTACK_GROUND, ATTACK);
         }
         if (over.overUnit()) {
             if (over.order() != null) {

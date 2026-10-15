@@ -15,7 +15,7 @@ import uz.dukeengine.core.thing.ObjectId;
  * live reference, because every peer applies the identical orders on the identical frame.
  */
 public sealed interface CombatOrder extends Command
-        permits CombatOrder.MoveTo, CombatOrder.AttackObject, CombatOrder.StopMoving {
+        permits CombatOrder.MoveTo, CombatOrder.AttackObject, CombatOrder.AttackGround, CombatOrder.StopMoving {
 
     /** The things it is given to. */
     List<ObjectId> units();
@@ -61,6 +61,17 @@ public sealed interface CombatOrder extends Command
         /** An attack that is not forced, as every one was before one could be. */
         public AttackObject(int playerIndex, List<ObjectId> units, ObjectId target) {
             this(playerIndex, units, target, false);
+        }
+    }
+
+    /**
+     * Order the given units to fire on a place of the ground — the reference's {@code MSG_DO_FORCE_ATTACK_GROUND}, the
+     * force-attack key held over open ground: each with a weapon that may hit ground closes to its range and fires at
+     * the place until a new order lets it go.
+     */
+    record AttackGround(int playerIndex, List<ObjectId> units, Coord3D place, boolean forced) implements CombatOrder {
+        public AttackGround {
+            units = List.copyOf(units);
         }
     }
 

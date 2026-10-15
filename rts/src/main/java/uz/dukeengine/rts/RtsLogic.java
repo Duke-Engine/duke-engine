@@ -117,6 +117,20 @@ public final class RtsLogic extends RtsSimulation {
                 }
                 tellOrder(attack, attack.units(), attack.playerIndex()); // weaponless or not
             }
+            case CombatOrder.AttackGround ground -> {
+                for (var id : ground.units()) {
+                    var unit = findObject(id);
+                    if (unit == null || unit.getPlayerIndex() != ground.playerIndex()) {
+                        continue;
+                    }
+                    uz.dukeengine.combat.module.Errand.giveUpAll(unit);
+                    var weapon = unit.findModule(WeaponUpdate.class);
+                    if (weapon != null) {
+                        weapon.attackGround(ground.place());
+                    }
+                }
+                tellOrder(ground, ground.units(), ground.playerIndex());
+            }
             case CombatOrder.StopMoving stop -> {
                 for (var id : stop.units()) {
                     var unit = findObject(id);

@@ -212,6 +212,8 @@ public final class WeaponUpdate extends UpdateModule {
     private ObjectId target;
     /** Whether its target was given it by a forced order: kept on though the target passes itself off. */
     private boolean forced;
+    /** The place of the ground it was ordered to fire on, or null — see {@link #attackGround}. */
+    private Coord3D groundTarget;
     /** Whose order its target was, or null for one it found for itself — which slots it may use. */
     private OrderSource source;
 
@@ -463,11 +465,91 @@ public final class WeaponUpdate extends UpdateModule {
     /** Firing on something, it is at work where it stands: not asked to step aside. */
     @Override
     public boolean keepsBusy() {
-        return target != null;
+        return target != null || groundTarget != null;
+    }
+
+    /**
+     * Fire on a place of the ground — the reference's force-attack on open ground — with the first weapon of the set in
+     * use that may hit ground (its {@code Targets} name none, or {@code GROUND}), closing to its range on its own legs
+     * if it must, until a new order lets it go ({@link #holdFire}). False, and nothing changed, for a unit with no such
+     * weapon.
+     */
+    public boolean attackGround(Coord3D place) {
+        if (place == null || groundWeapon(armed()) == null) {
+            return false;
+        }
+        holdFire();
+        groundTarget = place;
+        return true;
+    }
+
+    /** The place of the ground it fires on, or null. */
+    public Coord3D getGroundTarget() {
+        return groundTarget;
+    }
+
+    /** The first armed slot whose weapon may hit the ground, as the player picks; null for none. */
+    private Armed groundWeapon(List<Armed> armed) {
+        for (var one : armed) {
+            var targets = one.weapon().targets();
+            if (one.slot().pickedBy(OrderSource.PLAYER) && (targets.isEmpty() || targets.contains("GROUND"))) {
+                return one;
+            }
+        }
+        return null;
+    }
+
+    /** One frame of a ground attack: close to the place, then fire on it from the range of the weapon that may. */
+    private void fireOnTheGround(uz.dukeengine.core.thing.World world, GameObject owner, List<Armed> armed,
+            boolean walking) {
+        var chosen = groundWeapon(armed);
+        if (chosen == null) {
+            groundTarget = null;
+            return;
+        }
+        var here = owner.getPosition();
+        float dx = groundTarget.x() - here.x();
+        float dy = groundTarget.y() - here.y();
+        float gap = (float) Math.sqrt(dx * dx + dy * dy);
+        var legs = owner.getLocomotor();
+        if (gap > range(owner, chosen.weapon())) {
+            if (legs != null && !legs.isMoving()) {
+                legs.moveTo(groundTarget); // ponytail: walked toward the place, stopped once in range
+            }
+            return;
+        }
+        if (legs != null && legs.isMoving()) {
+            legs.stop();
+        }
+        if (walking && !chosen.weapon().attackOnTheMove() || chosen.clip().status() != WeaponStatus.READY) {
+            return;
+        }
+        owner.setOrientation((float) StrictMath.atan2(dy, dx)); // ponytail: turned at once; no wind-up, no aim
+        firedOn.put(chosen.index(), world.getFrame());
+        var weapon = chosen.weapon();
+        float wider = bonus(owner, weapon, WeaponBonus.Kind.RADIUS);
+        float rolled = BlowRoll.of(owner, world);
+        var shot = new Shot(owner.getId(), owner.getPlayerIndex(), weapon, chosen.index(),
+                dealt(owner, weapon, weapon.damage()) * rolled, weapon.splashRadius() * wider,
+                dealt(owner, weapon, weapon.secondaryDamage()) * rolled, weapon.secondaryRadius() * wider);
+        boolean inFlight = false;
+        for (var module : owner.getModules()) {
+            if (module instanceof ProjectileLauncher launcher && launcher.launchAt(owner, groundTarget, shot)) {
+                inFlight = true;
+                break;
+            }
+        }
+        chosen.clip().fired(world.random(), rateOfFire(owner, weapon));
+        world.post(new WeaponFired(world.getFrame(), owner.getId(), null, here, groundTarget, weapon.name(),
+                chosen.index(), weapon.isContact(world.cellSize()), shot.radius()));
+        if (!inFlight) {
+            struck(world, shot, owner, null, groundTarget, groundTarget, here);
+        }
     }
 
     /** Let its target go: the attack is over, and a lock until it was is let go with it. */
     public void holdFire() {
+        groundTarget = null;
         this.target = null;
         this.forced = false;
         this.leeching = false;
@@ -635,6 +717,10 @@ public final class WeaponUpdate extends UpdateModule {
         if (world == null || allOut(armed)) {
             return; // an empty gun looks for nothing, and keeps what it had for when it is refilled
         }
+        if (groundTarget != null) {
+            fireOnTheGround(world, owner, armed, walking);
+            return;
+        }
 
         if (target == null) {
             if (!looksNow(world)) {
@@ -653,8 +739,9 @@ public final class WeaponUpdate extends UpdateModule {
             holdFire();
             return;
         }
-        if (world.getRelationship(owner.getPlayerIndex(), victim.getPlayerIndex()) == Relationship.ALLIES) {
-            holdFire(); // never fire on allies
+        if (world.getRelationship(owner.getPlayerIndex(), victim.getPlayerIndex()) == Relationship.ALLIES
+                && !(forced && source == OrderSource.PLAYER)) {
+            holdFire(); // never on its own side or an ally's, but by a player's own forced order
             return;
         }
         if (!forced && victim.isDisguisedFrom(owner.getPlayerIndex())) {
