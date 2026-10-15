@@ -740,7 +740,7 @@ final class DukeRtsApp extends SimpleApplication {
             }
         }, () -> new Vector3f(camera.targetX(), 0f, camera.targetZ()), this::floorHeightAt, this::debrisPiece,
                 (name, at) -> lists.play(name, EffectLists.Cue.at(at)), this::paintThrown, scorches);
-        listShow.shakeScale(visuals.getShakeScale());
+        applyShake();
         rootNode.attachChild(listNode);
         lists = new EffectLists(visuals::effectListNamed, particles, listShow, new java.util.Random().nextLong());
         lasers = new Lasers(assetManager, listNode, visuals::laserNamed, this::floorHeightAt);
@@ -2803,11 +2803,18 @@ final class DukeRtsApp extends SimpleApplication {
         rows.add(new StoneMenu.Choice(say("Anti-aliasing"), java.util.List.of(say("OFF"), "2×", "4×"),
                 () -> indexOf(SAMPLES, preferences.number("samples", 0)),
                 to -> preferences.set("samples", SAMPLES[to])));
+        rows.add(new StoneMenu.Choice(say("Camera shake"), java.util.List.of(say("Full"), say("Half"), say("Off")),
+                () -> Math.clamp(preferences.number("shake", 0), 0, SHAKES.length - 1),
+                to -> {
+                    preferences.set("shake", to);
+                    applyShake();
+                }));
         rows.add(volumeRow(say("Volume"), "volume", 100));
         // Only offered by a game that has any: this client draws three others and
         // a knob for a channel with nothing on it is a dead button.
         if (!visuals.getSounds().isEmpty()) {
             rows.add(volumeRow(say("Effects"), "volEffects", 100));
+            rows.add(volumeRow(say("Ambience"), "volAmbience", 70));
             rows.add(volumeRow(say("Voice"), "volVoice", 100));
             rows.add(volumeRow(say("Music"), "volMusic", 60));
             var tracks = visuals.getSounds().musicCues();
@@ -2874,6 +2881,7 @@ final class DukeRtsApp extends SimpleApplication {
             applyDisplaySettings();
         }
         applyVolume();
+        applyShake();
         if (pending.contains("musicTrack")) {
             playChosenMusic();
         }
@@ -3138,6 +3146,27 @@ final class DukeRtsApp extends SimpleApplication {
         sounds.volume(SoundBank.Channel.UI, effects);
         sounds.volume(SoundBank.Channel.VOICE, preferences.number("volVoice", 100) / 100f);
         sounds.volume(SoundBank.Channel.MUSIC, preferences.number("volMusic", 60) / 100f);
+        sounds.volume(SoundBank.Channel.AMBIENCE, preferences.number("volAmbience", 70) / 100f);
+    }
+
+    /** The player's camera shake — full, half or none — over the game's own. */
+    private static final float[] SHAKES = {1f, 0.5f, 0f};
+    /** The game's shake scale as it was given, before the player's choice was put over it. */
+    private float gameShake = Float.NaN;
+
+    /** The share of the game's shake the player's choice keeps: 0 full, 1 half, 2 none. */
+    static float playerShake(int choice) {
+        return SHAKES[Math.clamp(choice, 0, SHAKES.length - 1)];
+    }
+
+    private void applyShake() {
+        if (Float.isNaN(gameShake)) {
+            gameShake = visuals.getShakeScale();
+        }
+        visuals.shakeScale(gameShake * playerShake(preferences.number("shake", 0)));
+        if (listShow != null) {
+            listShow.shakeScale(visuals.getShakeScale());
+        }
     }
 
     /**

@@ -1189,12 +1189,8 @@ public final class WeaponUpdate extends UpdateModule {
      * same rule {@link #damageModifiers} follows, and for the same reason.
      */
     private static boolean heldByAModule(GameObject owner) {
-        for (var module : owner.getModules()) {
-            if (module instanceof WeaponHold hold && hold.holdingFire()) {
-                return true;
-            }
-        }
-        return false;
+        // Asked of every armed thing every frame: found among its modules without copying them.
+        return owner.anyModule(module -> module instanceof WeaponHold hold && hold.holdingFire());
     }
 
     /**

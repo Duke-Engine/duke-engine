@@ -414,6 +414,17 @@ E16, in parts.
   (`Visuals.namesMoment`), else its `.major`. A wave, a line shot (`Arrows.waveAlong`, `looseAlong`, each with a
   trailing `critical`), a charge and a trample tell their hurts critical too.
 
+### The player's settings, and a lighter frame
+
+- **An ambience knob** (E59): `SoundBank.Channel.AMBIENCE`, a channel a Sound block may name, with its own row in the
+  settings (`volAmbience`, 70 unless chosen, worded `say("Ambience")`). A loop the game started follows its channel's
+  knob as it turns.
+- **Camera shake** (E59): a settings row — Full, Half, Off, kept as `shake` — put over the game's `Visuals.shakeScale`.
+- **Closest-thing questions sort nothing** (E60): `findClosest` and `findClosestInReach` walk the index's buckets
+  in place (`SpatialIndex.eachNear`) rather than copying and sorting them; the nearest, ties to the lowest id, is the
+  same answer in any order. A weapon asks whether a module holds its fire without copying its owner's modules
+  (`GameObject.anyModule`).
+
 ### A route that keeps to the roads
 
 - **`PathGrid.setStepCosts(percentByCell)`** (E52): what a step into each cell costs, as a share of its plain cost — a

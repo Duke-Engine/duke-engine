@@ -178,24 +178,42 @@ public final class PartitionManager extends SubsystemInterface {
      * Ties broken by lowest object id.
      */
     public GameObject closestWithinReach(Footprint from, float reach, PartitionFilter filter) {
-        GameObject best = null;
-        float bestSeparation = Float.MAX_VALUE;
-        for (var candidate : candidates(from, reach)) {
-            if (!filter.accept(candidate)) {
-                continue;
+        var best = new Nearest();
+        float around = from.shape().footprintRadius() + reach + (index == null ? 0f : index.widest());
+        eachCandidate(from.center(), around, candidate -> {
+            if (filter.accept(candidate)) {
+                best.offer(candidate, from.separation(Footprint.of(candidate)), reach);
             }
-            float separation = from.separation(Footprint.of(candidate));
-            if (separation > reach) {
-                continue;
+        });
+        return best.thing;
+    }
+
+    /**
+     * The nearest of the things offered within a reach, ties to the lowest id — an answer that does not hang on the
+     * order they are offered in, so nothing is sorted to find it.
+     */
+    private static final class Nearest {
+        GameObject thing;
+        float distance = Float.MAX_VALUE;
+
+        void offer(GameObject candidate, float howFar, float reach) {
+            if (howFar > reach) {
+                return;
             }
-            if (separation < bestSeparation
-                    || (separation == bestSeparation && best != null
-                        && candidate.getId().value() < best.getId().value())) {
-                best = candidate;
-                bestSeparation = separation;
+            if (howFar < distance
+                    || (howFar == distance && thing != null && candidate.getId().value() < thing.getId().value())) {
+                thing = candidate;
+                distance = howFar;
             }
         }
-        return best;
+    }
+
+    /** Each thing whose middle may stand within {@code range} of {@code center}, in no order. */
+    private void eachCandidate(Coord3D center, float range, java.util.function.Consumer<GameObject> each) {
+        if (index == null || !index.eachNear(center.x() - range, center.y() - range, center.x() + range,
+                center.y() + range, each)) {
+            objectSource.get().forEach(each);
+        }
     }
 
     /**
@@ -203,23 +221,12 @@ public final class PartitionManager extends SubsystemInterface {
      * {@code filter}, or {@code null} if none. Ties broken by lowest object id.
      */
     public GameObject closestObject(Coord3D center, float range, PartitionFilter filter) {
-        GameObject best = null;
-        float bestDistance = Float.MAX_VALUE;
-        for (var candidate : candidates(center, range)) {
-            if (!filter.accept(candidate)) {
-                continue;
+        var best = new Nearest();
+        eachCandidate(center, range, candidate -> {
+            if (filter.accept(candidate)) {
+                best.offer(candidate, center.distance(candidate.getPosition()), range);
             }
-            float distance = center.distance(candidate.getPosition());
-            if (distance > range) {
-                continue;
-            }
-            if (distance < bestDistance
-                    || (distance == bestDistance && best != null
-                        && candidate.getId().value() < best.getId().value())) {
-                best = candidate;
-                bestDistance = distance;
-            }
-        }
-        return best;
+        });
+        return best.thing;
     }
 }

@@ -206,6 +206,16 @@ final class Sounds {
         if (channel == SoundBank.Channel.MUSIC) {
             followTheKnobs();
         }
+        loopsFollowTheKnobs();
+    }
+
+    /** The game's loops played at their channels' loudness as it stands — all but those still fading. */
+    private void loopsFollowTheKnobs() {
+        for (var loop : loops.entrySet()) {
+            if (gainFades.stream().noneMatch(fade -> fade.sound == loop.getValue())) {
+                loop.getValue().volume(gainOfCue(loop.getKey()));
+            }
+        }
     }
 
     /** The game's volume for a channel, which the player's is multiplied by; see {@link #gameVolumes}. */
@@ -214,6 +224,7 @@ final class Sounds {
         if (channel == SoundBank.Channel.MUSIC) {
             followTheKnobs();
         }
+        loopsFollowTheKnobs();
     }
 
     /**

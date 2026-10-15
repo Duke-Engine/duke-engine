@@ -173,7 +173,7 @@ public final class Duke3D {
         // chosen.
         var chosen = new GameSettings();
         chosen.inheritFrom(DukeRtsApp.PREFS, "volume", "fullscreen", "volEffects",
-                "volVoice", "volMusic", "musicTrack");
+                "volVoice", "volMusic", "volAmbience", "musicTrack", "shake");
         DisplayModes.firstWindow(chosen, width, height, DisplayModes.desktop());
         // the simulation starts when the player presses Play — or at once, if the
         // game asked for no menu at all

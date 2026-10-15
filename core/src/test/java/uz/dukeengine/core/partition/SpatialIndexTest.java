@@ -96,6 +96,24 @@ class SpatialIndexTest {
     }
 
     @Test
+    void theNearestOfSeveralAsNearIsTheOldestWhicheverBucketItStandsIn() {
+        var field = field();
+        var world = field.world();
+        var specks = new ArrayList<GameObject>();
+        for (var at : List.of(new Coord3D(300f, 0f, 0f), new Coord3D(-300f, 0f, 0f), new Coord3D(0f, 300f, 0f),
+                new Coord3D(0f, -300f, 0f))) {
+            var speck = world.createObject(field.kinds().get(0));
+            speck.setPosition(at);
+            specks.add(speck);
+        }
+        var middle = new Coord3D(0f, 0f, 0f);
+        assertSame(specks.getFirst(), world.getPartition().closestObject(middle, 400f, thing -> true));
+        assertSame(specks.get(1), world.getPartition().closestObject(middle, 400f, thing -> thing != specks.getFirst()));
+        assertSame(field.everyThing().closestObject(middle, 400f, thing -> true),
+                world.getPartition().closestObject(middle, 400f, thing -> true));
+    }
+
+    @Test
     void aThingThatLeavesIsFoundNoMoreByItsIdOrWhereItStood() {
         var field = field();
         var world = field.world();

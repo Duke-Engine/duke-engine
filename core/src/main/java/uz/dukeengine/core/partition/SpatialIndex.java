@@ -81,6 +81,20 @@ final class SpatialIndex {
      * the cheaper answer.
      */
     List<GameObject> near(float minX, float minY, float maxX, float maxY) {
+        var found = new ArrayList<GameObject>();
+        if (!eachNear(minX, minY, maxX, maxY, found::add)) {
+            return null;
+        }
+        found.sort(ENTERED);
+        return found;
+    }
+
+    /**
+     * The same things handed to {@code each} in no order, copied and sorted nowhere — for a question whose answer does
+     * not hang on the order it is asked in, as the nearest thing's does not — or false, and none handed, where
+     * {@link #near} would answer null.
+     */
+    boolean eachNear(float minX, float minY, float maxX, float maxY, java.util.function.Consumer<GameObject> each) {
         // A margin past the box: the question asked of each candidate is worked out in floats, and a thing its
         // rounding lets in must be a candidate to be let in.
         float marginX = 1f + Math.max(Math.abs(minX), Math.abs(maxX)) * 1e-4f;
@@ -91,19 +105,17 @@ final class SpatialIndex {
         long toY = cell(maxY + marginY);
         if (!Float.isFinite(minX) || !Float.isFinite(maxX) || !Float.isFinite(minY) || !Float.isFinite(maxY)
                 || ((double) toX - fromX + 1) * ((double) toY - fromY + 1) > Math.max(16, entries.size())) {
-            return null;
+            return false;
         }
-        var found = new ArrayList<GameObject>();
         for (long x = fromX; x <= toX; x++) {
             for (long y = fromY; y <= toY; y++) {
                 var bucket = buckets.get(key(x, y));
                 if (bucket != null) {
-                    found.addAll(bucket);
+                    bucket.forEach(each);
                 }
             }
         }
-        found.sort(ENTERED);
-        return found;
+        return true;
     }
 
     /**

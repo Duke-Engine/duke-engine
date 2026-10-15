@@ -543,6 +543,16 @@ public final class GameObject {
     }
 
     /** The first attached module of the given type, or {@code null} if none. */
+    /** Whether any of its modules passes {@code test} — asked without copying them, as {@link #getModules} does. */
+    public boolean anyModule(java.util.function.Predicate<? super Module> test) {
+        for (var module : modules) {
+            if (test.test(module)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public <M extends Module> M findModule(Class<M> type) {
         for (var module : modules) {
             if (type.isInstance(module)) {

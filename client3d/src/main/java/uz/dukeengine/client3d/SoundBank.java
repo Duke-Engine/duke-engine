@@ -29,7 +29,7 @@ public final class SoundBank {
      * monster behind him, and one who finds a hero's voice lines grating wants
      * exactly those off and nothing else.
      */
-    public enum Channel { EFFECTS, VOICE, UI, MUSIC }
+    public enum Channel { EFFECTS, VOICE, UI, MUSIC, AMBIENCE }
 
     /**
      * Who hears a moment that is about a thing.
