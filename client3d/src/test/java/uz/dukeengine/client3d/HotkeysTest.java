@@ -86,10 +86,11 @@ class HotkeysTest {
 
     /** A digit is a key this can bind too (the belt's 1 to 4); anything else is not. */
     @Test
-    void lettersAndDigitsAreBoundAndNothingElse() {
+    void lettersDigitsAndSpaceAreBoundAndNothingElse() {
         assertEquals(KeyInput.KEY_1, Hotkeys.codeOf('1'));
         assertTrue(claiming('4').claims(KeyInput.KEY_4));
-        assertEquals(-1, Hotkeys.codeOf(' '));
+        assertEquals(KeyInput.KEY_SPACE, Hotkeys.codeOf(' '), "a dodge's Space (E79)");
+        assertEquals(-1, Hotkeys.codeOf('-'));
     }
 
     // ---- keys that wait to be pointed at something ----

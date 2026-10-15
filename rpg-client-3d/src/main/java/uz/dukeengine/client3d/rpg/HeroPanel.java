@@ -706,8 +706,29 @@ final class HeroPanel {
      * something else. Returns whether the panel took the line — the caller then
      * knows not to print it as text as well.
      */
+    /** The letter each slot is drawn and pressed on, by its skill's key, where the game moved it. */
+    private final Map<Character, Character> letters = new java.util.HashMap<>();
+
+    /** The letter a slot's skill is pressed on: the one the game gave it, or its own key. */
+    char letterOf(char key) {
+        return letters.getOrDefault(key, key);
+    }
+
+    private void readTheLetters(String status) {
+        letters.clear();
+        if (status == null) {
+            return;
+        }
+        for (var field : status.split("\\|")) {
+            if (field.startsWith("letter=") && field.length() >= "letter=K,L".length()) {
+                letters.put(field.charAt(7), field.charAt(9));
+            }
+        }
+    }
+
     boolean show(String status, float seconds) {
         this.clock = seconds;
+        readTheLetters(status);
         var reading = Reading.parse(status);
         this.reading = reading;
         if (reading == null) {
@@ -2686,7 +2707,7 @@ final class HeroPanel {
         slot.state = skill.state;
         boolean passive = skill.state == Reading.State.PASSIVE;
         if (slot.keyText != null) {
-            slot.keyText.setText(passive || slot.key == BLANK ? "" : String.valueOf(slot.key));
+            slot.keyText.setText(passive || slot.key == BLANK ? "" : String.valueOf(letterOf(slot.key)));
         }
         boolean locked = skill.state == Reading.State.LOCKED;
         boolean cooling = skill.state == Reading.State.COOLING;
@@ -3839,6 +3860,7 @@ final class HeroPanel {
                     case "boss" -> { }
                     case "hero" -> { }
                     case "who" -> { }
+                    case "letter" -> { } // the slot's letter, read by the panel itself: see letters
                     default -> {
                         return null; // a field this client does not know: not ours
                     }

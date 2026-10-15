@@ -122,6 +122,19 @@ class PanelLookTest {
         assertEquals("Q", hero.keyLetter('Q'));
     }
 
+    /** A skill the game moved to another letter is drawn and pressed on it (E79). */
+    @Test
+    void aSlotIsDrawnAndPressedOnTheLetterTheGameGaveIt() {
+        var assets = new DesktopAssetManager(true);
+        var font = assets.loadFont("Interface/Fonts/Default.fnt");
+        var hero = new HeroPanel(assets, font, null, new Node("gui"), 1600f, 900f, PanelSkin.NONE, RangeLook.DEFAULT,
+                IconLook.DEFAULT, StatLook.DEFAULT, PanelLook.DEFAULTS);
+        assertTrue(hero.show(PanelLayoutTest.LINE + "|letter=W,E", 0f));
+        assertEquals("E", hero.keyLetter('W'), "W's skill shows E");
+        assertEquals('E', hero.letterOf('W'), "and is pressed on it");
+        assertEquals('Q', hero.letterOf('Q'));
+    }
+
     @Test
     void aBlockLeftOffAnswersNoClick() throws ReflectiveOperationException {
         var built = panel(with("blocks", List.of(PanelBlock.HERO, PanelBlock.DEPTH)));

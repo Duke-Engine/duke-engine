@@ -235,6 +235,36 @@ public final class Shell {
         return frontRows;
     }
 
+    /**
+     * A choice of the game's own on the Settings screen, flipped with the client's rows, kept under {@code key} in the
+     * player's settings file — read back at launch with {@link #setting} — {@code chosen} told at once, and again with
+     * the old choice where the player cancels.
+     */
+    public record SettingsRow(String key, String word, List<String> choices, int fallback,
+            java.util.function.IntConsumer chosen) {
+        public SettingsRow {
+            choices = List.copyOf(choices);
+        }
+    }
+
+    private final java.util.List<SettingsRow> settingsRows = new java.util.ArrayList<>();
+
+    /** A choice of the game's own on the Settings screen — see {@link SettingsRow}. */
+    public Shell settingsRow(String key, String word, List<String> choices, int fallback,
+            java.util.function.IntConsumer chosen) {
+        settingsRows.add(new SettingsRow(key, word, choices, fallback, chosen));
+        return this;
+    }
+
+    public List<SettingsRow> settingsRows() {
+        return List.copyOf(settingsRows);
+    }
+
+    /** What the player chose for the game's {@code key} last time it was kept, or {@code fallback}: read at launch. */
+    public static int setting(String key, int fallback) {
+        return new GameSettings().number(key, fallback);
+    }
+
     /** The game's rows on the pause menu; see {@link #pauseRows(List)}. */
     public List<Option> pauseRows() {
         return pauseRows;

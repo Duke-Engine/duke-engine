@@ -522,6 +522,12 @@ E16, in parts.
   harm's way its first `TickFrames` (`ObjectStatus.INVULNERABLE`: no blow takes health or is told, no stun or slow takes
   hold), through creatures and never ending inside one, short of stone, refused over a seal or while held, its own
   weapon's wind-up cut.
+- **A game's rows, its keys rebound, the letter on the bar** (E79): `Shell.settingsRow(key, word, choices, fallback,
+  chosen)` — a choice of the game's on Settings, kept under its key, read at launch by `Shell.setting(key, fallback)`,
+  told at once and told the old choice on Cancel. On the keys page a game's key taken waits for the next key pressed and
+  is put on it (`Hotkeys.rebind`, `codeFor`, `actionOn`; a clash changes places), kept as `key.<letter>`; the four
+  walking keys too (`walk.keys`). Space is a key a game may bind (`Hotkeys.on(' ', …)`). `HeroCard.skills(…, letterOf)`
+  writes a `letter` field; the bar draws a slot's letter and a click on it presses that letter.
 
 ### A route that keeps to the roads
 

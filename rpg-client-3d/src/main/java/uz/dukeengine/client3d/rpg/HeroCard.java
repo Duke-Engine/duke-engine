@@ -155,6 +155,22 @@ public final class HeroCard {
      * Every skill in {@code book} on its key: what it costs and whether it can be paid, its picture and its state —
      * ready, cooling, or locked and for want of what — its pips and whether a point may go there, and its card.
      */
+    /**
+     * The same, each skill drawn and pressed on the letter {@code letterOf} gives its key — W's skill pressed on E in a
+     * scheme that moves them — told as a {@code letter} field where it differs from the key.
+     */
+    public HeroCard skills(SkillBook book, SkillRanks ranks, int heroLevel, Words words,
+            java.util.function.UnaryOperator<Character> letterOf) {
+        skills(book, ranks, heroLevel, words);
+        for (var skill : book.getSkills()) {
+            Character letter = letterOf == null ? null : letterOf.apply(skill.key());
+            if (letter != null && letter != skill.key()) {
+                line.append("|letter=").append(skill.key()).append(',').append(letter);
+            }
+        }
+        return this;
+    }
+
     public HeroCard skills(SkillBook book, SkillRanks ranks, int heroLevel, Words words) {
         for (var skill : book.getSkills()) {
             int rank = ranks.rankOf(skill.key());

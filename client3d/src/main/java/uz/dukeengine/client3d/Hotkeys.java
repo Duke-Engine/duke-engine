@@ -368,12 +368,56 @@ public final class Hotkeys {
 
     /** Whether the game has taken this key, leaving the client without it. */
     boolean claims(int keyCode) {
+        return actionOn(keyCode) != 0;
+    }
+
+    /** Each binding the player put on a key of his own, by the letter the game bound it to. */
+    private final Map<Character, Integer> rebound = new LinkedHashMap<>();
+
+    /**
+     * Put the game's binding {@code action} — the letter it was bound to — on the key {@code code}: pressing it does
+     * what the letter did. A binding already on that key goes to the action's old key, so the two change places.
+     */
+    public void rebind(char action, int code) {
+        char key = Character.toUpperCase(action);
+        if (!bindings.containsKey(key) || code < 0) {
+            return;
+        }
+        char clash = actionOn(code);
+        int was = codeFor(key);
+        if (clash != 0 && clash != key) {
+            putOn(clash, was);
+        }
+        putOn(key, code);
+    }
+
+    private void putOn(char action, int code) {
+        if (code == codeOf(action)) {
+            rebound.remove(action);
+        } else {
+            rebound.put(action, code);
+        }
+    }
+
+    /** The key the binding {@code action} is on now: the player's, or its own letter's. */
+    public int codeFor(char action) {
+        char key = Character.toUpperCase(action);
+        return rebound.getOrDefault(key, codeOf(key));
+    }
+
+    /** The binding on the key {@code code} — the letter the game bound it to — or 0 for none. */
+    public char actionOn(int code) {
         for (var key : bindings.keySet()) {
-            if (codeOf(key) == keyCode) {
-                return true;
+            if (codeFor(key) == code) {
+                return key;
             }
         }
-        return false;
+        return 0;
+    }
+
+    /** The bindings put on keys of the player's own, by their letters. */
+    public Map<Character, Integer> rebound() {
+        return java.util.Collections.unmodifiableMap(rebound);
     }
 
     /**
@@ -443,6 +487,9 @@ public final class Hotkeys {
     public static int codeOf(char key) {
         if (key == '0') {
             return KeyInput.KEY_0;
+        }
+        if (key == ' ') {
+            return KeyInput.KEY_SPACE; // the one key past letters and digits a game binds: a dodge's
         }
         if (key >= '1' && key <= '9') {
             return KeyInput.KEY_1 + (key - '1'); // the row of digits is in order on the keyboard, 0 after 9

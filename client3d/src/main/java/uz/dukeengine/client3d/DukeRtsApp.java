@@ -2793,13 +2793,37 @@ final class DukeRtsApp extends SimpleApplication {
      * The lines of the Settings screen's list of keys: each letter the game claimed or said something of, with its
      * word; then each control of the client's own on its keys, called by its English name said the game's way.
      */
+    /**
+     * The game's keys a player may put elsewhere, in the order the keys page lists them first: each binding by its
+     * letter, then the four walking keys as {@code 1} to {@code 4}.
+     */
+    static List<Character> rebindable(Hotkeys hotkeys) {
+        var actions = new ArrayList<Character>(new java.util.TreeSet<>(hotkeys.claimedKeys()));
+        if (hotkeys.directionChanged() != null) {
+            actions.addAll(List.of('1', '2', '3', '4'));
+        }
+        return actions;
+    }
+
     static List<String> keyLines(Hotkeys hotkeys, java.util.function.UnaryOperator<String> say) {
         var lines = new ArrayList<String>();
-        var letters = new java.util.TreeSet<Character>(hotkeys.claimedKeys());
-        letters.addAll(hotkeys.describedKeys());
-        for (char letter : letters) {
+        for (char letter : new java.util.TreeSet<Character>(hotkeys.claimedKeys())) {
             var word = hotkeys.wordOf(letter);
-            lines.add(word.isEmpty() ? String.valueOf(letter) : letter + "   " + word);
+            var key = Hotkeys.nameOf(hotkeys.codeFor(letter));
+            lines.add(word.isEmpty() ? key : key + "   " + word);
+        }
+        if (hotkeys.directionChanged() != null) {
+            var walk = hotkeys.directionKeys();
+            lines.add(walk.up() + "   " + say.apply("Walk up"));
+            lines.add(walk.left() + "   " + say.apply("Walk left"));
+            lines.add(walk.down() + "   " + say.apply("Walk down"));
+            lines.add(walk.right() + "   " + say.apply("Walk right"));
+        }
+        for (char letter : new java.util.TreeSet<Character>(hotkeys.describedKeys())) {
+            if (!hotkeys.claimedKeys().contains(letter)) {
+                var word = hotkeys.wordOf(letter);
+                lines.add(word.isEmpty() ? String.valueOf(letter) : letter + "   " + word);
+            }
         }
         var keyMap = hotkeys.keyMap();
         for (var control : KeyMap.Control.values()) {
@@ -2873,6 +2897,14 @@ final class DukeRtsApp extends SimpleApplication {
         rows.add(new StoneMenu.Choice(say("Anti-aliasing"), java.util.List.of(say("OFF"), "2×", "4×"),
                 () -> indexOf(SAMPLES, preferences.number("samples", 0)),
                 to -> preferences.set("samples", SAMPLES[to])));
+        for (var row : shell.settingsRows()) {
+            rows.add(new StoneMenu.Choice(row.word(), row.choices(),
+                    () -> Math.clamp(preferences.number(row.key(), row.fallback()), 0, row.choices().size() - 1),
+                    to -> {
+                        preferences.set(row.key(), to);
+                        row.chosen().accept(to);
+                    }));
+        }
         rows.add(new StoneMenu.Choice(say("Camera shake"), java.util.List.of(say("Full"), say("Half"), say("Off")),
                 () -> Math.clamp(preferences.number("shake", 0), 0, SHAKES.length - 1),
                 to -> {
@@ -2901,11 +2933,16 @@ final class DukeRtsApp extends SimpleApplication {
                         }));
             }
         }
-        // Read, not changed: every letter the game uses and every control of the client's own, each in the game's
-        // words. ponytail: no rebinding yet; a list a player can only read is the first half of one he can change.
+        // Every key the game uses and every control of the client's own, each in the game's words; one of the game's
+        // taken, the next key pressed is its key. ponytail: the client's own controls are read, not rebound, yet.
         var keys = keyLines(hotkeys, this::say);
         if (!keys.isEmpty()) {
-            rows.add(new StoneMenu.Opens(say("Keys"), keys, () -> 0, to -> { }));
+            var actions = rebindable(hotkeys);
+            rows.add(new StoneMenu.Opens(say("Keys"), keys, () -> 0, to -> {
+                if (to < actions.size()) {
+                    capturing = actions.get(to);
+                }
+            }));
         }
         // The two buttons, in sockets rather than as two more rows: they are not
         // settings, they are what happens to the settings.
@@ -2944,6 +2981,11 @@ final class DukeRtsApp extends SimpleApplication {
     private void undoSettings() {
         var pending = preferences.pending();
         preferences.cancel();
+        for (var row : shell.settingsRows()) {
+            if (pending.contains(row.key())) {
+                row.chosen().accept(preferences.number(row.key(), row.fallback())); // the game told its old choice
+            }
+        }
         if (pending.contains("fullscreen")) {
             fillTheScreen(preferences.flag("fullscreen", false));
         }
@@ -3994,6 +4036,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     private void installInput() {
         bound.clear();
+        hotkeyListener = null; // heard by the listener made below, once
         map("Select", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
         map("Order", new MouseButtonTrigger(MouseInput.BUTTON_RIGHT));
         map("Turn", new MouseButtonTrigger(MouseInput.BUTTON_MIDDLE));
@@ -4113,18 +4156,12 @@ final class DukeRtsApp extends SimpleApplication {
                 }
             }
         };
-        for (var key : hotkeys.all().keySet()) {
-            int code = Hotkeys.codeOf(key);
-            if (code < 0) {
-                continue;
-            }
-            String mapping = HOTKEY + key;
-            inputManager.deleteMapping(mapping);
-            map(mapping, new KeyTrigger(code));
-        }
+        takeTheRebindings();
+        mapTheHotkeys();
         // Everything that was bound, in one call. Not a list typed out here: see
         // the note on `bound`.
         inputManager.addListener(actions, bound.toArray(new String[0]));
+        hotkeyListener = actions; // a binding put on another key later is heard by it too
 
         AnalogListener zoom = (name, value, tpf) -> {
             if (screen == Screen.PLAYING && snapshot.camera() == null) {
@@ -4132,6 +4169,32 @@ final class DukeRtsApp extends SimpleApplication {
             }
         };
         inputManager.addListener(zoom, "ZoomIn", "ZoomOut");
+    }
+
+    /** What hears the game's keys, for a binding moved to another key. */
+    private ActionListener hotkeyListener;
+
+    /** Each of the game's bindings on its key — its own letter's, or the one the player put it on. */
+    private void mapTheHotkeys() {
+        var names = new ArrayList<String>();
+        for (var key : hotkeys.all().keySet()) {
+            int code = hotkeys.codeFor(key);
+            String mapping = HOTKEY + key;
+            if (inputManager.hasMapping(mapping)) {
+                inputManager.deleteMapping(mapping);
+            }
+            if (code < 0) {
+                continue;
+            }
+            inputManager.addMapping(mapping, new KeyTrigger(code));
+            names.add(mapping);
+            if (!bound.contains(mapping)) {
+                bound.add(mapping);
+            }
+        }
+        if (hotkeyListener != null && !names.isEmpty()) {
+            inputManager.addListener(hotkeyListener, names.toArray(new String[0])); // a mapping deleted lost its ear
+        }
     }
 
     /** What a key's mapping is called: this and its code. */
@@ -4189,8 +4252,8 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         char letter = letterOf(code);
-        if (letter != 0 && hotkeys.unclaimed(code).length == 0) {
-            return; // the game's own letter, answered by its own mapping
+        if (hotkeys.claims(code)) {
+            return; // the game's own key, answered by its own mapping
         }
         var press = controls.press(key, timer.getTimeInSeconds(), controlScene);
         if (press.taken()) {
@@ -4208,8 +4271,62 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /** The game's key waiting for the next key pressed to be its own, or null — see the keys page. */
+    private Character capturing;
+
+    /** The next key pressed made the waiting key's own, kept, and the keys page shown again with it. */
+    private void capture(int code) {
+        char action = capturing;
+        capturing = null;
+        if (code == KeyInput.KEY_ESCAPE) {
+            return; // asked and let go
+        }
+        if (action >= '1' && action <= '4') {
+            char letter = letterOf(code);
+            if (letter == 0) {
+                return;
+            }
+            var walk = hotkeys.directionKeys();
+            var keys = switch (action) {
+                case '1' -> new DirectionKeys(letter, walk.left(), walk.down(), walk.right());
+                case '2' -> new DirectionKeys(walk.up(), letter, walk.down(), walk.right());
+                case '3' -> new DirectionKeys(walk.up(), walk.left(), letter, walk.right());
+                default -> new DirectionKeys(walk.up(), walk.left(), walk.down(), letter);
+            };
+            hotkeys.onDirection(keys, hotkeys.directionChanged());
+            preferences.set("walk.keys", (int) keys.up() << 24 | (int) keys.left() << 16 | (int) keys.down() << 8
+                    | keys.right());
+        } else {
+            hotkeys.rebind(action, code);
+            for (var bound : hotkeys.all().keySet()) {
+                preferences.set("key." + (int) bound, hotkeys.codeFor(bound));
+            }
+            mapTheHotkeys();
+        }
+        showSettingsMenu(settingsReturn);
+    }
+
+    /** The keys he put the game's bindings and walking on, as he kept them last. */
+    private void takeTheRebindings() {
+        for (var bound : java.util.List.copyOf(hotkeys.all().keySet())) {
+            int code = preferences.number("key." + (int) bound, -1);
+            if (code >= 0) {
+                hotkeys.rebind(bound, code);
+            }
+        }
+        int walk = preferences.number("walk.keys", 0);
+        if (walk != 0 && hotkeys.directionChanged() != null) {
+            hotkeys.onDirection(new DirectionKeys((char) (walk >>> 24 & 0xFF), (char) (walk >>> 16 & 0xFF),
+                    (char) (walk >>> 8 & 0xFF), (char) (walk & 0xFF)), hotkeys.directionChanged());
+        }
+    }
+
     /** A key on a menu: the pan keys and the arrows walk it, Enter and Space take, Escape goes back. */
     private void menuKey(int code, KeyMap.Key key) {
+        if (capturing != null) {
+            capture(code);
+            return;
+        }
         var control = controls.controlOn(key);
         if (control == KeyMap.Control.FULLSCREEN) {
             toggleFullscreen();

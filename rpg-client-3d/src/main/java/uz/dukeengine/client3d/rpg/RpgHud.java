@@ -203,7 +203,10 @@ public final class RpgHud implements HudPart {
     @Override
     public Character keyAt(float x, float y) {
         var key = panel.slotAt(x, y);
-        return key == null || panel.pressable(key) ? key : null; // a passive takes no click; its card still shows
+        if (key == null || !panel.pressable(key)) {
+            return null; // a passive takes no click; its card still shows
+        }
+        return panel.letterOf(key); // pressed on the letter the game drew it with
     }
 
     /**
