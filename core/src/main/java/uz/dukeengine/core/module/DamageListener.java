@@ -15,7 +15,16 @@ public interface DamageListener {
      * A blow took health: {@code amount} after armour, of {@code type}, dealt by {@code attacker} (null for no one's),
      * on {@code frame}. A blow that takes none is not told, nor one landing on a body already dead.
      */
-    void onDamage(DamageType type, float amount, ObjectId attacker, int frame);
+    default void onDamage(DamageType type, float amount, ObjectId attacker, int frame) {
+    }
+
+    /**
+     * The same, told the whole blow — who dealt it, and whether it was critical ({@link Death#critical}) — where it was
+     * told one; by default what the form above hears.
+     */
+    default void onDamage(DamageType type, float amount, Death blow, int frame) {
+        onDamage(type, amount, blow == null ? null : blow.killer(), frame);
+    }
 
     /** It was healed by {@code amount}. Nothing by default. */
     default void onHealing(float amount) {

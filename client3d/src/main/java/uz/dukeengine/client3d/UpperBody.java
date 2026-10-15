@@ -17,6 +17,13 @@ final class UpperBody {
      * Play {@code clip} once from {@code joint} up, on a layer masked to it made the first time; false — and nothing
      * played — where the armature has no such joint or the composer no such clip.
      */
+    /** Whatever the upper body plays, ended: the legs' layer has the whole body again. */
+    static void end(AnimComposer composer) {
+        if (composer != null && composer.getLayerNames().contains(LAYER)) {
+            composer.removeCurrentAction(LAYER);
+        }
+    }
+
     static boolean play(AnimComposer composer, Armature armature, String joint, String clip) {
         if (armature == null || armature.getJoint(joint) == null || composer.getAnimClip(clip) == null) {
             return false;

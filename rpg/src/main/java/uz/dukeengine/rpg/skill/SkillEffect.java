@@ -247,6 +247,15 @@ public enum SkillEffect {
     SOUL_DRINK(Aim.SELF, true),
 
     /**
+     * A stagger: never cast, a blow of {@code Damage} or more after armour, or any critical one, stuns its bearer
+     * {@code StunFrames} and keeps him busy at {@code CastAnim} — his flinch — as long; then for {@code DurationFrames}
+     * no blow staggers him again.
+     *
+     * <p>Never cast: see {@link #isPassive}.
+     */
+    STAGGER(Aim.SELF, true),
+
+    /**
      * Cannot be killed, only beaten: its bearer's body never falls below {@code HealBelowPercent} of its most health —
      * the blow that would take it lower leaves it there ({@code BodyModule.setLeastHealth}), so no death is reaped and
      * no kill is credited — and then it is beaten ({@link SkillBook#isBeaten}). What being beaten does is the game's.

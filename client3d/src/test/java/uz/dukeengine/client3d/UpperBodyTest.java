@@ -56,4 +56,29 @@ class UpperBodyTest {
         assertEquals(1f, leg.getLocalTranslation().x, 1e-4f, "the leg walks on");
         assertFalse(UpperBody.play(composer, armature, "no_such_joint", "attack"), "a joint it has not: nothing");
     }
+
+    /** A busy clip that begins cuts off a swing under way, its upper-body layer too; one going on does not (E72). */
+    @Test
+    void aFlinchBegunMidSwingTakesTheBody() {
+        assertTrue(DukeRtsApp.cutsIn(null, "Hurt"), "a stagger begins");
+        assertFalse(DukeRtsApp.cutsIn("Hurt", "Hurt"), "the same one going on");
+        assertFalse(DukeRtsApp.cutsIn("Hurt", null), "none");
+
+        var root = new Joint("root");
+        var spine = new Joint("spine");
+        var arm = new Joint("arm");
+        var leg = new Joint("leg");
+        root.addChild(spine);
+        spine.addChild(arm);
+        root.addChild(leg);
+        var armature = new Armature(new Joint[] {root, spine, arm, leg});
+        var composer = new AnimComposer();
+        composer.addAnimClip(clip("walk", arm, leg, 1f, 1f));
+        composer.addAnimClip(clip("attack", arm, leg, 5f, 9f));
+        new Node("knight").addControl(composer);
+        composer.setCurrentAction("walk");
+        UpperBody.play(composer, armature, "spine", "attack");
+        UpperBody.end(composer);
+        assertEquals(null, composer.getCurrentAction(UpperBody.LAYER), "the swing above is gone");
+    }
 }

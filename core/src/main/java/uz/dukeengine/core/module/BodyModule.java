@@ -90,11 +90,10 @@ public abstract class BodyModule extends Module {
         death = isDead() ? blow : null;
         if (worth > 0f) {
             hurt(type, worth, blow, at, from);
-            var attacker = blow == null ? null : blow.killer();
             int frame = getOwner().getWorld() == null ? 0 : getOwner().getWorld().getFrame();
             for (var module : java.util.List.copyOf(getOwner().getModules())) {
                 if (module instanceof DamageListener listener) {
-                    listener.onDamage(type, worth, attacker, frame);
+                    listener.onDamage(type, worth, blow, frame);
                 }
             }
         }

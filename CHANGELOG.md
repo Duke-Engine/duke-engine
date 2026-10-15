@@ -479,6 +479,15 @@ E16, in parts.
   `seconds`, or only at a critical blow or one of at least `HitNumbers.bigAt`. A creature in a crowd fights rather
   than trembles.
 
+### A stagger in the skill system
+
+- **`SkillEffect.STAGGER`** (E72): a passive — a blow of `Damage` or more after armour, or any critical one, stuns its
+  bearer `StunFrames` and keeps him busy at `CastAnim` (his flinch) as long; for `DurationFrames` after, no blow
+  staggers him. `DamageListener.onDamage(type, amount, Death, frame)` tells a listener the whole blow, its crit
+  among it; the old form is still told, and now has a default.
+- **A flinch over a swing** (E72): a busy clip that begins ends an attack or flinch clip under way, its upper-body
+  layer too, so a stagger mid-swing is drawn as the stagger.
+
 ### A route that keeps to the roads
 
 - **`PathGrid.setStepCosts(percentByCell)`** (E52): what a step into each cell costs, as a share of its plain cost — a

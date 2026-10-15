@@ -467,6 +467,8 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private static final class UnitNode {
         Node root;
+        /** The clip it was busy with last frame, so a new one is seen starting. */
+        String lastBusy;
         /** Whether its swing began with a wind-up, so the shot that ends it does not swing again. */
         boolean swungFromWindUp;
         Geometry ring;
@@ -7779,11 +7781,22 @@ final class DukeRtsApp extends SimpleApplication {
      * {@link #playOnce}. Between blows a unit that has run out of things to do is
      * standing, which is what it looks like.
      */
+    /** Whether a busy clip has just begun: one now, and not the one it had. */
+    static boolean cutsIn(String wasBusy, String isBusy) {
+        return isBusy != null && !isBusy.equals(wasBusy);
+    }
+
     private void animate(UnitNode node, UnitView view) {
         if (node.carryingAgainAt > 0f && timer.getTimeInSeconds() >= node.carryingAgainAt) {
             carrying(node, true);
             node.carryingAgainAt = 0f;
         }
+        if (cutsIn(node.lastBusy, view.busyClip())) {
+            // A stagger landing mid-swing: the swing's blows will not land, so its clip gives way to the flinch.
+            node.actionUntil = 0f;
+            UpperBody.end(node.composer);
+        }
+        node.lastBusy = view.busyClip();
         if (timer.getTimeInSeconds() < node.actionUntil) {
             return; // a blow or a flinch has the model; it will hand it back
         }

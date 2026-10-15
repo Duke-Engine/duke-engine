@@ -52,7 +52,8 @@ import uz.dukeengine.combat.module.WeaponUpdate;
  * {@code DASH} walks with {@link StrictMath}. Nothing here asks the clock.
  */
 @ModuleGroup({ModuleGroups.COMBAT, ModuleGroups.MOVEMENT, ModuleGroups.EFFECT, ModuleGroups.BODY})
-public final class SkillBook extends UpdateModule implements DamageModifier, RateOfFireModifier, WeaponHold {
+public final class SkillBook extends UpdateModule implements DamageModifier, RateOfFireModifier, WeaponHold,
+        uz.dukeengine.core.module.DamageListener {
 
     /** It reads no fields; the block only says the unit has one. */
     public record Data() implements ModuleData {
@@ -227,6 +228,29 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     private int maxMana;
     private int manaTenthsPerSecond;
     private int manaCarry;
+    /** The first frame a {@code STAGGER} may stagger him again. */
+    private int staggerFrom;
+
+    /** A blow on him: a {@code STAGGER} he bears stuns him and holds him at his flinch, if the blow is heavy enough. */
+    @Override
+    public void onDamage(DamageType type, float amount, uz.dukeengine.core.module.Death blow, int frame) {
+        Skill stagger = null;
+        for (var skill : passives()) {
+            if (skill.effect() == SkillEffect.STAGGER) {
+                stagger = skill;
+                break;
+            }
+        }
+        var owner = getOwner();
+        if (stagger == null || frame < staggerFrom || owner.isEffectivelyDead() || stagger.stunFrames() <= 0
+                || amount < stagger.damage() && (blow == null || !blow.critical())) {
+            return;
+        }
+        daze(owner, stagger.stunFrames());
+        owner.busy(stagger.castAnim(), stagger.stunFrames());
+        staggerFrom = frame + stagger.stunFrames() + stagger.durationFrames();
+    }
+
     /** Health a {@code HEAL} buff has paid toward its next whole point, counted as {@link #manaCarry} is. */
     private int healCarry;
 
