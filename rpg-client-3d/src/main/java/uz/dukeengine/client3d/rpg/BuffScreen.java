@@ -54,10 +54,17 @@ public final class BuffScreen {
 
     /** What each kind adds is called, in the game's language. */
     public record Words(String attack, String manaRegen, String lifesteal, String attackSpeed, String seconds,
-            String souls) {
+            String souls, String healthRegen) {
 
         public Words {
             souls = souls == null ? "" : souls;
+            healthRegen = healthRegen == null ? "" : healthRegen;
+        }
+
+        /** The words of a game that names no health over time. */
+        public Words(String attack, String manaRegen, String lifesteal, String attackSpeed, String seconds,
+                String souls) {
+            this(attack, manaRegen, lifesteal, attackSpeed, seconds, souls, "");
         }
 
         /** The words of a game whose creatures drink no souls. */
@@ -177,6 +184,14 @@ public final class BuffScreen {
         for (var kind : SkillBook.aurasOn(creature)) {
             on.add(new Buff(kinds.get(kind), SkillBook.auraOn(creature, kind), 0));
         }
+        // A meal's health over time, shown where the game gave a HEAL skill to picture it by.
+        int meal = book.buffOf(SkillEffect.HEAL, frame + 1);
+        if (meal > 0 && kinds.containsKey(SkillEffect.HEAL)) {
+            int last = book.getBuffs().stream()
+                    .filter(held -> held.kind() == SkillEffect.HEAL && held.value() == meal)
+                    .mapToInt(held -> held.until()).max().orElse(frame);
+            on.add(new Buff(kinds.get(SkillEffect.HEAL), meal, last - frame));
+        }
         var drink = book.soulDrink();
         if (drink != null) {
             on.add(new Buff(drink, book.soulPercent(), 0, book.getSouls()));
@@ -195,6 +210,9 @@ public final class BuffScreen {
             case HASTE -> "+" + figure + "% " + words.attackSpeed() + " · "
                     + Math.ceilDiv(buff.framesLeft(), GameConstants.LOGICFRAMES_PER_SECOND) + words.seconds();
             case SOUL_DRINK -> "+" + figure + "% " + words.attack() + " · " + words.souls() + ": " + buff.souls();
+            case HEAL -> "+" + java.math.BigDecimal.valueOf(figure, 1).stripTrailingZeros().toPlainString() + " "
+                    + words.healthRegen() + " · "
+                    + Math.ceilDiv(buff.framesLeft(), GameConstants.LOGICFRAMES_PER_SECOND) + words.seconds();
             default -> "";
         };
     }

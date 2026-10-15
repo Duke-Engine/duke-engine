@@ -172,6 +172,7 @@ public abstract class BodyModule extends Module {
         world.post(new ObjectHurt(world.getFrame(), owner.getId(), owner.getTemplate().name(),
                 owner.getPlayerIndex(), type, worth, attacker, where,
                 from != null ? from : dealer == null ? null : dealer.getPosition(), blow != null && blow.critical()));
+        getOwner().busy(null, 0); // a blow breaks off whatever work it was at
     }
 
     /**

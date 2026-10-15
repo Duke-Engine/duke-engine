@@ -99,6 +99,18 @@ final class MatchClient extends GameClient {
     }
 
     /** The words {@code object} holds, and the game's words for its moments now. */
+    /** Its words, and its work's clip among them while it is busy and standing — see {@code UnitView.busyClip}. */
+    private static java.util.List<String> busyIn(java.util.List<String> words,
+            uz.dukeengine.core.thing.GameObject object, boolean moving) {
+        var clip = moving ? null : object.getBusyClip();
+        if (clip == null) {
+            return words;
+        }
+        var all = new java.util.ArrayList<>(words);
+        all.add(uz.dukeengine.core.view.UnitView.BUSY + clip);
+        return all;
+    }
+
     private java.util.List<String> wordsOf(uz.dukeengine.core.thing.GameObject object, boolean moving,
             uz.dukeengine.combat.module.WeaponUpdate weapon, java.util.Map<Integer, Float> turns) {
         var words = momentWords;
@@ -312,7 +324,8 @@ final class MatchClient extends GameClient {
                 object.keepsOwnHeight(),
                 object.statusBits(),
                 parts.passengers(object),
-                wordsOf(object, ai != null && ai.isMoving(), weapon, turns),
+                busyIn(wordsOf(object, ai != null && ai.isMoving(), weapon, turns), object,
+                        ai != null && ai.isMoving()),
                 parts.built(object),
                 rider ? carrier.getId().value() : -1,
                 allied,

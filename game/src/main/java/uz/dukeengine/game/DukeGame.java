@@ -695,10 +695,12 @@ public final class DukeGame {
         }
         float cell = terrain.getCellSize();
         var footprints = new ArrayList<uz.dukeengine.core.pathfind.SceneryFootprint>();
-        for (var piece : dressed.scenery()) {
+        var pieces = dressed.scenery();
+        for (int at = 0; at < pieces.size(); at++) {
+            var piece = pieces.get(at);
             if (piece.footprint() > 0f) {
                 footprints.add(new uz.dukeengine.core.pathfind.SceneryFootprint(piece.x() * cell, piece.y() * cell,
-                        piece.footprint() * cell));
+                        piece.footprint() * cell, at));
             }
         }
         return footprints;

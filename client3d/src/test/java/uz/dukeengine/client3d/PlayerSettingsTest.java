@@ -75,4 +75,45 @@ class PlayerSettingsTest {
         show.shake(Vector3f.ZERO, strengths[strengths.length - 1]);
         assertSame(Vector3f.ZERO, show.shakeNow());
     }
+
+    @Test
+    void aLoopAtAPlaceIsHeardThereUnderItsKeyAndStoppedByIt() {
+        var at = new ArrayList<Vector3f>();
+        var stops = new int[1];
+        var sounds = new Sounds(SoundBank.create()
+                .cue("campfire", SoundBank.Channel.AMBIENCE, true, 1f, 0f, List.of("audio/ambience/fire.ogg"))
+                .build(), new SoundSink() {
+                    @Override
+                    public void play(String assetPath, float gain, Vector3f where) {
+                    }
+
+                    @Override
+                    public Playing loop(String assetPath, float gain, Vector3f where) {
+                        at.add(where);
+                        return new Playing() {
+                            @Override
+                            public void stop() {
+                                stops[0]++;
+                            }
+
+                            @Override
+                            public void volume(float gain) {
+                            }
+                        };
+                    }
+
+                    @Override
+                    public Playing music(String assetPath, float gain) {
+                        return Playing.NONE;
+                    }
+                });
+
+        sounds.loopAt("fire-1", "campfire", new Vector3f(10f, 0f, 20f));
+        sounds.update(0.1f);
+        assertEquals(List.of(new Vector3f(10f, 0f, 20f)), at, "placed, once");
+        sounds.stopLoopAt("fire-1", 0f);
+        assertEquals(1, stops[0]);
+        sounds.update(0.1f);
+        assertEquals(1, at.size(), "not started again once stopped");
+    }
 }

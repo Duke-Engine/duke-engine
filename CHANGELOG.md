@@ -446,6 +446,22 @@ E16, in parts.
   passive; `HeroPanel` draws it in a dimmer frame with no key letter, no hover wash and no sweep, and takes no click on
   it (`pressable`) — its card still shows, and its raise badge still takes a point.
 
+### Food and fire
+
+- **Scenery a hero can fell** (E66): `GameLogic.removeScenery(index)` and `restoreScenery(index)`, by a piece's place in
+  the map's scenery — its footprint leaves (rejoins) the ground at once, in the checksum, and the picture is told
+  (`SceneryChanged`; a world built round the camera builds that chunk again, one built whole its ground).
+  `sceneryNear(place, reach)` is the standing piece under a click — a game's `groundOrder` rule answers `Chop` by it,
+  and its order carries the place; `getRemovedScenery`/`setRemovedScenery` for a save; `SceneryFootprint.index`.
+- **Busy at work** (E67): `GameObject.busy(clip, frames)` — the window loops that clip on it while the frames run and
+  it stands (`UnitView.busyClip`, carried as a `busy:<clip>` word); `busy(null, 0)` ends it, and so does a blow that
+  does harm. Out of the checksum.
+- **A meal's health over time** (E68): the book heals its bearer by the strongest `HEAL` buff it holds, tenths of a
+  point a second as a `MANA_AURA` is for mana; `healthPerSecond` counts it, and `BuffScreen` shows it with its seconds
+  where the game gave a `HEAL` skill to picture it by (`Words.healthRegen`).
+- **A loop at a place** (E68): `Duke3D.loopAt(key, cue, x, y)` and `stopLoopAt(key, fadeOut)` — a campfire's crackle,
+  heard as a placed cue is and started again when the listener comes back within its reach.
+
 ### A route that keeps to the roads
 
 - **`PathGrid.setStepCosts(percentByCell)`** (E52): what a step into each cell costs, as a share of its plain cost — a

@@ -227,6 +227,8 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     private int maxMana;
     private int manaTenthsPerSecond;
     private int manaCarry;
+    /** Health a {@code HEAL} buff has paid toward its next whole point, counted as {@link #manaCarry} is. */
+    private int healCarry;
 
     /** A point is this many tenths; the rate is held in them. See {@link #manaCarry}. */
     private static final int TENTHS = 10;
@@ -1848,14 +1850,16 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
         return share;
     }
 
-    /** Health its passives give back each second: a {@code DRAGON_BLOOD}'s, at its rank; 0 for none. */
+    /** Health given back each second: a {@code DRAGON_BLOOD}'s at its rank, and the strongest {@code HEAL} buff on it. */
     public float healthPerSecond() {
+        var world = getOwner().getWorld();
+        float meal = world == null ? 0f : buffOf(SkillEffect.HEAL, world.getFrame()) / (float) TENTHS;
         for (var skill : passives()) {
             if (skill.effect() == SkillEffect.DRAGON_BLOOD) {
-                return skill.heal() * rankOf(skill);
+                return skill.heal() * rankOf(skill) + meal;
             }
         }
-        return 0f;
+        return meal;
     }
 
     /** Mana that comes back each second: its pool's own trickle and the strongest {@code MANA_AURA} on it. */
@@ -1922,6 +1926,27 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
         }
     }
 
+    /**
+     * A meal's health: the strongest {@code HEAL} buff on its list — tenths of a point a second, as a {@code MANA_AURA}
+     * is for mana — paid in whole points against a frame carry while it holds.
+     */
+    private void digest() {
+        var body = getOwner().getBody();
+        var world = getOwner().getWorld();
+        int tenths = body == null || world == null || body.isDead() ? 0 : buffOf(SkillEffect.HEAL, world.getFrame());
+        if (tenths <= 0) {
+            healCarry = 0;
+            return;
+        }
+        int aSecond = TENTHS * uz.dukeengine.core.GameConstants.LOGICFRAMES_PER_SECOND;
+        healCarry += tenths;
+        int whole = healCarry / aSecond;
+        if (whole > 0) {
+            healCarry -= whole * aSecond;
+            body.heal(whole);
+        }
+    }
+
     @Override
     public void update() {
         if (charge != null) {
@@ -1930,6 +1955,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
         holdTheFloor();
         runTheBlood();
         regenerate();
+        digest();
         for (int slot = 0; slot < cooldowns.length; slot++) {
             if (cooldowns[slot] > 0) {
                 cooldowns[slot]--;

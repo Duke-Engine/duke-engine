@@ -1161,6 +1161,24 @@ class TerrainSceneTest {
         assertEquals(grid.storeyHeight(7, 2), banner.getLocalTranslation().y, 0.001f, "on the floor of its cell");
     }
 
+    /** A piece the world took away is not drawn, and put back is drawn again (E66). */
+    @Test
+    void aFelledPieceIsNotDrawnAndGrownAgainIs() {
+        var grid = twoStoreys();
+        var root = new Node("terrain");
+        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles());
+        var wood = java.util.List.of(new Scenery("tree", 2.5f, 1.5f, 0f, 1f, 0xFFFFFF, 0.4f),
+                new Scenery("banner", 7.5f, 2.5f, 0f, 1f, 0xFFFFFF, 0f));
+        terrain.hideScenery(java.util.Set.of(0));
+        terrain.rebuild(grid, kit(), null, null, null, wood);
+        assertTrue(pieces(root, "tree").isEmpty(), "felled");
+        assertEquals(1, pieces(root, "banner").size());
+
+        assertTrue(terrain.showScenery(0, true), "a ground built whole is built again");
+        terrain.rebuild(grid, kit(), null, null, null, wood);
+        assertEquals(1, pieces(root, "tree").size(), "grown again");
+    }
+
     /** One model laid twice, once with another picture: each drawn with the picture its line names (E34). */
     @Test
     void aPieceOfSceneryIsDrawnWithThePictureItsLineNames() {

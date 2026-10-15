@@ -130,6 +130,40 @@ final class Sounds {
         }
     }
 
+    /** A loop the game keeps going at a place of the world — a campfire's crackle — by its own key. */
+    private record LoopAt(String cue, Vector3f at) {
+    }
+
+    private final java.util.Map<String, LoopAt> placedWanted = new java.util.LinkedHashMap<>();
+    private final java.util.Map<String, SoundSink.Playing> placedPlaying = new java.util.HashMap<>();
+
+    /**
+     * Loop {@code cueName} at {@code at} under the game's {@code key}, heard as a placed cue is — fainter with
+     * distance, out of reach silent and started again once the listener comes back; a key already looping is moved.
+     */
+    void loopAt(String key, String cueName, Vector3f at) {
+        stopLoopAt(key, 0f);
+        placedWanted.put(key, new LoopAt(cueName, at));
+        startPlaced(key);
+    }
+
+    /** The loop the game keeps under {@code key}, faded out over {@code fadeOut} seconds. */
+    void stopLoopAt(String key, float fadeOut) {
+        var wanted = placedWanted.remove(key);
+        var playing = placedPlaying.remove(key);
+        if (playing != null && wanted != null) {
+            fadeAway(playing, gainOfCue(wanted.cue()), fadeOut);
+        }
+    }
+
+    private void startPlaced(String key) {
+        var wanted = placedWanted.get(key);
+        var playing = wanted == null ? null : loop(wanted.cue(), wanted.at(), true);
+        if (playing != null && playing != SoundSink.Playing.NONE) {
+            placedPlaying.put(key, playing);
+        }
+    }
+
     /** The loop on {@code cueName}, faded out over {@code fadeOut} seconds and stopped. */
     void stopLoop(String cueName, float fadeOut) {
         var playing = loops.remove(cueName);
@@ -881,6 +915,11 @@ final class Sounds {
         });
         voices.values().removeIf(Sounds::ended);
         tellWhatEnded();
+        for (var key : placedWanted.keySet()) {
+            if (!placedPlaying.containsKey(key)) {
+                startPlaced(key); // out of reach when it began, or since: tried again as the listener moves
+            }
+        }
         for (var going = gainFades.iterator(); going.hasNext(); ) {
             var fade = going.next();
             fade.elapsed += seconds;

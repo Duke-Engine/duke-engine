@@ -132,6 +132,47 @@ final class TerrainScene {
     private static final String CELL = "cell";
     /** The chunks built, whether anything stands in them or not. */
     private final java.util.BitSet built = new java.util.BitSet();
+    /** The pieces of scenery the world has taken away, by their index in the map's scenery: not drawn. */
+    private final java.util.Set<Integer> hiddenScenery = new java.util.HashSet<>();
+    /** Each piece of the map's scenery's index in it, by the piece itself. */
+    private java.util.Map<uz.dukeengine.core.map.MapScenery, Integer> sceneryIndex = new java.util.IdentityHashMap<>();
+
+    /** The pieces taken away when the ground is next built — a save's felled trees. */
+    void hideScenery(java.util.Collection<Integer> hidden) {
+        hiddenScenery.clear();
+        if (hidden != null) {
+            hiddenScenery.addAll(hidden);
+        }
+    }
+
+    /**
+     * A piece taken away or put back while the ground stands: on a world built round the camera its chunk is let go,
+     * to be built again without it or with it; on one built whole, true — the caller builds the ground again.
+     */
+    boolean showScenery(int index, boolean shown) {
+        boolean changed = shown ? hiddenScenery.remove(index) : hiddenScenery.add(index);
+        if (!changed || index < 0 || index >= scenery.size()) {
+            return false;
+        }
+        if (streamed == null) {
+            return true;
+        }
+        var piece = scenery.get(index);
+        int cx = Math.clamp((int) Math.floor(piece.x()), 0, streamed.getWidth() - 1);
+        int cy = Math.clamp((int) Math.floor(piece.y()), 0, streamed.getHeight() - 1);
+        int chunk = cy / CHUNK_CELLS * chunksWide + cx / CHUNK_CELLS;
+        if (inProgress != null && inProgress.chunk == chunk) {
+            inProgress = null;
+        }
+        if (chunk < chunks.length && chunks[chunk] != null) {
+            chunks[chunk].removeFromParent();
+            chunks[chunk] = null;
+        }
+        rocksByChunk.remove(chunk);
+        built.clear(chunk);
+        return false;
+    }
+
     /** The scenery standing in each chunk of a map built a chunk at a time. */
     private java.util.Map<Integer, java.util.List<uz.dukeengine.core.map.MapScenery>> sceneryByChunk =
             java.util.Map.of();
@@ -278,6 +319,10 @@ final class TerrainScene {
             java.util.function.IntFunction<Tileset> kitOfCell,
             java.util.List<? extends uz.dukeengine.core.map.MapScenery> scenery) {
         this.scenery = scenery == null ? java.util.List.of() : scenery;
+        this.sceneryIndex = new java.util.IdentityHashMap<>();
+        for (int at = 0; at < this.scenery.size(); at++) {
+            sceneryIndex.put(this.scenery.get(at), at);
+        }
         this.cellKits = kitOfCell;
         this.cellCount = grid == null ? 0 : grid.getWidth() * grid.getHeight();
         this.light = groundLight;
@@ -1146,8 +1191,9 @@ final class TerrainScene {
 
     /** One piece of scenery, made and placed where it stands, turned and sized; null where it cannot be made. */
     private Spatial sceneryModel(PathGrid grid, uz.dukeengine.core.map.MapScenery piece) {
-        if (tiles == null) {
-            return null;
+        var index = sceneryIndex.get(piece);
+        if (tiles == null || index != null && hiddenScenery.contains(index)) {
+            return null; // taken away: a felled tree is not drawn
         }
         float cell = grid.getCellSize();
         var model = tiles.piece(SCENERY, piece.model(), piece.tint(), piece.picture());

@@ -654,6 +654,31 @@ public final class GameObject {
         this.roll = roll;
     }
 
+    /** The clip it loops while it works, and the frame its work ends on; see {@link #busy}. Out of the checksum. */
+    private String busyClip;
+    private int busyUntil;
+
+    /**
+     * Busy for {@code frames} frames at work the window shows by looping {@code clip} — a chop, a gather, a cook —
+     * from its model or the libraries its look links; {@code busy(null, 0)} ends it. Presentation alone: nothing in the
+     * world reads it and the checksum leaves it out. A blow that does harm ends it, and while it moves it is not shown.
+     */
+    public void busy(String clip, int frames) {
+        var world = getWorld();
+        if (clip == null || clip.isBlank() || frames <= 0 || world == null) {
+            busyClip = null;
+            return;
+        }
+        busyClip = clip;
+        busyUntil = world.getFrame() + frames;
+    }
+
+    /** The clip it is busy with on this frame, or null. */
+    public String getBusyClip() {
+        var world = getWorld();
+        return busyClip == null || world == null || world.getFrame() >= busyUntil ? null : busyClip;
+    }
+
     public float getLift() {
         return lift;
     }

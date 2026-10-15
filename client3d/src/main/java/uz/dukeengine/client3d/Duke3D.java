@@ -306,6 +306,19 @@ public final class Duke3D {
         later(client -> client.loop(cue, fadeIn));
     }
 
+    /**
+     * Loop {@code cue} at the world point ({@code x}, {@code y}) under the game's own {@code key} — a campfire's
+     * crackle — heard as a placed cue is, by distance from the listener; the same key again moves it. From any thread.
+     */
+    public void loopAt(String key, String cue, float x, float y) {
+        later(client -> client.loopAt(key, cue, x, y));
+    }
+
+    /** The loop {@link #loopAt} keeps under {@code key}, faded out over {@code fadeOut} seconds. */
+    public void stopLoopAt(String key, float fadeOut) {
+        later(client -> client.stopLoopAt(key, fadeOut));
+    }
+
     /** The loop {@link #loop} started on {@code cue}, faded out over {@code fadeOut} seconds and stopped. */
     public void stopLoop(String cue, float fadeOut) {
         later(client -> client.stopLoop(cue, fadeOut));

@@ -1262,6 +1262,19 @@ final class DukeRtsApp extends SimpleApplication {
         noises.sounds().loop(cue, fadeIn);
     }
 
+    /** A loop at a place of the world, under the game's key — see {@link Duke3D#loopAt}. */
+    void loopAt(String key, String cue, float x, float y) {
+        if (noises != null) {
+            noises.sounds().loopAt(key, cue, new Vector3f(x, floorHeightAt(x, y), y));
+        }
+    }
+
+    void stopLoopAt(String key, float fadeOut) {
+        if (noises != null) {
+            noises.sounds().stopLoopAt(key, fadeOut);
+        }
+    }
+
     /** The loop the game started on {@code cue}, faded out — see {@link Duke3D#stopLoop}. */
     void stopLoop(String cue, float fadeOut) {
         noises.sounds().stopLoop(cue, fadeOut);
@@ -3486,6 +3499,13 @@ final class DukeRtsApp extends SimpleApplication {
                 (int) Math.floor(x / grid.mapCellSize()), (int) Math.floor(y / grid.mapCellSize())));
     }
 
+    /** The ground and its scenery laid again, as the world's terrain stands. */
+    private void layTheGround() {
+        terrain.rebuildLooked(builtFrom, currentKit, builtPaint, visuals.getGroundLight(), kitsOfTheCells(builtFrom),
+                game.getMapRecord() instanceof uz.dukeengine.core.map.Dressed dressed ? dressed.scenery()
+                        : java.util.List.of());
+    }
+
     private void buildTerrain() {
         // First: every material built from here on reads the sun, and this is the world it is for.
         adoptTheSun();
@@ -3500,9 +3520,8 @@ final class DukeRtsApp extends SimpleApplication {
         terrain.streamWithin(visuals.streamGroundFor(game.getMapRecord()));
         terrain.blendWith(visuals.getPaintBlend());
         terrain.quarterWith(visuals.isPaintInQuarters());
-        terrain.rebuildLooked(builtFrom, currentKit, builtPaint, visuals.getGroundLight(), kitsOfTheCells(builtFrom),
-                game.getMapRecord() instanceof uz.dukeengine.core.map.Dressed dressed ? dressed.scenery()
-                        : java.util.List.of());
+        terrain.hideScenery(game.getLogic().getRemovedScenery()); // what a save carried felled
+        layTheGround();
         fogTintNow = null; // a new world's dark starts in the colour of whatever the camera looks at
         if (water != null) {
             waterLooks.clear(); // the new world's water makes its own
@@ -6384,6 +6403,11 @@ final class DukeRtsApp extends SimpleApplication {
                                 hurt.playerIndex() == game.getLocalPlayerIndex());
                     }
                 }
+            } else if (event instanceof uz.dukeengine.core.event.SceneryChanged changed) {
+                if (terrain.showScenery(changed.index(), !changed.removed())) {
+                    // ponytail: a ground built whole is built whole again for one tree; streamed worlds rebuild a chunk
+                    layTheGround();
+                }
             } else if (event instanceof uz.dukeengine.core.event.TextFloated text) {
                 floatingTexts.add(text, text.frame());
             } else if (event instanceof uz.dukeengine.core.event.StripPlayed strip) {
@@ -7746,6 +7770,13 @@ final class DukeRtsApp extends SimpleApplication {
         }
         var visual = visualFor(view);
         if (playByWords(node, visual, view)) {
+            return;
+        }
+        var busy = view.busyClip();
+        if (busy != null) {
+            if (!busy.equals(node.currentAnim)) {
+                play(node, view.looksAs(), busy, true); // its work, looped; a clip it has not is played as nothing
+            }
             return;
         }
         boolean walking = view.moving() && visual.walkAnim != null;

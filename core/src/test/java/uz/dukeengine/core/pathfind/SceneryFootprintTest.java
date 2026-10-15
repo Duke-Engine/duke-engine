@@ -200,4 +200,28 @@ class SceneryFootprintTest {
         assertTrue(nearest >= 0f, "never into a trunk: " + nearest);
         assertTrue(knight.getPosition().distance(EAST) < 5f, "and through: " + knight.getPosition());
     }
+
+    /** A piece taken away stands in nobody's way and is told; put back, it stands again; the sum knows both (E66). */
+    @Test
+    void aFelledPieceLetsABodyThroughAndGrownAgainStandsAgain() {
+        var logic = logic();
+        logic.setSceneryFootprints(List.of(BOULDER));
+        var body = walker(logic, new Coord3D(85f, 105f, 0f));
+        var into = new Coord3D(105f, 105f, 0f);
+        assertTrue(logic.sceneryInTheWay(body, body.getPosition(), into), "standing: in the way");
+        assertTrue(logic.sceneryNear(new Coord3D(110f, 108f, 0f), 2f) == 0, "the piece under a click beside it");
+        long standing = logic.checksum();
+
+        logic.removeScenery(0);
+        assertFalse(logic.sceneryInTheWay(body, body.getPosition(), into), "felled: through where it stood");
+        assertTrue(logic.drainEvents().stream().anyMatch(event -> event instanceof uz.dukeengine.core.event
+                .SceneryChanged changed && changed.index() == 0 && changed.removed()), "and the picture told");
+        assertTrue(logic.sceneryNear(new Coord3D(110f, 108f, 0f), 2f) < 0, "no tree there to click");
+        assertFalse(standing == logic.checksum(), "in the sum");
+        assertTrue(logic.getRemovedScenery().equals(List.of(0)), "for a save to carry");
+
+        logic.restoreScenery(0);
+        assertTrue(logic.sceneryInTheWay(body, body.getPosition(), into), "grown again: in the way again");
+        assertTrue(standing == logic.checksum());
+    }
 }

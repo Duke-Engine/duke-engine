@@ -1019,9 +1019,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         this.lastLaid = null; // a new grid holds nothing laid
         sectorsBySurfaces.clear();
         sectorZones.clear();
-        if (pathGrid != null) {
-            pathGrid.setSceneryFootprints(scenery);
-        }
+        layTheScenery();
         layTheSightCells();
     }
 
@@ -1036,10 +1034,97 @@ public abstract class GameLogic extends SubsystemInterface implements World {
      * with the map it belongs to, which every machine lays alike.
      */
     public final void setSceneryFootprints(List<uz.dukeengine.core.pathfind.SceneryFootprint> footprints) {
-        this.scenery = footprints == null ? List.of() : List.copyOf(footprints);
-        if (pathGrid != null) {
-            pathGrid.setSceneryFootprints(scenery);
+        var given = footprints == null ? List.<uz.dukeengine.core.pathfind.SceneryFootprint>of() : footprints;
+        var numbered = new java.util.ArrayList<uz.dukeengine.core.pathfind.SceneryFootprint>(given.size());
+        for (int at = 0; at < given.size(); at++) {
+            var piece = given.get(at);
+            numbered.add(piece.index() >= 0 ? piece
+                    : new uz.dukeengine.core.pathfind.SceneryFootprint(piece.x(), piece.y(), piece.radius(), at));
         }
+        this.scenery = List.copyOf(numbered);
+        this.removedScenery.clear(); // a new map's scenery all stands
+        layTheScenery();
+    }
+
+    /** The pieces of scenery taken away, by their index — see {@link #removeScenery}. */
+    private final java.util.TreeSet<Integer> removedScenery = new java.util.TreeSet<>();
+
+    private void layTheScenery() {
+        if (pathGrid != null) {
+            pathGrid.setSceneryFootprints(removedScenery.isEmpty() ? scenery
+                    : scenery.stream().filter(piece -> !removedScenery.contains(piece.index())).toList());
+        }
+    }
+
+    /**
+     * Take a piece of the map's scenery away — a tree felled — by its index in the map's scenery: its footprint leaves
+     * the ground at once, the same on every machine, and the picture is told ({@link
+     * uz.dukeengine.core.event.SceneryChanged}). In the checksum; a piece already gone, or none, changes nothing.
+     */
+    public final void removeScenery(int index) {
+        if (removedScenery.add(index)) {
+            layTheScenery();
+            post(new uz.dukeengine.core.event.SceneryChanged(frame, index, true));
+        }
+    }
+
+    /** Put a piece taken away back — a tree grown again: its footprint rejoins the ground, and the picture is told. */
+    public final void restoreScenery(int index) {
+        if (removedScenery.remove(index)) {
+            layTheScenery();
+            post(new uz.dukeengine.core.event.SceneryChanged(frame, index, false));
+        }
+    }
+
+    /** Whether the piece of scenery at {@code index} has been taken away. */
+    public final boolean isSceneryRemoved(int index) {
+        return removedScenery.contains(index);
+    }
+
+    /** The pieces taken away, in order, for a save to carry. */
+    public final List<Integer> getRemovedScenery() {
+        return List.copyOf(removedScenery);
+    }
+
+    /** The pieces taken away, as a save carried them: laid at once, nothing told — the picture reads them as it loads. */
+    public final void setRemovedScenery(java.util.Collection<Integer> removed) {
+        removedScenery.clear();
+        if (removed != null) {
+            removedScenery.addAll(removed);
+        }
+        layTheScenery();
+    }
+
+    /**
+     * The standing piece of scenery nearest {@code place} whose footprint comes within {@code reach} of it — the tree a
+     * click on the ground under its crown means — by its index, the lowest on a tie; -1 for none.
+     */
+    public final int sceneryNear(Coord3D place, float reach) {
+        int best = -1;
+        float bestGap = Float.MAX_VALUE;
+        for (var piece : scenery) {
+            if (removedScenery.contains(piece.index())) {
+                continue;
+            }
+            float dx = piece.x() - place.x();
+            float dy = piece.y() - place.y();
+            float gap = (float) Math.sqrt(dx * dx + dy * dy) - piece.radius();
+            if (gap <= reach && (gap < bestGap || gap == bestGap && piece.index() < best)) {
+                best = piece.index();
+                bestGap = gap;
+            }
+        }
+        return best;
+    }
+
+    /** The piece of scenery at {@code index}, standing or not, or null where the map has no such piece in the way. */
+    public final uz.dukeengine.core.pathfind.SceneryFootprint sceneryPiece(int index) {
+        for (var piece : scenery) {
+            if (piece.index() == index) {
+                return piece;
+            }
+        }
+        return null;
     }
 
     /** The scenery that stands in the way along its length — see {@link #setSceneryBoxes}. */
@@ -2430,6 +2515,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         }
         for (int player : markedSeen) {
             hash = mix(hash, ~player); // told apart from the same player revealed; nothing marked sums as ever
+        }
+        for (int piece : removedScenery) {
+            hash = mix(hash, 0x5CE0 ^ piece); // scenery taken away; all of it standing sums as it always did
         }
         if (pathGrid != null) {
             for (var deck : pathGrid.decks()) {

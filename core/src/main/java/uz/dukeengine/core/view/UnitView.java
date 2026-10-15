@@ -71,6 +71,19 @@ public record UnitView(
         float lift,
         float yaw,
         uz.dukeengine.core.thing.Corners corners) {
+    /** The word a busy thing's clip is carried under among its conditions: {@code busy:<clip>}. */
+    public static final String BUSY = "busy:";
+
+    /** The clip it loops at work this frame — see {@code GameObject.busy} — or null. */
+    public String busyClip() {
+        for (var word : conditions) {
+            if (word.startsWith(BUSY)) {
+                return word.substring(BUSY.length());
+            }
+        }
+        return null;
+    }
+
     public UnitView {
         passengers = passengers == null ? java.util.List.of() : java.util.List.copyOf(passengers);
         conditions = conditions == null ? java.util.List.of() : java.util.List.copyOf(conditions);
