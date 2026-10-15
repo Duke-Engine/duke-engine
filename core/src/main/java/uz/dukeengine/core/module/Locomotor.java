@@ -23,6 +23,16 @@ import uz.dukeengine.core.math.Coord3D;
  */
 public interface Locomotor {
 
+    /**
+     * Walk along {@code angle} — 256ths of a turn, 0 along +x, counter-clockwise from above — until told otherwise, no
+     * route planned; below 0, stop. A mover that takes no such order only stops.
+     */
+    default void moveAlong(int angle) {
+        if (angle < 0) {
+            stop();
+        }
+    }
+
     /** Go to {@code destination}: on the ground, to the nearest place round it of its own — see {@code MoveUpdate}. */
     default void moveTo(Coord3D destination) {
     }

@@ -502,6 +502,11 @@ public final class Duke3D {
      * The pictures laid over all the ground ({@code Visuals.groundShade}) shown or put away — the reference's clouds,
      * off at night and by the player's options. From any thread, before launch or while it runs.
      */
+    /** The camera kept on one of the player's units, or let go — {@link CameraFollow#NONE} — from any thread. */
+    public void cameraFollow(CameraFollow follow) {
+        later(client -> client.cameraFollow(follow));
+    }
+
     public void groundShades(boolean shown) {
         later(client -> client.groundShades(shown));
     }

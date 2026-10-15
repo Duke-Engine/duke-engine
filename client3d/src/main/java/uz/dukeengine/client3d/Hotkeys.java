@@ -223,6 +223,29 @@ public final class Hotkeys {
 
     private KeyMap keyMap = KeyMap.standard();
     private BiConsumer<DukeGame, Boolean> chat;
+    private DirectionKeys directionKeys;
+    private BiConsumer<DukeGame, Integer> directionChanged;
+
+    /**
+     * Walk by held keys: the client reads {@code keys} each frame, turns what is held — up the screen, left, down,
+     * right — into a direction on the ground as the camera is turned ({@link DirectionKeys#angleOf}, 256ths of a turn,
+     * or {@link DirectionKeys#NONE}), and tells {@code changed} only when it changes: a key pressed or let go, the
+     * camera turned. While a menu, a screen of the game's that holds the keys ({@link CanvasInput#holdsKeys}) or
+     * another window has them, it is told {@code NONE} once. The game sends it on as {@code CombatOrder.MoveAlong}.
+     */
+    public Hotkeys onDirection(DirectionKeys keys, BiConsumer<DukeGame, Integer> changed) {
+        this.directionKeys = keys == null ? DirectionKeys.WASD : keys;
+        this.directionChanged = changed;
+        return this;
+    }
+
+    DirectionKeys directionKeys() {
+        return directionKeys;
+    }
+
+    BiConsumer<DukeGame, Integer> directionChanged() {
+        return directionChanged;
+    }
 
     /**
      * The keys the client's own controls are on — see {@link KeyMap}. Left alone, {@link KeyMap#standard()}: the

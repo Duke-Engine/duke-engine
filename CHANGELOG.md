@@ -491,6 +491,20 @@ E16, in parts.
   last frame — and a stunned or held mover is drawn standing (`UnitView.moving` false while `DISABLED` or `HELD`),
   its order kept for when it can go on.
 
+### Modern controls: walking by the keys
+
+- **A held direction** (E74): `CombatOrder.MoveAlong(player, units, angle)` — 256ths of a turn, 0 along +x and
+  counter-clockwise from above, or `MoveAlong.NONE`; codec line `ALONG`. It replaces the unit's order and walks it
+  `speed / 30` a frame along the angle, facing it, no route: a step stopped slides — the whole step, else its x part,
+  else its y part — or stands, the order kept. A stun or hold keeps it, a busy clip holds it; `Locomotor.moveAlong`.
+- **Held keys to a direction** (E75): `Hotkeys.onDirection(DirectionKeys, changed)` — the client reads the four keys
+  each frame (`DirectionKeys.WASD` by default), turns them by the camera onto the ground and tells the game only when
+  the direction changes; `NONE` once while a menu, a screen of the game's (`CanvasInput.holdsKeys`) or another window
+  has the keys.
+- **A camera that follows** (E77): `Visuals.cameraFollow` / `Duke3D.cameraFollow(CameraFollow.of(template))` — the
+  point looked at eases after the unit (0.15 s) and 8 ahead of it while it walks (0.4 s); a pan looks away and it eases
+  back a second after; `CameraFollow.NONE` is the free camera. A scene the game directs still wins.
+
 ### A route that keeps to the roads
 
 - **`PathGrid.setStepCosts(percentByCell)`** (E52): what a step into each cell costs, as a share of its plain cost — a

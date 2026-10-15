@@ -131,6 +131,24 @@ public final class RtsLogic extends RtsSimulation {
                 }
                 tellOrder(ground, ground.units(), ground.playerIndex());
             }
+            case CombatOrder.MoveAlong along -> {
+                for (var id : along.units()) {
+                    var unit = findObject(id);
+                    if (unit == null || unit.getPlayerIndex() != along.playerIndex()) {
+                        continue;
+                    }
+                    uz.dukeengine.combat.module.Errand.giveUpAll(unit);
+                    var weapon = unit.findModule(WeaponUpdate.class);
+                    if (weapon != null) {
+                        weapon.holdFire(); // its own way overrides the current target, as a move does
+                    }
+                    var ai = unit.getLocomotor();
+                    if (ai != null) {
+                        ai.moveAlong(along.angle());
+                    }
+                }
+                tellOrder(along, along.units(), along.playerIndex());
+            }
             case CombatOrder.StopMoving stop -> {
                 for (var id : stop.units()) {
                     var unit = findObject(id);

@@ -39,6 +39,7 @@ public final class CombatOrderCodec {
                     + "," + Float.toString(g.place().x()) + "," + Float.toString(g.place().y())
                     + "," + Float.toString(g.place().z()) + (g.forced() ? ",forced" : "");
             case CombatOrder.StopMoving s -> "STOP," + s.playerIndex() + "," + ids(s.units());
+            case CombatOrder.MoveAlong a -> "ALONG," + a.playerIndex() + "," + ids(a.units()) + "," + a.angle();
         };
     }
 
@@ -72,6 +73,8 @@ public final class CombatOrderCodec {
                     new Coord3D(Float.parseFloat(parts[3]), Float.parseFloat(parts[4]), Float.parseFloat(parts[5])),
                     parts.length > 6 && "forced".equals(parts[6]));
             case "STOP" -> new CombatOrder.StopMoving(Integer.parseInt(parts[1]), parseIds(parts[2]));
+            case "ALONG" -> new CombatOrder.MoveAlong(Integer.parseInt(parts[1]), parseIds(parts[2]),
+                    Integer.parseInt(parts[3]));
             case "ORDER" -> new GameOrder(Integer.parseInt(parts[1]),
                     java.net.URLDecoder.decode(parts[2], java.nio.charset.StandardCharsets.UTF_8),
                     parseIds(parts[3]),

@@ -5893,6 +5893,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void updateCamera(float tpf) {
+        readTheHeldDirection(); // a scene the game directs or not: a key let go is always told
         var directed = snapshot.camera();
         if (directed != null) {
             // The game has the camera: it goes where the game's code put it, and the player's controls wait.
@@ -5931,6 +5932,7 @@ final class DukeRtsApp extends SimpleApplication {
         float cos = FastMath.cos(camera.yaw());
         float sin = FastMath.sin(camera.yaw());
         camera.panBy(pan.x * cos + pan.y * sin, pan.y * cos - pan.x * sin);
+        followTheUnit(pan.x != 0f || pan.y != 0f, tpf);
         camera.turnBy(steering.turn(inputManager.getCursorPosition().x, turnPerPixel()));
         if (held(KeyMap.Control.TURN_LEFT)) {
             camera.heldTurn(1, tpf);
@@ -8708,6 +8710,58 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private static final float MARK_SIZE = 7f;
+
+    /** The camera following one of his units, as the game set it last — see {@link Duke3D#cameraFollow}. */
+    private CameraFollow following;
+    private final CameraFollow.Eye followingEye = new CameraFollow.Eye();
+    private final DirectionKeys.Held heldDirection = new DirectionKeys.Held();
+
+    void cameraFollow(CameraFollow follow) {
+        this.following = follow == null ? CameraFollow.NONE : follow;
+    }
+
+    /** The camera eased after the unit it follows, unless the player panned away from it — see {@link CameraFollow}. */
+    private void followTheUnit(boolean panned, float tpf) {
+        var look = following != null ? following : visuals.getCameraFollow();
+        if (!look.follows() || snapshot == null) {
+            return;
+        }
+        int mine = game.getLocalPlayerIndex();
+        for (var view : snapshot.units()) {
+            if (view.playerIndex() != mine || look.of() != null && !look.of().equals(view.templateName())) {
+                continue;
+            }
+            var node = unitNodes.get(view.id());
+            var at = node == null ? null : node.root.getLocalTranslation();
+            followingEye.step(look, camera, at == null ? view.x() : at.x, at == null ? view.y() : at.z,
+                    view.orientation(), view.moving(), panned, timer.getTimeInSeconds(), tpf);
+            return;
+        }
+    }
+
+    /** The held keys' direction, told the game when it changes — see {@link Hotkeys#onDirection}. */
+    private void readTheHeldDirection() {
+        var changed = hotkeys.directionChanged();
+        if (changed == null) {
+            return;
+        }
+        long window = windowHandle();
+        boolean taken = screen != Screen.PLAYING || menu.isVisible()
+                || canvasInput != null && canvasInput.holdsKeys() || window == 0L
+                || org.lwjgl.glfw.GLFW.glfwGetWindowAttrib(window, org.lwjgl.glfw.GLFW.GLFW_FOCUSED) == 0;
+        var keys = hotkeys.directionKeys();
+        var now = heldDirection.next(keyHeld(window, keys.up()), keyHeld(window, keys.left()),
+                keyHeld(window, keys.down()), keyHeld(window, keys.right()), camera.yaw(), taken);
+        if (now != null) {
+            changed.accept(game, now);
+        }
+    }
+
+    /** Whether the letter or digit {@code key} is down now: its GLFW code is the character itself. */
+    private static boolean keyHeld(long window, char key) {
+        return window != 0L && org.lwjgl.glfw.GLFW.glfwGetKey(window, Character.toUpperCase(key))
+                == org.lwjgl.glfw.GLFW.GLFW_PRESS;
+    }
 
     void groundShades(boolean shown) {
         this.shadesShown = shown;

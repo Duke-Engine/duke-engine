@@ -15,7 +15,8 @@ import uz.dukeengine.core.thing.ObjectId;
  * live reference, because every peer applies the identical orders on the identical frame.
  */
 public sealed interface CombatOrder extends Command
-        permits CombatOrder.MoveTo, CombatOrder.AttackObject, CombatOrder.AttackGround, CombatOrder.StopMoving {
+        permits CombatOrder.MoveTo, CombatOrder.AttackObject, CombatOrder.AttackGround, CombatOrder.StopMoving,
+        CombatOrder.MoveAlong {
 
     /** The things it is given to. */
     List<ObjectId> units();
@@ -76,6 +77,21 @@ public sealed interface CombatOrder extends Command
     }
 
     /** Order the given units to halt. */
+    /**
+     * Walk along a direction until told otherwise — a held W A S D: {@code angle} in 256ths of a turn, 0 along +x and
+     * counter-clockwise seen from above, or {@link #NONE} to stop where it stands. No route: it slides along what
+     * stops it. Replaces the unit's order, as a move does.
+     */
+    record MoveAlong(int playerIndex, List<ObjectId> units, int angle) implements CombatOrder {
+        /** Stop where it stands. */
+        public static final int NONE = -1;
+
+        public MoveAlong {
+            units = List.copyOf(units);
+            angle = angle < 0 ? NONE : angle & 0xFF;
+        }
+    }
+
     record StopMoving(int playerIndex, List<ObjectId> units) implements CombatOrder {
         public StopMoving {
             units = List.copyOf(units);

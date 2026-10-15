@@ -13,6 +13,14 @@ public interface CanvasInput {
     /** Whether the game took this; if it did, nothing else is told of it. */
     boolean take(Event event);
 
+    /**
+     * Whether a screen of the game's holds the keys now — a text box, a bag, a dialogue — so held keys walk no one
+     * (see {@link Hotkeys#onDirection}). Not, unless the game says.
+     */
+    default boolean holdsKeys() {
+        return false;
+    }
+
     /** The scan codes of the few named keys a game's canvas answers; a letter's is {@link Hotkeys#codeOf}. */
     int ESCAPE = com.jme3.input.KeyInput.KEY_ESCAPE;
     int ENTER = com.jme3.input.KeyInput.KEY_RETURN;

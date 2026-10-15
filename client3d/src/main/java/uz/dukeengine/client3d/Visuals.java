@@ -3159,6 +3159,18 @@ public final class Visuals {
      * <p>One number rather than a ShakePower zeroed on every effect, because whether
      * the screen moves is a question about the player, not about any one skill.
      */
+    private CameraFollow cameraFollow = CameraFollow.NONE;
+
+    /** The camera kept on one of the player's units — see {@link CameraFollow}; the free camera unless said. */
+    public Visuals cameraFollow(CameraFollow follow) {
+        this.cameraFollow = follow == null ? CameraFollow.NONE : follow;
+        return this;
+    }
+
+    public CameraFollow getCameraFollow() {
+        return cameraFollow;
+    }
+
     public Visuals shakeScale(float scale) {
         this.shakeScale = Math.max(0f, scale);
         return this;
