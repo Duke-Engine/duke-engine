@@ -14,7 +14,7 @@ import uz.dukeengine.core.thing.Geometry;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
 
-/** A band the story shuts across a corridor: no route through it, a walker stopped at its edge; opened, through (E84). */
+/** A band the story shuts across a corridor: no route through it, a walker stopped at its edge; opened, through. */
 class ShutRegionTest {
 
     static final class TestLogic extends GameLogic {

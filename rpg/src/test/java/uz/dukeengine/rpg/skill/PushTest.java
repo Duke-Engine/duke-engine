@@ -15,7 +15,7 @@ import uz.dukeengine.core.thing.ObjectStatus;
 import uz.dukeengine.rpg.RpgWorld;
 import uz.dukeengine.rpg.Seal;
 
-/** A push out from him: those within its radius thrown its distance along their own lines, stunned; short of stone (E82). */
+/** A push out from him: those within its radius thrown out along their own lines, stunned; short of stone (E82). */
 class PushTest {
 
     /** Radius 60, Distance 30 over 10 frames, an arc 5 high, a stun of 20. */
@@ -54,7 +54,8 @@ class PushTest {
         world.run(11);
         assertEquals(140f, near.getPosition().x(), 1e-3f, "ten out, thrown thirty further along its line");
         assertEquals(170f, mid.getPosition().y(), 1e-3f, "forty out, thirty further along its own line");
-        assertTrue(near.hasStatus(ObjectStatus.DISABLED) && mid.hasStatus(ObjectStatus.DISABLED), "stunned as they land");
+        assertTrue(near.hasStatus(ObjectStatus.DISABLED) && mid.hasStatus(ObjectStatus.DISABLED),
+                "stunned as they land");
         assertEquals(190f, far.getPosition().x(), 1e-3f, "ninety out: untouched");
         assertFalse(far.hasStatus(ObjectStatus.DISABLED));
     }
