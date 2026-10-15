@@ -692,6 +692,17 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         return waiting || waypointIndex < waypoints.size() || alongAngle >= 0;
     }
 
+    /** What its {@link SpeedModifier}s make of its speed now, all of them multiplied; 1 for none. */
+    private static float speedShare(GameObject owner) {
+        float share = 1f;
+        for (var module : owner.modulesView()) {
+            if (module instanceof SpeedModifier modifier) {
+                share *= Math.max(0f, modifier.speedShare());
+            }
+        }
+        return share;
+    }
+
     /** A link it means to cross: from which end, to which, and the goal it walks on to from there. */
     private record LinkPlan(uz.dukeengine.core.pathfind.TraversalLink link, Coord3D entry, Coord3D exit, Coord3D goal) {
     }
@@ -877,7 +888,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
                 speedNow = 0f; // at work or staggered: held, and walks on after
                 return;
             }
-            walkAlong(owner, owner.hasStatus(ObjectStatus.SLOWED) ? stepPerFrame * 0.5f : stepPerFrame);
+            walkAlong(owner, (owner.hasStatus(ObjectStatus.SLOWED) ? stepPerFrame * 0.5f : stepPerFrame)
+                    * speedShare(owner));
             return;
         }
         if (asideUntil >= 0 && world != null && world.getFrame() > asideUntil) {
@@ -892,7 +904,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             }
         }
         boolean slowed = owner.hasStatus(ObjectStatus.SLOWED);
-        float step = slowed ? stepPerFrame * 0.5f : stepPerFrame;
+        float step = (slowed ? stepPerFrame * 0.5f : stepPerFrame) * speedShare(owner);
 
         if (waiting) {
             planRoute(); // its turn, if this frame's searching has room for it

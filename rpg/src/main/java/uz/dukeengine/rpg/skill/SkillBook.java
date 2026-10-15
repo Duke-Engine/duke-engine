@@ -53,7 +53,7 @@ import uz.dukeengine.combat.module.WeaponUpdate;
  */
 @ModuleGroup({ModuleGroups.COMBAT, ModuleGroups.MOVEMENT, ModuleGroups.EFFECT, ModuleGroups.BODY})
 public final class SkillBook extends UpdateModule implements DamageModifier, RateOfFireModifier, WeaponHold,
-        uz.dukeengine.core.module.DamageListener {
+        uz.dukeengine.core.module.DamageListener, uz.dukeengine.core.module.SpeedModifier {
 
     /** It reads no fields; the block only says the unit has one. */
     public record Data() implements ModuleData {
@@ -228,6 +228,58 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     private int maxMana;
     private int manaTenthsPerSecond;
     private int manaCarry;
+    /** His legs: the strongest {@code MOVE_SPEED} buff he holds, and the mount he rides. */
+    @Override
+    public float speedShare() {
+        var world = getOwner().getWorld();
+        int percent = world == null ? 0 : buffOf(SkillEffect.MOVE_SPEED, world.getFrame());
+        if (riding != null) {
+            percent = Math.max(percent, riding.boostAt(rankOf(riding)));
+        }
+        return (100 + percent) / 100f;
+    }
+
+    /** The mount he rides, or is mounting, or null; and the frame his mounting ends on. */
+    private Skill riding;
+    private Skill mounting;
+    private int mountedAt;
+    private Coord3D mountedFrom;
+
+    /** Whether he rides now. */
+    public boolean isRiding() {
+        return riding != null;
+    }
+
+    /** Off his mount — a blow, an ordered attack, a second press: his legs his own, drawn as himself. */
+    public void dismount() {
+        if (riding == null && mounting == null) {
+            return;
+        }
+        riding = null;
+        mounting = null;
+        getOwner().drawAs(null, -1);
+    }
+
+    /** The mounting under way, finished or called off. */
+    private void mountOn() {
+        var owner = getOwner();
+        var world = owner.getWorld();
+        if (mounting == null || world == null) {
+            return;
+        }
+        if (owner.getPosition().distance(mountedFrom) > 0.5f) {
+            mounting = null; // a step calls it off
+            return;
+        }
+        if (world.getFrame() >= mountedAt) {
+            riding = mounting;
+            mounting = null;
+            if (riding.look() != null && !riding.look().isBlank()) {
+                owner.drawAs(riding.look(), -1);
+            }
+        }
+    }
+
     /** The first frame a {@code STAGGER} may stagger him again, and the frame its stun ends. */
     private int staggerFrom;
     private int staggerEnds;
@@ -245,6 +297,9 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
             }
         }
         var owner = getOwner();
+        if (riding != null && riding.endsOnHurt() || mounting != null) {
+            dismount(); // a blow takes him off, or calls his mounting off
+        }
         if (staggerClip != null && frame < staggerEnds && !owner.isEffectivelyDead()) {
             // A blow ends whatever work he was at; a stagger under way is no work, and holds to its last frame.
             owner.busy(staggerClip, staggerEnds - frame);
@@ -662,6 +717,10 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
             level += wornFrom.skillRanks(key); // what he wears raises a skill he has learnt, while he wears it
         }
         int slot = slotOf(key);
+        if (slot >= 0 && skills.get(slot).effect() == SkillEffect.MOUNT && (riding != null || mounting != null)) {
+            dismount(); // a second press gets him off, whatever its cooldown
+            return true;
+        }
         if (slot < 0 || cooldowns[slot] > 0) {
             return false;
         }
@@ -681,6 +740,17 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
             return false;
         }
         var skill = skills.get(slot);
+        var where = getOwner().getWorld();
+        if (where != null && !skill.notIn().isEmpty()
+                && where.zonesAt(getOwner().getPosition()).stream().anyMatch(skill.notIn()::contains)) {
+            return false; // not here: a town refuses it, nothing spent
+        }
+        if (riding != null && skill.effect() != SkillEffect.MOUNT) {
+            if (!riding.endsOnCast()) {
+                return false; // refused while he rides
+            }
+            dismount();
+        }
         if (usesMana && mana < skill.manaAt(level)) {
             // Refused before anything at all happens, which is the whole of what
             // "cannot afford" has to mean: no cooldown started, no mana taken,
@@ -966,6 +1036,15 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                 if (skill.hasLook()) {
                     world.effect(skill.look(), hastened);
                 }
+            }
+            case MOUNT -> {
+                mounting = skill;
+                mountedFrom = owner.getPosition();
+                mountedAt = world.getFrame() + Math.max(0, skill.windUpFrames());
+                if (!skill.castAnim().isBlank()) {
+                    owner.busy(skill.castAnim(), Math.max(1, skill.windUpFrames()));
+                }
+                mountOn(); // no mounting time: on at once
             }
             case PUSH -> {
                 var middle = towards != null ? towards : owner.getPosition();
@@ -2104,7 +2183,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
      */
     @Override
     public boolean holdingFire() {
-        return drawing != null;
+        return drawing != null || riding != null || mounting != null; // and nothing struck from the saddle
     }
 
     /**
@@ -2159,6 +2238,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
         if (charge != null) {
             driveTheCharge();
         }
+        mountOn();
         if (roll != null) {
             rollOn();
         }

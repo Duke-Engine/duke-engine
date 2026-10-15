@@ -551,6 +551,17 @@ E16, in parts.
 - **The ground before a world** (E86): built before there is a world — a front end behind a splash — it takes no
   scenery away, rather than failing.
 
+### A hero who fights when told, and rides
+
+- **A weapon that picks nothing by itself** (E87): `WeaponUpdate.acquiresNothing(true)` — idle, it looks for no target;
+  an order, a swing toward a point or on the ground, or a skill that aims it works as ever, and it is idle after.
+- **Quicker legs and a mount** (E89): `SpeedModifier` (core), asked by `MoveUpdate` every frame and multiplied into the
+  step; the skill book's is the strongest `SkillEffect.MOVE_SPEED` buff and the mount he rides. `SkillEffect.MOUNT` —
+  `WindUpFrames` mounting (a step or a blow calls it off), then `BoostPercent` quicker, drawn as `Look`'s template, his
+  weapon holding fire, off at a second press, a blow (`EndsOnHurt`) or another cast (`EndsOnCast`, else refused);
+  `SkillBook.dismount` for an ordered attack. `Skill.NotIn` — zones a skill is refused in, nothing spent, read from
+  `World.zonesAt`, the game's rule (`GameLogic.setZones`). The buff row shows `MOVE_SPEED` (`Words.moveSpeed`).
+
 ### A route that keeps to the roads
 
 - **`PathGrid.setStepCosts(percentByCell)`** (E52): what a step into each cell costs, as a share of its plain cost — a

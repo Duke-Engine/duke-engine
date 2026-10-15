@@ -506,6 +506,11 @@ public interface World {
         return canStep(from, to);
     }
 
+    /** The zones of the map the point lies in, by the game's names — see {@code GameLogic.setZones}; none by default. */
+    default java.util.Set<String> zonesAt(Coord3D at) {
+        return java.util.Set.of();
+    }
+
     /** The ways across what no walk crosses — see {@code GameLogic.setTraversalLinks}; none by default. */
     default java.util.List<uz.dukeengine.core.pathfind.TraversalLink> traversalLinks() {
         return java.util.List.of();

@@ -542,6 +542,11 @@ public final class GameObject {
         return null;
     }
 
+    /** Its modules as they stand, read-only and not copied: for a question asked every frame. */
+    public List<Module> modulesView() {
+        return java.util.Collections.unmodifiableList(modules);
+    }
+
     /** Whether any of its modules passes {@code test} — asked without copying them, as {@link #getModules} does. */
     public boolean anyModule(java.util.function.Predicate<? super Module> test) {
         for (var module : modules) {

@@ -1046,6 +1046,23 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         layTheScenery();
     }
 
+    /** The zones a point lies in, as the game names them — see {@link #setZones}. */
+    private java.util.function.Function<Coord3D, java.util.Set<String>> mapZones = at -> java.util.Set.of();
+
+    /**
+     * The zones of the map a point lies in — a town, a dungeon — by the game's names, for whatever asks where a thing
+     * is: a skill refused in a town. The game's rule, read the same on every machine.
+     */
+    public final void setZones(java.util.function.Function<Coord3D, java.util.Set<String>> rule) {
+        this.mapZones = rule == null ? at -> java.util.Set.of() : rule;
+    }
+
+    @Override
+    public final java.util.Set<String> zonesAt(Coord3D at) {
+        var found = mapZones.apply(at);
+        return found == null ? java.util.Set.of() : found;
+    }
+
     /** The ways across what no walk crosses — see {@link #setTraversalLinks}. */
     private List<uz.dukeengine.core.pathfind.TraversalLink> traversalLinks = List.of();
 

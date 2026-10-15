@@ -272,6 +272,21 @@ public enum SkillEffect {
     PUSH(Aim.SELF),
 
     /**
+     * Quicker legs: a buff of this kind on his book ({@code give(MOVE_SPEED, lender, percent, until)}) adds its percent
+     * to his walking speed while it holds — the strongest, never the sum — as {@code HASTE} is for his weapon. Never
+     * cast: see {@link #isPassive}.
+     */
+    MOVE_SPEED(Aim.SELF, true),
+
+    /**
+     * A mount: after {@code WindUpFrames} of mounting — {@code CastAnim} — he rides, {@code BoostPercent} quicker, drawn
+     * as {@code Look}'s template, his weapon holding fire; until a second press, an ordered attack, a blow that takes
+     * health ({@code EndsOnHurt}), or another cast ({@code EndsOnCast}: else refused while he rides). A step or a blow
+     * while mounting calls it off, nothing spent.
+     */
+    MOUNT(Aim.SELF),
+
+    /**
      * Cannot be killed, only beaten: its bearer's body never falls below {@code HealBelowPercent} of its most health —
      * the blow that would take it lower leaves it there ({@code BodyModule.setLeastHealth}), so no death is reaped and
      * no kill is credited — and then it is beaten ({@link SkillBook#isBeaten}). What being beaten does is the game's.

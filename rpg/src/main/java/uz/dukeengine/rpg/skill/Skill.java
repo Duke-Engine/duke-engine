@@ -151,7 +151,29 @@ public record Skill(
         int maxSummoned,
         int summonExperiencePercent,
         int stunFrames,
-        int manaRegen) {
+        int manaRegen,
+        java.util.List<String> notIn,
+        boolean endsOnCast,
+        boolean endsOnHurt) {
+
+    public Skill {
+        notIn = notIn == null ? java.util.List.of() : java.util.List.copyOf(notIn);
+    }
+
+    /** A skill refused nowhere, as every skill was before one could be; a mount ending on a cast and on a blow. */
+    public Skill(String heroTemplate, char key, SkillEffect effect, float damage, float damagePerLevel, float radius,
+            float range, float distance, float hitWidth, int boostPercent, int boostPerLevel, int durationFrames,
+            int tickFrames, int slowFrames, int cooldownFrames, int cooldownPerLevel, int maxRank, int levelPerRank,
+            int windUpFrames, int manaCost, int manaCostPerLevel, String projectile, String icon, String look,
+            String castAnim, float castSeconds, String name, String blurb, float projectileSpeed, float heal,
+            int healBelowPercent, Map<String, Integer> summons, int maxSummoned, int summonExperiencePercent,
+            int stunFrames, int manaRegen) {
+        this(heroTemplate, key, effect, damage, damagePerLevel, radius, range, distance, hitWidth, boostPercent,
+                boostPerLevel, durationFrames, tickFrames, slowFrames, cooldownFrames, cooldownPerLevel, maxRank,
+                levelPerRank, windUpFrames, manaCost, manaCostPerLevel, projectile, icon, look, castAnim, castSeconds,
+                name, blurb, projectileSpeed, heal, healBelowPercent, summons, maxSummoned, summonExperiencePercent,
+                stunFrames, manaRegen, java.util.List.of(), true, true);
+    }
 
     /**
      * A cooldown can shorten with level but never vanish: a skill castable every
@@ -173,7 +195,7 @@ public record Skill(
                 cooldownFrames, cooldownPerLevel, maxRank, levelPerRank, windUpFrames, manaCost,
                 manaCostPerLevel, projectile, icon, look, castAnim, castSeconds, name, blurb,
                 projectileSpeed, heal, healBelowPercent, summons, maxSummoned,
-                summonExperiencePercent, stunFrames, manaRegen);
+                summonExperiencePercent, stunFrames, manaRegen, notIn, endsOnCast, endsOnHurt);
     }
 
     /** Levels earned past the first — what every growth figure is multiplied by. */

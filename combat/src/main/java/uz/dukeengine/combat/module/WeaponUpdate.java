@@ -578,6 +578,22 @@ public final class WeaponUpdate extends UpdateModule {
         }
     }
 
+    /** Whether it never picks a target by itself — see {@link #acquiresNothing(boolean)}. */
+    private boolean acquiresNothing;
+
+    /**
+     * Pick no target by itself — a hero who fights only when told: idle, it looks for nothing, and an attack, a swing
+     * toward a point or on the ground, or a skill that aims it, works as ever and leaves it idle when it ends.
+     * Deterministic state of the unit, set on the simulation thread as every order is.
+     */
+    public void acquiresNothing(boolean nothing) {
+        this.acquiresNothing = nothing;
+    }
+
+    public boolean isAcquiringNothing() {
+        return acquiresNothing;
+    }
+
     /** The point it attacks toward, or null — see {@link #attackToward}. */
     private Coord3D toward;
     /** Whether the attack toward a point goes on while the weapon readies, or ends after the swing under way. */
@@ -917,8 +933,8 @@ public final class WeaponUpdate extends UpdateModule {
         }
 
         if (target == null) {
-            if (!looksNow(world)) {
-                return; // between its looks for a target
+            if (acquiresNothing || !looksNow(world)) {
+                return; // between its looks for a target, or told never to look
             }
             acquireTarget(world, owner, armed);
             if (target == null) {
