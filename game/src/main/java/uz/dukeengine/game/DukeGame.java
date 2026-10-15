@@ -1300,7 +1300,10 @@ public final class DukeGame {
 
         logic.onOtherCommands(this::otherCommand);
         // The camera first: a move the game's code orders in a frame takes its first step in the next.
-        driver.addTickCallback(camera::step);
+        driver.addTickCallback(() -> camera.step(id -> {
+            var thing = logic.findObject(id);
+            return thing == null || thing.isEffectivelyDead() ? null : thing.getPosition();
+        }));
         for (var callback : tickCallbacks) {
             driver.addTickCallback(() -> callback.accept(this));
         }

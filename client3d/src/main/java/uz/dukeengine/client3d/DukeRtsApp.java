@@ -239,6 +239,7 @@ final class DukeRtsApp extends SimpleApplication {
     /** Every drawn vehicle's treads and wheels, run as it moves — see {@link RunningGear}. */
     private final RunningGear runningGear = new RunningGear();
     private final TurretBones turretBones = new TurretBones();
+    private final DrivenBones drivenBones = new DrivenBones();
     /** The streams things ride, drawn as ribbons, once the game names a look for one — see {@link Visuals#stream}. */
     private Ribbons ribbons;
     private final Map<String, Material> particleMaterials = new HashMap<>();
@@ -383,6 +384,12 @@ final class DukeRtsApp extends SimpleApplication {
     private boolean commandBarHidden;
     private com.jme3.app.state.ScreenshotAppState screenshots;
     private BitmapText hud;
+    private SceneVeil veil;
+
+    /** Whether a scene the game plays keeps the player's hands off the world — see {@code GameCamera.lockInput}. */
+    private boolean sceneLocked() {
+        return game != null && game.camera().screen().inputLocked();
+    }
     private BitmapText buildMenu;
     private BannerPanel banner;
 
@@ -782,6 +789,8 @@ final class DukeRtsApp extends SimpleApplication {
         unitBars.look(visuals.getUnitBars());
         guiNode.attachChild(unitBars.node());
         rangeRings = new RangeRings(assetManager, markerNode, visuals.getRangeLook());
+        veil = new SceneVeil(assetManager);
+        guiNode.attachChild(veil.node());
         warmNode.setCullHint(Spatial.CullHint.Always);
         rootNode.attachChild(warmNode);
 
@@ -4160,6 +4169,9 @@ final class DukeRtsApp extends SimpleApplication {
         }
 
         ActionListener actions = (name, pressed, tpf) -> {
+            if (sceneLocked() && pressed && !name.startsWith(KEY) && screen == Screen.PLAYING && !menu.isVisible()) {
+                return; // a scene the game plays: no picking, selecting or ordering until it lets go
+            }
             switch (name) {
                 case "Select" -> {
                     if (menu.isVisible()) {
@@ -4280,7 +4292,7 @@ final class DukeRtsApp extends SimpleApplication {
         hotkeyListener = actions; // a binding put on another key later is heard by it too
 
         AnalogListener zoom = (name, value, tpf) -> {
-            if (screen == Screen.PLAYING && snapshot.camera() == null) {
+            if (screen == Screen.PLAYING && snapshot.camera() == null && !sceneLocked()) {
                 camera.wheel(name.equals("ZoomIn")); // nobody's to zoom while the game has it
             }
         };
@@ -4358,6 +4370,9 @@ final class DukeRtsApp extends SimpleApplication {
         if (menu.isVisible() || screen != Screen.PLAYING) {
             menuKey(code, key);
             return;
+        }
+        if (sceneLocked() && code != KeyInput.KEY_ESCAPE) {
+            return; // the scene's: Esc alone still reaches the menu
         }
         if (code == KeyInput.KEY_ESCAPE && (aiming.isArmed() || arming != null)) {
             if (aiming.isArmed()) {
@@ -6356,11 +6371,14 @@ final class DukeRtsApp extends SimpleApplication {
             cameraPitch = Float.isNaN(directed.pitch()) ? camera.pitch() : directed.pitch();
             scrolling = null;
         } else {
-            steerTheCamera(tpf);
+            if (!sceneLocked()) {
+                steerTheCamera(tpf);
+            }
             cameraPitch = camera.pitch();
             game.setCameraSeen(camera.targetX(), camera.targetZ(), camera.yaw(), camera.pitch(), camera.distance());
         }
         placeTheCamera(tpf);
+        veil.show(game.camera().screen(), cam.getWidth(), cam.getHeight());
     }
 
     /** The player's own hands on the camera: the pan keys, the window's edges and the right button, turning, zooming. */
@@ -6595,6 +6613,7 @@ final class DukeRtsApp extends SimpleApplication {
             barrels.forget(entry.getKey());
             runningGear.forget(entry.getKey());
             turretBones.forget(entry.getKey());
+            drivenBones.forget(entry.getKey());
             groundPictures.forget(entry.getKey());
             wordTints.forget(entry.getKey());
             stealthLook.forget(entry.getKey());
@@ -6832,6 +6851,7 @@ final class DukeRtsApp extends SimpleApplication {
                 barrels.forget(died.object().value());
                 runningGear.forget(died.object().value());
                 turretBones.forget(died.object().value());
+                drivenBones.forget(died.object().value());
                 moment(GameSounds.diedMoment(died),
                         WorldMoments.died(died, dying == null ? null : dying.root, this::floorHeightAt),
                         died.object().value());
@@ -8162,6 +8182,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         runningGear.see(view.id(), view, snapshot.frame());
         turretBones.turn(view.id(), view.turrets());
+        drivenBones.drive(view.id(), node.body, visual.drivenBones, view, timer.getTimeInSeconds());
         // Its shadow, from its opaque pieces as drawn — none while it is drawn see-through or faded.
         boolean casts = visual.castsShadow && !stealthLook.looking(view.id());
         if (sunShadows != null && node.body != null && (casts != node.casting || node.body != node.shadowBody)) {

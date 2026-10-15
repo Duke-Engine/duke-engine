@@ -36,6 +36,10 @@ public final class Visuals {
     }
 
     /** Per-template visual/audio configuration. All fields optional. */
+    /** A bone the game drives: see {@link UnitVisual#driveBone}. */
+    record DrivenBone(String bone, BoneDrive drive, int easeFrames) {
+    }
+
     public static final class UnitVisual {
         String modelPath;
         String modelPart;
@@ -161,6 +165,20 @@ public final class Visuals {
             var bones = bonesFor(conditions);
             var was = bones.getOrDefault(slot, new WeaponBones(null, null, null));
             bones.put(slot, new WeaponBones(was.fire(), was.flash(), bone));
+            return this;
+        }
+
+        /** The bones the game drives each time it is drawn: {@link #driveBone}. */
+        final java.util.List<DrivenBone> drivenBones = new java.util.ArrayList<>();
+
+        /**
+         * Its model's bone {@code bone} drawn at the pose {@code drive} gives from the thing as it is drawn — its turn
+         * rate, its speed, its health — eased toward it over {@code easeFrames} of the game's frames: the reference's
+         * {@code W3DTruckDraw}, a trailer swinging about its hitch as the cab turns. A model naming no such bone is drawn
+         * as the file has it. The client's alone.
+         */
+        public UnitVisual driveBone(String bone, BoneDrive drive, int easeFrames) {
+            drivenBones.add(new DrivenBone(bone, drive, Math.max(1, easeFrames)));
             return this;
         }
 

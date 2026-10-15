@@ -624,9 +624,18 @@ E16, in parts.
 6. **An answer by its target**: `Visuals.orderAnswerBy(word, target -> moment)`, `AnswerTarget(template, relation,
    airborne)` — null for a click on the ground; where it gives null the word's own `orderAnswer` answers. Named apart
    so `orderAnswer(word, null)` stays unambiguous; a thing's kinds are not in the picture, so a rule reads its template.
+9. **A scene's camera** (`GameCamera`): `fade(colour, from, to, frames)` over the world and under the interface,
+   `letterbox(on, frames)` — bars sliding in to 12% of the height each — `lockInput(locked)`, the player's picking,
+   selecting, orders, camera keys and wheel kept off (Esc still reaches the menu), and `follow(thing, frames)`, the eye
+   closing on a moving thing a share a frame while the game has it, let go by `release` or the thing's death. The client
+   reads `GameCamera.screen()` (`Screen`) each frame (`SceneVeil`).
 12. **Reloads shared**: `WeaponUpdate.delaySlots(fromSlot, frames)` keeps every other slot from firing for at least
    that long (the reference's `ShareWeaponReloadTime`, done by a module told of a shot), and `reloadFramesOf(slot)`
    says how long a slot waits between shots.
+13. **A bone the game drives**: `UnitVisual.driveBone(bone, drive, easeFrames)` — a `BoneDrive` told the thing as
+   drawn and its turn rate (`BoneDrive.Input`) gives a `Pose` (a turn about an axis of the model, an offset, shown or
+   hidden), eased toward over the game's frames: the reference's `W3DTruckDraw`. A model naming no such bone is drawn
+   as the file has it.
 
 ### Engine asks, round 21 (duke-generals)
 

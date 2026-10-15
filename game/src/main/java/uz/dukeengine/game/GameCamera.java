@@ -162,6 +162,90 @@ public final class GameCamera {
     private volatile CameraView seen;
 
     /**
+     * What a scene puts over the whole picture, for the client to draw — the reference's {@code CAMERA_FADE_*}, {@code
+     * LETTERBOX_MODE} and {@code DISABLE_INPUT}.
+     *
+     * @param colour      the fade's colour, {@code 0xRRGGBB}
+     * @param fade        how much of it covers the world, 0 none to 1 all, under the interface
+     * @param letterbox   how far the bars are in, 0 out to 1 each at {@link #LETTERBOX_SHARE} of the height
+     * @param inputLocked whether the player's picking, selecting, ordering and camera keys wait (never Esc, nor chat)
+     */
+    public record Screen(int colour, float fade, float letterbox, boolean inputLocked) {
+
+        /** A bar's share of the height, all the way in. */
+        public static final float LETTERBOX_SHARE = 0.12f;
+
+        public static final Screen CLEAR = new Screen(0, 0f, 0f, false);
+    }
+
+    private final Tween fading = new Tween();
+    private final Tween barring = new Tween();
+    private int fadeColour;
+    private float fade;
+    private float letterbox;
+    private boolean inputLocked;
+    private volatile Screen screen = Screen.CLEAR;
+    private uz.dukeengine.core.thing.ObjectId followed;
+    private int catchUpFrames;
+
+    /** Fade the world to {@code colour} ({@code 0xRRGGBB}) from {@code from} to {@code to} covered over so many frames. */
+    public void fade(int colour, float from, float to, int frames) {
+        fadeColour = colour & 0xFFFFFF;
+        fading.start(Math.clamp(from, 0f, 1f), Math.clamp(to, 0f, 1f), frames, Ease.LINEAR);
+        fade = frames <= 0 ? Math.clamp(to, 0f, 1f) : Math.clamp(from, 0f, 1f);
+        publish();
+    }
+
+    /** Slide the bars at the top and bottom in, or out, over so many frames. */
+    public void letterbox(boolean on, int frames) {
+        barring.start(letterbox, on ? 1f : 0f, frames, Ease.IN_OUT);
+        if (frames <= 0) {
+            letterbox = on ? 1f : 0f;
+        }
+        publish();
+    }
+
+    /** Keep the player's hands off the world — picking, selecting, orders and camera keys, not Esc or chat — or not. */
+    public void lockInput(boolean locked) {
+        inputLocked = locked;
+        publish();
+    }
+
+    /**
+     * Keep {@code thing} in view each frame while the game has the camera, closing a share of the way a frame so it
+     * catches up in about {@code frames}; null lets go, where it is.
+     */
+    public void follow(uz.dukeengine.core.thing.ObjectId thing, int frames) {
+        if (thing != null) {
+            take();
+            movingX.stop();
+            movingY.stop();
+            path = List.of();
+        }
+        followed = thing;
+        catchUpFrames = Math.max(1, frames);
+    }
+
+    /** What the client puts over the picture now; read from any thread. */
+    public Screen screen() {
+        return screen;
+    }
+
+    private void publish() {
+        screen = new Screen(fadeColour, fade, letterbox, inputLocked);
+    }
+
+    private void stepScreen() {
+        if (fading.going()) {
+            fade = fading.step();
+        }
+        if (barring.going()) {
+            letterbox = barring.step();
+        }
+        publish();
+    }
+
+    /**
      * Move to look at {@code (x, y)} over so many logic frames — at once for none — in a straight line at an even
      * pace, keeping pitch and zoom. A move already under way is replaced, from where it had got to.
      */
@@ -261,6 +345,7 @@ public final class GameCamera {
     /** Give the camera back to the player, where it is. */
     public void release() {
         driven = false;
+        followed = null;
         path = List.of();
         movingX.stop();
         movingY.stop();
@@ -292,6 +377,22 @@ public final class GameCamera {
     /** Where the player is looking, told by the client from its own thread. */
     void seen(CameraView view) {
         seen = view;
+    }
+
+    /** One logic frame, a followed thing found where {@code where} says (null for gone). */
+    void step(java.util.function.Function<uz.dukeengine.core.thing.ObjectId, uz.dukeengine.core.math.Coord3D> where) {
+        stepScreen();
+        if (driven && followed != null) {
+            var at = where.apply(followed);
+            if (at == null) {
+                followed = null;
+            } else {
+                float share = 1f / catchUpFrames;
+                x += (at.x() - x) * share;
+                y += (at.y() - y) * share;
+            }
+        }
+        step();
     }
 
     /** One logic frame. */
