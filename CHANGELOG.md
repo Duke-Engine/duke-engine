@@ -487,6 +487,9 @@ E16, in parts.
   among it; the old form is still told, and now has a default.
 - **A flinch over a swing** (E72): a busy clip that begins ends an attack or flinch clip under way, its upper-body
   layer too, so a stagger mid-swing is drawn as the stagger.
+- **A stagger that holds** (E73): a blow during a stagger no longer ends its flinch — the book holds it to the stun's
+  last frame — and a stunned or held mover is drawn standing (`UnitView.moving` false while `DISABLED` or `HELD`),
+  its order kept for when it can go on.
 
 ### A route that keeps to the roads
 

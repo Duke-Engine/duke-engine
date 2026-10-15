@@ -228,8 +228,11 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     private int maxMana;
     private int manaTenthsPerSecond;
     private int manaCarry;
-    /** The first frame a {@code STAGGER} may stagger him again. */
+    /** The first frame a {@code STAGGER} may stagger him again, and the frame its stun ends. */
     private int staggerFrom;
+    private int staggerEnds;
+    /** The flinch the stagger under way holds him at. */
+    private String staggerClip;
 
     /** A blow on him: a {@code STAGGER} he bears stuns him and holds him at his flinch, if the blow is heavy enough. */
     @Override
@@ -242,13 +245,19 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
             }
         }
         var owner = getOwner();
+        if (staggerClip != null && frame < staggerEnds && !owner.isEffectivelyDead()) {
+            // A blow ends whatever work he was at; a stagger under way is no work, and holds to its last frame.
+            owner.busy(staggerClip, staggerEnds - frame);
+        }
         if (stagger == null || frame < staggerFrom || owner.isEffectivelyDead() || stagger.stunFrames() <= 0
                 || amount < stagger.damage() && (blow == null || !blow.critical())) {
             return;
         }
         daze(owner, stagger.stunFrames());
         owner.busy(stagger.castAnim(), stagger.stunFrames());
-        staggerFrom = frame + stagger.stunFrames() + stagger.durationFrames();
+        staggerClip = stagger.castAnim();
+        staggerEnds = frame + stagger.stunFrames();
+        staggerFrom = staggerEnds + stagger.durationFrames();
     }
 
     /** Health a {@code HEAL} buff has paid toward its next whole point, counted as {@link #manaCarry} is. */

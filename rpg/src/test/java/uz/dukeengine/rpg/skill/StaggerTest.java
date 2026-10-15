@@ -34,6 +34,25 @@ class StaggerTest {
         hero.getBody().damage(amount, DamageType.NORMAL, new Death(DeathType.NORMAL, null, -1, critical));
     }
 
+    /** Struck again while staggered, his flinch holds to the stun's end (E73). */
+    @Test
+    void aSecondBlowDuringTheStaggerKeepsHisFlinchToItsEnd() {
+        var world = new RpgWorld(Map.of("Knight", List.of(stagger())), Seal.NONE)
+                .template("Knight", new ActiveBody.Data(1000f), new SkillBook.Data(), new StatusUpdate.Data());
+        var hero = world.put("Knight", world.heroes, 0f, 0f);
+        world.run(1);
+
+        strike(hero, 50f, false);
+        world.run(4);
+        strike(hero, 5f, false);
+        strike(hero, 50f, true);
+        assertEquals("Hurt", hero.getBusyClip(), "still at his flinch after two more blows");
+        world.run(6);
+        assertEquals("Hurt", hero.getBusyClip(), "to the stun's last frame");
+        world.run(2);
+        assertNull(hero.getBusyClip(), "and no longer");
+    }
+
     @Test
     void aHeavyOrCriticalBlowStaggersHimForItsFramesAndNotAgainWhileHeIsSpared() {
         var world = new RpgWorld(Map.of("Knight", List.of(stagger())), Seal.NONE)

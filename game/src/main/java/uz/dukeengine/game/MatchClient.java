@@ -99,6 +99,15 @@ final class MatchClient extends GameClient {
     }
 
     /** The words {@code object} holds, and the game's words for its moments now. */
+    /**
+     * Whether it is walking as the picture sees it: a move under way, and not held where it stands — a stunned or held
+     * mover keeps its order for when it can go on, but is drawn standing, not walking on the spot.
+     */
+    private static boolean walking(uz.dukeengine.core.thing.GameObject object, uz.dukeengine.core.module.Locomotor ai) {
+        return ai != null && ai.isMoving() && !object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.DISABLED)
+                && !object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HELD);
+    }
+
     /** Its words, and its work's clip among them while it is busy and standing — see {@code UnitView.busyClip}. */
     private static java.util.List<String> busyIn(java.util.List<String> words,
             uz.dukeengine.core.thing.GameObject object, boolean moving) {
@@ -315,7 +324,7 @@ final class MatchClient extends GameClient {
                 parts.selectable(object) && !rider
                         && !object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.SOLD)
                         && !object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.UNSELECTABLE),
-                ai != null && ai.isMoving(),
+                walking(object, ai),
                 weapon != null && weapon.isAttacking(),
                 parts.queued(object),
                 position.z(),
@@ -324,8 +333,7 @@ final class MatchClient extends GameClient {
                 object.keepsOwnHeight(),
                 object.statusBits(),
                 parts.passengers(object),
-                busyIn(wordsOf(object, ai != null && ai.isMoving(), weapon, turns), object,
-                        ai != null && ai.isMoving()),
+                busyIn(wordsOf(object, walking(object, ai), weapon, turns), object, walking(object, ai)),
                 parts.built(object),
                 rider ? carrier.getId().value() : -1,
                 allied,
