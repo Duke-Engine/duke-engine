@@ -1,4 +1,4 @@
-package uz.dukeengine.client3d;
+package uz.dukeengine.client3d.action;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import uz.dukeengine.client3d.SkillRange;
 import uz.dukeengine.combat.message.CombatOrder;
 import uz.dukeengine.core.thing.ObjectId;
 
@@ -16,34 +17,19 @@ class ActionControlsTest {
     private static final List<ObjectId> HERO = List.of(new ObjectId(1));
 
     @Test
-    void aHeldMouseReportsMotionAndIsLetGoWhileAnythingWantsThePointer() {
-        var capture = new MouseCapture();
-        capture.want(true);
-        assertTrue(capture.update(false), "held");
-        assertArrayEquals(new float[] {0f, 0f}, capture.motion(40f, 3f), "the first motion is none, not a jump");
-        assertArrayEquals(new float[] {5f, -2f}, capture.motion(5f, -2f));
-
-        assertFalse(capture.update(true), "a screen, a menu or Alt held: let go");
-        assertArrayEquals(new float[] {0f, 0f}, capture.motion(9f, 9f), "and no motion read");
-        assertTrue(capture.update(false), "held again once it closes");
-        assertArrayEquals(new float[] {0f, 0f}, capture.motion(300f, 0f), "no jump from where it was left");
-        assertTrue(KeyMap.standard().keysOf(KeyMap.Control.FREE_POINTER)
-                .contains(KeyMap.Key.alt(com.jme3.input.KeyInput.KEY_LMENU)), "Alt held frees it");
-        assertTrue(KeyMap.Control.FREE_POINTER.isHeld());
-    }
-
-    @Test
     void theHeldMouseTurnsTheFollowRoundHimAndLeavesItsPitch() {
         var look = CameraFollow.of(null).orbiting(CameraFollow.ORBIT_SENSITIVITY, false, 0f);
-        var camera = new CameraFocus();
-        camera.lookAt(100f, 100f);
-        float yaw = camera.yaw();
+        var camera = new TestWindow();
+        var controls = new ActionControls().follow(look).holdMouse(true);
+        controls.attach(camera);
+        camera.moved = new float[] {100f, 30f};
         float pitch = camera.pitch();
-        camera.turnBy(look.turnOf(100f));
-        assertEquals(-100f * CameraFollow.ORBIT_SENSITIVITY, camera.yaw() - yaw, 1e-5f, "a hundred pixels' turn");
+        controls.frame(1f / 30f);
+        assertEquals(-100f * CameraFollow.ORBIT_SENSITIVITY, camera.yaw(), 1e-5f, "a hundred pixels' turn");
         assertEquals(pitch, camera.pitch(), "band 0: its pitch its own");
+        camera.lookAt(100f, 100f);
         new CameraFollow.Eye().step(look, camera, 100f, 100f, 0f, false, false, 1f, 1f);
-        assertEquals(100f, camera.targetX(), 1e-3f, "still on him");
+        assertEquals(100f, camera.lookingAt()[0], 1e-3f, "still on him");
         assertEquals(100f * CameraFollow.ORBIT_SENSITIVITY,
                 look.orbiting(CameraFollow.ORBIT_SENSITIVITY, true, 0f).turnOf(100f), 1e-6f, "inverted");
     }

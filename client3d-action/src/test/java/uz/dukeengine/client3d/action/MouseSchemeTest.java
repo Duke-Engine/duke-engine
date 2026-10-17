@@ -1,4 +1,4 @@
-package uz.dukeengine.client3d;
+package uz.dukeengine.client3d.action;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

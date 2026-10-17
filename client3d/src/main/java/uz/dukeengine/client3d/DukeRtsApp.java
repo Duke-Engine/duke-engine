@@ -969,34 +969,12 @@ final class DukeRtsApp extends SimpleApplication {
         this.mouse = chosen == null ? Mouse.RIGHT_COMMANDS : chosen;
     }
 
-    /** How the mouse plays — see {@link Duke3D#mouseScheme}. */
-    private MouseScheme mouseScheme = MouseScheme.CLASSIC;
-    private final MouseScheme.Swing swing = new MouseScheme.Swing();
+    /** Controls of a kind the client has not got itself — see {@link Duke3D#controls}. */
+    private ControlScheme scheme = ControlScheme.CLASSIC;
 
-    void mouseScheme(MouseScheme scheme) {
-        this.mouseScheme = scheme == null ? MouseScheme.CLASSIC : scheme;
-    }
-
-    /** The left button, the action way: a strike along the camera's forward — see {@link MouseScheme#ACTION}. */
-    private void actionLeft(boolean pressed) {
-        var hero = selectedIds();
-        var mine = hero.isEmpty() ? null : unitNodes.get(hero.getFirst().value());
-        if (mine == null || mine.view == null) {
-            return;
-        }
-        int me = game.getLocalPlayerIndex();
-        if (!pressed) {
-            swing.releaseAhead(me, hero).forEach(game::postCommand);
-            return;
-        }
-        swing.pressAhead(mouseScheme, me, hero, mine.view.x(), mine.view.y(), reachOf(hero.getFirst()), forward(),
-                enemiesSeen(), snapshot.frame()).forEach(game::postCommand);
-    }
-
-    /** The world's angle of the camera's forward — up the screen, as the walking keys go. */
-    private float forward() {
-        float yaw = camera.yaw();
-        return (float) Math.atan2(-Math.cos(yaw), -Math.sin(yaw));
+    void controls(ControlScheme controls) {
+        this.scheme = controls == null ? ControlScheme.CLASSIC : controls;
+        scheme.attach(schemeContext);
     }
 
     /** How far the unit's weapon reaches, read off the world. */
@@ -1007,70 +985,150 @@ final class DukeRtsApp extends SimpleApplication {
         return weapon == null ? 0f : weapon.reach();
     }
 
-    /** The living enemies the player sees now, for the soft lock. */
-    private List<MouseScheme.Candidate> enemiesSeen() {
-        var seen = new ArrayList<MouseScheme.Candidate>();
-        for (var view : snapshot.units()) {
-            if (view.hostile() && view.health() > 0f) {
-                seen.add(new MouseScheme.Candidate(view.id(), view.x(), view.y()));
-            }
+    /** What a scheme reads and works through: the window, as the client sees it. */
+    private final ControlScheme.Context schemeContext = new ControlScheme.Context() {
+        @Override
+        public DukeGame game() {
+            return game;
         }
-        return seen;
-    }
 
-    /** The left button, the modern way: a lock on the enemy under it, else a swing toward the ground, held. */
-    private void modernLeft(boolean pressed) {
-        var hero = selectedIds();
-        if (hero.isEmpty()) {
-            return;
+        @Override
+        public uz.dukeengine.core.view.WorldSnapshot snapshot() {
+            return snapshot;
         }
-        int me = game.getLocalPlayerIndex();
-        int frame = snapshot == null ? 0 : snapshot.frame();
-        if (!pressed) {
-            swing.release(me, hero).forEach(game::postCommand);
-            return;
-        }
-        var unit = pickUnit();
-        int enemy = unit != null && unit.view.hostile() ? unit.view.id() : -1;
-        float gap = Float.MAX_VALUE;
-        var mine = unitNodes.get(hero.getFirst().value());
-        if (enemy >= 0 && mine != null && mine.view != null) {
-            gap = (float) Math.hypot(unit.view.x() - mine.view.x(), unit.view.y() - mine.view.y());
-        }
-        var ground = pickGround();
-        swing.press(mouseScheme, me, hero, enemy, gap,
-                ground == null ? null : new uz.dukeengine.core.math.Coord3D(ground.x, ground.z, ground.y), frame)
-                .forEach(game::postCommand);
-    }
 
-    /** A held swing's point followed as the pointer moves. */
-    private void followTheSwing() {
-        if (!swing.isHeld() || snapshot == null) {
-            return;
+        @Override
+        public boolean playing() {
+            long window = windowHandle();
+            return screen == Screen.PLAYING && !menu.isVisible() && !(canvasInput != null && canvasInput.holdsKeys())
+                    && window != 0L
+                    && org.lwjgl.glfw.GLFW.glfwGetWindowAttrib(window, org.lwjgl.glfw.GLFW.GLFW_FOCUSED) != 0;
         }
-        if (mouseScheme.action()) {
-            var hero = selectedIds();
-            var mine = hero.isEmpty() ? null : unitNodes.get(hero.getFirst().value());
-            if (screen != Screen.PLAYING || !buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT) || mine == null
-                    || mine.view == null) {
-                swing.releaseAhead(game.getLocalPlayerIndex(), hero).forEach(game::postCommand);
-                return;
+
+        @Override
+        public List<uz.dukeengine.core.thing.ObjectId> selected() {
+            return selectedIds();
+        }
+
+        @Override
+        public float[] drawnAt(int id) {
+            var node = unitNodes.get(id);
+            if (node == null) {
+                return null;
             }
-            swing.dragAhead(mouseScheme, game.getLocalPlayerIndex(), hero, mine.view.x(), mine.view.y(),
-                    reachOf(hero.getFirst()), forward(), enemiesSeen(), snapshot.frame()).forEach(game::postCommand);
-            return;
+            var at = node.root.getLocalTranslation();
+            return new float[] {at.x, at.z};
         }
-        if (screen != Screen.PLAYING || !buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
-            swing.release(game.getLocalPlayerIndex(), selectedIds()).forEach(game::postCommand);
-            return;
+
+        @Override
+        public float topOf(int id) {
+            var node = unitNodes.get(id);
+            return node == null || node.body == null ? 0f : UnitPlacement.topOf(node.body);
         }
-        var ground = pickGround();
-        if (ground != null) {
-            swing.drag(game.getLocalPlayerIndex(), selectedIds(),
-                    new uz.dukeengine.core.math.Coord3D(ground.x, ground.z, ground.y), snapshot.frame())
-                    .forEach(game::postCommand);
+
+        @Override
+        public uz.dukeengine.core.view.UnitView pointedUnit() {
+            var unit = pickUnit();
+            return unit == null ? null : unit.view;
         }
-    }
+
+        @Override
+        public float[] pointedGround() {
+            var click = inputManager.getCursorPosition();
+            var ground = groundUnder(click.x, click.y);
+            return ground == null ? null : new float[] {ground.x, ground.z, ground.y};
+        }
+
+        @Override
+        public float floorHeight(float x, float y) {
+            return floorHeightAt(x, y);
+        }
+
+        @Override
+        public boolean keyHeld(char key) {
+            return DukeRtsApp.keyHeld(windowHandle(), key);
+        }
+
+        @Override
+        public boolean leftHeld() {
+            return buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        }
+
+        @Override
+        public float time() {
+            return timer.getTimeInSeconds();
+        }
+
+        @Override
+        public float yaw() {
+            return camera.yaw();
+        }
+
+        @Override
+        public float pitch() {
+            return camera.pitch();
+        }
+
+        @Override
+        public float[] lookingAt() {
+            return new float[] {camera.targetX(), camera.targetZ()};
+        }
+
+        @Override
+        public void lookAt(float x, float y) {
+            camera.lookAt(x, y);
+        }
+
+        @Override
+        public void turnBy(float radians) {
+            camera.turnBy(radians);
+        }
+
+        @Override
+        public void tilt(float radians, float base, float band) {
+            camera.tilt(radians, base, band);
+        }
+
+        @Override
+        public void holdMouse(boolean held) {
+            capture.want(held);
+        }
+
+        @Override
+        public boolean mouseHeld() {
+            return capture.captured();
+        }
+
+        @Override
+        public float[] mouseMoved() {
+            return new float[] {heldDx, heldDy};
+        }
+
+        @Override
+        public com.jme3.scene.Node gui() {
+            return guiNode;
+        }
+
+        @Override
+        public com.jme3.font.BitmapFont font() {
+            return guiFont;
+        }
+
+        @Override
+        public Vector3f screenOf(float x, float height, float y) {
+            return cam.getScreenCoordinates(new Vector3f(x, height, y));
+        }
+
+        @Override
+        public void castArmed() {
+            aimArmedKey();
+        }
+
+        @Override
+        public float reachOf(uz.dukeengine.core.thing.ObjectId id) {
+            return DukeRtsApp.this.reachOf(id);
+        }
+    };
 
     /** The player's own scroll speed — see {@link Duke3D#scrollSpeed}. */
     void scrollSpeed(float share) {
@@ -2962,9 +3020,6 @@ final class DukeRtsApp extends SimpleApplication {
      */
     static List<Object> rebindable(Hotkeys hotkeys) {
         var actions = new ArrayList<Object>(new java.util.TreeSet<>(hotkeys.claimedKeys()));
-        if (hotkeys.directionChanged() != null) {
-            actions.addAll(List.of('1', '2', '3', '4'));
-        }
         for (char letter : new java.util.TreeSet<Character>(hotkeys.describedKeys())) {
             if (!hotkeys.claimedKeys().contains(letter)) {
                 actions.add(null);
@@ -2988,13 +3043,6 @@ final class DukeRtsApp extends SimpleApplication {
             var word = hotkeys.wordOf(letter);
             var key = Hotkeys.nameOf(hotkeys.codeFor(letter));
             lines.add(word.isEmpty() ? key : key + "   " + word);
-        }
-        if (hotkeys.directionChanged() != null) {
-            var walk = hotkeys.directionKeys();
-            lines.add(walk.up() + "   " + say.apply("Walk up"));
-            lines.add(walk.left() + "   " + say.apply("Walk left"));
-            lines.add(walk.down() + "   " + say.apply("Walk down"));
-            lines.add(walk.right() + "   " + say.apply("Walk right"));
         }
         for (char letter : new java.util.TreeSet<Character>(hotkeys.describedKeys())) {
             if (!hotkeys.claimedKeys().contains(letter)) {
@@ -4283,10 +4331,8 @@ final class DukeRtsApp extends SimpleApplication {
                             // The release is swallowed with it, or letting go would
                             // end a drag that never began.
                             aimArmedKey();
-                        } else if (mouseScheme.action()) {
-                            actionLeft(pressed); // a strike along the camera's forward
-                        } else if (mouseScheme.modern()) {
-                            modernLeft(pressed); // no selecting by the left button: a lock, or a swing
+                        } else if (scheme.left(pressed)) {
+                            // the scheme's: a lock, a swing or a strike ahead, and no selecting by the left button
                         } else if (pressed) {
                             beginDrag();
                         } else if (dragFrom != null) {
@@ -4319,7 +4365,7 @@ final class DukeRtsApp extends SimpleApplication {
                     } else if (pressed && (aiming.isArmed() || arming != null || mouse.rightClickLetsGo())) {
                         secondThoughts();
                     } else if (pressed && pointerOnTheWorld() && !onAPanel(over.x, over.y)
-                            && mouseScheme.rightOrders(snapshot.contextOrder() != null, pickUnit() != null)) {
+                            && scheme.rightOrders(snapshot.contextOrder() != null, pickUnit() != null)) {
                         order(); // a right-click on the bar, or off the world, is not an order to the world
                     }
                 }
@@ -4336,7 +4382,7 @@ final class DukeRtsApp extends SimpleApplication {
                         // See SkillRange.castOnRelease.
                         if (name.startsWith(HOTKEY) && arming != null
                                 && arming == name.charAt(HOTKEY.length())) {
-                            if (forwardAim != null && hotkeys.releasesToCast()) {
+                            if (scheme.aiming() && scheme.castsOnRelease()) {
                                 aimArmedKey(); // aimed from him, cast as the key is let go
                                 return;
                             }
@@ -4496,28 +4542,11 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         char action = (Character) waiting;
-        if (action >= '1' && action <= '4') {
-            char letter = letterOf(code);
-            if (letter == 0) {
-                return;
-            }
-            var walk = hotkeys.directionKeys();
-            var keys = switch (action) {
-                case '1' -> new DirectionKeys(letter, walk.left(), walk.down(), walk.right());
-                case '2' -> new DirectionKeys(walk.up(), letter, walk.down(), walk.right());
-                case '3' -> new DirectionKeys(walk.up(), walk.left(), letter, walk.right());
-                default -> new DirectionKeys(walk.up(), walk.left(), walk.down(), letter);
-            };
-            hotkeys.onDirection(keys, hotkeys.directionChanged());
-            preferences.set("walk.keys", (int) keys.up() << 24 | (int) keys.left() << 16 | (int) keys.down() << 8
-                    | keys.right());
-        } else {
-            hotkeys.rebind(action, code);
-            for (var bound : hotkeys.all().keySet()) {
-                preferences.set("key." + (int) bound, hotkeys.codeFor(bound));
-            }
-            mapTheHotkeys();
+        hotkeys.rebind(action, code);
+        for (var bound : hotkeys.all().keySet()) {
+            preferences.set("key." + (int) bound, hotkeys.codeFor(bound));
         }
+        mapTheHotkeys();
         showSettingsMenu(settingsReturn);
     }
 
@@ -4595,11 +4624,6 @@ final class DukeRtsApp extends SimpleApplication {
             if (code >= 0) {
                 hotkeys.rebind(bound, code);
             }
-        }
-        int walk = preferences.number("walk.keys", 0);
-        if (walk != 0 && hotkeys.directionChanged() != null) {
-            hotkeys.onDirection(new DirectionKeys((char) (walk >>> 24 & 0xFF), (char) (walk >>> 16 & 0xFF),
-                    (char) (walk >>> 8 & 0xFF), (char) (walk & 0xFF)), hotkeys.directionChanged());
         }
     }
 
@@ -4832,27 +4856,18 @@ final class DukeRtsApp extends SimpleApplication {
      * other was fixed.
      */
     private Vector3f pickGround() {
-        if (forwardAim != null) {
-            var at = forwardAimPoint();
-            if (at != null) {
-                return at; // no pointer: the aim from him along the camera's forward
-            }
+        var aimed = schemeAim();
+        if (aimed != null) {
+            return aimed; // no pointer: where the scheme aims
         }
         var click = inputManager.getCursorPosition();
         return groundUnder(click.x, click.y);
     }
 
-    /** A skill aimed from him along the camera's forward, while one is armed so — see {@code Hotkeys.aimBy}. */
-    private ForwardAim forwardAim;
-
-    /** Where the forward aim points now, on the ground; null with no one of his to aim from. */
-    private Vector3f forwardAimPoint() {
-        var hero = selectedIds().isEmpty() ? null : unitNodes.get(selectedIds().getFirst().value());
-        if (hero == null || hero.view == null) {
-            return null;
-        }
-        var at = forwardAim.point(hero.view.x(), hero.view.y(), camera.yaw());
-        return new Vector3f(at[0], floorHeightAt(at[0], at[1]), at[1]);
+    /** Where the scheme aims what is armed, on the ground; null while it aims nothing. */
+    private Vector3f schemeAim() {
+        var at = scheme.aiming() ? scheme.aimPoint() : null;
+        return at == null ? null : new Vector3f(at[0], floorHeightAt(at[0], at[1]), at[1]);
     }
 
     /**
@@ -4969,8 +4984,8 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         if (arming != null && arming == key) {
-            if (forwardAim != null) {
-                aimArmedKey(); // aimed from him: the key again casts
+            if (scheme.aiming()) {
+                aimArmedKey(); // aimed by the scheme: the key again casts
                 return;
             }
             disarm();
@@ -4983,12 +4998,10 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         arm(key, byMouse);
-        if (hotkeys.aimBy() == Hotkeys.AimBy.FORWARD && !byMouse) {
-            var shape = range == null ? SkillRange.Shape.AT_A_SPOT : range.shape();
-            forwardAim = new ForwardAim(range == null ? 0f : range.reach(), shape);
-            return;
+        if (scheme.armed(key, byMouse, range)) {
+            return; // the scheme aims it
         }
-        if (mouseScheme.modern() && mouseScheme.quickCast() && !byMouse) {
+        if (scheme.castsAtOnce(byMouse)) {
             quickCasting = true;
             try {
                 aimArmedKey(); // cast at once, as if its aim were clicked where the pointer is
@@ -5071,7 +5084,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void disarm() {
-        forwardAim = null;
+        scheme.disarmed();
         arming = null;
         armedByMouse = false;
         tellThePartsWhatIsArmed(null);
@@ -5130,6 +5143,7 @@ final class DukeRtsApp extends SimpleApplication {
         // cursor, which is the one place it was written not to be.
         char aimed = arming == null ? 0 : arming;
         var binding = hotkeys.all().get(arming);
+        var ahead = schemeAim(); // read before the disarm lets the scheme's aim go
         disarm();
         if (binding == null) {
             return;
@@ -5137,11 +5151,7 @@ final class DukeRtsApp extends SimpleApplication {
         boolean mayBeACreature = binding.aim() == Hotkeys.Aim.UNIT
                 || binding.aim() == Hotkeys.Aim.UNIT_OR_GROUND;
         if (mayBeACreature) {
-            var unit = forwardAim != null ? null : pickUnit();
-            if (forwardAim != null) {
-                var ahead = forwardAimPoint();
-                unit = ahead == null ? null : nearTheGround(ahead); // the creature nearest where he aims, within six
-            }
+            var unit = ahead != null ? nearTheGround(ahead) : pickUnit(); // the creature nearest where it aims, within six
             if (unit == null && quickCasting) {
                 var under = pickGround();
                 unit = under == null ? null : nearTheGround(under);
@@ -5157,7 +5167,7 @@ final class DukeRtsApp extends SimpleApplication {
                 return; // it had to be a creature, and the click found none
             }
         }
-        var ground = pickGround();
+        var ground = ahead != null ? ahead : pickGround();
         if (ground == null) {
             return;
         }
@@ -6440,13 +6450,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     private void updateCamera(float tpf) {
         holdTheMouse();
-        orbitByTheMouse();
-        if (forwardAim != null) {
-            forwardAim.nudge(heldDy); // up and down: further and nearer
-        }
-        readTheHeldDirection(); // a scene the game directs or not: a key let go is always told
-        followTheSwing();
-        offerTheNearest();
+        scheme.frame(tpf); // a scene the game directs or not: a key let go is always told
         var directed = snapshot.camera();
         if (directed != null) {
             // The game has the camera: it goes where the game's code put it, and the player's controls wait.
@@ -6489,7 +6493,7 @@ final class DukeRtsApp extends SimpleApplication {
         float cos = FastMath.cos(camera.yaw());
         float sin = FastMath.sin(camera.yaw());
         camera.panBy(pan.x * cos + pan.y * sin, pan.y * cos - pan.x * sin);
-        followTheUnit(pan.x != 0f || pan.y != 0f, tpf);
+        scheme.steer(pan.x != 0f || pan.y != 0f, tpf);
         camera.turnBy(steering.turn(inputManager.getCursorPosition().x, turnPerPixel()));
         if (held(KeyMap.Control.TURN_LEFT)) {
             camera.heldTurn(1, tpf);
@@ -9433,23 +9437,12 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    /** The mouse held by the window — see {@link Duke3D#captureMouse}. */
+    /** The mouse held by the window, as the scheme asks — see {@link ControlScheme.Context#holdMouse}. */
     private final MouseCapture capture = new MouseCapture();
-    private java.util.function.BiConsumer<Float, Float> mouseMotion;
     /** How far the held mouse moved this frame, in pixels; and where the platform's pointer stood last. */
     private float heldDx;
     private float heldDy;
     private double[] pointerWas;
-    /** The pitch the follow was at when its tilt began, which the mouse tilts it within. */
-    private float orbitPitch = Float.NaN;
-
-    void captureMouse(boolean held) {
-        capture.want(held);
-    }
-
-    void onMouseMotion(java.util.function.BiConsumer<Float, Float> motion) {
-        this.mouseMotion = motion;
-    }
 
     /** The mouse held or let go as the screen asks, and how far it moved this frame read while it is held. */
     private void holdTheMouse() {
@@ -9480,99 +9473,6 @@ final class DukeRtsApp extends SimpleApplication {
         var moved = capture.motion(dx, dy);
         heldDx = moved[0];
         heldDy = moved[1];
-        if (mouseMotion != null && (heldDx != 0f || heldDy != 0f)) {
-            mouseMotion.accept(heldDx, heldDy);
-        }
-    }
-
-    /** The follow turned round him by the held mouse, and tilted within its band — see {@link CameraFollow#orbiting}. */
-    private void orbitByTheMouse() {
-        var look = following != null ? following : visuals.getCameraFollow();
-        if (!capture.captured() || !look.follows() || look.orbitSensitivity() <= 0f) {
-            return;
-        }
-        camera.turnBy(look.turnOf(heldDx));
-        if (look.pitchBand() > 0f) {
-            if (Float.isNaN(orbitPitch)) {
-                orbitPitch = camera.pitch();
-            }
-            camera.tilt(-heldDy * look.orbitSensitivity(), orbitPitch, look.pitchBand());
-        }
-    }
-
-    /** The prompt drawn over the nearest thing worth an order — see {@code Hotkeys.onInteract}. */
-    private com.jme3.font.BitmapText interactLabel;
-
-    private void offerTheNearest() {
-        var prompt = hotkeys.interactPrompt();
-        if (prompt == null) {
-            return;
-        }
-        game.interactWithin(hotkeys.interactReach(), hotkeys.interactCone());
-        var target = screen == Screen.PLAYING && !menu.isVisible() ? game.interactTarget() : null;
-        String said = target == null ? null : prompt.apply(target.word(), hotkeys.interactKey());
-        if (interactLabel == null) {
-            interactLabel = new com.jme3.font.BitmapText(guiFont);
-            guiNode.attachChild(interactLabel);
-        }
-        if (said == null) {
-            interactLabel.setCullHint(Spatial.CullHint.Always);
-            return;
-        }
-        var node = unitNodes.get(target.unit());
-        float height = node == null || node.body == null ? 0f : UnitPlacement.topOf(node.body);
-        var onScreen = cam.getScreenCoordinates(new Vector3f(target.x(), floorHeightAt(target.x(), target.y())
-                + Math.max(height, 4f) + 2f, target.y()));
-        interactLabel.setText(said);
-        interactLabel.setLocalTranslation(onScreen.x - interactLabel.getLineWidth() / 2f,
-                onScreen.y + interactLabel.getLineHeight(), 0f);
-        interactLabel.setCullHint(onScreen.z > 1f ? Spatial.CullHint.Always : Spatial.CullHint.Inherit);
-    }
-
-    /** The camera following one of his units, as the game set it last — see {@link Duke3D#cameraFollow}. */
-    private CameraFollow following;
-    private final CameraFollow.Eye followingEye = new CameraFollow.Eye();
-    private final DirectionKeys.Held heldDirection = new DirectionKeys.Held();
-
-    void cameraFollow(CameraFollow follow) {
-        this.following = follow == null ? CameraFollow.NONE : follow;
-    }
-
-    /** The camera eased after the unit it follows, unless the player panned away from it — see {@link CameraFollow}. */
-    private void followTheUnit(boolean panned, float tpf) {
-        var look = following != null ? following : visuals.getCameraFollow();
-        if (!look.follows() || snapshot == null) {
-            return;
-        }
-        int mine = game.getLocalPlayerIndex();
-        for (var view : snapshot.units()) {
-            if (view.playerIndex() != mine || look.of() != null && !look.of().equals(view.templateName())) {
-                continue;
-            }
-            var node = unitNodes.get(view.id());
-            var at = node == null ? null : node.root.getLocalTranslation();
-            followingEye.step(look, camera, at == null ? view.x() : at.x, at == null ? view.y() : at.z,
-                    view.orientation(), view.moving(), panned, timer.getTimeInSeconds(), tpf);
-            return;
-        }
-    }
-
-    /** The held keys' direction, told the game when it changes — see {@link Hotkeys#onDirection}. */
-    private void readTheHeldDirection() {
-        var changed = hotkeys.directionChanged();
-        if (changed == null) {
-            return;
-        }
-        long window = windowHandle();
-        boolean taken = screen != Screen.PLAYING || menu.isVisible()
-                || canvasInput != null && canvasInput.holdsKeys() || window == 0L
-                || org.lwjgl.glfw.GLFW.glfwGetWindowAttrib(window, org.lwjgl.glfw.GLFW.GLFW_FOCUSED) == 0;
-        var keys = hotkeys.directionKeys();
-        var now = heldDirection.next(keyHeld(window, keys.up()), keyHeld(window, keys.left()),
-                keyHeld(window, keys.down()), keyHeld(window, keys.right()), camera.yaw(), taken);
-        if (now != null) {
-            changed.accept(game, now);
-        }
     }
 
     /** Whether the letter or digit {@code key} is down now: its GLFW code is the character itself. */

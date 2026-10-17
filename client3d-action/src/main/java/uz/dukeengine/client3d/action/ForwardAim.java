@@ -1,8 +1,10 @@
-package uz.dukeengine.client3d;
+package uz.dukeengine.client3d.action;
+
+import uz.dukeengine.client3d.SkillRange;
 
 /**
  * A skill aimed with no pointer — the action scheme's: from the hero along the camera's forward, at a distance the held
- * mouse's motion stretches and shortens within the skill's reach. See {@code Hotkeys.aimBy}.
+ * mouse's motion stretches and shortens within the skill's reach. See {@link ActionControls#aimAhead}.
  */
 final class ForwardAim {
 

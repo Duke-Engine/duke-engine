@@ -1,8 +1,8 @@
-package uz.dukeengine.client3d;
+package uz.dukeengine.client3d.action;
 
 /**
  * The four keys held to walk the hero — up, left, down and right on the screen — read by the client each frame and
- * turned into a direction on the ground: see {@link Hotkeys#onDirection}.
+ * turned into a direction on the ground: see {@link ActionControls#walk}.
  */
 public record DirectionKeys(char up, char left, char down, char right) {
 

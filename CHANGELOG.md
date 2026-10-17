@@ -580,6 +580,25 @@ E16, in parts.
 
 ### Action controls
 
+The controls below live in a module of their own, **`client3d-action`** (`uz.dukeengine.client3d.action`), plugged
+into the client through its new seam, `ControlScheme` (`Duke3D.controls(scheme)`, `ControlScheme.CLASSIC` the
+client's own): a game that never names the module has none of it. What to change for a game that used them:
+
+| Before | Now |
+|---|---|
+| `Hotkeys.onDirection(keys, changed)` | `new ActionControls().walk(keys, changed)` |
+| `Duke3D.mouseScheme(scheme)` | `ActionControls.mouse(scheme)` |
+| `Duke3D.cameraFollow(f)`, `Visuals.cameraFollow(f)` | `ActionControls.follow(f)` |
+| `Duke3D.captureMouse(true)`, `onMouseMotion` | `ActionControls.holdMouse(true)`; the motion turns an orbiting follow and nudges the aim |
+| `Hotkeys.aimBy(AimBy.FORWARD, release)` | `ActionControls.aimAhead(release)` |
+| `Hotkeys.onInteract(key, reach, cone, prompt)` | `ActionControls.interact(key, reach, cone, prompt)`, the key bound by the game to `controls.interact(game)` |
+| `DukeGame.interactWithin`, `interactTarget`, `interact` | gone; the module looks through `DukeGame.eachSnapshot`, `orderedOwn`, `contextWordOn`, `groundWordAt` and `getOrderedTo` |
+| `DirectionKeys`, `CameraFollow`, `MouseScheme` (`uz.dukeengine.client3d`) | the same, in `uz.dukeengine.client3d.action` |
+
+The walking keys' rows on the keys page went with them. What the orders are stays in `combat` and `rpg` —
+`CombatOrder.MoveAlong`, `AttackToward`, `SkillEffect.DODGE` — sent only by a game that sends them. A skill aimed
+ahead is now cast where it aims (it was cast at the pointer: the aim was read after it was let go).
+
 - **A held mouse** (E90): `Duke3D.captureMouse(true)` — the pointer hidden and the mouse's motion read as how far it
   moved (`onMouseMotion`), the first motion after it is held none; let go while a screen holds the keys, a menu or a
   cutscene is up, `KeyMap.Control.FREE_POINTER` (Alt) is held or another window has the focus.

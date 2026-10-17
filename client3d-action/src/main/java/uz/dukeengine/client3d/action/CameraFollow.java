@@ -1,4 +1,4 @@
-package uz.dukeengine.client3d;
+package uz.dukeengine.client3d.action;
 
 /**
  * The camera kept on one of the player's units — the modern scheme's hero — easing after it with a look ahead of it
@@ -58,7 +58,7 @@ public record CameraFollow(String of, float lookAhead, float easeSeconds, float 
          * One frame of {@code seconds}: the point {@code camera} looks at eased toward the unit at ({@code x},
          * {@code y}) plus its look ahead — unless the player panned, or did within the look-away time.
          */
-        void step(CameraFollow look, CameraFocus camera, float x, float y, float facing, boolean walking,
+        void step(CameraFollow look, uz.dukeengine.client3d.ControlScheme.Context camera, float x, float y, float facing, boolean walking,
                 boolean panned, float now, float seconds) {
             if (panned) {
                 pannedAt = now;
@@ -73,8 +73,8 @@ public record CameraFollow(String of, float lookAhead, float easeSeconds, float 
             aheadX += (wantX - aheadX) * aheadShare;
             aheadY += (wantY - aheadY) * aheadShare;
             float share = share(seconds, look.easeSeconds());
-            camera.lookAt(camera.targetX() + (x + aheadX - camera.targetX()) * share,
-                    camera.targetZ() + (y + aheadY - camera.targetZ()) * share);
+            var at = camera.lookingAt();
+            camera.lookAt(at[0] + (x + aheadX - at[0]) * share, at[1] + (y + aheadY - at[1]) * share);
         }
 
         /** The share of the way an exponential ease of time constant {@code tau} closes in {@code seconds}. */

@@ -457,23 +457,13 @@ public final class Duke3D {
     }
 
     /**
-     * Hold the mouse — the action scheme's: the pointer hidden and its motion turning the camera and aiming — let go,
-     * the pointer back where it was, while a screen holds the keys, a menu or a cutscene is up, Alt is held
-     * ({@code KeyMap.Control.FREE_POINTER}) or another window has the focus. From any thread.
+     * Controls of a kind the client has not got itself — walking by held keys, a camera kept on the hero, the left
+     * button striking, skills aimed with no pointer — as a {@link ControlScheme} gives them (the {@code client3d-action}
+     * module's {@code ActionControls}); {@link ControlScheme#CLASSIC} for the client's own. From any thread.
      */
-    public void captureMouse(boolean held) {
-        later(client -> client.captureMouse(held));
-    }
-
-    /** Told each frame the captured mouse moved: how far, in pixels — see {@link #captureMouse}. */
-    public Duke3D onMouseMotion(java.util.function.BiConsumer<Float, Float> motion) {
-        later(client -> client.onMouseMotion(motion));
+    public Duke3D controls(ControlScheme scheme) {
+        later(client -> client.controls(scheme));
         return this;
-    }
-
-    /** How the mouse plays — {@link MouseScheme#MODERN} or {@link MouseScheme#CLASSIC} — switched live, from any thread. */
-    public void mouseScheme(MouseScheme scheme) {
-        later(client -> client.mouseScheme(scheme));
     }
 
     /**
@@ -556,11 +546,6 @@ public final class Duke3D {
     /** A colour over the world alone, under the panel, the bars and the numbers; alpha 0 for none. */
     public void worldTint(int argb) {
         later(client -> client.worldTint(argb));
-    }
-
-    /** The camera kept on one of the player's units, or let go — {@link CameraFollow#NONE} — from any thread. */
-    public void cameraFollow(CameraFollow follow) {
-        later(client -> client.cameraFollow(follow));
     }
 
     /**

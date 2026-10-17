@@ -15,7 +15,7 @@ public interface CanvasInput {
 
     /**
      * Whether a screen of the game's holds the keys now — a text box, a bag, a dialogue — so held keys walk no one
-     * (see {@link Hotkeys#onDirection}). Not, unless the game says.
+     * (see {@link ControlScheme.Context#playing}). Not, unless the game says.
      */
     default boolean holdsKeys() {
         return false;

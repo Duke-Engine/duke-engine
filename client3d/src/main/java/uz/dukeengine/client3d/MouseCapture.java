@@ -3,7 +3,7 @@ package uz.dukeengine.client3d;
 /**
  * The mouse held by the window — the action scheme's: the pointer hidden and its motion read as how far it moved, not
  * where it is — and let go while anything wants the pointer (a screen, a menu, a cutscene, Alt held, another window).
- * See {@link Duke3D#captureMouse}.
+ * See {@link ControlScheme.Context#holdMouse}.
  */
 final class MouseCapture {
 

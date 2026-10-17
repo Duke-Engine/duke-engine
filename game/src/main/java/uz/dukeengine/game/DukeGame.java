@@ -1219,7 +1219,7 @@ public final class DukeGame {
         client.hearThroughFog(hearsThroughFog);
         client.setAttackable(this::attackableNow);
         client.setContextOrder(() -> {
-            interactTarget = interactNow(); // with each snapshot, as the pointer's word is
+            eachSnapshot.forEach(Runnable::run); // with each snapshot, as the pointer's word is
             return contextOrderNow();
         });
         engine = new MatchEngine(logic, client);
@@ -1674,6 +1674,11 @@ public final class DukeGame {
         return told != null ? told : selection;
     }
 
+    /** Who the player's orders go to now — see {@link #setOrdered} — from any thread. */
+    public List<Integer> getOrderedTo() {
+        return orderedNow();
+    }
+
     /** The selection the game last asked the client for — see {@link #select}. */
     private final java.util.concurrent.atomic.AtomicReference<Selecting> selectionWanted =
             new java.util.concurrent.atomic.AtomicReference<>();
@@ -2038,114 +2043,44 @@ public final class DukeGame {
         return this;
     }
 
-    /** The thing a key would give an order to now: who (-1 for a piece of the map's scenery), the word, and where. */
-    public record Interact(int unit, String word, float x, float y) {
-    }
-
-    /** How near and how wide the nearest thing worth an order is looked for, 0 for not at all — see {@link #interact}. */
-    private volatile float interactReach;
-    private volatile float interactCone;
-    private volatile Interact interactTarget;
-
-    /** Look for the nearest thing worth an order within {@code reach} and a cone of {@code cone} radians; 0 for none. */
-    public void interactWithin(float reach, float cone) {
-        this.interactReach = reach;
-        this.interactCone = cone;
-    }
-
-    /** The thing a key would give an order to now, or null — worked out with each snapshot. */
-    public Interact interactTarget() {
-        return interactTarget;
-    }
+    /** What runs on the simulation thread with each snapshot — see {@link #eachSnapshot}. */
+    private final List<Runnable> eachSnapshot = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /**
-     * Give the nearest thing worth an order what a click on it gives — {@code GameOrder(player, word, selection, place,
-     * target, 0)} — where there is one, and no cutscene runs. From any thread.
+     * Run {@code work} on the simulation thread as each snapshot is made, where the world may be read: what a control of
+     * the window's looks for — the nearest thing worth an order — found as the pointer's word is. From any thread.
      */
-    public void interact() {
-        var target = interactTarget;
-        if (target == null || camera.isDriven()) {
-            return;
-        }
-        var units = new java.util.ArrayList<uz.dukeengine.core.thing.ObjectId>();
-        for (var id : orderedNow()) {
-            units.add(new uz.dukeengine.core.thing.ObjectId(id));
-        }
-        // A piece of scenery is given what a click on the ground under it gives: the place, and no thing.
-        postCommand(new uz.dukeengine.combat.message.GameOrder(getLocalPlayerIndex(), target.word(), units,
-                new Coord3D(target.x(), target.y(), 0f),
-                target.unit() < 0 ? null : new uz.dukeengine.core.thing.ObjectId(target.unit()), 0));
+    public void eachSnapshot(Runnable work) {
+        eachSnapshot.add(work);
     }
 
-    /**
-     * The nearest thing a context rule names a word for, within reach of the first of the player's things selected and
-     * inside the cone round his facing — the camera's forward while he walks — ties to the smaller angle; null for none,
-     * none looked for, or he is stunned or held. On the simulation thread.
-     */
-    private Interact interactNow() {
-        var world = logic;
-        float reach = interactReach;
+    /** The local player's own things his orders go to, selected, in order. On the simulation thread. */
+    public List<GameObject> orderedOwn() {
+        return logic == null ? List.of() : selectedOwn(logic, null);
+    }
+
+    /** The word a click on {@code thing} gives his selection — the game's context rules — or null. On the simulation thread. */
+    public String contextWordOn(GameObject thing) {
         var rule = contextOrder;
-        var ground = groundOrder;
-        if (world == null || reach <= 0f || rule == null && ground == null) {
+        if (rule == null || logic == null) {
             return null;
         }
-        var selected = selectedOwn(world, null);
+        var selected = selectedOwn(logic, thing);
+        return selected.isEmpty() ? null : rule.orderOn(selected, thing);
+    }
+
+    /** The word a click on the ground at {@code place} gives his selection — the ground rule — or null. Simulation thread. */
+    public String groundWordAt(Coord3D place) {
+        var rule = groundOrder;
+        if (rule == null || logic == null) {
+            return null;
+        }
+        var selected = selectedOwn(logic, null);
         if (selected.isEmpty()) {
             return null;
         }
-        var hero = selected.getFirst();
-        if (hero.hasStatus(uz.dukeengine.core.thing.ObjectStatus.DISABLED)
-                || hero.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HELD)) {
-            return null;
-        }
-        var legs = hero.getLocomotor();
-        float yaw = camera.current().angle();
-        float facing = legs != null && legs.isMoving() ? (float) StrictMath.atan2(-StrictMath.cos(yaw),
-                -StrictMath.sin(yaw)) : hero.getOrientation();
-        var here = hero.getPosition();
-        Interact best = null;
-        float bestGap = Float.MAX_VALUE;
-        float bestOff = Float.MAX_VALUE;
-        for (var thing : world.objectsInRange(here, reach, other -> other != hero)) {
-            var at = thing.getPosition();
-            float dx = at.x() - here.x();
-            float dy = at.y() - here.y();
-            float gap = (float) Math.sqrt(dx * dx + dy * dy);
-            double turn = StrictMath.atan2(dy, dx) - facing;
-            float off = (float) Math.abs(StrictMath.atan2(StrictMath.sin(turn), StrictMath.cos(turn)));
-            if (off > interactCone / 2f || gap > bestGap || gap == bestGap && off >= bestOff) {
-                continue;
-            }
-            var word = rule == null ? null : rule.orderOn(selected, thing);
-            if (word != null) {
-                best = new Interact(thing.getId().value(), word, at.x(), at.y());
-                bestGap = gap;
-                bestOff = off;
-            }
-        }
-        // The map's own scenery too — a forest's trees are pieces, not things — by the ground rule under each (E96).
-        var cells = ground == null ? null : world.getSightCells();
-        for (var piece : ground == null ? List.<uz.dukeengine.core.pathfind.SceneryFootprint>of()
-                : world.sceneryWithin(here, reach)) {
-            float dx = piece.x() - here.x();
-            float dy = piece.y() - here.y();
-            float gap = (float) Math.sqrt(dx * dx + dy * dy);
-            double turn = StrictMath.atan2(dy, dx) - facing;
-            float off = (float) Math.abs(StrictMath.atan2(StrictMath.sin(turn), StrictMath.cos(turn)));
-            if (off > interactCone / 2f || gap > bestGap || gap == bestGap && off >= bestOff) {
-                continue;
-            }
-            var place = new Coord3D(piece.x(), piece.y(), 0f);
-            boolean seen = cells == null || cells.everSeen(getLocalPlayerIndex(), place);
-            var word = ground.orderAt(selected, place, seen);
-            if (word != null) {
-                best = new Interact(-1, word, piece.x(), piece.y());
-                bestGap = gap;
-                bestOff = off;
-            }
-        }
-        return best;
+        var cells = logic.getSightCells();
+        return rule.orderAt(selected, place, cells == null || cells.everSeen(getLocalPlayerIndex(), place));
     }
 
     private String contextOrderNow() {

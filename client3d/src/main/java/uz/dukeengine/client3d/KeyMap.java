@@ -72,7 +72,7 @@ public final class KeyMap {
         /** The camera to where the latest alert was raised. */
         LATEST_ALERT,
         OPTIONS, TOGGLE_COMMAND_BAR, CHAT_ALL, CHAT_ALLIES, SCREENSHOT, PAUSE, FULLSCREEN,
-        /** Held: the pointer let go while the mouse is captured — see {@code Duke3D.captureMouse}. */
+        /** Held: the pointer let go while the mouse is captured — see {@code ControlScheme.Context.holdMouse}. */
         FREE_POINTER;
 
         /** Whether it is held down rather than pressed: it lasts as long as its key does. */

@@ -1,4 +1,4 @@
-package uz.dukeengine.client3d;
+package uz.dukeengine.client3d.action;
 
 import java.util.ArrayList;
 import java.util.List;

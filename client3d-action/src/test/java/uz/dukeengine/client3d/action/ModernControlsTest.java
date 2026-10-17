@@ -1,4 +1,4 @@
-package uz.dukeengine.client3d;
+package uz.dukeengine.client3d.action;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -37,8 +37,7 @@ class ModernControlsTest {
 
     @Test
     void aFollowedUnitIsLookedAtAheadOfItAndNoneLeavesTheCameraBe() {
-        var camera = new CameraFocus();
-        camera.lookAt(0f, 0f);
+        var camera = new TestWindow();
         var eye = new CameraFollow.Eye();
         var look = CameraFollow.of(null);
         float now = 0f;
@@ -52,13 +51,13 @@ class ModernControlsTest {
             now += 1f / 30f;
             eye.step(look, camera, x, 0f, 0f, true, false, now, 1f / 30f);
         }
-        assertEquals(30f + 8f, camera.targetX(), 1f, "on him and eight ahead");
-        assertEquals(0f, camera.targetZ(), 1e-3f);
+        assertEquals(30f + 8f, camera.lookingAt()[0], 1f, "on him and eight ahead");
+        assertEquals(0f, camera.lookingAt()[1], 1e-3f);
 
-        float before = camera.targetX();
+        float before = camera.lookingAt()[0];
         eye.step(look, camera, x, 0f, 0f, true, true, now, 1f / 30f);
         eye.step(look, camera, x + 50f, 0f, 0f, true, false, now + 0.5f, 1f / 30f);
-        assertEquals(before, camera.targetX(), 1e-4f, "looked away: left where he panned it");
+        assertEquals(before, camera.lookingAt()[0], 1e-4f, "looked away: left where he panned it");
         assertTrue(!CameraFollow.NONE.follows(), "none follows nothing");
     }
 }
