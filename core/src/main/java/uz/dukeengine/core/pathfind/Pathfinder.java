@@ -441,6 +441,21 @@ public final class Pathfinder {
         return findPathOrNearest(grid, from, to, clearance, zones, tally, traffic, through);
     }
 
+    /**
+     * The same by {@code sectors} laid for the body's width ({@link Sectors#of(PathGrid, int, float)}), and {@code
+     * flat}, the same ground's sectors for a body of none: a goal its width is shut off from but no width is — a gate
+     * narrower than it — is squeezed to, as a mover always squeezed where it must, found by the flat sectors.
+     */
+    public static Path findPathOrNearest(PathGrid grid, Coord3D from, Coord3D to, float clearance, Zones zones,
+            Tally tally, Traffic traffic, Sectors sectors, Sectors flat) {
+        Searcher through = (g, a, b, room, orNearest, t, cost) ->
+                stretchByStretch(g, sectors, a, b, room, orNearest, t, cost);
+        Searcher squeezing = (g, a, b, room, orNearest, t, cost) ->
+                stretchByStretch(g, flat, a, b, room, orNearest, t, cost);
+        return findPathOrNearest(grid, from, to, clearance, zones, tally, traffic, through, Zones.over(flat),
+                squeezing);
+    }
+
     /** How many sectors of the way a stretch of a route across a wide world crosses. */
     private static final int SECTORS_A_STRETCH = 2;
     /** How many cells ahead a route across a wide world is pulled straight from each of its corners. */
@@ -776,6 +791,15 @@ public final class Pathfinder {
 
     private static Path findPathOrNearest(PathGrid grid, Coord3D from, Coord3D to, float clearance, Zones zones,
             Tally tally, Traffic traffic, Searcher searcher) {
+        return findPathOrNearest(grid, from, to, clearance, zones, tally, traffic, searcher, null, null);
+    }
+
+    /**
+     * The same, {@code flatZones} and {@code squeezer} the zones and the search of a body of no width where {@code
+     * zones} are a width's: a goal those say is shut off and these say is not is squeezed to at once.
+     */
+    private static Path findPathOrNearest(PathGrid grid, Coord3D from, Coord3D to, float clearance, Zones zones,
+            Tally tally, Traffic traffic, Searcher searcher, Zones flatZones, Searcher squeezer) {
         int startX = grid.toCellX(from);
         int startY = grid.toCellY(from);
         if (grid.isBlocked(startX, startY)) {
@@ -795,6 +819,14 @@ public final class Pathfinder {
             }
         }
         int zone = zones == null ? -1 : zones.zoneOf(zoneX, zoneY);
+        if (zone >= 0 && !zones.connected(zoneX, zoneY, goalX, goalY) && flatZones != null && squeezer != null
+                && flatZones.connected(startX, startY, goalX, goalY)) {
+            // Shut off from its width alone — a gate narrower than it: it squeezes through, as it always did.
+            var squeezed = squeezer.search(grid, from, to, 0f, true, tally, traffic);
+            if (squeezed.reachesGoal()) {
+                return squeezed;
+            }
+        }
         if (zone >= 0 && !zones.connected(zoneX, zoneY, goalX, goalY)) {
             int nearest = zones.nearestIn(zone, goalX, goalY, zoneX, zoneY);
             if (nearest == startY * width + startX || nearest == zoneY * width + zoneX) {

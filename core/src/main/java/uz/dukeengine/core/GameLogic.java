@@ -1601,9 +1601,13 @@ public abstract class GameLogic extends SubsystemInterface implements World {
                 ? Pathfinder.findPathOrNearest(grid, mover.getPosition(), mover.getFloor(), to,
                         grid.floorAt(to), clearance, zonesOf(grid), tally)
                 : sectors != null
-                        ? Pathfinder.findPathOrNearest(grid, mover.getPosition(), to, clearance,
-                                sectorZones.computeIfAbsent(sectors, uz.dukeengine.core.pathfind.Zones::over), tally,
-                                traffic, sectors)
+                        ? clearance > 0f
+                                ? Pathfinder.findPathOrNearest(grid, mover.getPosition(), to, clearance,
+                                        sectorZones.computeIfAbsent(sectors, uz.dukeengine.core.pathfind.Zones::over),
+                                        tally, traffic, sectors, sectorsOf(grid))
+                                : Pathfinder.findPathOrNearest(grid, mover.getPosition(), to, clearance,
+                                        sectorZones.computeIfAbsent(sectors, uz.dukeengine.core.pathfind.Zones::over),
+                                        tally, traffic, sectors)
                         : Pathfinder.findPathOrNearest(grid, mover.getPosition(), to, clearance, zonesOf(grid), tally,
                                 traffic);
         cellsThisFrame += tally.cells();

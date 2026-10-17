@@ -566,6 +566,8 @@ E16, in parts.
   of 512 map cells walked at two, 120,000 trunks in woods and a shut wall: an order past the wall from 18-50 ms and
   23,554 cells to 4-6 ms and 5,171. Laying a width's sectors costs about 0.4 s there, paid on its first order, or while
   a map loads with `GameLogic.layRoutesFor(radius)`.
+  A goal shut off from the body's width alone — a gate narrower than it — is still squeezed to, found by the plain
+  sectors, as it was before the sectors knew a width.
 - **Ground cover** (E98): `Duke3D.groundCover(GroundCover)` — what grows on a painted map's ground for the look alone,
   by the palette's picture (`Kind(model, weight, scale, tint)` and a density a cell), grown by the client a chunk at a
   time within `reach` cells of the camera from the map's seed and each cell alone, nothing in a cell the game's `Bare`
