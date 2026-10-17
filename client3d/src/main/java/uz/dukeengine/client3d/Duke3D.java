@@ -457,6 +457,15 @@ public final class Duke3D {
     }
 
     /**
+     * What grows on a painted map's ground for the look alone — see {@link GroundCover} — grown round the camera from
+     * now, a chunk at a time, instanced; {@link GroundCover#NONE} for nothing. A new world keeps it until told again.
+     * From any thread.
+     */
+    public void groundCover(GroundCover cover) {
+        later(client -> client.groundCover(cover));
+    }
+
+    /**
      * Controls of a kind the client has not got itself — walking by held keys, a camera kept on the hero, the left
      * button striking, skills aimed with no pointer — as a {@link ControlScheme} gives them (the {@code client3d-action}
      * module's {@code ActionControls}); {@link ControlScheme#CLASSIC} for the client's own. From any thread.

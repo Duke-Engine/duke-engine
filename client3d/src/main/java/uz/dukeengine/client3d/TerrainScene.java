@@ -228,6 +228,98 @@ final class TerrainScene {
         return root;
     }
 
+    /** What grows on the ground round the camera — see {@link GroundCover}; and each chunk's, grown, by chunk. */
+    private GroundCover cover = GroundCover.NONE;
+    private final java.util.Map<Integer, Node> coverByChunk = new java.util.HashMap<>();
+    /** Each kind's model as cover draws it: its materials its own, instanced. */
+    private final java.util.Map<GroundCover.Kind, Spatial> coverModels = new java.util.HashMap<>();
+
+    /** Grow {@code grows} round the camera from now, what grew before let go. */
+    void cover(GroundCover grows) {
+        coverByChunk.values().forEach(Spatial::removeFromParent);
+        coverByChunk.clear();
+        this.cover = grows == null ? GroundCover.NONE : grows;
+    }
+
+    /** The chunks within the cover's reach of chunk ({@code centreX}, {@code centreY}) grown, and those beyond let go. */
+    private void growCover(int centreX, int centreY) {
+        if (cover.reach() <= 0f || cover.density() <= 0f || streamedPaint == null) {
+            return;
+        }
+        int rings = Math.max(0, Math.ceilDiv((int) Math.ceil(cover.reach()), CHUNK_CELLS) - 1);
+        for (var it = coverByChunk.entrySet().iterator(); it.hasNext();) {
+            var grown = it.next();
+            if (far(grown.getKey(), centreX, centreY, rings + 1) || chunks[grown.getKey()] == null) {
+                grown.getValue().removeFromParent();
+                it.remove();
+            }
+        }
+        int chunksDeep = chunks.length / chunksWide;
+        for (int cy = Math.max(0, centreY - rings); cy <= Math.min(chunksDeep - 1, centreY + rings); cy++) {
+            for (int cx = Math.max(0, centreX - rings); cx <= Math.min(chunksWide - 1, centreX + rings); cx++) {
+                int chunk = cy * chunksWide + cx;
+                if (chunks[chunk] != null && !coverByChunk.containsKey(chunk)) {
+                    var grown = coverOf(chunk);
+                    chunks[chunk].attachChild(grown);
+                    coverByChunk.put(chunk, grown);
+                }
+            }
+        }
+    }
+
+    /** What grows in chunk {@code chunk}: every piece of a model drawn as one instanced geometry, about its corner. */
+    private Node coverOf(int chunk) {
+        var grid = streamed;
+        int x0 = chunk % chunksWide * CHUNK_CELLS;
+        int y0 = chunk / chunksWide * CHUNK_CELLS;
+        int x1 = Math.min(x0 + CHUNK_CELLS, grid.getWidth()) - 1;
+        int y1 = Math.min(y0 + CHUNK_CELLS, grid.getHeight()) - 1;
+        float cell = grid.getCellSize();
+        var grown = new com.jme3.scene.instancing.InstancedNode("cover");
+        for (int cy = y0; cy <= y1; cy++) {
+            for (int cx = x0; cx <= x1; cx++) {
+                for (var piece : cover.growIn(cx, cy, streamedPaint.pictureAt(cx, cy))) {
+                    var model = coverModel(piece.kind());
+                    if (model == null) {
+                        continue;
+                    }
+                    var one = model.clone(false); // its mesh and its material shared: one instanced draw a model
+                    float x = piece.x() * cell;
+                    float z = piece.y() * cell;
+                    one.setLocalScale(piece.scale());
+                    one.setLocalRotation(new com.jme3.math.Quaternion()
+                            .fromAngleAxis(FastMath.DEG_TO_RAD * piece.facing(), Vector3f.UNIT_Y));
+                    one.setLocalTranslation(x - x0 * cell, groundAt(grid, x, z), z - y0 * cell);
+                    grown.attachChild(one);
+                }
+            }
+        }
+        grown.instance();
+        grown.setShadowMode(com.jme3.renderer.queue.RenderQueue.ShadowMode.Off);
+        return grown;
+    }
+
+    /** A kind's model as cover draws it — loaded once, its materials its own and instanced; null where it will not load. */
+    private Spatial coverModel(GroundCover.Kind kind) {
+        if (coverModels.containsKey(kind)) {
+            return coverModels.get(kind);
+        }
+        var loaded = tiles == null ? null : tiles.piece(SCENERY, kind.model(), kind.tint(), null);
+        Spatial model = null;
+        if (loaded != null) {
+            // Its own materials: scenery sharing the model is drawn as ever, not as an instance it is not.
+            model = loaded.clone(true);
+            for (var geometry : ((model instanceof Node node) ? node.descendantMatches(Geometry.class)
+                    : java.util.List.of((Geometry) model))) {
+                if (geometry.getMaterial().getMaterialDef().getMaterialParam("UseInstancing") != null) {
+                    geometry.getMaterial().setBoolean("UseInstancing", true);
+                }
+            }
+        }
+        coverModels.put(kind, model);
+        return model;
+    }
+
     /**
      * Build a kit's floor a chunk at a time within {@code cells} of where the camera looks ({@link #stream}), and let
      * go of chunks well beyond: a world a thousand cells a side drawn as far as it is seen, where built whole it was
@@ -984,6 +1076,7 @@ final class TerrainScene {
         if (inProgress != null && far(inProgress.chunk, centreX, centreY, reach + 1)) {
             inProgress = null; // left behind before it was finished
         }
+        growCover(centreX, centreY);
         long until = System.nanoTime() + BUILD_NANOS_A_FRAME;
         while (true) {
             if (System.nanoTime() >= until && builtRound(centreX, centreY)) {

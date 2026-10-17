@@ -566,6 +566,12 @@ E16, in parts.
   of 512 map cells walked at two, 120,000 trunks in woods and a shut wall: an order past the wall from 18-50 ms and
   23,554 cells to 4-6 ms and 5,171. Laying a width's sectors costs about 0.4 s there, paid on its first order, or while
   a map loads with `GameLogic.layRoutesFor(radius)`.
+- **Ground cover** (E98): `Duke3D.groundCover(GroundCover)` — what grows on a painted map's ground for the look alone,
+  by the palette's picture (`Kind(model, weight, scale, tint)` and a density a cell), grown by the client a chunk at a
+  time within `reach` cells of the camera from the map's seed and each cell alone, nothing in a cell the game's `Bare`
+  names; each model drawn as one instanced geometry a chunk (jME `InstancedNode`, the model's materials its own), no
+  shadows, never in the map, the snapshot, the checksum or the scenery. `atDensity(share)` is the player's off, low or
+  high, set by the game's own settings.
 - **Quicker legs and a mount** (E89): `SpeedModifier` (core), asked by `MoveUpdate` every frame and multiplied into the
   step; the skill book's is the strongest `SkillEffect.MOVE_SPEED` buff and the mount he rides. `SkillEffect.MOUNT` —
   `WindUpFrames` mounting (a step or a blow calls it off), then `BoostPercent` quicker, drawn as `Look`'s template, his

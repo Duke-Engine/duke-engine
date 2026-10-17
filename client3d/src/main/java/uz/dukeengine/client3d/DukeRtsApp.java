@@ -972,6 +972,11 @@ final class DukeRtsApp extends SimpleApplication {
     /** Controls of a kind the client has not got itself — see {@link Duke3D#controls}. */
     private ControlScheme scheme = ControlScheme.CLASSIC;
 
+    /** What grows on the ground round the camera — see {@link Duke3D#groundCover}. */
+    void groundCover(GroundCover cover) {
+        terrain.cover(cover);
+    }
+
     void controls(ControlScheme controls) {
         this.scheme = controls == null ? ControlScheme.CLASSIC : controls;
         scheme.attach(schemeContext);
