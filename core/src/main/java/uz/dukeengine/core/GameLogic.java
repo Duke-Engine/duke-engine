@@ -665,7 +665,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     /** How many of the map's cells a side a sector is, where routes are looked for by sectors; 0 where they are not. */
     private int routeSectors;
     /** Each passage's sectors, by the classes it enters — see {@link #sectorsOf}. */
-    private final java.util.Map<Integer, uz.dukeengine.core.pathfind.Sectors> sectorsBySurfaces =
+    private final java.util.Map<Long, uz.dukeengine.core.pathfind.Sectors> sectorsBySurfaces =
             new java.util.HashMap<>();
     private final java.util.Map<uz.dukeengine.core.pathfind.Sectors, uz.dukeengine.core.pathfind.Zones> sectorZones =
             new java.util.IdentityHashMap<>();
@@ -693,15 +693,33 @@ public abstract class GameLogic extends SubsystemInterface implements World {
      * sectors, or the grid has decks.
      */
     final uz.dukeengine.core.pathfind.Sectors sectorsOf(PathGrid grid) {
+        return sectorsOf(grid, 0f);
+    }
+
+    /**
+     * Lay the routes of a body of {@code radius} now — while a map loads — rather than on the first order of a mover that
+     * wide, which pays for it on a wide world: the sectors of its width (see {@link #setRouteSectors}). Nothing where
+     * routes are not looked for by sectors.
+     */
+    public final void layRoutesFor(float radius) {
+        sectorsOf(pathGrid, radius);
+    }
+
+    /**
+     * The same, laid for a body of {@code clearance} radius — its pieces only the cells such a body fits at, so a way
+     * across them is one it walks (E97): kept for each width a mover has, as for each set of classes.
+     */
+    final uz.dukeengine.core.pathfind.Sectors sectorsOf(PathGrid grid, float clearance) {
         if (routeSectors <= 0 || grid == null || grid.hasDecks()) {
             return null;
         }
         refreshStaticObstacles();
-        var sectors = sectorsBySurfaces.get(grid.surfaces());
+        long key = (long) grid.surfaces() << 32 | (Float.floatToIntBits(Math.max(0f, clearance)) & 0xFFFFFFFFL);
+        var sectors = sectorsBySurfaces.get(key);
         if (sectors == null) {
             int size = Math.min(256, routeSectors * grid.cellsPerMapCell());
-            sectors = uz.dukeengine.core.pathfind.Sectors.of(grid, Math.max(2, size));
-            sectorsBySurfaces.put(grid.surfaces(), sectors);
+            sectors = uz.dukeengine.core.pathfind.Sectors.of(grid, Math.max(2, size), clearance);
+            sectorsBySurfaces.put(key, sectors);
         } else {
             sectors.catchUp(grid);
         }
@@ -1578,12 +1596,13 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             }
             traffic = groundCells().trafficFor(mover, ids);
         }
-        var sectors = sectorsOf(grid);
+        var sectors = sectorsOf(grid, clearance);
         var path = grid.hasDecks()
                 ? Pathfinder.findPathOrNearest(grid, mover.getPosition(), mover.getFloor(), to,
                         grid.floorAt(to), clearance, zonesOf(grid), tally)
                 : sectors != null
-                        ? Pathfinder.findPathOrNearest(grid, mover.getPosition(), to, clearance, zonesOf(grid), tally,
+                        ? Pathfinder.findPathOrNearest(grid, mover.getPosition(), to, clearance,
+                                sectorZones.computeIfAbsent(sectors, uz.dukeengine.core.pathfind.Zones::over), tally,
                                 traffic, sectors)
                         : Pathfinder.findPathOrNearest(grid, mover.getPosition(), to, clearance, zonesOf(grid), tally,
                                 traffic);

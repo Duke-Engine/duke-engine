@@ -558,6 +558,14 @@ E16, in parts.
 
 - **A weapon that picks nothing by itself** (E87): `WeaponUpdate.acquiresNothing(true)` — idle, it looks for no target;
   an order, a swing toward a point or on the ground, or a skill that aims it works as ever, and it is idle after.
+- **A fine grid at a coarse one's cost** (E97): what a body fits at is kept cell by cell for each width and passage, and
+  forgotten only round where the ground changed, so a search reads a byte where it scanned the circles round a cell.
+  Routes by sectors are laid for each mover's width (`Sectors.of(grid, size, clearance)`): a cell joins a piece only
+  where that body fits, so the way across them, and the nearest place it can reach when the goal is shut off, are ones
+  it walks rather than ones a body of no width would, and a stretch no longer floods its corridor. Measured on a world
+  of 512 map cells walked at two, 120,000 trunks in woods and a shut wall: an order past the wall from 18-50 ms and
+  23,554 cells to 4-6 ms and 5,171. Laying a width's sectors costs about 0.4 s there, paid on its first order, or while
+  a map loads with `GameLogic.layRoutesFor(radius)`.
 - **Quicker legs and a mount** (E89): `SpeedModifier` (core), asked by `MoveUpdate` every frame and multiplied into the
   step; the skill book's is the strongest `SkillEffect.MOVE_SPEED` buff and the mount he rides. `SkillEffect.MOUNT` —
   `WindUpFrames` mounting (a step or a blow calls it off), then `BoostPercent` quicker, drawn as `Look`'s template, his

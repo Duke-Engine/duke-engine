@@ -48,9 +48,13 @@ public final class Sectors {
     private int stamp;
     private final LongHeap open = new LongHeap();
 
-    private Sectors(PathGrid grid, int size) {
+    /** The width of body its pieces are open to: a cell is in one only where such a body fits — see {@link #of}. */
+    private final float clearance;
+
+    private Sectors(PathGrid grid, int size, float clearance) {
         this.grid = grid;
         this.size = size;
+        this.clearance = Math.max(0f, clearance);
         this.across = (grid.getWidth() + size - 1) / size;
         this.down = (grid.getHeight() + size - 1) / size;
         this.piece = new short[grid.getWidth() * grid.getHeight()];
@@ -60,10 +64,19 @@ public final class Sectors {
 
     /** {@code grid} in sectors of {@code size} cells a side, as it stands. */
     public static Sectors of(PathGrid grid, int size) {
+        return of(grid, size, 0f);
+    }
+
+    /**
+     * The same, for a body of {@code clearance} radius: a cell joins a piece only where such a body fits at its middle,
+     * clear of stone and of the circles in the way by their true distance — so a way across them, and the zones read off
+     * them, are ways that body walks, and a gap between trunks too narrow for it is no join.
+     */
+    public static Sectors of(PathGrid grid, int size, float clearance) {
         if (size < 2 || size > 256) {
             throw new IllegalArgumentException("a sector is 2 to 256 cells a side: " + size);
         }
-        var sectors = new Sectors(grid, size);
+        var sectors = new Sectors(grid, size, clearance);
         sectors.layAll();
         return sectors;
     }
@@ -112,7 +125,11 @@ public final class Sectors {
             return true;
         }
         var dirty = new java.util.BitSet(across * down);
-        for (var box : changes) {
+        // A body's fit is felt as far round a change as it and the widest circle reach.
+        int margin = clearance <= 0f ? 0
+                : (int) Math.ceil((clearance + grid.widestCircle()) / grid.getCellSize()) + 1;
+        for (var change : changes) {
+            int[] box = {change[0] - margin, change[1] - margin, change[2] + margin, change[3] + margin};
             int fromX = Math.max(0, box[0]) / size;
             int fromY = Math.max(0, box[1]) / size;
             int toX = Math.min(grid.getWidth() - 1, box[2]) / size;
@@ -254,7 +271,13 @@ public final class Sectors {
 
     /** Whether a step can end on this cell: open, and not a cliff of the relief — as {@link Zones} has it. */
     private boolean enterable(int cx, int cy) {
-        return !grid.isBlocked(cx, cy) && !grid.isCliff(cx, cy);
+        return (clearance > 0f ? Pathfinder.fitsAt(grid, cx, cy, clearance) : !grid.isBlocked(cx, cy))
+                && !grid.isCliff(cx, cy);
+    }
+
+    /** The width of body it is laid for. */
+    public float clearance() {
+        return clearance;
     }
 
     /** Whether a step joins a cell to its neighbour, as {@link Zones} joins them: the corner not cut. */

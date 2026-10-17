@@ -112,6 +112,9 @@ public final class PathGrid {
     private final java.util.List<SceneryFootprint> circlesScratch = new java.util.ArrayList<>();
     /** How many changes to where can be walked the grid has seen — see {@link #changesSince}. */
     private int changeSerial;
+    /** What a body fits at, by cell, for each passage and clearance asked — see {@link #fits}. */
+    private final java.util.Map<Long, Fits> fitsByClearance = new java.util.HashMap<>();
+    private Fits lastFits;
     /** The latest of them, each {serial, minX, minY, maxX, maxY} in cells, oldest first. */
     private final java.util.ArrayDeque<int[]> changes = new java.util.ArrayDeque<>();
     /** The last serial no longer kept: a reader behind it works out everything again. */
@@ -256,6 +259,71 @@ public final class PathGrid {
      */
     public boolean anySceneryNear(float x, float y, float reach, java.util.function.Predicate<SceneryFootprint> test) {
         return root().scenery.any(x, y, reach, test);
+    }
+
+    /**
+     * What a body of one clearance fits at, cell by cell, for one passage — 0 not yet asked, 1 it fits, 2 it does not —
+     * each cell worked out once and kept until the grid says the ground near it changed ({@link #changesSince}): a
+     * search on a fine grid asks the same cells' circles again and again, and a cell's answer is a byte, not a scan.
+     */
+    static final class Fits {
+        final long key;
+        final float clearance;
+        final byte[] cells;
+        int serial;
+
+        Fits(long key, float clearance, int cells, int serial) {
+            this.key = key;
+            this.clearance = clearance;
+            this.cells = new byte[cells];
+            this.serial = serial;
+        }
+    }
+
+    /**
+     * The fits of a body of {@code clearance} on this passage, caught up with what changed since they were last asked;
+     * the one asked last kept at hand, as a search asks one clearance cell after cell.
+     */
+    Fits fits(float clearance) {
+        var grid = root();
+        long key = (long) surfaces << 32 | (Float.floatToIntBits(clearance) & 0xFFFFFFFFL);
+        var fits = grid.lastFits;
+        if (fits == null || fits.key != key) {
+            fits = grid.fitsByClearance.computeIfAbsent(key,
+                    k -> new Fits(k, clearance, width * height, grid.changeSerial));
+            grid.lastFits = fits;
+        }
+        if (fits.serial != grid.changeSerial) {
+            forgetFits(grid, fits);
+        }
+        return fits;
+    }
+
+    /** What changed since {@code fits} were caught up forgotten, as far round each change as a body's fit could feel it. */
+    private void forgetFits(PathGrid grid, Fits fits) {
+        var changed = changesSince(fits.serial);
+        fits.serial = grid.changeSerial;
+        if (changed == null) {
+            java.util.Arrays.fill(fits.cells, (byte) 0);
+            return;
+        }
+        float widest = Math.max(grid.scenery.widest, grid.stillCircles.widest);
+        int margin = (int) Math.ceil((fits.clearance + widest) / cellSize) + 1;
+        for (var box : changed) {
+            int minX = Math.max(0, box[0] - margin);
+            int maxX = Math.min(width - 1, box[2] + margin);
+            int minY = Math.max(0, box[1] - margin);
+            int maxY = Math.min(height - 1, box[3] + margin);
+            for (int cy = minY; cy <= maxY; cy++) {
+                java.util.Arrays.fill(fits.cells, cy * width + minX, cy * width + maxX + 1, (byte) 0);
+            }
+        }
+    }
+
+    /** The widest circle standing in the way, scenery or still. */
+    float widestCircle() {
+        var grid = root();
+        return Math.max(grid.scenery.widest, grid.stillCircles.widest);
     }
 
     /** Circles on the ground in world units, by the cell of a grid each one's middle stands in. */

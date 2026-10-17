@@ -467,7 +467,12 @@ public final class Pathfinder {
             return new Path(List.of(to));
         }
         int width = grid.getWidth();
-        var way = grid.inBounds(goalX, goalY) ? sectors.way(startY * width + startX, goalY * width + goalX) : null;
+        int startCell = startY * width + startX;
+        if (sectors.clearance() > 0f && !fits(grid, startX, startY, sectors.clearance())) {
+            int room = nearestWithRoom(grid, startX, startY, sectors.clearance(), null, -1);
+            startCell = room >= 0 ? room : startCell; // pressed against a trunk: its way read from beside it
+        }
+        var way = grid.inBounds(goalX, goalY) ? sectors.way(startCell, goalY * width + goalX) : null;
         if (way == null || way.length <= SECTORS_A_STRETCH + 1) {
             return search(grid, from, to, clearance, orNearest, tally, traffic, null, corridorOf(sectors, grid, from, to));
         }
@@ -778,11 +783,21 @@ public final class Pathfinder {
         }
         int goalX = grid.toCellX(to);
         int goalY = grid.toCellY(to);
-        int zone = zones == null ? -1 : zones.zoneOf(startX, startY);
-        if (zone >= 0 && !zones.connected(startX, startY, goalX, goalY)) {
-            int nearest = zones.nearestIn(zone, goalX, goalY, startX, startY);
-            int width = grid.getWidth();
-            if (nearest == startY * width + startX) {
+        int width = grid.getWidth();
+        int zoneX = startX;
+        int zoneY = startY;
+        if (zones != null && clearance > 0f && zones.zoneOf(startX, startY) < 0) {
+            // Zones laid for its width (Sectors.of with a clearance) hold no cell it does not fit at: read from beside it.
+            int room = nearestWithRoom(grid, startX, startY, clearance, null, -1);
+            if (room >= 0) {
+                zoneX = room % width;
+                zoneY = room / width;
+            }
+        }
+        int zone = zones == null ? -1 : zones.zoneOf(zoneX, zoneY);
+        if (zone >= 0 && !zones.connected(zoneX, zoneY, goalX, goalY)) {
+            int nearest = zones.nearestIn(zone, goalX, goalY, zoneX, zoneY);
+            if (nearest == startY * width + startX || nearest == zoneY * width + zoneX) {
                 return Path.partial(List.of()); // nowhere nearer than where it stands
             }
             if (clearance > 0f && !fits(grid, nearest % width, nearest / width, clearance)) {
@@ -1681,7 +1696,26 @@ public final class Pathfinder {
      * Whether a cell can hold a body of {@code clearance} radius at its centre: open, with room from stone, and clear
      * of the circles standing in the way by its true distance — a body with no width only kept out of them.
      */
+    static boolean fitsAt(PathGrid grid, int cx, int cy, float clearance) {
+        return fits(grid, cx, cy, clearance);
+    }
+
     private static boolean fits(PathGrid grid, int cx, int cy, float clearance) {
+        if (!grid.inBounds(cx, cy)) {
+            return false;
+        }
+        var known = grid.fits(clearance);
+        int index = cy * grid.getWidth() + cx;
+        byte answer = known.cells[index];
+        if (answer == 0) {
+            answer = fitsNow(grid, cx, cy, clearance) ? (byte) 1 : (byte) 2;
+            known.cells[index] = answer;
+        }
+        return answer == 1;
+    }
+
+    /** The same, worked out now. */
+    private static boolean fitsNow(PathGrid grid, int cx, int cy, float clearance) {
         if (grid.isBlocked(cx, cy)) {
             return false;
         }
