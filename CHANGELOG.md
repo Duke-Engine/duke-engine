@@ -670,6 +670,8 @@ libraries, the words and the story itself the game's.
   `Ware`; `QuestLog` — the quests going, finished and heard, each goal moved by its own event, its `State` saved
   and restored — reading the game's files through `Lore` (a quest, a conversation, a person by name) and listing the
   tracker's lines as `Tracked`; `Script` and `Trigger` — fired, flags, delays and zones stood in, its `State`
+  A greeting called out to a hero walking past is a bark (`QuestLog.bark`, `barked()`): heard, its quests started,
+  said over the person's head and not in the box; asked, or an offer, it plays as ever.
   saved. A trigger's `When` and a condition's `Is` are words: the few a story hears itself are `Trigger.When`'s
   and `Trigger.Is`'s, the rest the game's own (`Script.heard(word, …)`, `judgedBy`); its actions are the game's
   own record implementing `Trigger.Action`, read from its files' `Action` blocks by `Binder.vocabulary`.

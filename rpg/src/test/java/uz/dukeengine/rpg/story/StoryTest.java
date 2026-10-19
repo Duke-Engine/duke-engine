@@ -89,6 +89,18 @@ class StoryTest {
     }
 
     @Test
+    void walkingUpSheCallsOutToHimAndAskedSheSaysItInTheBox() {
+        var log = log();
+        assertTrue(log.talk("Commander", new LootBag(), false));
+        assertEquals(List.of("Greeting"), log.barked(), "walking up, she calls out to him");
+        assertEquals(List.of(), log.said(), "over her head, not in the box that stops the world");
+        assertEquals(List.of("Walls", "Locket"), log.active().stream().map(QuestLog.Active::quest).toList(),
+                "heard all the same: her quests started");
+        assertTrue(log.talk("Commander", new LootBag(), true));
+        assertEquals(List.of("Greeting"), log.said(), "asked, it is in the box");
+    }
+
+    @Test
     void collectCountsTheBagsAndGiveTakesIt() {
         var log = log();
         var bag = new LootBag();
