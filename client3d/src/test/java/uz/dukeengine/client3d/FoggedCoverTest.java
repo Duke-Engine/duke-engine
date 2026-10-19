@@ -1,5 +1,6 @@
 package uz.dukeengine.client3d;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -24,6 +25,8 @@ class FoggedCoverTest {
     private static final String GRASS = "textures/ground/grass.png";
     private static final DesktopAssetManager ASSETS = new DesktopAssetManager(true);
 
+    private static final List<Material> TOLD = new ArrayList<>();
+
     private static Node grow(String matDef) {
         var cells = new ArrayList<String>();
         var paint = new ArrayList<String>();
@@ -39,13 +42,19 @@ class FoggedCoverTest {
                 Map.of("g", GRASS), Map.of("g", 4f));
         TileSource tiles = path -> {
             var tuft = new Geometry("tuft", new Box(0.2f, 0.5f, 0.2f));
-            tuft.setMaterial(new Material(ASSETS, matDef));
+            var material = new Material(ASSETS, matDef);
+            if (material.getMaterialDef().getMaterialParam("ColorMap") != null) {
+                material.setColor("Color", com.jme3.math.ColorRGBA.Green);
+                material.setTexture("ColorMap", new com.jme3.texture.Texture2D(2, 2, com.jme3.texture.Image.Format.RGBA8));
+            }
+            tuft.setMaterial(material);
             var node = new Node(path);
             node.attachChild(tuft);
             return node;
         };
         var root = new Node("root");
         var scene = new TerrainScene(root, (colour, texture) -> null, true, null, tiles, true);
+        scene.onMadeMaterial(TOLD::add);
         scene.streamWithin(1000);
         scene.rebuild(MapTerrain.of(map, 10f, 0f), null, GroundPaint.of(map));
         scene.cover(new GroundCover(Map.of(GRASS, List.of(new GroundCover.Kind("models/grass.glb", 1, 1f, 0xFFFFFF))),
@@ -60,6 +69,10 @@ class FoggedCoverTest {
     void coverOnAFoggedMapIsDrawnInstancedInTheFoggedMaterial() {
         var root = grow("MatDefs/duke/FoggedTerrain.j3md");
         assertFalse(root.descendantMatches(InstancedGeometry.class).isEmpty(), "grown, instanced, no exception");
+        var drawn = root.descendantMatches(InstancedGeometry.class).getFirst().getMaterial();
+        assertEquals(com.jme3.math.ColorRGBA.Green, drawn.getParam("Color").getValue(), "the piece's own colour");
+        assertTrue(drawn.getParam("ColorMap") != null, "and its own picture");
+        assertTrue(TOLD.contains(drawn), "told to the client, which keeps it up with the fog");
     }
 
     @Test

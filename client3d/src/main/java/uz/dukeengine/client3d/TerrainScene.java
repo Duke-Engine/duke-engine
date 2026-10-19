@@ -233,6 +233,16 @@ final class TerrainScene {
     private final java.util.Map<Integer, Node> coverByChunk = new java.util.HashMap<>();
     /** Each kind's model as cover draws it: its materials its own, instanced. */
     private final java.util.Map<GroundCover.Kind, Spatial> coverModels = new java.util.HashMap<>();
+    /**
+     * Told each material cover makes of its own — a copy of a piece's, instanced — so whoever keeps the materials that
+     * read the fog up to date (its window, its haze, its lights) keeps these too.
+     */
+    private java.util.function.Consumer<com.jme3.material.Material> madeMaterial = material -> { };
+
+    void onMadeMaterial(java.util.function.Consumer<com.jme3.material.Material> told) {
+        this.madeMaterial = told == null ? material -> { } : told;
+    }
+
     /** The kinds whose every material takes {@code UseInstancing}: those alone are drawn instanced. */
     private final java.util.Set<GroundCover.Kind> instanceable = new java.util.HashSet<>();
 
@@ -325,6 +335,11 @@ final class TerrainScene {
                     geometry.getMaterial().setBoolean("UseInstancing", true);
                 }
                 instanceable.add(kind);
+            }
+            // A copy is a material of its own: told about as one, or its fog's window and haze stand still (E100).
+            for (var geometry : ((model instanceof Node node) ? node.descendantMatches(Geometry.class)
+                    : java.util.List.of((Geometry) model))) {
+                madeMaterial.accept(geometry.getMaterial());
             }
         }
         coverModels.put(kind, model);

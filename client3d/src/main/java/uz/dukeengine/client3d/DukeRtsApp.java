@@ -974,7 +974,20 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** What grows on the ground round the camera — see {@link Duke3D#groundCover}. */
     void groundCover(GroundCover cover) {
+        terrain.onMadeMaterial(this::adoptFogged);
         terrain.cover(cover);
+    }
+
+    /** A material made elsewhere of a fogged one kept up with the fog as the client's own are. */
+    private void adoptFogged(Material material) {
+        var def = material.getMaterialDef().getAssetName();
+        if (def != null && def.endsWith("FoggedTerrain.j3md") && !fogged.contains(material)) {
+            fogged.add(material);
+            tellWhereTheFogHolds(material);
+            if (fogMap != null) {
+                material.setVector2("FogSize", fogMap.worldSize());
+            }
+        }
     }
 
     void controls(ControlScheme controls) {
