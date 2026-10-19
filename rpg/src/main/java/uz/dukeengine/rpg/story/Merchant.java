@@ -6,7 +6,7 @@ import java.util.List;
  * A person who trades: the person of that name, and what a map starts them with — each thing, its price, how many — and
  * {@code gear} more things the game rolls each time a map stocks them.
  */
-public record Merchant(String name, List<Ware> stock, int gear) {
+public record Merchant(@uz.dukeengine.core.data.Link(Npc.class) String name, List<Ware> stock, int gear) {
 
     public static final Merchant DEFAULTS = new Merchant("", List.of(), 0);
 
@@ -15,7 +15,8 @@ public record Merchant(String name, List<Ware> stock, int gear) {
     }
 
     /** One thing sold: an item, its price, how many — written {@code Gauntlet 80 2}. */
-    public record Ware(String item, int price, int count) {
+    public record Ware(@uz.dukeengine.core.data.Link(uz.dukeengine.rpg.item.Loot.class) String item, int price,
+            int count) {
 
         public static Ware of(String written) {
             var words = written.strip().split("\s+");

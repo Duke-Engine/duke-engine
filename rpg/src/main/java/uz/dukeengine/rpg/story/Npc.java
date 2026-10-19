@@ -12,7 +12,7 @@ import java.util.List;
  * @param role   what they are, under their name — a trader, a commander — or blank
  * @param route  the zones of the map a traveller walks between, in turn, round and round; empty for one who keeps home
  */
-public record Npc(String name, String talk, float radius, float wander, String role, List<String> route) {
+public record Npc(String name, @uz.dukeengine.core.data.Link(Conversation.class) String talk, float radius, float wander, String role, List<String> route) {
 
     public static final Npc DEFAULTS = new Npc("", "", 30f, 0f, "", List.of());
 

@@ -40,14 +40,16 @@ public record Quest(String name, Kind kind, String title, List<Step> steps, Stri
      * One step: its goal, what the goal is of, and the tracker's line — {@code %d/%d} in it the count so far and the
      * count asked.
      *
-     * @param target a zone (REACH), a creature (KILL), an item (COLLECT) or a person (TALK, GIVE, FOLLOW)
+     * @param target a zone (REACH), a creature (KILL), an item (COLLECT) or a person (TALK, GIVE, FOLLOW): which kind
+     *               of name the goal says, so an editor checks it by its goal
      * @param item   what a GIVE hands over
      * @param onDone what finishing it does, or null for nothing
      * @param glow   whether its target wears the game's glow while the step wants it
      * @param where  the zone of the map where it is done, for its marks; blank for the target itself
      */
-    public record Step(Goal goal, String target, int count, String item, String text, Done onDone, boolean glow,
-            String where) {
+    public record Step(Goal goal, String target, int count,
+            @uz.dukeengine.core.data.Link(uz.dukeengine.rpg.item.Loot.class) String item, String text, Done onDone,
+            boolean glow, String where) {
 
         public static final Step DEFAULTS = new Step(null, "", 1, "", "", null, false, "");
 
@@ -65,7 +67,9 @@ public record Quest(String name, Kind kind, String title, List<Step> steps, Stri
      * What finishing a step does: a conversation played, experience to every hero, an item into the bag of the hero
      * who finished it, and another quest started.
      */
-    public record Done(String says, int experience, String item, String starts) {
+    public record Done(@uz.dukeengine.core.data.Link(Conversation.class) String says, int experience,
+            @uz.dukeengine.core.data.Link(uz.dukeengine.rpg.item.Loot.class) String item,
+            @uz.dukeengine.core.data.Link(Quest.class) String starts) {
 
         public static final Done DEFAULTS = new Done("", 0, "", "");
     }

@@ -667,6 +667,17 @@ libraries, the words and the story itself the game's.
   and `Trigger.Is`'s, the rest the game's own (`Script.heard(word, …)`, `judgedBy`); its actions are the game's
   own record implementing `Trigger.Action`, read from its files' `Action` blocks by `Binder.vocabulary`.
 
+- **rpg-client-3d**: the screens, each handed the game's words (`Words`, with English `DEFAULTS`), a
+  `MenuStyle` look, lookups and suppliers for what it shows, and a callback the game posts its own orders in:
+  `DialogueScreen` (the box, its portrait and lines, an offer's question; `Answers`: read, answer, skip — the world
+  paused while it is up when played alone), `TradeScreen` (the stock, the bag and the purse; `Open`, `Goods`,
+  `Deals`: buy, sell, close), `QuestTracker` (the quests going, MAIN ◆ before SIDE ◇, a step just begun lit, folded
+  by `fold()`) and `QuestLogScreen` (going and finished, steps and description, a map button where the game says,
+  `click` giving back a `Hit`); and `Cutscene` with its `Shot`s and path `Key`s, as a game's files write them.
+- **For an editor**: `@Link` on what names one kind of block — a person's `talk`, a merchant's person and wares, a
+  step's `item`, a finished step's conversation, item and next quest, a shot's conversation; a step's `target` names
+  the kind its `Goal` says.
+
 What a game coming from its own copies changes:
 
 | Its own | Now |
@@ -680,6 +691,11 @@ What a game coming from its own copies changes:
 | `Trigger.When`, `Trigger.Is` enums | words (`String`); the game keeps its own beside the library's |
 | `Trigger.Action` record | the game's own record, `implements Trigger.Action`, given to `Binder.vocabulary` |
 | `QuestLog.Event(When, …)` | `QuestLog.Event(String when, …)` |
+| `DialogueScreen(under, input, settings)` | `DialogueScreen(under, input, look, words, conversations, speakers, match, said, inCutscene, hero, answers)` |
+| `TradeScreen(settings)` | `TradeScreen(look, words, open, gold, goods, deals)`; its gold floats stay the game's |
+| `MissionScreen`'s tracker, `Tracker` | `QuestTracker(entries, frame, words)`; its marks over people and on the minimap stay the game's |
+| `QuestLogScreen(settings)` | `QuestLogScreen(look, words, lore, state, onTheMap)`; where a quest is on the map stays the game's |
+| `story.Cutscene` | `client3d.rpg.Cutscene` |
 
 ### Engine asks, round 22 (duke-generals)
 
