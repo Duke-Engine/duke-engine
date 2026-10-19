@@ -574,6 +574,8 @@ E16, in parts.
   names; each model drawn as one instanced geometry a chunk (jME `InstancedNode`, the model's materials its own), no
   shadows, never in the map, the snapshot, the checksum or the scenery. `atDensity(share)` is the player's off, low or
   high, set by the game's own settings.
+  On a fogged map too (E100): `FoggedTerrain.j3md` takes `UseInstancing`, as jME's Lighting does, and a model whose
+  material cannot be instanced is drawn as it is rather than ending the window.
 - **Quicker legs and a mount** (E89): `SpeedModifier` (core), asked by `MoveUpdate` every frame and multiplied into the
   step; the skill book's is the strongest `SkillEffect.MOVE_SPEED` buff and the mount he rides. `SkillEffect.MOUNT` —
   `WindUpFrames` mounting (a step or a blow calls it off), then `BoostPercent` quicker, drawn as `Look`'s template, his

@@ -1,7 +1,7 @@
 #import "Common/ShaderLib/GLSLCompat.glsllib"
+// The world's matrices, or each instance's where a piece is drawn instanced (ground cover, E100).
+#import "Common/ShaderLib/Instancing.glsllib"
 
-uniform mat4 g_WorldViewProjectionMatrix;
-uniform mat4 g_WorldMatrix;
 uniform vec2 m_FogSize;
 
 attribute vec3 inPosition;
@@ -37,7 +37,7 @@ varying vec4 blend1;
 #endif
 
 void main() {
-    vec4 world = g_WorldMatrix * vec4(inPosition, 1.0);
+    vec4 world = TransformWorld(vec4(inPosition, 1.0));
 
     // Where this vertex stands on the map, and only that: x and z, never y.
     // A wall is one place on the map from its foot to the top of it, and fog that
@@ -46,7 +46,11 @@ void main() {
     // v runs the other way because the fog image's first row is the map's far edge.
     fogCoord = vec2(world.x / m_FogSize.x, 1.0 - world.z / m_FogSize.y);
 
+    #ifdef INSTANCING
+    worldNormal = normalize(TransformWorldNormal(inNormal));
+    #else
     worldNormal = normalize(mat3_sub(g_WorldMatrix) * inNormal);
+    #endif
     worldPos = world.xyz;
 
     #ifdef HAS_COLORMAP
@@ -65,5 +69,5 @@ void main() {
     blend1 = inTexCoord3;
     #endif
 
-    gl_Position = g_WorldViewProjectionMatrix * vec4(inPosition, 1.0);
+    gl_Position = TransformWorldViewProjection(vec4(inPosition, 1.0));
 }

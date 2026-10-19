@@ -233,6 +233,8 @@ final class TerrainScene {
     private final java.util.Map<Integer, Node> coverByChunk = new java.util.HashMap<>();
     /** Each kind's model as cover draws it: its materials its own, instanced. */
     private final java.util.Map<GroundCover.Kind, Spatial> coverModels = new java.util.HashMap<>();
+    /** The kinds whose every material takes {@code UseInstancing}: those alone are drawn instanced. */
+    private final java.util.Set<GroundCover.Kind> instanceable = new java.util.HashSet<>();
 
     /** Grow {@code grows} round the camera from now, what grew before let go. */
     void cover(GroundCover grows) {
@@ -275,7 +277,9 @@ final class TerrainScene {
         int x1 = Math.min(x0 + CHUNK_CELLS, grid.getWidth()) - 1;
         int y1 = Math.min(y0 + CHUNK_CELLS, grid.getHeight()) - 1;
         float cell = grid.getCellSize();
-        var grown = new com.jme3.scene.instancing.InstancedNode("cover");
+        var grown = new Node("cover");
+        var instanced = new com.jme3.scene.instancing.InstancedNode("cover instanced");
+        grown.attachChild(instanced);
         for (int cy = y0; cy <= y1; cy++) {
             for (int cx = x0; cx <= x1; cx++) {
                 for (var piece : cover.growIn(cx, cy, streamedPaint.pictureAt(cx, cy))) {
@@ -290,11 +294,12 @@ final class TerrainScene {
                     one.setLocalRotation(new com.jme3.math.Quaternion()
                             .fromAngleAxis(FastMath.DEG_TO_RAD * piece.facing(), Vector3f.UNIT_Y));
                     one.setLocalTranslation(x - x0 * cell, groundAt(grid, x, z), z - y0 * cell);
-                    grown.attachChild(one);
+                    // One whose material cannot be instanced is drawn as it is: never the window's death (E100).
+                    (instanceable.contains(piece.kind()) ? instanced : grown).attachChild(one);
                 }
             }
         }
-        grown.instance();
+        instanced.instance();
         grown.setShadowMode(com.jme3.renderer.queue.RenderQueue.ShadowMode.Off);
         return grown;
     }
@@ -309,11 +314,17 @@ final class TerrainScene {
         if (loaded != null) {
             // Its own materials: scenery sharing the model is drawn as ever, not as an instance it is not.
             model = loaded.clone(true);
+            boolean every = true;
             for (var geometry : ((model instanceof Node node) ? node.descendantMatches(Geometry.class)
                     : java.util.List.of((Geometry) model))) {
-                if (geometry.getMaterial().getMaterialDef().getMaterialParam("UseInstancing") != null) {
+                every &= geometry.getMaterial().getMaterialDef().getMaterialParam("UseInstancing") != null;
+            }
+            if (every) {
+                for (var geometry : ((model instanceof Node node) ? node.descendantMatches(Geometry.class)
+                        : java.util.List.of((Geometry) model))) {
                     geometry.getMaterial().setBoolean("UseInstancing", true);
                 }
+                instanceable.add(kind);
             }
         }
         coverModels.put(kind, model);

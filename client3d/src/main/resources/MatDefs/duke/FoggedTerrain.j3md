@@ -84,6 +84,8 @@ MaterialDef Fogged Terrain {
         Texture2D Cliff
         Float CliffScale
         Float CliffSlope
+        // Drawn instanced — ground cover's pieces, a model a chunk (E100).
+        Boolean UseInstancing
     }
 
     Technique {
@@ -93,6 +95,8 @@ MaterialDef Fogged Terrain {
         WorldParameters {
             WorldViewProjectionMatrix
             WorldMatrix
+            ViewMatrix
+            ViewProjectionMatrix
         }
 
         Defines {
@@ -110,6 +114,7 @@ MaterialDef Fogged Terrain {
             BLEND_NOISE : BlendNoise
             BLEND_VARIATION : Variation
             BLEND_CLIFF : Cliff
+            INSTANCING : UseInstancing
         }
     }
 }
