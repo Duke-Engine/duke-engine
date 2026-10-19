@@ -822,7 +822,7 @@ public final class Pathfinder {
         if (zone >= 0 && !zones.connected(zoneX, zoneY, goalX, goalY) && flatZones != null && squeezer != null
                 && flatZones.connected(startX, startY, goalX, goalY)) {
             // Shut off from its width alone — a gate narrower than it: it squeezes through, as it always did.
-            var squeezed = squeezer.search(grid, from, to, 0f, true, tally, traffic);
+            var squeezed = squeezer.search(grid, from, to, squeezed(grid, from, clearance), true, tally, traffic);
             if (squeezed.reachesGoal()) {
                 return squeezed;
             }
@@ -842,7 +842,7 @@ public final class Pathfinder {
             // for; with room first, squeezing where that gets nearer.
             var way = searcher.search(grid, from, there, clearance, true, tally, traffic);
             if (!way.reachesGoal() && clearance > 0f) {
-                var squeezed = searcher.search(grid, from, there, 0f, true, tally, traffic);
+                var squeezed = searcher.search(grid, from, there, squeezed(grid, from, clearance), true, tally, traffic);
                 if (squeezed.reachesGoal() || awayFrom(squeezed, from, there) < awayFrom(way, from, there)) {
                     way = squeezed;
                 }
@@ -856,7 +856,7 @@ public final class Pathfinder {
         if (path.reachesGoal() || clearance <= 0f) {
             return path;
         }
-        var squeezed = searcher.search(grid, from, to, 0f, true, tally, traffic);
+        var squeezed = searcher.search(grid, from, to, squeezed(grid, from, clearance), true, tally, traffic);
         if (squeezed.reachesGoal()) {
             return squeezed;
         }
@@ -888,7 +888,18 @@ public final class Pathfinder {
             points.add(to);
             return new Path(points);
         }
-        return searcher.search(grid, from, to, 0f, true, tally, traffic);
+        return searcher.search(grid, from, to, squeezed(grid, from, clearance), true, tally, traffic);
+    }
+
+    /**
+     * The clearance a body of {@code clearance} squeezes by: through stone by its middle, as a walker's step is held only
+     * by the cell under it, but kept its whole width off the trunks and round still things, which hold its body (E102).
+     * Written as the clearance turned negative, which {@link #fits} and {@link #isClearAround} read so; 0 stays 0, and a
+     * body standing in a circle already squeezes by its middle alone.
+     */
+    private static float squeezed(PathGrid grid, Coord3D from, float clearance) {
+        // One standing in a circle already is let out of it squeezed by its middle alone, or its first step is refused.
+        return clearance > 0f && grid.clearOfCircles(from.x(), from.y(), clearance) ? -clearance : 0f;
     }
 
     /**
@@ -1753,11 +1764,19 @@ public final class Pathfinder {
         }
         float x = (cx + 0.5f) * grid.getCellSize();
         float y = (cy + 0.5f) * grid.getCellSize();
-        return clearance <= 0f ? grid.clearOfCircles(x, y, 0f) : isClearAround(grid, x, y, clearance);
+        if (clearance < 0f) {
+            return grid.clearOfCircles(x, y, -clearance); // squeezed: see squeezed()
+        }
+        return clearance == 0f ? grid.clearOfCircles(x, y, 0f) : isClearAround(grid, x, y, clearance);
     }
 
     /** Whether every cell a body of {@code clearance} radius would touch is free, and the circles clear of it. */
     private static boolean isClearAround(PathGrid grid, float x, float y, float clearance) {
+        if (clearance < 0f) {
+            // Squeezed: the cell under its middle open, as a walker's step reads it, and the circles kept off its body.
+            return !grid.isBlocked(grid.toCellX(new Coord3D(x, y, 0f)), grid.toCellY(new Coord3D(x, y, 0f)))
+                    && grid.clearOfCircles(x, y, -clearance);
+        }
         float cell = grid.getCellSize();
         int minX = (int) Math.floor((x - clearance) / cell);
         int maxX = (int) Math.floor((x + clearance) / cell);

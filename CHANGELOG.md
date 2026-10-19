@@ -568,6 +568,10 @@ E16, in parts.
   a map loads with `GameLogic.layRoutesFor(radius)`.
   A goal shut off from the body's width alone — a gate narrower than it — is still squeezed to, found by the plain
   sectors, as it was before the sectors knew a width.
+  A squeezed route (E102) squeezes through stone by the body's middle, as a walker's step is held only by the cell
+  under it, but keeps its whole width off trunks and round still things, which hold its body: a gap between two trunks
+  too narrow for it is no way, and it stops at the nearest place it reaches rather than standing wedged in the gap,
+  still and moving, for as long as it is ordered there. One standing in a circle already squeezes out by its middle.
 - **The land before it is walked** (E101): `Visuals.minimapUnseenShows(dim)` — on a painted map the minimap draws a
   cell never seen in its ground's own colour (the surface picture's mean colour, or its palette colour) times `dim`,
   and once seen in it whole; stone as ever, and units and marks hidden where nothing is seen. 0, the dark, as before.
