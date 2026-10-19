@@ -650,6 +650,37 @@ ahead is now cast where it aims (it was cast at the pointer: the aim was read af
   far out of the way. Every search weighs it, and a route is never straightened across a cell dearer than where the
   straight line starts. Shares of 100 or more keep routes the cheapest; a grid given none routes as ever.
 
+### The story half, a library (E22)
+
+What duke-dungeon built in its own code for its campaign, lifted as E8 lifted the hero: the mechanisms in the
+libraries, the words and the story itself the game's.
+
+- **core.map**: `MapZone(name, x, y, width, height, radius)` — a named rectangle or circle in cells, read as a map
+  writes it (`MapZone.of`), with `holds`, its middle, its cells and `written()`; a map with named places is
+  `Marked` (`zones()`).
+- **rpg.story**: `Speaker`, `Conversation` (and its `Line`, an `offer` taken only when accepted), `Npc`, `Quest`
+  (`Kind` MAIN or SIDE, `Goal` REACH, KILL, COLLECT, TALK, GIVE, FOLLOW, `Step`, `Done`), `Merchant` and its
+  `Ware`; `QuestLog` — the quests going, finished and heard, each goal moved by its own event, its `State` saved
+  and restored — reading the game's files through `Lore` (a quest, a conversation, a person by name) and listing the
+  tracker's lines as `Tracked`; `Script` and `Trigger` — fired, flags, delays and zones stood in, its `State`
+  saved. A trigger's `When` and a condition's `Is` are words: the few a story hears itself are `Trigger.When`'s
+  and `Trigger.Is`'s, the rest the game's own (`Script.heard(word, …)`, `judgedBy`); its actions are the game's
+  own record implementing `Trigger.Action`, read from its files' `Action` blocks by `Binder.vocabulary`.
+
+What a game coming from its own copies changes:
+
+| Its own | Now |
+|---|---|
+| `StaticMap.Zone` | `core.map.MapZone` |
+| `story.Speaker`, `Conversation`, `Npc`, `Quest`, `Merchant` | the same in `uz.dukeengine.rpg.story` |
+| `Tracker.Kind` | `Quest.Kind` |
+| `Tracker.Entry`, `Tracker.Step` from the log | `Tracked`, `Tracked.Line` |
+| `new QuestLog(story, items, join)` | `new QuestLog(lore, items, join)`, its `Story` a `Lore` |
+| `new Script(story)` | `new Script(story.triggers())`; `script.trigger(name)` |
+| `Trigger.When`, `Trigger.Is` enums | words (`String`); the game keeps its own beside the library's |
+| `Trigger.Action` record | the game's own record, `implements Trigger.Action`, given to `Binder.vocabulary` |
+| `QuestLog.Event(When, …)` | `QuestLog.Event(String when, …)` |
+
 ### Engine asks, round 22 (duke-generals)
 
 1. **A site kept from a heap**: `PlacementRules.keepClear(template, border, from)` — a site of that template refused
