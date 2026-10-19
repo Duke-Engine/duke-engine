@@ -76,6 +76,48 @@ class MinimapPictureTest {
         assertNotEquals(unseen, remembered);
     }
 
+    private static int rgb(ColorRGBA c) {
+        return (MinimapPicture.channel(c.r) & 0xFF) << 16 | (MinimapPicture.channel(c.g) & 0xFF) << 8
+                | MinimapPicture.channel(c.b) & 0xFF;
+    }
+
+    /** The land drawn before it is walked: its own colour dimmed where never seen, whole once seen (E101). */
+    @Test
+    void theLandIsDrawnDimmedBeforeItIsWalkedAndWholeOnceSeen() {
+        var grid = walled();
+        var seen = new Discovery(grid);
+        var grass = new ColorRGBA(0.4f, 0.6f, 0.2f, 1f);
+        var picture = new MinimapPicture();
+        picture.ground(0.5f, (cx, cy) -> grass);
+        picture.rebuild(grid, true, ColorRGBA.Black);
+        assertEquals(rgb(grass.mult(0.5f)), picture.colourAt(25, 15), "never seen: the meadow, dimmed, not black");
+
+        seen.reveal(List.of(at(55f, 55f)), 0, 40f, null);
+        seen.soften(1f / 30f);
+        picture.paint(seen);
+        seen.reveal(List.of(at(255f, 155f)), 0, 40f, null);
+        seen.soften(1f / 30f);
+        picture.paint(seen);
+        assertEquals(rgb(grass), picture.colourAt(5, 5), "seen once, out of sight now: whole");
+        assertEquals(rgb(grass.mult(0.5f)), picture.colourAt(28, 1), "and still never seen there");
+
+        var none = new MinimapPicture();
+        none.ground(0f, (cx, cy) -> grass);
+        none.rebuild(grid, true, ColorRGBA.Black);
+        assertEquals(0, none.colourAt(25, 15), "0: the dark, as ever");
+    }
+
+    @Test
+    void aPicturesMeanColourIsItsTexelsAveraged() {
+        var image = new com.jme3.texture.Image(com.jme3.texture.Image.Format.RGBA8, 2, 1,
+                com.jme3.util.BufferUtils.createByteBuffer(new byte[] {(byte) 255, 0, 0, (byte) 255, 0, 0, (byte) 255,
+                    (byte) 255}), com.jme3.texture.image.ColorSpace.Linear);
+        var mean = DukeRtsApp.meanOf(image);
+        assertEquals(0.5f, mean.r, 1e-3f);
+        assertEquals(0f, mean.g, 1e-3f);
+        assertEquals(0.5f, mean.b, 1e-3f);
+    }
+
     @Test
     void repaintingOnlyWhatChangedPaintsWhatRepaintingEverythingPaints() {
         var grid = walled();

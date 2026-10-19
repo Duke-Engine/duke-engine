@@ -978,6 +978,55 @@ final class DukeRtsApp extends SimpleApplication {
         terrain.cover(cover);
     }
 
+    /** Each painted surface's colour, by its palette value: a picture's mean, or the palette's own colour. */
+    private final Map<String, ColorRGBA> surfaceColours = new HashMap<>();
+
+    /**
+     * The ground's own colour at a cell of {@code grid} — the painted surface of the map's cell it lies in — or null
+     * where the map is not painted.
+     */
+    private java.util.function.BiFunction<Integer, Integer, ColorRGBA> groundColours(uz.dukeengine.core.pathfind.PathGrid grid) {
+        var paint = GroundPaint.of(game.getMapRecord());
+        if (grid == null || paint == null) {
+            return (cx, cy) -> null;
+        }
+        int k = Math.max(1, grid.cellsPerMapCell());
+        return (cx, cy) -> {
+            var value = paint.pictureAt(cx / k, cy / k);
+            return value == null || value.isBlank() ? null : surfaceColours.computeIfAbsent(value, this::colourOfSurface);
+        };
+    }
+
+    /** A surface's colour: {@code #RRGGBB} as written, a picture by the mean of its texels, null for one not loaded. */
+    private ColorRGBA colourOfSurface(String value) {
+        if (value.startsWith("#")) {
+            return GroundPaint.colourOf(value);
+        }
+        var texture = groundTexture(value);
+        return texture == null || texture.getImage() == null ? null : meanOf(texture.getImage());
+    }
+
+    /** The mean colour of a picture, read a texel in every few so a large one costs little. */
+    static ColorRGBA meanOf(com.jme3.texture.Image image) {
+        var raster = com.jme3.texture.image.ImageRaster.create(image);
+        int step = Math.max(1, Math.max(image.getWidth(), image.getHeight()) / 64);
+        float r = 0f;
+        float g = 0f;
+        float b = 0f;
+        int n = 0;
+        var texel = new ColorRGBA();
+        for (int y = 0; y < image.getHeight(); y += step) {
+            for (int x = 0; x < image.getWidth(); x += step) {
+                raster.getPixel(x, y, texel);
+                r += texel.r;
+                g += texel.g;
+                b += texel.b;
+                n++;
+            }
+        }
+        return n == 0 ? null : new ColorRGBA(r / n, g / n, b / n, 1f);
+    }
+
     /** A material made elsewhere of a fogged one kept up with the fog as the client's own are. */
     private void adoptFogged(Material material) {
         var def = material.getMaterialDef().getAssetName();
@@ -1745,6 +1794,7 @@ final class DukeRtsApp extends SimpleApplication {
         float worldH = grid == null ? 450f : grid.getHeight() * grid.getCellSize();
         // The ground and its stone as one picture on one quad, the cells unwalked where there is discovery: an
         // undiscovered floor is as black as undiscovered stone. Of the ground round the camera, on a wide world.
+        minimapPicture.ground(visuals.getMinimapUnseenShows(), groundColours(grid));
         minimapPicture.rebuild(grid, visuals.drawsFog(), visuals.getFog().tintColour(), visuals.getMinimapSpan());
         minimap = minimapPicture.isWindowed() ? minimapRoundTheCamera(grid)
                 : new MinimapProjection(worldW, worldH, MINIMAP_SIZE);

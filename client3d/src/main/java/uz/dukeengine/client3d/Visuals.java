@@ -2457,6 +2457,22 @@ public final class Visuals {
         return skybox;
     }
 
+    private float minimapUnseenShows;
+
+    /**
+     * The minimap's land drawn before it is walked, as an open world's map has it (E101): a cell never seen in its
+     * ground's own colour — a painted surface's picture's mean colour, or its palette colour — times {@code dim}; once
+     * seen, whole. Units and marks stay hidden where nothing is seen. 0, the fog's dark, as ever.
+     */
+    public Visuals minimapUnseenShows(float dim) {
+        this.minimapUnseenShows = Math.max(0f, dim);
+        return this;
+    }
+
+    float getMinimapUnseenShows() {
+        return minimapUnseenShows;
+    }
+
     private boolean occlusionMarks;
     private java.util.function.Predicate<uz.dukeengine.core.view.UnitView> occlusionMarked = view -> false;
 

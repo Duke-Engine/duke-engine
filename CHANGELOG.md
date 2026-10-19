@@ -568,6 +568,9 @@ E16, in parts.
   a map loads with `GameLogic.layRoutesFor(radius)`.
   A goal shut off from the body's width alone — a gate narrower than it — is still squeezed to, found by the plain
   sectors, as it was before the sectors knew a width.
+- **The land before it is walked** (E101): `Visuals.minimapUnseenShows(dim)` — on a painted map the minimap draws a
+  cell never seen in its ground's own colour (the surface picture's mean colour, or its palette colour) times `dim`,
+  and once seen in it whole; stone as ever, and units and marks hidden where nothing is seen. 0, the dark, as before.
 - **A beam's own material** (E99): `Laser`'s new last component `material`, a `.j3md` path — each line drawn with it in
   place of the plain additive one, given `ColorMap`, `Color`, `Time` (the picture's scroll) and `Tiles` where it names
   them, its blend still added; one that will not load draws the plain line and says so once. The thirteen-part

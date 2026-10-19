@@ -41,6 +41,30 @@ final class MinimapPicture {
     private boolean everyCell;
     /** What unwalked ground fades to: the fog's own colour. */
     private ColorRGBA dark = ColorRGBA.Black;
+    /** The ground's own colour at a cell of the grid, or null for none known — see {@link #ground}. */
+    private java.util.function.BiFunction<Integer, Integer, ColorRGBA> groundAt = (cx, cy) -> null;
+    /** What share of it a cell never seen is drawn in; 0, the fog's dark as ever. */
+    private float unseenDim;
+
+    /**
+     * The land drawn before it is walked, as an open world's map has it (E101): a cell never seen in its ground's own
+     * colour {@code at} gives, times {@code dim}; one seen in it whole, out of sight or in. 0 keeps the dark. Asked
+     * before {@link #rebuild}.
+     */
+    void ground(float dim, java.util.function.BiFunction<Integer, Integer, ColorRGBA> at) {
+        this.unseenDim = Math.max(0f, dim);
+        this.groundAt = at == null ? (cx, cy) -> null : at;
+    }
+
+    /** A cell as the discovery has it: the ground's own colour where the land is drawn before it is walked. */
+    private ColorRGBA cellColour(Discovery.State state, int cx, int cy) {
+        boolean stone = grid.isTerrainBlocked(cx, cy);
+        var own = unseenDim <= 0f || stone ? null : groundAt.apply(cx, cy);
+        if (own == null) {
+            return colourOf(state, stone, grid.level(cx, cy), dark);
+        }
+        return state == Discovery.State.UNSEEN ? own.mult(unseenDim).setAlpha(1f) : own;
+    }
     /** What of the picture changed since it was last sent to the card. */
     private final TextureTiles tiles = new TextureTiles();
 
@@ -107,7 +131,8 @@ final class MinimapPicture {
         }
         for (int cy = 0; cy < height; cy++) {
             for (int cx = 0; cx < width; cx++) {
-                put(cx, cy, discovered ? unseen() : grid.isTerrainBlocked(cx, cy) ? STONE : GROUND);
+                put(cx, cy, discovered ? cellColour(Discovery.State.UNSEEN, cx, cy)
+                        : grid.isTerrainBlocked(cx, cy) ? STONE : GROUND);
             }
         }
         image.setUpdateNeeded();
@@ -224,14 +249,13 @@ final class MinimapPicture {
     /** One cell of the window: as the discovery has it, as ground and stone without one, and unwalked off the map. */
     private boolean paintWindowCell(Discovery seen, int cx, int cy) {
         var colour = cx < 0 || cy < 0 || cx >= grid.getWidth() || cy >= grid.getHeight() ? unseen()
-                : discovered && seen != null ? colourOf(seen.stateAt(cx, cy), grid.isTerrainBlocked(cx, cy),
-                        grid.level(cx, cy), dark)
+                : discovered && seen != null ? cellColour(seen.stateAt(cx, cy), cx, cy)
                 : grid.isTerrainBlocked(cx, cy) ? STONE : GROUND;
         return putTexel(Math.floorMod(cx, size), size - 1 - Math.floorMod(cy, size), colour);
     }
 
     private boolean paintCell(Discovery seen, int cx, int cy) {
-        return put(cx, cy, colourOf(seen.stateAt(cx, cy), grid.isTerrainBlocked(cx, cy), grid.level(cx, cy), dark));
+        return put(cx, cy, cellColour(seen.stateAt(cx, cy), cx, cy));
     }
 
     /**
