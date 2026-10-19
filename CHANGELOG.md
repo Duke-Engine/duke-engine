@@ -568,6 +568,10 @@ E16, in parts.
   a map loads with `GameLogic.layRoutesFor(radius)`.
   A goal shut off from the body's width alone — a gate narrower than it — is still squeezed to, found by the plain
   sectors, as it was before the sectors knew a width.
+- **A beam's own material** (E99): `Laser`'s new last component `material`, a `.j3md` path — each line drawn with it in
+  place of the plain additive one, given `ColorMap`, `Color`, `Time` (the picture's scroll) and `Tiles` where it names
+  them, its blend still added; one that will not load draws the plain line and says so once. The thirteen-part
+  constructor is kept.
 - **Ground cover** (E98): `Duke3D.groundCover(GroundCover)` — what grows on a painted map's ground for the look alone,
   by the palette's picture (`Kind(model, weight, scale, tint)` and a density a cell), grown by the client a chunk at a
   time within `reach` cells of the camera from the map's seed and each cell alone, nothing in a cell the game's `Bare`

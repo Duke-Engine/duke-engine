@@ -14,15 +14,27 @@ package uz.dukeengine.core.content;
  * @param innerColour packed {@code 0xAARRGGBB}
  * @param outerColour packed {@code 0xAARRGGBB}
  * @param texture     a whole path from the resource root, or none for colour alone
+ * @param material    the material definition each line is drawn with, a {@code .j3md} path from the resource root — a
+ *                    glow of the game's own — given its {@code ColorMap}, {@code Color}, {@code Time} (the picture's
+ *                    scroll) and {@code Tiles} where it names them; none for the plain additive line
  */
 public record Laser(String name, int numBeams, float innerBeamWidth, float outerBeamWidth, int innerColour,
         int outerColour, String texture, float scrollRate, boolean tile, float tilingScalar, int segments,
-        float arcHeight, float segmentOverlapRatio) {
+        float arcHeight, float segmentOverlapRatio, String material) {
 
-    static final Laser DEFAULTS = new Laser(null, 1, 1f, 1f, 0xFFFFFFFF, 0xFFFFFFFF, null, 0f, false, 1f, 1, 0f, 0f);
+    static final Laser DEFAULTS = new Laser(null, 1, 1f, 1f, 0xFFFFFFFF, 0xFFFFFFFF, null, 0f, false, 1f, 1, 0f, 0f,
+            null);
 
     public Laser {
         numBeams = Math.max(1, numBeams);
         segments = Math.max(1, segments);
+    }
+
+    /** A laser drawn with the plain additive line, as every one was before one could name its material. */
+    public Laser(String name, int numBeams, float innerBeamWidth, float outerBeamWidth, int innerColour,
+            int outerColour, String texture, float scrollRate, boolean tile, float tilingScalar, int segments,
+            float arcHeight, float segmentOverlapRatio) {
+        this(name, numBeams, innerBeamWidth, outerBeamWidth, innerColour, outerColour, texture, scrollRate, tile,
+                tilingScalar, segments, arcHeight, segmentOverlapRatio, null);
     }
 }

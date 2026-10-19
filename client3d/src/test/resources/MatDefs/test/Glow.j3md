@@ -1,0 +1,13 @@
+// A game's own beam glow, as a test names one: what the client hands a laser's material.
+MaterialDef Glow {
+    MaterialParameters {
+        Texture2D ColorMap
+        Color Color
+        Float Time
+        Float Tiles
+    }
+    Technique {
+        VertexShader GLSL150 GLSL100 : Common/MatDefs/Misc/Unshaded.vert
+        FragmentShader GLSL150 GLSL100 : Common/MatDefs/Misc/Unshaded.frag
+    }
+}

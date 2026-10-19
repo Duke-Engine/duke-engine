@@ -163,7 +163,7 @@ final class Lasers {
                     aspectOf(texture), floor);
             var geometries = drawn.computeIfAbsent(beam.id(), id -> new ArrayList<>());
             while (geometries.size() < lines.size()) {
-                geometries.add(line(texture));
+                geometries.add(line(texture, look.material()));
             }
             for (int i = 0; i < geometries.size(); i++) {
                 var geometry = geometries.get(i);
@@ -195,13 +195,13 @@ final class Lasers {
         return drawn.getOrDefault(beam, List.of());
     }
 
-    private Geometry line(com.jme3.texture.Texture texture) {
+    private Geometry line(com.jme3.texture.Texture texture, String matDef) {
         var mesh = new Mesh();
         mesh.setBuffer(VertexBuffer.Type.Position, 3, new float[12]);
         mesh.setBuffer(VertexBuffer.Type.TexCoord, 2, new float[8]);
         mesh.setBuffer(VertexBuffer.Type.Index, 3, new short[] {0, 1, 2, 0, 2, 3});
-        var material = new Material(assets, "Common/MatDefs/Misc/Unshaded.j3md");
-        if (texture != null) {
+        var material = materialOf(matDef);
+        if (texture != null && takes(material, "ColorMap")) {
             material.setTexture("ColorMap", texture);
         }
         var state = material.getAdditionalRenderState();
@@ -238,7 +238,34 @@ final class Lasers {
             0f, scrolled, 1f, scrolled, 1f, scrolled + line.tiles(), 0f, scrolled + line.tiles()});
         mesh.updateBound();
         geometry.updateModelBound();
-        geometry.getMaterial().setColor("Color", line.colour());
+        var material = geometry.getMaterial();
+        if (takes(material, "Color")) {
+            material.setColor("Color", line.colour());
+        }
+        if (takes(material, "Time")) {
+            material.setFloat("Time", scrolled);
+        }
+        if (takes(material, "Tiles")) {
+            material.setFloat("Tiles", line.tiles());
+        }
+    }
+
+    /** Whether {@code material}'s definition names the parameter {@code name}. */
+    private static boolean takes(Material material, String name) {
+        return material.getMaterialDef().getMaterialParam(name) != null;
+    }
+
+    /** The game's material for a line, or the plain one where it names none or its own will not load. */
+    private Material materialOf(String matDef) {
+        if (matDef != null && !matDef.isBlank() && !missing.contains(matDef)) {
+            try {
+                return new Material(assets, matDef);
+            } catch (RuntimeException notThere) {
+                missing.add(matDef);
+                LOG.warning(() -> "a laser names a material that will not load: " + matDef);
+            }
+        }
+        return new Material(assets, "Common/MatDefs/Misc/Unshaded.j3md");
     }
 
     private com.jme3.texture.Texture texture(String path) {

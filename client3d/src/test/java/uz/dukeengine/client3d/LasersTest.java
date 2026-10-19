@@ -104,6 +104,26 @@ class LasersTest {
         assertEquals(0, node.getQuantity(), "and a beam the simulation ended is gone");
     }
 
+    /** A laser naming a material of the game's is drawn with it, told its colour, scroll and tiles; one naming none as ever. */
+    @Test
+    void aLaserNamingAMaterialIsDrawnWithIt() {
+        var glowing = new Laser("Summon", 1, 2f, 2f, 0xFFFF0000, 0xFFFFFFFF, null, 2f, true, 3f, 1, 0f, 0f,
+                "MatDefs/test/Glow.j3md");
+        var node = new Node("lasers");
+        var lasers = new Lasers(new DesktopAssetManager(true), node, name -> name.equals("Summon") ? glowing : ORBITAL,
+                FLAT);
+        var eye = new Vector3f(0f, 400f, -400f);
+        lasers.show(List.of(new BeamView(1, "Summon", new Coord3D(0f, 0f, 0f), new Coord3D(100f, 0f, 0f), 1f),
+                new BeamView(2, "OrbitalBeam", new Coord3D(0f, 0f, 0f), new Coord3D(0f, 0f, 100f), 1f)), eye, 0.5f);
+
+        var material = lasers.linesOf(1).getFirst().getMaterial();
+        assertEquals("Glow", material.getMaterialDef().getName());
+        assertEquals(1f, (Float) material.getParam("Time").getValue(), 1e-5f, "half a second at two a second");
+        assertEquals(com.jme3.math.ColorRGBA.class, material.getParam("Color").getValue().getClass());
+        assertEquals(true, material.getParam("Tiles") != null);
+        assertEquals("Unshaded", lasers.linesOf(2).getFirst().getMaterial().getMaterialDef().getName(), "none named");
+    }
+
     private static int shown(List<com.jme3.scene.Geometry> lines) {
         return (int) lines.stream().filter(line -> line.getCullHint() != Spatial.CullHint.Always).count();
     }
