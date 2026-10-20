@@ -1,10 +1,10 @@
 package uz.dukeengine.client3d;
 
-import java.util.HashMap;
 import uz.dukeengine.core.content.AnimationSet;
 import uz.dukeengine.core.thing.Drawn;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
@@ -144,27 +144,21 @@ public final class Visuals {
          */
         public UnitVisual fireBone(java.util.Set<String> conditions, int slot, String bone) {
             chooseAgain();
-            var bones = bonesFor(conditions);
-            var was = bones.getOrDefault(slot, new WeaponBones(null, null, null));
-            bones.put(slot, new WeaponBones(bone, was.flash(), was.recoil()));
+            editBones(bonesFor(conditions), slot, was -> was.withFire(bone));
             return this;
         }
 
         /** Slot {@code slot}'s muzzle flash piece while its words best fit {@code conditions}. */
         public UnitVisual muzzleFlash(java.util.Set<String> conditions, int slot, String piece) {
             chooseAgain();
-            var bones = bonesFor(conditions);
-            var was = bones.getOrDefault(slot, new WeaponBones(null, null, null));
-            bones.put(slot, new WeaponBones(was.fire(), piece, was.recoil()));
+            editBones(bonesFor(conditions), slot, was -> was.withFlash(piece));
             return this;
         }
 
         /** Slot {@code slot}'s recoil bone while its words best fit {@code conditions}. */
         public UnitVisual recoilBone(java.util.Set<String> conditions, int slot, String bone) {
             chooseAgain();
-            var bones = bonesFor(conditions);
-            var was = bones.getOrDefault(slot, new WeaponBones(null, null, null));
-            bones.put(slot, new WeaponBones(was.fire(), was.flash(), bone));
+            editBones(bonesFor(conditions), slot, was -> was.withRecoil(bone));
             return this;
         }
 
@@ -197,8 +191,8 @@ public final class Visuals {
         public UnitVisual turret(java.util.Set<String> conditions, int slot, String turn, float artAngle, String pitch,
                 float artPitch) {
             chooseAgain();
-            turrets.computeIfAbsent(String.join(" ", new java.util.TreeSet<>(conditions)),
-                    key -> new java.util.TreeMap<>()).put(slot, new TurretLook(turn, artAngle, pitch, artPitch));
+            turrets.computeIfAbsent(keyOf(conditions), key -> new java.util.TreeMap<>())
+                    .put(slot, new TurretLook(turn, artAngle, pitch, artPitch));
             return this;
         }
 
@@ -208,22 +202,39 @@ public final class Visuals {
         }
 
         private java.util.Map<Integer, TurretLook> turretsForNow(java.util.Set<String> holding) {
-            if (turrets.isEmpty()) {
-                return java.util.Map.of();
-            }
-            var sets = new java.util.ArrayList<java.util.Map<Integer, TurretLook>>();
-            var words = new java.util.ArrayList<java.util.SortedSet<String>>();
-            for (var candidate : turrets.entrySet()) {
-                sets.add(candidate.getValue());
-                words.add(wordsOf(candidate.getKey()));
-            }
-            int best = uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
-            return best < 0 ? java.util.Map.of() : sets.get(best);
+            return bestEntry(turrets, holding, java.util.Map.of());
         }
 
         private java.util.Map<Integer, WeaponBones> bonesFor(java.util.Set<String> conditions) {
-            return conditionalWeaponBones.computeIfAbsent(String.join(" ", new java.util.TreeSet<>(conditions)),
-                    key -> new java.util.TreeMap<>());
+            return conditionalWeaponBones.computeIfAbsent(keyOf(conditions), key -> new java.util.TreeMap<>());
+        }
+
+        private static void editBones(java.util.Map<Integer, WeaponBones> bones, int slot,
+                java.util.function.UnaryOperator<WeaponBones> edit) {
+            bones.put(slot, edit.apply(bones.getOrDefault(slot, WeaponBones.NONE)));
+        }
+
+        /** A set of conditions as the key it is kept under: its words sorted, so two spellings of one set are one. */
+        private static String keyOf(java.util.Set<String> conditions) {
+            return String.join(" ", new java.util.TreeSet<>(conditions));
+        }
+
+        /** Which of the candidates the words held best fit — the engine's one rule, {@code Conditions.bestFit} — or -1. */
+        private static <T> int bestOf(java.util.List<T> candidates,
+                java.util.function.Function<T, java.util.SortedSet<String>> words, java.util.Set<String> holding) {
+            return uz.dukeengine.core.thing.Conditions.bestFit(candidates.stream().map(words).toList(), holding);
+        }
+
+        /** The value kept under the words that best fit what is held, or {@code none}. */
+        private static <V> V bestEntry(java.util.Map<String, V> byWords, java.util.Set<String> holding, V none) {
+            var values = new java.util.ArrayList<V>();
+            var words = new java.util.ArrayList<java.util.SortedSet<String>>();
+            for (var candidate : byWords.entrySet()) {
+                values.add(candidate.getValue());
+                words.add(wordsOf(candidate.getKey()));
+            }
+            int best = uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
+            return best < 0 ? none : values.get(best);
         }
 
         /**
@@ -371,10 +382,7 @@ public final class Visuals {
 
         /** Which of its looks a set of words chooses: the words of the model they choose, none for its plain one. */
         java.util.SortedSet<String> lookFor(java.util.Set<String> holding) {
-            var words = new java.util.ArrayList<java.util.SortedSet<String>>();
-            for (var key : conditionalModels.keySet()) {
-                words.add(wordsOf(key));
-            }
+            var words = conditionalModels.keySet().stream().map(UnitVisual::wordsOf).toList();
             int best = uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
             return best < 0 ? new java.util.TreeSet<>() : words.get(best);
         }
@@ -563,14 +571,7 @@ public final class Visuals {
         }
 
         private int clipStateForNow(java.util.Set<String> holding) {
-            if (clipStates.isEmpty()) {
-                return -1;
-            }
-            var words = new java.util.ArrayList<java.util.SortedSet<String>>();
-            for (var state : clipStates) {
-                words.add(state.words());
-            }
-            return uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
+            return bestOf(clipStates, ClipState::words, holding);
         }
 
         /** Whether anything of its look is chosen by words, so a client need not work out its words otherwise. */
@@ -731,11 +732,7 @@ public final class Visuals {
 
         /** Which of its tints its words best fit, or -1 for none. */
         int tintFor(java.util.Set<String> holding) {
-            var words = new java.util.ArrayList<java.util.SortedSet<String>>();
-            for (var tint : wordTints) {
-                words.add(tint.words());
-            }
-            return uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
+            return bestOf(wordTints, WordTint::words, holding);
         }
 
         /**
@@ -844,11 +841,7 @@ public final class Visuals {
 
         /** Which of its ground pictures its words best fit, or -1 for none. */
         int groundPictureFor(java.util.Set<String> holding) {
-            var words = new java.util.ArrayList<java.util.SortedSet<String>>();
-            for (var picture : groundPictures) {
-                words.add(picture.words());
-            }
-            return uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
+            return bestOf(groundPictures, GroundPicture::words, holding);
         }
 
         /** Which of its pieces' states its words best fit, or -1 for none. */
@@ -857,11 +850,7 @@ public final class Visuals {
         }
 
         private int pieceStateForNow(java.util.Set<String> holding) {
-            var words = new java.util.ArrayList<java.util.SortedSet<String>>();
-            for (var state : pieceStates) {
-                words.add(state.words());
-            }
-            return uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
+            return bestOf(pieceStates, PieceState::words, holding);
         }
 
         /** Its weapon slots' bones for the words it holds: the best-fitting set's, or the plain ones. */
@@ -870,17 +859,7 @@ public final class Visuals {
         }
 
         private java.util.Map<Integer, WeaponBones> weaponBonesForNow(java.util.Set<String> holding) {
-            if (conditionalWeaponBones.isEmpty()) {
-                return weaponBones;
-            }
-            var sets = new java.util.ArrayList<java.util.Map<Integer, WeaponBones>>();
-            var words = new java.util.ArrayList<java.util.SortedSet<String>>();
-            for (var candidate : conditionalWeaponBones.entrySet()) {
-                sets.add(candidate.getValue());
-                words.add(wordsOf(candidate.getKey()));
-            }
-            int best = uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
-            return best < 0 ? weaponBones : sets.get(best);
+            return bestEntry(conditionalWeaponBones, holding, weaponBones);
         }
 
         /** Whether it has no shape — see {@link #noShape}. */
@@ -905,7 +884,7 @@ public final class Visuals {
         /** The model for a set of conditions, drawn instead of the plain one when every word of it holds. */
         public UnitVisual model(java.util.Set<String> conditions, String assetPath) {
             chooseAgain();
-            conditionalModels.put(String.join(" ", new java.util.TreeSet<>(conditions)), assetPath);
+            conditionalModels.put(keyOf(conditions), assetPath);
             return this;
         }
 
@@ -1278,8 +1257,7 @@ public final class Visuals {
          * numbers none. The first slot is 0. With none, a shot's effect plays at the middle of the thing.
          */
         public UnitVisual fireBone(int slot, String bone) {
-            var was = weaponBones.getOrDefault(slot, new WeaponBones(null, null, null));
-            weaponBones.put(slot, new WeaponBones(bone, was.flash(), was.recoil()));
+            editBones(weaponBones, slot, was -> was.withFire(bone));
             return this;
         }
 
@@ -1288,8 +1266,7 @@ public final class Visuals {
          * #fireBone} is: hidden but on the frames its barrel fires — the reference's {@code WeaponMuzzleFlash}.
          */
         public UnitVisual muzzleFlash(int slot, String piece) {
-            var was = weaponBones.getOrDefault(slot, new WeaponBones(null, null, null));
-            weaponBones.put(slot, new WeaponBones(was.fire(), piece, was.recoil()));
+            editBones(weaponBones, slot, was -> was.withFlash(piece));
             return this;
         }
 
@@ -1298,8 +1275,7 @@ public final class Visuals {
          * {@link #fireBone} is — the reference's {@code WeaponRecoilBone}. How it kicks is {@link #recoil}.
          */
         public UnitVisual recoilBone(int slot, String bone) {
-            var was = weaponBones.getOrDefault(slot, new WeaponBones(null, null, null));
-            weaponBones.put(slot, new WeaponBones(was.fire(), was.flash(), bone));
+            editBones(weaponBones, slot, was -> was.withRecoil(bone));
             return this;
         }
 
@@ -1430,14 +1406,13 @@ public final class Visuals {
         }
     }
 
-    // Linked, so the order a game declares its units in is the order anything
-    // walking them sees -- which is what a loading bar advances through.
-    private final Map<String, UnitVisual> units = new java.util.LinkedHashMap<>();
-    private final Map<String, EffectVisual> effects = new java.util.LinkedHashMap<>();
-    private final UnitVisual defaults = new UnitVisual();
+    private final UnitLooks templates = new UnitLooks();
+    private final EffectLooks fx = new EffectLooks();
+    private final GroundLooks ground = new GroundLooks();
+    private final SightLooks sight = new SightLooks();
+    private final ControlLooks controls = new ControlLooks();
+    private final FeelLooks feel = new FeelLooks();
     private String assetRoot;
-    private String discoveryTemplate;
-    private Tileset tileset;
 
     private Visuals() {
     }
@@ -1468,6 +1443,20 @@ public final class Visuals {
      * @param recoil the bone that kicks back
      */
     public record WeaponBones(String fire, String flash, String recoil) {
+
+        static final WeaponBones NONE = new WeaponBones(null, null, null);
+
+        WeaponBones withFire(String bone) {
+            return new WeaponBones(bone, flash, recoil);
+        }
+
+        WeaponBones withFlash(String piece) {
+            return new WeaponBones(fire, piece, recoil);
+        }
+
+        WeaponBones withRecoil(String bone) {
+            return new WeaponBones(fire, flash, bone);
+        }
     }
 
     /**
@@ -1650,7 +1639,6 @@ public final class Visuals {
         }
     }
 
-    /** Configure the look and sound of one unit template. */
     /**
      * A template drawn as its own block says: its model, size, tint and facing, the clips it names, and the
      * library files of the animation set it links.
@@ -1692,7 +1680,6 @@ public final class Visuals {
         return own == null || own.isBlank() ? fromSet : own;
     }
 
-    private String houseColour;
 
     /**
      * Which meshes of a model take their owner's colour: those whose name begins with {@code prefix}.
@@ -1709,16 +1696,15 @@ public final class Visuals {
      * exactly as before, and none of it reaches the simulation.
      */
     public Visuals houseColour(String prefix) {
-        this.houseColour = prefix == null || prefix.isBlank() ? null : prefix;
+        templates.houseColour = prefix == null || prefix.isBlank() ? null : prefix;
         return this;
     }
 
     /** The prefix of the meshes that take their owner's colour, or null for none. */
     public String getHouseColour() {
-        return houseColour;
+        return templates.houseColour;
     }
 
-    private java.util.Set<String> worldConditions = java.util.Set.of();
 
     /**
      * What is true of the world everything in it is drawn in: the weather, the hour, the season — whatever
@@ -1732,19 +1718,18 @@ public final class Visuals {
      * {@link uz.dukeengine.core.thing.Drawn#models()}. It only matches them.
      */
     public Visuals world(String... conditions) {
-        worldConditions = conditions == null ? java.util.Set.of()
+        templates.worldConditions = conditions == null ? java.util.Set.of()
                 : java.util.Set.copyOf(java.util.Arrays.asList(conditions));
         return this;
     }
 
     /** The conditions the world is in; empty for a game that never named any. */
     public java.util.Set<String> getWorldConditions() {
-        return worldConditions;
+        return templates.worldConditions;
     }
 
     public Visuals unit(String templateName, Consumer<UnitVisual> config) {
-        var visual = units.computeIfAbsent(templateName, n -> new UnitVisual());
-        config.accept(visual);
+        UnitLooks.configure(templates.units, templateName, config);
         return this;
     }
 
@@ -1762,12 +1747,10 @@ public final class Visuals {
      * thing be a block of settings rather than a class.
      */
     public Visuals effect(String name, Consumer<EffectVisual> config) {
-        config.accept(effects.computeIfAbsent(name, n -> new EffectVisual()));
+        config.accept(fx.recipes.computeIfAbsent(name, n -> new EffectVisual()));
         return this;
     }
 
-    private final Map<String, Float> effectSeconds = new HashMap<>();
-    private final Map<String, Float> effectReach = new HashMap<>();
 
     /**
      * How long the thing a recipe draws actually lasts, for a layer that says 0.
@@ -1778,16 +1761,13 @@ public final class Visuals {
      * block and 120 frames in its skill block, and nothing connected them.
      */
     public Visuals effectSeconds(String recipeName, float seconds) {
-        if (recipeName != null && seconds > 0f) {
-            effectSeconds.put(recipeName, seconds);
-        }
+        EffectLooks.keep(fx.seconds, recipeName, seconds);
         return this;
     }
 
     /** How long the named recipe's skill lasts, or 0 if nothing said. */
     public float getEffectSeconds(String recipeName) {
-        var seconds = recipeName == null ? null : effectSeconds.get(recipeName);
-        return seconds == null ? 0f : seconds;
+        return EffectLooks.kept(fx.seconds, recipeName);
     }
 
     /**
@@ -1798,19 +1778,15 @@ public final class Visuals {
      * twice is two numbers the moment somebody tunes one of them.
      */
     public Visuals effectReach(String recipeName, float radius) {
-        if (recipeName != null && radius > 0f) {
-            effectReach.put(recipeName, radius);
-        }
+        EffectLooks.keep(fx.reach, recipeName, radius);
         return this;
     }
 
     /** How far the named recipe's skill reaches, or 0 if nothing said. */
     public float getEffectReach(String recipeName) {
-        var radius = recipeName == null ? null : effectReach.get(recipeName);
-        return radius == null ? 0f : radius;
+        return EffectLooks.kept(fx.reach, recipeName);
     }
 
-    private int particleBudget;
 
     /**
      * How many particles may be burning at once, across every effect.
@@ -1819,25 +1795,21 @@ public final class Visuals {
      * drawn thinner, and past that it is not drawn. 0 draws no layers at all.
      */
     public Visuals particleBudget(int particles) {
-        this.particleBudget = Math.max(0, particles);
+        fx.particleBudget = Math.max(0, particles);
         return this;
     }
 
     public int getParticleBudget() {
-        return particleBudget;
+        return fx.particleBudget;
     }
 
     /** The recipe under that name, or {@code null} when the game named none. */
     public EffectVisual effectNamed(String name) {
-        return name == null ? null : effects.get(name);
+        return named(fx.recipes, name);
     }
 
     // ---- particle systems ----
 
-    private final Map<String, uz.dukeengine.core.content.ParticleSystem> particleSystems =
-            new java.util.LinkedHashMap<>();
-    private int particleSystemMost = Integer.MAX_VALUE;
-    private int particleSystemNeverRefusedFrom = Integer.MAX_VALUE;
 
     /**
      * The game's particle systems — see {@link uz.dukeengine.core.content.ParticleSystem}.
@@ -1847,17 +1819,13 @@ public final class Visuals {
      * as the particle system of that name. So the two sit side by side and neither has to know of the other.
      */
     public Visuals particleSystems(java.util.Collection<uz.dukeengine.core.content.ParticleSystem> systems) {
-        for (var system : systems) {
-            if (system != null && system.name() != null) {
-                particleSystems.put(system.name(), system);
-            }
-        }
+        register(fx.particleSystems, systems, uz.dukeengine.core.content.ParticleSystem::name);
         return this;
     }
 
     /** The particle system under that name, or {@code null} when the game named none. */
     public uz.dukeengine.core.content.ParticleSystem particleSystemNamed(String name) {
-        return name == null ? null : particleSystems.get(name);
+        return named(fx.particleSystems, name);
     }
 
     // ---- a thing hurt ----
@@ -1876,7 +1844,6 @@ public final class Visuals {
         public static final HurtRule NONE = new HurtRule(Float.POSITIVE_INFINITY, 0);
     }
 
-    private final Map<String, HurtRule> hurtRules = new java.util.HashMap<>();
 
     /**
      * The rule for blows of {@code damageType} to things of {@code template} — the reference's {@code
@@ -1885,30 +1852,17 @@ public final class Visuals {
      * both.
      */
     public Visuals hurt(String template, String damageType, float majorAt, int throttleFrames) {
-        hurtRules.put(hurtKey(template, damageType), new HurtRule(majorAt, Math.max(0, throttleFrames)));
+        fx.hurt(template, damageType, new HurtRule(majorAt, Math.max(0, throttleFrames)));
         return this;
     }
 
     /** The rule for a blow of this type to a thing of this template: see {@link #hurt}. */
     public HurtRule hurtRule(String template, String damageType) {
-        for (var key : new String[] {hurtKey(template, damageType), hurtKey(template, null),
-            hurtKey(null, damageType), hurtKey(null, null)}) {
-            var rule = hurtRules.get(key);
-            if (rule != null) {
-                return rule;
-            }
-        }
-        return HurtRule.NONE;
-    }
-
-    private static String hurtKey(String template, String damageType) {
-        return (template == null ? "*" : template) + "|"
-                + (damageType == null ? "*" : damageType.toUpperCase(java.util.Locale.ROOT));
+        return fx.hurtRule(template, damageType);
     }
 
     // ---- effect lists ----
 
-    private final Map<String, uz.dukeengine.core.content.EffectList> effectLists = new java.util.LinkedHashMap<>();
 
     /**
      * The game's effect lists — see {@link uz.dukeengine.core.content.EffectList}: several things at once by one
@@ -1916,21 +1870,15 @@ public final class Visuals {
      * played as that list before it is looked for as an effect or a particle system.
      */
     public Visuals effectLists(java.util.Collection<uz.dukeengine.core.content.EffectList> lists) {
-        for (var list : lists) {
-            if (list != null && list.name() != null) {
-                effectLists.put(list.name(), list);
-            }
-        }
+        register(fx.lists, lists, uz.dukeengine.core.content.EffectList::name);
         return this;
     }
 
     /** The effect list under that name, or {@code null} when the game named none. */
     public uz.dukeengine.core.content.EffectList effectListNamed(String name) {
-        return name == null ? null : effectLists.get(name);
+        return named(fx.lists, name);
     }
 
-    private String seeThroughWord;
-    private String glowWord;
 
     /**
      * The word a thing holds while it is drawn see-through to its own side and allies — the reference's stealth look:
@@ -1939,7 +1887,7 @@ public final class Visuals {
      * who sees it at all is the simulation's ({@code Concealment}).
      */
     public Visuals seeThrough(String word) {
-        this.seeThroughWord = word;
+        templates.seeThroughWord = word;
         return this;
     }
 
@@ -1950,19 +1898,18 @@ public final class Visuals {
      * UnitVisual#neverGlows()}).
      */
     public Visuals glow(String word) {
-        this.glowWord = word;
+        templates.glowWord = word;
         return this;
     }
 
     public String getSeeThroughWord() {
-        return seeThroughWord;
+        return templates.seeThroughWord;
     }
 
     public String getGlowWord() {
-        return glowWord;
+        return templates.glowWord;
     }
 
-    private String ownGlowWord;
 
     /**
      * The word a thing holds while it glows to its own player alone — the reference's stealthy unit that has shown
@@ -1971,57 +1918,44 @@ public final class Visuals {
      * holds the word and fading as the first word's glow does after. Nobody else sees it.
      */
     public Visuals ownGlow(String word) {
-        this.ownGlowWord = word;
+        templates.ownGlowWord = word;
         return this;
     }
 
     public String getOwnGlowWord() {
-        return ownGlowWord;
+        return templates.ownGlowWord;
     }
 
-    private final Map<String, uz.dukeengine.core.content.Laser> lasers = new java.util.LinkedHashMap<>();
 
     /** The game's looks for the beams its simulation owns — see {@link uz.dukeengine.core.content.Laser}. */
     public Visuals lasers(java.util.Collection<uz.dukeengine.core.content.Laser> looks) {
-        for (var look : looks) {
-            if (look != null && look.name() != null) {
-                lasers.put(look.name(), look);
-            }
-        }
+        register(fx.lasers, looks, uz.dukeengine.core.content.Laser::name);
         return this;
     }
 
     /** The beam look under that name, or {@code null} when the game named none. */
     public uz.dukeengine.core.content.Laser laserNamed(String name) {
-        return name == null ? null : lasers.get(name);
+        return named(fx.lasers, name);
     }
 
     /** Every picture a beam is drawn with, for reading before the match starts. */
     java.util.List<String> laserTextures() {
-        return lasers.values().stream().map(uz.dukeengine.core.content.Laser::texture)
-                .filter(java.util.Objects::nonNull).distinct().toList();
+        return fx.laserTextures();
     }
 
     /** Every model a list throws off, for reading before the match starts. */
     java.util.List<String> debrisModels() {
-        return effectLists.values().stream().flatMap(list -> list.entries().stream())
-                .filter(uz.dukeengine.core.content.EffectList.Debris.class::isInstance)
-                .map(entry -> ((uz.dukeengine.core.content.EffectList.Debris) entry).model())
-                .filter(java.util.Objects::nonNull).distinct().toList();
+        return fx.debrisModels();
     }
 
     /** Every picture a list marks the ground with, for reading before the match starts. */
     java.util.List<String> scorchPictures() {
-        return effectLists.values().stream().flatMap(list -> list.entries().stream())
-                .filter(uz.dukeengine.core.content.EffectList.Scorch.class::isInstance)
-                .flatMap(entry -> ((uz.dukeengine.core.content.EffectList.Scorch) entry).pictures().stream())
-                .distinct().toList();
+        return fx.scorchPictures();
     }
 
     /** Every picture a particle system is drawn with, for reading before the match starts. */
     java.util.List<String> particleSystemTextures() {
-        return particleSystems.values().stream().map(uz.dukeengine.core.content.ParticleSystem::texture)
-                .filter(java.util.Objects::nonNull).distinct().toList();
+        return fx.particleSystemTextures();
     }
 
     /**
@@ -2030,17 +1964,17 @@ public final class Visuals {
      * game's rule. Left unset there is no most, and nothing is let go of.
      */
     public Visuals particleSystemBudget(int most, int neverRefusedFrom) {
-        this.particleSystemMost = Math.max(0, most);
-        this.particleSystemNeverRefusedFrom = neverRefusedFrom;
+        fx.particleSystemMost = Math.max(0, most);
+        fx.particleSystemNeverRefusedFrom = neverRefusedFrom;
         return this;
     }
 
     public int getParticleSystemMost() {
-        return particleSystemMost;
+        return fx.particleSystemMost;
     }
 
     public int getParticleSystemNeverRefusedFrom() {
-        return particleSystemNeverRefusedFrom;
+        return fx.particleSystemNeverRefusedFrom;
     }
 
     /**
@@ -2060,20 +1994,19 @@ public final class Visuals {
     public record EffectBudget(int lights, float distance) {
     }
 
-    private EffectBudget budget = new EffectBudget(4, 0f);
 
     public Visuals effectBudget(int lights, float distance) {
-        this.budget = new EffectBudget(lights, distance);
+        fx.budget = new EffectBudget(lights, distance);
         return this;
     }
 
     public EffectBudget getEffectBudget() {
-        return budget;
+        return fx.budget;
     }
 
     /** Every recipe, in the order the game declared them. */
     public java.util.Collection<EffectVisual> allEffects() {
-        return java.util.List.copyOf(effects.values());
+        return fx.all();
     }
 
     /**
@@ -2094,7 +2027,7 @@ public final class Visuals {
         /** The layers it is drawn from, in the order the file named them — see {@link EffectLayer}. */
         final java.util.List<EffectLayer> layers = new java.util.ArrayList<>();
 
-        private EffectVisual() {
+        EffectVisual() {
         }
 
         /** One more layer, drawn over the ones before it — by {@link LayeredEffects}. */
@@ -2156,7 +2089,7 @@ public final class Visuals {
 
     /** The configuration for a template (empty defaults if none was set). */
     public UnitVisual of(String templateName) {
-        return units.getOrDefault(templateName, defaults);
+        return templates.of(templateName);
     }
 
     /**
@@ -2176,16 +2109,15 @@ public final class Visuals {
      * monsters appearing are one setting in one file, and cannot be tuned apart.
      */
     public Visuals discoveredBy(String templateName) {
-        this.discoveryTemplate = templateName;
+        sight.discoveryTemplate = templateName;
         return this;
     }
 
     /** The template whose vision opens the map, or {@code null} for no discovery. */
     public String getDiscoveryTemplate() {
-        return discoveryTemplate;
+        return sight.discoveryTemplate;
     }
 
-    private boolean fogBySight;
 
     /**
      * Draw the ground by the cells the simulation keeps of what the local player has seen ({@code
@@ -2194,21 +2126,20 @@ public final class Visuals {
      * between cell middles as a discovery's dark is, and past the map's edges as far as the view reaches as never seen.
      */
     public Visuals fogBySight() {
-        this.fogBySight = true;
+        sight.fogBySight = true;
         return this;
     }
 
     /** Whether the ground is drawn by the simulation's cells of what the local player has seen. */
     public boolean isFogBySight() {
-        return fogBySight;
+        return sight.fogBySight;
     }
 
     /** Whether the client draws a fog at all: a template's discovery, or the simulation's cells. */
     public boolean drawsFog() {
-        return discoveryTemplate != null || fogBySight;
+        return sight.drawsFog();
     }
 
-    private Fog fog = Fog.DEFAULT;
 
     /**
      * How the dark behaves and what colour it is — see {@link Fog}.
@@ -2219,15 +2150,14 @@ public final class Visuals {
      * perfectly good default for and only a crawler wants to change.
      */
     public Visuals fog(Fog fog) {
-        this.fog = fog == null ? Fog.DEFAULT : fog;
+        sight.fog = Objects.requireNonNullElse(fog, Fog.DEFAULT);
         return this;
     }
 
     public Fog getFog() {
-        return fog;
+        return sight.fog;
     }
 
-    private Sunlight sunlight = Sunlight.DEFAULT;
 
     /**
      * Where the light comes from and how much of it there is — see
@@ -2246,12 +2176,12 @@ public final class Visuals {
      * launch, as games always have, sees no difference.
      */
     public Visuals sunlight(Sunlight sunlight) {
-        this.sunlight = sunlight == null ? Sunlight.DEFAULT : sunlight;
+        ground.sunlight = Objects.requireNonNullElse(sunlight, Sunlight.DEFAULT);
         return this;
     }
 
     public Sunlight getSunlight() {
-        return sunlight;
+        return ground.sunlight;
     }
 
     /**
@@ -2315,16 +2245,15 @@ public final class Visuals {
         }
     }
 
-    private GroundLight groundLight;
 
     /** The ground lit by its own lights rather than the things' — see {@link GroundLight}; null for the things'. */
     public Visuals groundLight(GroundLight light) {
-        this.groundLight = light;
+        ground.light = light;
         return this;
     }
 
     public GroundLight getGroundLight() {
-        return groundLight;
+        return ground.light;
     }
 
     /**
@@ -2347,7 +2276,6 @@ public final class Visuals {
         }
     }
 
-    private final java.util.List<GroundShade> groundShades = new java.util.ArrayList<>();
 
     /**
      * A picture multiplied over all the ground by where it lies, still or sliding — the reference's slow cloud shadows
@@ -2356,14 +2284,14 @@ public final class Visuals {
      * back by the game while it plays ({@code Duke3D.groundShades}). A whole path from the resource root.
      */
     public Visuals groundShade(String picture, float size, float slideU, float slideV) {
-        if (groundShades.size() < 2 && picture != null) {
-            groundShades.add(new GroundShade(picture, size, slideU, slideV));
+        if (ground.shades.size() < 2 && picture != null) {
+            ground.shades.add(new GroundShade(picture, size, slideU, slideV));
         }
         return this;
     }
 
     public java.util.List<GroundShade> getGroundShades() {
-        return java.util.List.copyOf(groundShades);
+        return java.util.List.copyOf(ground.shades);
     }
 
     /**
@@ -2387,7 +2315,6 @@ public final class Visuals {
             String riverEdge) {
     }
 
-    private WaterLook water;
 
     /**
      * A map's water areas drawn, as the reference draws its translucent water ({@code W3DWater.cpp}): standing water at
@@ -2396,12 +2323,12 @@ public final class Visuals {
      * the ground's light times the tint. None unless the game says how; drawing only.
      */
     public Visuals water(WaterLook look) {
-        this.water = look;
+        ground.water = look;
         return this;
     }
 
     public WaterLook getWater() {
-        return water;
+        return ground.water;
     }
 
     /**
@@ -2424,8 +2351,6 @@ public final class Visuals {
         }
     }
 
-    private int borderCells;
-    private java.util.List<String> skybox = java.util.List.of();
 
     /**
      * Ground drawn {@code cells} past every edge of the map — the reference's border, under the shroud: its edge's
@@ -2433,12 +2358,12 @@ public final class Visuals {
      * default.
      */
     public Visuals border(int cells) {
-        this.borderCells = Math.max(0, cells);
+        ground.borderCells = Math.max(0, cells);
         return this;
     }
 
     int getBorderCells() {
-        return borderCells;
+        return ground.borderCells;
     }
 
     /**
@@ -2449,19 +2374,18 @@ public final class Visuals {
         if (pictures.length != 0 && pictures.length != 1 && pictures.length != 6) {
             throw new IllegalArgumentException("a sky is one cube picture or six, not " + pictures.length);
         }
-        this.skybox = java.util.List.of(pictures);
+        ground.skybox = java.util.List.of(pictures);
         return this;
     }
 
     java.util.List<String> getSkybox() {
-        return skybox;
+        return ground.skybox;
     }
 
     /** A place the game names open to sight, besides the hero's eyes — see {@link #alsoSeen}. World units. */
     public record Seen(float x, float y, float radius) {
     }
 
-    private java.util.function.Supplier<java.util.List<Seen>> alsoSeen = java.util.List::of;
 
     /**
      * Places open to sight besides the eyes' — where a cutscene's camera looks, a capital always open (E103): read each
@@ -2469,16 +2393,14 @@ public final class Visuals {
      * Drawing only, as the fog the client works is; none by default.
      */
     public Visuals alsoSeen(java.util.function.Supplier<java.util.List<Seen>> places) {
-        this.alsoSeen = places == null ? java.util.List::of : places;
+        sight.alsoSeen = places == null ? java.util.List::of : places;
         return this;
     }
 
     java.util.List<Seen> getAlsoSeen() {
-        var places = alsoSeen.get();
-        return places == null ? java.util.List.of() : places;
+        return sight.alsoSeenNow();
     }
 
-    private float minimapUnseenShows;
 
     /**
      * The minimap's land drawn before it is walked, as an open world's map has it (E101): a cell never seen in its
@@ -2486,16 +2408,14 @@ public final class Visuals {
      * seen, whole. Units and marks stay hidden where nothing is seen. 0, the fog's dark, as ever.
      */
     public Visuals minimapUnseenShows(float dim) {
-        this.minimapUnseenShows = Math.max(0f, dim);
+        sight.minimapUnseenShows = Math.max(0f, dim);
         return this;
     }
 
     float getMinimapUnseenShows() {
-        return minimapUnseenShows;
+        return sight.minimapUnseenShows;
     }
 
-    private boolean occlusionMarks;
-    private java.util.function.Predicate<uz.dukeengine.core.view.UnitView> occlusionMarked = view -> false;
 
     /**
      * Whether the local player's things — and any {@link #occlusionMarked} — are shown where a building, the ground or
@@ -2503,25 +2423,24 @@ public final class Visuals {
      * occlusion. One more pass for those things only; off by default.
      */
     public Visuals occlusionMarks(boolean on) {
-        this.occlusionMarks = on;
+        sight.occlusionMarks = on;
         return this;
     }
 
     /** Other things shown so behind what stands in front, beside the local player's own — see {@link #occlusionMarks}. */
     public Visuals occlusionMarked(java.util.function.Predicate<uz.dukeengine.core.view.UnitView> marked) {
-        this.occlusionMarked = marked == null ? view -> false : marked;
+        sight.occlusionMarked = marked == null ? view -> false : marked;
         return this;
     }
 
     boolean getOcclusionMarks() {
-        return occlusionMarks;
+        return sight.occlusionMarks;
     }
 
     java.util.function.Predicate<uz.dukeengine.core.view.UnitView> getOcclusionMarked() {
-        return occlusionMarked;
+        return sight.occlusionMarked;
     }
 
-    private final Map<String, TrackLook> trackMarks = new java.util.HashMap<>();
 
     /**
      * A thing of {@code template} moving faster than {@code look}'s least speed, off water, leaves its tracks behind it
@@ -2529,12 +2448,12 @@ public final class Visuals {
      * and fading. Drawing only.
      */
     public Visuals trackMarks(String template, TrackLook look) {
-        trackMarks.put(template, look);
+        ground.trackMarks.put(template, look);
         return this;
     }
 
     Map<String, TrackLook> getTrackMarks() {
-        return trackMarks;
+        return ground.trackMarks;
     }
 
     /**
@@ -2555,7 +2474,6 @@ public final class Visuals {
             int repeatFrames, float width) {
     }
 
-    private final java.util.List<WaveLook> shoreWaves = new java.util.ArrayList<>();
 
     /**
      * A wave sliding in over a shore — the reference's {@code W3DWaterTracks}: its picture from the first pair of points
@@ -2563,28 +2481,27 @@ public final class Visuals {
      * map's waves into one of these each. Drawing only.
      */
     public Visuals shoreWave(WaveLook look) {
-        shoreWaves.add(look);
+        ground.shoreWaves.add(look);
         return this;
     }
 
     java.util.List<WaveLook> getShoreWaves() {
-        return shoreWaves;
+        return ground.shoreWaves;
     }
 
-    private java.util.List<Sun> thingSuns = java.util.List.of();
 
     /**
      * Up to two more suns lighting the things beside the {@link Sunlight}'s — the reference's second and third object
      * lights, which its maps carry an hour apart from the ground's. Drawing only.
      */
     public Visuals thingSuns(java.util.List<Sun> suns) {
-        this.thingSuns = suns == null ? java.util.List.of()
+        ground.thingSuns = suns == null ? java.util.List.of()
                 : java.util.List.copyOf(suns.subList(0, Math.min(2, suns.size())));
         return this;
     }
 
     public java.util.List<Sun> getThingSuns() {
-        return thingSuns;
+        return ground.thingSuns;
     }
 
     /**
@@ -2598,7 +2515,6 @@ public final class Visuals {
     public record CastAnim(String clip, float seconds) {
     }
 
-    private final Map<String, CastAnim> castAnims = new HashMap<>();
 
     /**
      * The gesture that goes with an effect recipe.
@@ -2611,16 +2527,15 @@ public final class Visuals {
      */
     public Visuals castAnim(String look, String clipName, float seconds) {
         if (look != null && clipName != null && !clipName.isBlank()) {
-            castAnims.put(look, new CastAnim(clipName, seconds));
+            feel.castAnims.put(look, new CastAnim(clipName, seconds));
         }
         return this;
     }
 
     public CastAnim getCastAnim(String look) {
-        return look == null ? null : castAnims.get(look);
+        return named(feel.castAnims, look);
     }
 
-    private EdgeScroll edgeScroll = EdgeScroll.NONE;
 
     /**
      * Let the cursor shove the camera when it reaches the edge of the screen —
@@ -2631,12 +2546,12 @@ public final class Visuals {
      * is what every game had.
      */
     public Visuals edgeScroll(EdgeScroll edgeScroll) {
-        this.edgeScroll = edgeScroll == null ? EdgeScroll.NONE : edgeScroll;
+        controls.edgeScroll = Objects.requireNonNullElse(edgeScroll, EdgeScroll.NONE);
         return this;
     }
 
     public EdgeScroll getEdgeScroll() {
-        return edgeScroll;
+        return controls.edgeScroll;
     }
 
     /**
@@ -2646,38 +2561,35 @@ public final class Visuals {
     public record DragBoxLook(float width, int colour) {
     }
 
-    private DragBoxLook dragBox;
 
     /** The drag box outlined as {@code look} says; unsaid, the client's own single pixel of pale green. */
     public Visuals dragBox(DragBoxLook look) {
-        this.dragBox = look;
+        controls.dragBox = look;
         return this;
     }
 
     public DragBoxLook getDragBox() {
-        return dragBox;
+        return controls.dragBox;
     }
 
-    private boolean selectionRings = true;
 
     /**
      * Whether a flat disc lies under every selected thing, green for the player's own and red for another's: the
      * client's own sign of what is selected; the reference draws none, its sign the health bar. On unless said.
      */
     public Visuals selectionRings(boolean drawn) {
-        this.selectionRings = drawn;
+        controls.selectionRings = drawn;
         return this;
     }
 
     public boolean drawsSelectionRings() {
-        return selectionRings;
+        return controls.selectionRings;
     }
 
     /** How a stream is drawn — see {@link #stream}: its ribbon's picture, by its whole path, and its width. */
     public record StreamLook(String picture, float width) {
     }
 
-    private final java.util.Map<String, StreamLook> streams = new java.util.LinkedHashMap<>();
 
     /**
      * The stream {@code name} drawn as one ribbon of {@code look}'s picture through the places of what rides it, in
@@ -2685,54 +2597,50 @@ public final class Visuals {
      * stream breaks. A stream named nothing here is drawn as nothing.
      */
     public Visuals stream(String name, StreamLook look) {
-        streams.put(name, look);
+        ground.streamLooks.put(name, look);
         return this;
     }
 
     public java.util.Map<String, StreamLook> getStreams() {
-        return java.util.Collections.unmodifiableMap(streams);
+        return java.util.Collections.unmodifiableMap(ground.streamLooks);
     }
 
-    private GhostLook ghostLook;
 
     /**
      * How an armed button's ghost is drawn, and the ground its place's answer marks — see {@link GhostLook}; unsaid,
      * one flat translucent colour, green or red, as it always was.
      */
     public Visuals ghost(GhostLook look) {
-        this.ghostLook = look;
+        controls.ghostLook = look;
         return this;
     }
 
     public GhostLook getGhostLook() {
-        return ghostLook;
+        return controls.ghostLook;
     }
 
-    private CameraFrame cameraFrame = CameraFrame.NONE;
 
     /** The player's camera as this game frames it — see {@link CameraFrame}; unsaid, the client's own. */
     public Visuals cameraFrame(CameraFrame frame) {
-        this.cameraFrame = frame == null ? CameraFrame.NONE : frame;
+        controls.cameraFrame = Objects.requireNonNullElse(frame, CameraFrame.NONE);
         return this;
     }
 
     public CameraFrame getCameraFrame() {
-        return cameraFrame;
+        return controls.cameraFrame;
     }
 
-    private RightDrag rightDrag = RightDrag.NONE;
 
     /** The right button held scrolling the view, and letting go only as a click — see {@link RightDrag}. */
     public Visuals rightDrag(RightDrag drag) {
-        this.rightDrag = drag == null ? RightDrag.NONE : drag;
+        controls.rightDrag = Objects.requireNonNullElse(drag, RightDrag.NONE);
         return this;
     }
 
     public RightDrag getRightDrag() {
-        return rightDrag;
+        return controls.rightDrag;
     }
 
-    private OrderMark orderMark = OrderMark.DEFAULTS;
 
     /**
      * How the flash that answers a click should look and move — see
@@ -2743,16 +2651,14 @@ public final class Visuals {
      * sensible "off" to default to.
      */
     public Visuals orderMark(OrderMark orderMark) {
-        this.orderMark = orderMark == null ? OrderMark.DEFAULTS : orderMark;
+        controls.orderMark = Objects.requireNonNullElse(orderMark, OrderMark.DEFAULTS);
         return this;
     }
 
     public OrderMark getOrderMark() {
-        return orderMark;
+        return controls.orderMark;
     }
 
-    /** The answers the game names to clicks that give its words — see {@link #orderAnswer}. */
-    private final Map<String, String> orderAnswers = new java.util.HashMap<>();
 
     /**
      * Which moment of the first selected thing answers a click that gives the game's word {@code word} — on a thing
@@ -2761,17 +2667,15 @@ public final class Visuals {
      * power steered says nothing on the click. A word it names nothing for is answered as a move, as always.
      */
     public Visuals orderAnswer(String word, String moment) {
-        orderAnswers.put(word, moment == null || moment.isBlank() ? null : moment);
+        controls.orderAnswers.put(word, moment == null || moment.isBlank() ? null : moment);
         return this;
     }
 
     /** The moment that answers a click giving {@code word}: the game's, none (null), or a move's. */
     String orderAnswerFor(String word) {
-        return word != null && orderAnswers.containsKey(word) ? orderAnswers.get(word) : "move";
+        return controls.orderAnswerFor(word);
     }
 
-    private final Map<String, java.util.function.Function<AnswerTarget, String>> aimedAnswers =
-            new java.util.HashMap<>();
 
     /**
      * Which moment answers a click giving {@code word}, by what it was aimed at — {@code target -> target != null &&
@@ -2779,15 +2683,13 @@ public final class Visuals {
      * {@link #orderAnswer(String, String) the word's own answer} answers.
      */
     public Visuals orderAnswerBy(String word, java.util.function.Function<AnswerTarget, String> moment) {
-        aimedAnswers.put(word, moment);
+        controls.aimedAnswers.put(word, moment);
         return this;
     }
 
     /** The moment that answers a click giving {@code word} on {@code target} (null for the ground). */
     String orderAnswerFor(String word, AnswerTarget target) {
-        var aimed = word == null ? null : aimedAnswers.get(word);
-        var moment = aimed == null ? null : aimed.apply(target);
-        return moment != null ? moment : orderAnswerFor(word);
+        return controls.orderAnswerFor(word, target);
     }
 
     /**
@@ -2814,17 +2716,16 @@ public final class Visuals {
         }
     }
 
-    private SelectionFlashLook selectionFlash;
 
     /** Things flashing as they are selected, and the riders they show with them — see {@link SelectionFlashLook}. */
     public Visuals selectionFlash(SelectionFlashLook look) {
-        this.selectionFlash = look;
+        controls.selectionFlash = look;
         return this;
     }
 
     /** How a thing flashes as it is selected, or null where the game names no flash. */
     public SelectionFlashLook getSelectionFlash() {
-        return selectionFlash;
+        return controls.selectionFlash;
     }
 
     /** What a click giving one of the game's words is marked with — see {@link #wordMark}. */
@@ -2837,7 +2738,6 @@ public final class Visuals {
         NONE
     }
 
-    private final Map<String, WordMark> wordMarks = new java.util.HashMap<>();
 
     /**
      * How a click that gives the game's word {@code word} is marked — the reference answers an order to enter a thing
@@ -2846,13 +2746,13 @@ public final class Visuals {
      * word it names nothing for is marked as {@link OrderMark} marks an order the game names.
      */
     public Visuals wordMark(String word, WordMark mark) {
-        wordMarks.put(word, mark == null ? WordMark.MARK : mark);
+        controls.wordMarks.put(word, Objects.requireNonNullElse(mark, WordMark.MARK));
         return this;
     }
 
     /** How a click giving {@code word} is marked. */
     WordMark wordMarkFor(String word) {
-        return word == null ? WordMark.MARK : wordMarks.getOrDefault(word, WordMark.MARK);
+        return controls.wordMarkFor(word);
     }
 
     /**
@@ -2906,7 +2806,6 @@ public final class Visuals {
         }
     }
 
-    private final Map<String, SurfaceLook> surfaceLooks = new LinkedHashMap<>();
 
     /**
      * Draw the surface a palette names {@code paletteValue} — its picture's path as the map writes it, or its colour —
@@ -2914,17 +2813,16 @@ public final class Visuals {
      */
     public Visuals surface(String paletteValue, SurfaceLook look) {
         if (paletteValue != null && look != null) {
-            surfaceLooks.put(paletteValue, look);
+            ground.surfaces.put(paletteValue, look);
         }
         return this;
     }
 
     /** How the surface {@code paletteValue} names is drawn: what {@link #surface} said, or plain. */
     public SurfaceLook getSurface(String paletteValue) {
-        return paletteValue == null ? SurfaceLook.PLAIN : surfaceLooks.getOrDefault(paletteValue, SurfaceLook.PLAIN);
+        return ground.surface(paletteValue);
     }
 
-    private PaintBlend paintBlend;
 
     /**
      * Blend a painted map's ground from its paint ({@link PaintBlend}) — where the map writes no blend of its own: one
@@ -2932,12 +2830,12 @@ public final class Visuals {
      * ever, draws each cell its one surface.
      */
     public Visuals paintBlend(PaintBlend blend) {
-        this.paintBlend = blend;
+        ground.paintBlend = blend;
         return this;
     }
 
     public PaintBlend getPaintBlend() {
-        return paintBlend;
+        return ground.paintBlend;
     }
 
     /**
@@ -2957,19 +2855,17 @@ public final class Visuals {
         }
     }
 
-    private Cliffs paintCliffs;
 
     /** Draw a blended map's steep ground as cliffs ({@link Cliffs}); null, as ever, draws it as its paint. */
     public Visuals paintCliffs(Cliffs cliffs) {
-        this.paintCliffs = cliffs;
+        ground.paintCliffs = cliffs;
         return this;
     }
 
     public Cliffs getPaintCliffs() {
-        return paintCliffs;
+        return ground.paintCliffs;
     }
 
-    private boolean paintInQuarters;
 
     /**
      * Cut each cell of a blended map's ground two by two: four times the corners, each lit by the relief round it and
@@ -2977,15 +2873,14 @@ public final class Visuals {
      * the ground walked either way — every corner stands on the relief's own triangles. Off: a cell a quad, as ever.
      */
     public Visuals paintInQuarters(boolean quarters) {
-        this.paintInQuarters = quarters;
+        ground.paintInQuarters = quarters;
         return this;
     }
 
     public boolean isPaintInQuarters() {
-        return paintInQuarters;
+        return ground.paintInQuarters;
     }
 
-    private int streamGround;
 
     /**
      * Build a kit's floor a chunk at a time within {@code cells} of where the camera looks, and let go of what is well
@@ -2998,8 +2893,6 @@ public final class Visuals {
         return streamGround(cells, map -> true);
     }
 
-    /** Which maps are built a chunk at a time — see {@link #streamGround(int, java.util.function.Predicate)}. */
-    private java.util.function.Predicate<Object> streamsMap = map -> true;
 
     /**
      * The same, only for the maps {@code forMap} says, asked of each map's record as it is laid: an open world built
@@ -3007,22 +2900,20 @@ public final class Visuals {
      * and darkened whole.
      */
     public Visuals streamGround(int cells, java.util.function.Predicate<Object> forMap) {
-        this.streamGround = Math.max(0, cells);
-        this.streamsMap = forMap == null ? map -> true : forMap;
+        ground.streamGround = Math.max(0, cells);
+        ground.streamsMap = mapRule(forMap, true);
         return this;
     }
 
     public int getStreamGround() {
-        return streamGround;
+        return ground.streamGround;
     }
 
     /** How many cells round the camera {@code map}'s ground is built: {@link #streamGround}'s, or 0 for whole. */
     public int streamGroundFor(Object map) {
-        return streamGround > 0 && streamsMap.test(map) ? streamGround : 0;
+        return ground.streamGroundFor(map);
     }
 
-    /** Which maps begin with every cell remembered — see {@link #fogStartsExplored}. */
-    private java.util.function.Predicate<Object> startsExplored = map -> false;
 
     /**
      * Begin the maps {@code forMap} says — asked of each map's record as it is laid, as {@link
@@ -3032,17 +2923,15 @@ public final class Visuals {
      * begins black, as ever.
      */
     public Visuals fogStartsExplored(java.util.function.Predicate<Object> forMap) {
-        this.startsExplored = forMap == null ? map -> false : forMap;
+        sight.startsExplored = mapRule(forMap, false);
         return this;
     }
 
     /** Whether {@code map} begins with every cell remembered — see {@link #fogStartsExplored}. */
     public boolean fogStartsExploredFor(Object map) {
-        return startsExplored.test(map);
+        return sight.startsExplored.test(map);
     }
 
-    private float hazeFrom;
-    private float hazeTo;
 
     /**
      * Fade the ground into nothing — the fog's own colour, which is the window's background — from {@code fromCells}
@@ -3056,8 +2945,6 @@ public final class Visuals {
         return haze(fromCells, toCells, map -> true);
     }
 
-    /** Which maps fade into haze — see {@link #haze(float, float, java.util.function.Predicate)}. */
-    private java.util.function.Predicate<Object> hazesMap = map -> true;
 
     /**
      * The same, only on the maps {@code forMap} says, asked of each map's record as it is laid — as {@link
@@ -3065,31 +2952,30 @@ public final class Visuals {
      * descent drawn whole to their walls, in one game.
      */
     public Visuals haze(float fromCells, float toCells, java.util.function.Predicate<Object> forMap) {
-        this.hazeTo = Math.max(0f, toCells);
-        this.hazeFrom = Math.clamp(fromCells, 0f, this.hazeTo);
-        this.hazesMap = forMap == null ? map -> true : forMap;
+        sight.hazeTo = Math.max(0f, toCells);
+        sight.hazeFrom = Math.clamp(fromCells, 0f, sight.hazeTo);
+        sight.hazesMap = mapRule(forMap, true);
         return this;
     }
 
     /** Whether the ground fades into nothing far from where the camera looks, on some map. */
     public boolean hazes() {
-        return hazeTo > 0f;
+        return sight.hazes();
     }
 
     /** Whether {@code map}'s ground fades into nothing far from where the camera looks. */
     public boolean hazes(Object map) {
-        return hazes() && hazesMap.test(map);
+        return sight.hazes() && sight.hazesMap.test(map);
     }
 
     public float getHazeFrom() {
-        return hazeFrom;
+        return sight.hazeFrom;
     }
 
     public float getHazeTo() {
-        return hazeTo;
+        return sight.hazeTo;
     }
 
-    private int minimapSpan;
 
     /**
      * Show on the minimap the {@code cells} a side round where the camera looks, not the whole map — the part of a wide
@@ -3099,69 +2985,64 @@ public final class Visuals {
      * where it likes ({@link Duke3D#worldPicture}).
      */
     public Visuals minimapSpan(int cells) {
-        this.minimapSpan = Math.max(0, cells);
+        sight.minimapSpan = Math.max(0, cells);
         return this;
     }
 
     public int getMinimapSpan() {
-        return minimapSpan;
+        return sight.minimapSpan;
     }
 
-    private float dragDistance = SelectionBox.DRAG_THRESHOLD_PIXELS;
 
     /**
      * How far, in pixels across or down, a press must move before its release is a box rather than a click — the
      * reference's {@code DragTolerance}, 25 in its Mouse.ini; 5 unless named.
      */
     public Visuals dragDistance(float pixels) {
-        this.dragDistance = pixels > 0f ? pixels : SelectionBox.DRAG_THRESHOLD_PIXELS;
+        controls.dragDistance = pixels > 0f ? pixels : SelectionBox.DRAG_THRESHOLD_PIXELS;
         return this;
     }
 
     public float getDragDistance() {
-        return dragDistance;
+        return controls.dragDistance;
     }
 
-    private boolean dragSelects = true;
 
     /**
      * Whether a press dragged across the world draws a box and selects what is in it — true, as in any RTS. False for a
      * game with no group to gather, one hero alone: no box is drawn, and wherever the button is let go is a click.
      */
     public Visuals dragSelects(boolean selects) {
-        this.dragSelects = selects;
+        controls.dragSelects = selects;
         return this;
     }
 
     public boolean isDragSelecting() {
-        return dragSelects;
+        return controls.dragSelects;
     }
 
-    private BarColours barColours = BarColours.REFERENCE;
 
     /** The colours of each plain bar — see {@link UnitBarLook.Plain}; the reference's unless named. */
     public Visuals barColours(BarColours colours) {
-        this.barColours = colours == null ? BarColours.REFERENCE : colours;
+        controls.barColours = Objects.requireNonNullElse(colours, BarColours.REFERENCE);
         return this;
     }
 
     public BarColours getBarColours() {
-        return barColours;
+        return controls.barColours;
     }
 
-    private RallyLook rally = RallyLook.DEFAULT;
 
     /** How a selected building's rally point is shown — see {@link RallyLook}; the reference's line unless named. */
     public Visuals rally(RallyLook look) {
-        this.rally = look == null ? RallyLook.DEFAULT : look;
+        controls.rally = Objects.requireNonNullElse(look, RallyLook.DEFAULT);
         return this;
     }
 
     public RallyLook getRally() {
-        return rally;
+        return controls.rally;
     }
 
-    private UnitBarLook unitBars = UnitBarLook.NONE;
 
     /**
      * What the bar over a creature's head is made of — see {@link UnitBarLook}.
@@ -3171,16 +3052,14 @@ public final class Visuals {
      * would be marks that mean nothing.
      */
     public Visuals unitBars(UnitBarLook look) {
-        this.unitBars = look == null ? UnitBarLook.NONE : look;
+        controls.unitBars = Objects.requireNonNullElse(look, UnitBarLook.NONE);
         return this;
     }
 
     public UnitBarLook getUnitBars() {
-        return unitBars;
+        return controls.unitBars;
     }
 
-    private RangeLook rangeLook = RangeLook.DEFAULT;
-    private final Map<Character, SkillRange> skillRanges = new LinkedHashMap<>();
 
     /**
      * How far each of the game's keys reaches, and what the player is aiming when
@@ -3194,26 +3073,25 @@ public final class Visuals {
      */
     public Visuals skillRange(SkillRange range) {
         if (range != null) {
-            skillRanges.put(range.key(), range);
+            controls.skillRanges.put(range.key(), range);
         }
         return this;
     }
 
     public SkillRange getSkillRange(char key) {
-        return skillRanges.get(key);
+        return controls.skillRanges.get(key);
     }
 
     /** How a reach is drawn — one look for every skill in the game. */
     public Visuals rangeLook(RangeLook rangeLook) {
-        this.rangeLook = rangeLook == null ? RangeLook.DEFAULT : rangeLook;
+        controls.rangeLook = Objects.requireNonNullElse(rangeLook, RangeLook.DEFAULT);
         return this;
     }
 
     public RangeLook getRangeLook() {
-        return rangeLook;
+        return controls.rangeLook;
     }
 
-    private HitNumbers hitNumbers = HitNumbers.DEFAULTS;
 
     /**
      * How the numbers that come off a creature as it is hurt or healed should look
@@ -3224,12 +3102,12 @@ public final class Visuals {
      * blow is are the game's, like the fog and the pointer.
      */
     public Visuals hitNumbers(HitNumbers hitNumbers) {
-        this.hitNumbers = hitNumbers == null ? HitNumbers.DEFAULTS : hitNumbers;
+        feel.hitNumbers = Objects.requireNonNullElse(hitNumbers, HitNumbers.DEFAULTS);
         return this;
     }
 
     public HitNumbers getHitNumbers() {
-        return hitNumbers;
+        return feel.hitNumbers;
     }
 
     /** The row of a health bar a mark is placed from — see {@link MarkPlace}. */
@@ -3282,19 +3160,17 @@ public final class Visuals {
         }
     }
 
-    private final java.util.Map<String, Strip> strips = new java.util.HashMap<>();
 
     /** The strip of pictures played by that name — see {@link Strip}. */
     public Visuals strip(String name, java.util.List<String> frames, int frameMillis, boolean loop) {
-        strips.put(name, new Strip(frames, frameMillis, loop));
+        ground.strips.put(name, new Strip(frames, frameMillis, loop));
         return this;
     }
 
     Strip stripNamed(String name) {
-        return name == null ? null : strips.get(name);
+        return named(ground.strips, name);
     }
 
-    private FloatingTexts.Look floatingText = FloatingTexts.Look.REFERENCE;
 
     /**
      * How a text floated up from a point of the world moves — see {@code DukeGame.floatText}: {@code rise} pixels a
@@ -3302,12 +3178,12 @@ public final class Visuals {
      * frame after. Left alone, the reference's: 1, 10 and 0.1, so an alpha of 230 is gone 82 frames after it appeared.
      */
     public Visuals floatingText(float rise, int hold, float fade) {
-        this.floatingText = new FloatingTexts.Look(rise, hold, fade);
+        feel.floatingText = new FloatingTexts.Look(rise, hold, fade);
         return this;
     }
 
     FloatingTexts.Look getFloatingText() {
-        return floatingText;
+        return feel.floatingText;
     }
 
     /**
@@ -3321,41 +3197,37 @@ public final class Visuals {
         public static final HitFlashLook NONE = new HitFlashLook(0xFFFFFF, 0f, 0f);
     }
 
-    private HitFlashLook hitFlash = HitFlashLook.NONE;
 
     public Visuals hitFlash(HitFlashLook look) {
-        this.hitFlash = look == null ? HitFlashLook.NONE : look;
+        feel.hitFlash = Objects.requireNonNullElse(look, HitFlashLook.NONE);
         return this;
     }
 
     public HitFlashLook getHitFlash() {
-        return hitFlash;
+        return feel.hitFlash;
     }
 
-    private HitStop hitStop;
-    private Flinch flinch = Flinch.DEFAULTS;
 
     /** When a hurt creature flinches — see {@link Flinch}; at every blow it is free for, unless said. */
     public Visuals flinch(Flinch flinch) {
-        this.flinch = flinch == null ? Flinch.DEFAULTS : flinch;
+        feel.flinch = Objects.requireNonNullElse(flinch, Flinch.DEFAULTS);
         return this;
     }
 
     public Flinch getFlinch() {
-        return flinch;
+        return feel.flinch;
     }
 
     /** A heavy blow felt as a catch in the motion — see {@link HitStop}; none unless said. */
     public Visuals hitStop(HitStop hitStop) {
-        this.hitStop = hitStop;
+        feel.hitStop = hitStop;
         return this;
     }
 
     public HitStop getHitStop() {
-        return hitStop;
+        return feel.hitStop;
     }
 
-    private float shakeScale = 1f;
 
     /**
      * How hard every knock of the camera is against what its effect asked for: 1 as
@@ -3365,27 +3237,26 @@ public final class Visuals {
      * the screen moves is a question about the player, not about any one skill.
      */
     public Visuals shakeScale(float scale) {
-        this.shakeScale = Math.max(0f, scale);
+        feel.shakeScale = Math.max(0f, scale);
         return this;
     }
 
     public float getShakeScale() {
-        return shakeScale;
+        return feel.shakeScale;
     }
 
-    private float strikeWithin = 30f;
 
     /**
      * How near to where a shot was last drawn a blow must land, that same frame, for
      * the shot to have struck -- see {@link Landing#burstAt}.
      */
     public Visuals strikeWithin(float distance) {
-        this.strikeWithin = Math.max(0f, distance);
+        feel.strikeWithin = Math.max(0f, distance);
         return this;
     }
 
     public float getStrikeWithin() {
-        return strikeWithin;
+        return feel.strikeWithin;
     }
 
     // ---- the run's own moments ----
@@ -3410,7 +3281,6 @@ public final class Visuals {
     public record MomentLook(String effect, float scale) {
     }
 
-    private final Map<String, MomentLook> moments = new java.util.HashMap<>();
 
     /**
      * Give one of the run's moments a look.
@@ -3427,14 +3297,14 @@ public final class Visuals {
      */
     public Visuals moment(String name, String effect, float scale) {
         if (name != null && effect != null && !effect.isBlank() && scale > 0f) {
-            moments.put(name, new MomentLook(effect, scale));
+            feel.moments.put(name, new MomentLook(effect, scale));
         }
         return this;
     }
 
     /** Whether the game named this moment itself, no shorter name standing in for it. */
     public boolean namesMoment(String name) {
-        return moments.containsKey(name);
+        return feel.moments.containsKey(name);
     }
 
     /**
@@ -3443,14 +3313,7 @@ public final class Visuals {
      * died}. {@code null} for a moment nothing it falls back to was given a look.
      */
     public MomentLook getMoment(String name) {
-        for (var key = name; key != null; key = key.lastIndexOf('.') < 0 ? null
-                : key.substring(0, key.lastIndexOf('.'))) {
-            var look = moments.get(key);
-            if (look != null) {
-                return look;
-            }
-        }
-        return null;
+        return feel.moment(name);
     }
 
     // ---- a kind of game's own looks ----
@@ -3476,13 +3339,13 @@ public final class Visuals {
      * building.
      */
     public Visuals tiles(Tileset tileset) {
-        this.tileset = tileset;
+        templates.tileset = tileset;
         return this;
     }
 
     /** The kit the ground is built from, or {@code null} for plain blocks. */
     public Tileset getTiles() {
-        return tileset;
+        return templates.tileset;
     }
 
     // ---- themes ----
@@ -3497,11 +3360,11 @@ public final class Visuals {
      */
     public static final class Theme {
 
-        private Tileset tileset;
+        Tileset tileset;
         private Integer fogTint;
-        private final Map<String, UnitVisual> units = new java.util.LinkedHashMap<>();
+        final Map<String, UnitVisual> units = new java.util.LinkedHashMap<>();
 
-        private Theme() {
+        Theme() {
         }
 
         public Theme tiles(Tileset tileset) {
@@ -3524,8 +3387,7 @@ public final class Visuals {
          * wearing one kit's animation names on another kit's skeleton.
          */
         public Theme unit(String templateName, Consumer<UnitVisual> config) {
-            var visual = units.computeIfAbsent(templateName, n -> new UnitVisual());
-            config.accept(visual);
+            UnitLooks.configure(units, templateName, config);
             return this;
         }
 
@@ -3543,7 +3405,6 @@ public final class Visuals {
         }
     }
 
-    private final Map<String, Theme> themes = new java.util.LinkedHashMap<>();
 
     /**
      * Register a named theme. Which one is current is the <em>game's</em> to say,
@@ -3555,24 +3416,23 @@ public final class Visuals {
      * is for a game whose answer changes as it is played.
      */
     public Visuals theme(String name, Consumer<Theme> config) {
-        var theme = themes.computeIfAbsent(name, n -> new Theme());
+        var theme = templates.themes.computeIfAbsent(name, n -> new Theme());
         config.accept(theme);
         return this;
     }
 
     /** The theme of that name, or {@code null} — including for a null name. */
     public Theme getTheme(String name) {
-        return name == null ? null : themes.get(name);
+        return named(templates.themes, name);
     }
 
     /** Whether this game has any themes at all; most do not. */
     public boolean hasThemes() {
-        return !themes.isEmpty();
+        return !templates.themes.isEmpty();
     }
 
     // ---- menus ----
 
-    private MenuStyle menuStyle = MenuStyle.DEFAULTS;
 
     /**
      * How this game's menus are lettered — see { MenuStyle}.
@@ -3581,15 +3441,14 @@ public final class Visuals {
      * menu and the game says what it should look like.
      */
     public Visuals menuStyle(MenuStyle style) {
-        this.menuStyle = style == null ? MenuStyle.DEFAULTS : style;
+        controls.menuStyle = Objects.requireNonNullElse(style, MenuStyle.DEFAULTS);
         return this;
     }
 
     public MenuStyle getMenuStyle() {
-        return menuStyle;
+        return controls.menuStyle;
     }
 
-    private PanelSkin panelSkin = PanelSkin.NONE;
 
     /**
      * What the hero panel's edges are painted with — see {@link PanelSkin}.
@@ -3600,15 +3459,14 @@ public final class Visuals {
      * carved out of flat colour, which is what it was.
      */
     public Visuals panelSkin(PanelSkin skin) {
-        this.panelSkin = skin == null ? PanelSkin.NONE : skin;
+        controls.panelSkin = Objects.requireNonNullElse(skin, PanelSkin.NONE);
         return this;
     }
 
     public PanelSkin getPanelSkin() {
-        return panelSkin;
+        return controls.panelSkin;
     }
 
-    private final java.util.Map<String, Cursors.Look> pointers = new java.util.LinkedHashMap<>();
 
     /**
      * What the mouse pointer looks like in one situation — see {@link Cursors}.
@@ -3628,7 +3486,7 @@ public final class Visuals {
     /** The same, painted: the drawings are white, so this is what colours them. */
     public Visuals pointer(String situation, String assetPath, int hotX, int hotY, int tint) {
         if (situation != null && assetPath != null && !assetPath.isBlank()) {
-            pointers.put(situation, new Cursors.Look(assetPath, hotX, hotY, tint));
+            controls.pointers.put(situation, new Cursors.Look(assetPath, hotX, hotY, tint));
         }
         return this;
     }
@@ -3649,18 +3507,18 @@ public final class Visuals {
             for (int jiffy : jiffies == null ? new int[0] : jiffies) {
                 times.add(jiffy);
             }
-            pointers.put(situation, new Cursors.Look(stripPath, hotX, hotY, 0xFFFFFF, frames, times));
+            controls.pointers.put(situation, new Cursors.Look(stripPath, hotX, hotY, 0xFFFFFF, frames, times));
         }
         return this;
     }
 
     java.util.Map<String, Cursors.Look> getPointers() {
-        return java.util.Map.copyOf(pointers);
+        return java.util.Map.copyOf(controls.pointers);
     }
 
     /** The pointer pictures, for {@link Preload}: read before the window needs them. */
     public java.util.List<String> pointerImages() {
-        return pointers.values().stream().map(Cursors.Look::image).toList();
+        return controls.pointers.values().stream().map(Cursors.Look::image).toList();
     }
 
     // ---- noise ----
@@ -3712,11 +3570,7 @@ public final class Visuals {
      * floor changes.
      */
     java.util.List<UnitVisual> allLooks() {
-        var all = new java.util.ArrayList<>(units.values());
-        for (var theme : themes.values()) {
-            all.addAll(theme.units.values());
-        }
-        return all;
+        return templates.all();
     }
 
     /**
@@ -3724,42 +3578,37 @@ public final class Visuals {
      * registered, for a plan that knows which templates a match can draw.
      */
     java.util.List<UnitVisual> looksNamed(java.util.Set<String> templateNames) {
-        var named = new java.util.ArrayList<UnitVisual>();
-        units.forEach((name, look) -> {
-            if (templateNames.contains(name)) {
-                named.add(look);
-            }
-        });
-        for (var theme : themes.values()) {
-            theme.units.forEach((name, look) -> {
-                if (templateNames.contains(name)) {
-                    named.add(look);
-                }
-            });
-        }
-        return named;
+        return templates.named(templateNames);
     }
 
     /** Every template name that has a look anywhere, so a plan can tell whose a sound is. */
     java.util.Set<String> lookNames() {
-        var names = new java.util.LinkedHashSet<>(units.keySet());
-        for (var theme : themes.values()) {
-            names.addAll(theme.units.keySet());
-        }
-        return names;
+        return templates.names();
     }
 
     /** Every kit a world may be built from: the game's own, and its themes'. */
     java.util.List<Tileset> allKits() {
-        var all = new java.util.ArrayList<Tileset>();
-        if (tileset != null) {
-            all.add(tileset);
-        }
-        for (var theme : themes.values()) {
-            if (theme.tileset != null) {
-                all.add(theme.tileset);
+        return templates.kits();
+    }
+
+    /** What {@code from} holds under {@code name}; null for no name, where a map would be asked for a null key. */
+    static <V> V named(Map<String, V> from, String name) {
+        return name == null ? null : from.get(name);
+    }
+
+    /** Puts each named item in {@code into} by its name, leaving out the ones with none. */
+    static <T> void register(Map<String, T> into, java.util.Collection<T> items,
+            java.util.function.Function<T, String> nameOf) {
+        for (var item : items) {
+            if (item != null && nameOf.apply(item) != null) {
+                into.put(nameOf.apply(item), item);
             }
         }
-        return all;
+    }
+
+    /** A game's rule for which maps something applies to; every map's where it gives none, or none's. */
+    static java.util.function.Predicate<Object> mapRule(java.util.function.Predicate<Object> rule,
+            boolean whereNone) {
+        return rule != null ? rule : map -> whereNone;
     }
 }
