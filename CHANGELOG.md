@@ -616,6 +616,35 @@ E16, in parts.
   as the rider. `walking.`, `hurt.` and `died.` are heard by the look drawn where the game named any for it
   (`GameSounds.heardAs`), else by the thing's own template.
 
+### Action, a module of its own, and the engine in smaller pieces (E106)
+
+A walk along a held direction, a swing toward a point and a dodge's roll left `core`, `combat`, `rts` and `rpg` for
+a new optional module, **`action`** (`uz.duke-engine:action`, `uz.dukeengine.action`, on `rpg`; in the bom).
+`client3d-action` depends on it. A game that never names either has none of it, and a boundary test keeps the main
+modules from naming them. What stays behind are seams any game may use: core's `Steering`, combat's `PointAttack`
+and rpg's `SkillEffect.MODULE` with `SkillCaster`. What to change for a game that used them:
+
+| Before | Now |
+|---|---|
+| `CombatOrder.MoveAlong`, its `ALONG` codec line | `ActionOrders.along(player, units, angle)`, a `GameOrder`, and `ActionOrders.NONE` to stop |
+| `CombatOrder.AttackToward`, its codec line | `ActionOrders.toward(player, units, point, held)` |
+| `RtsLogic` applying the two | the game: `game.onOrder(order -> ActionOrders.apply(order, game.getLogic()))` |
+| `Locomotor.moveAlong(angle)`, `MoveUpdate.moveAlong` | `Stride.walk(thing, angle)`, -1 to stop; `MoveUpdate.steerBy(Steering)` beneath it |
+| `MoveUpdate.getAlongAngle()` | gone; `isMoving()` says whether it walks |
+| `WeaponUpdate.attackToward(point, held)` | `Swing.toward(thing, point, held)`; `WeaponUpdate.attackToward(PointAttack)` beneath it |
+| `WeaponUpdate.getToward()` | `getPointAttack()`, null when none |
+| `WeaponUpdate.Data`'s `SwingArcDegrees` | gone: a swing strikes in a third of a turn (`Swing`), as the default was |
+| `SkillEffect.DODGE` | `Effect = MODULE`, and the hero given the `Dodge` module |
+
+A game's own seam, beside them: a `Steering` the legs follow in place of a route, a `PointAttack` a weapon swings
+by, a `SkillCaster` module the skill book asks for a `MODULE` skill after every refusal it would make itself.
+
+The rest of E106 kept every public name: the largest classes are each kept by collaborators of their own, the same
+behaviour checked frame for frame — the checksum, a movement trace, a dump of routes and a panel's scene graph the same
+before and after. `DukeGame`, `Visuals`, `GameLogic`, `TerrainScene`, `MoveUpdate`, `Pathfinder` and `PathGrid`,
+`WeaponUpdate`, `SkillBook`, `HeroPanel`, `LayeredEffects` and `DukeRtsApp`; and Java 25's `getFirst`, unnamed
+variables and `Math.clamp` where they read more plainly.
+
 ### Action controls
 
 The controls below live in a module of their own, **`client3d-action`** (`uz.dukeengine.client3d.action`), plugged
@@ -633,9 +662,8 @@ client's own): a game that never names the module has none of it. What to change
 | `DukeGame.interactWithin`, `interactTarget`, `interact` | gone; the module looks through `DukeGame.eachSnapshot`, `orderedOwn`, `contextWordOn`, `groundWordAt` and `getOrderedTo` |
 | `DirectionKeys`, `CameraFollow`, `MouseScheme` (`uz.dukeengine.client3d`) | the same, in `uz.dukeengine.client3d.action` |
 
-The walking keys' rows on the keys page went with them. What the orders are stays in `combat` and `rpg` —
-`CombatOrder.MoveAlong`, `AttackToward`, `SkillEffect.DODGE` — sent only by a game that sends them. A skill aimed
-ahead is now cast where it aims (it was cast at the pointer: the aim was read after it was let go).
+The walking keys' rows on the keys page went with them. What the orders are is the `action` module's (E106,
+below). A skill aimed ahead is now cast where it aims (it was cast at the pointer: the aim was read after it was let go).
 
 - **A held mouse** (E90): `Duke3D.captureMouse(true)` — the pointer hidden and the mouse's motion read as how far it
   moved (`onMouseMotion`), the first motion after it is held none; let go while a screen holds the keys, a menu or a
