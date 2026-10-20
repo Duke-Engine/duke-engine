@@ -172,11 +172,10 @@ final class DukeRtsApp extends SimpleApplication {
      * discovered, and then the terrain is drawn plainly.
      */
     private FogMap fogMap;
-    /**
-     * Every material that samples the fog. Kept because the one thing in them that
-     * changes with the world is its size, and a new floor is a different size.
-     */
-    private final List<Material> fogged = new ArrayList<>();
+    /** How the ground and what lies on it are drawn, and every material that reads the fog — see {@link GroundLooks}. */
+    private GroundLooks groundLooks;
+    /** The sun, the ambient and the sun's shadows the scene is lit by — see {@link SceneLight}. */
+    private final SceneLight light;
     /**
      * What the things in flight look like. Built once; see {@link ProjectileEffects}.
      */
@@ -269,17 +268,6 @@ final class DukeRtsApp extends SimpleApplication {
     }
     private ShoreWaves shoreWaves;
 
-    /** A picture drawn flat in the world by the game's look: an unshaded material, or null where it will not load. */
-    private Material flatPicture(String path) {
-        var picture = path == null ? null : groundTexture(path);
-        if (picture == null) {
-            return null;
-        }
-        var material = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        material.setTexture("ColorMap", picture);
-        return material;
-    }
-
     /** The water's height over a point, else the ground's. */
     private float waterOrGround(float worldX, float worldY) {
         float surface = water == null ? Float.NaN : water.surfaceAt(worldX, worldY);
@@ -293,8 +281,6 @@ final class DukeRtsApp extends SimpleApplication {
     /** How many of the game's own marks on the ground are laid, and for which game. */
     private int marksLaid;
     private DukeGame marksOf;
-    private final java.util.Map<String, Material> scorchLooks = new java.util.HashMap<>();
-    private final java.util.Set<String> missingScorches = new java.util.HashSet<>();
     private final SelectionFlash selectionFlash = new SelectionFlash();
     /** What was selected the frame before: a thing new to the selection flashes. */
     private java.util.Set<Integer> wasSelected = java.util.Set.of();
@@ -650,47 +636,12 @@ final class DukeRtsApp extends SimpleApplication {
         this.controls = new Controls(this.hotkeys.keyMap());
         this.cameraFrame = visuals == null ? CameraFrame.NONE : visuals.getCameraFrame();
         camera.frame(cameraFrame);
-        var light = visuals == null ? Sunlight.DEFAULT : visuals.getSunlight();
-        this.litBy = light;
-        this.sunDirection = light.direction();
-        this.sunColour = light.sunColour();
-        this.ambientColour = light.ambientColour();
+        this.light = new SceneLight(sunlightOfTheGame(), rootNode);
     }
 
-    /**
-     * Take up whatever sun the game says the world now being built is lit by.
-     *
-     * <p>A map is a place and a time. It used to be read once, when the application was made — before
-     * any map was chosen — so every match was lit by one sun, and a night map was drawn at noon. Read here
-     * instead, where the world is built, which is the moment the game knows which world it is: the same
-     * moment {@code Visuals.world(...)} is said, for the same reason.
-     *
-     * <p>Everything lit is built after this — the ground, the tiles, every unit that arrives — and reads
-     * the fields as they now stand, so what is relit here is only the two scene lights themselves. A world
-     * that asks for the sun it already has changes nothing, which is every game that sets its sun once.
-     *
-     * <p>Light is drawing. Nothing in the simulation reads it.
-     */
-    private void adoptTheSun() {
-        var light = visuals == null ? Sunlight.DEFAULT : visuals.getSunlight();
-        if (light.equals(litBy)) {
-            return;
-        }
-        litBy = light;
-        sunDirection = light.direction();
-        sunColour = light.sunColour();
-        ambientColour = light.ambientColour();
-        if (sun != null) {
-            sun.setDirection(sunDirection);
-            sun.setColor(sunColour);
-        }
-        if (sunShadows != null) {
-            sunShadows.sun(sunDirection);
-        }
-        if (ambient != null) {
-            ambient.setColor(ambientColour);
-        }
-        lightTheHour(); // a world built anew keeps the game's hour over its own sun
+    /** The sun the game lights its world by now — see {@link SceneLight#adopt}. */
+    private Sunlight sunlightOfTheGame() {
+        return visuals == null ? Sunlight.DEFAULT : visuals.getSunlight();
     }
 
     /**
@@ -784,23 +735,15 @@ final class DukeRtsApp extends SimpleApplication {
         if (visuals.drawsFog()) {
             fogMap = new FogMap(visuals.getFog());
         }
+        groundLooks = new GroundLooks(assetManager, visuals, light, fogMap, camera, () -> game, () -> builtFrom,
+                () -> snapshot);
         // Needs the locators above, so it cannot be built with the app itself.
         terrain = new TerrainScene(terrainNode,
-                groundSurfaces,
-                visuals.drawsFog(), visuals.getTiles(), new KitTiles(), true);
+                groundLooks.surfaces,
+                visuals.drawsFog(), visuals.getTiles(),
+                new KitTiles(assetManager, missing, groundLooks, light, this::activeKit), true);
 
-        sun = new DirectionalLight(sunDirection, sunColour);
-        ambient = new AmbientLight(ambientColour);
-        // Everything drawn takes the sun's shadows; what casts them its look says.
-        rootNode.setShadowMode(com.jme3.renderer.queue.RenderQueue.ShadowMode.Receive);
-        sunShadows = new SunShadows(assetManager, viewPort, sunDirection);
-        sunShadows.on(shadowsOn);
-        sunShadows.colour(shadowColour);
-        rootNode.addLight(sun);
-        rootNode.addLight(ambient);
-        for (var more : visuals.getThingSuns()) {
-            rootNode.addLight(new DirectionalLight(more.direction(), more.light())); // the things', not the ground's
-        }
+        light.install(assetManager, viewPort, visuals.getThingSuns());
 
         // Before the terrain, because rebuilding a world clears what is burning in
         // it and there has to be something there to clear.
@@ -818,13 +761,13 @@ final class DukeRtsApp extends SimpleApplication {
         particleDrawing = new ParticleDrawing(particles, this::particleMaterial);
         rootNode.attachChild(particleDrawing.node());
         layered.drawsSystemsWith(particles);
-        scorches = new Scorches(listNode, this::drawnGround, this::scorchLook);
-        strips = new Strips(listNode, this::drawnGround, this::stripLook, visuals::getGroundLight);
-        water = new Water(listNode, this::waterLook);
-        trackMarks = new TrackMarks(listNode, this::flatPicture);
+        scorches = new Scorches(listNode, this::drawnGround, groundLooks::scorchLook);
+        strips = new Strips(listNode, this::drawnGround, groundLooks::stripLook, visuals::getGroundLight);
+        water = new Water(listNode, groundLooks::waterLook);
+        trackMarks = new TrackMarks(listNode, groundLooks::flatPicture);
         border = new BorderRing(listNode, assetManager);
         hangTheSky();
-        shoreWaves = new ShoreWaves(listNode, this::flatPicture);
+        shoreWaves = new ShoreWaves(listNode, groundLooks::flatPicture);
         listShow = new ListShow(assetManager, listNode, effects.lights(), (cue, at) -> {
             if (noises != null) {
                 noises.sounds().play(cue, at, timer.getTimeInSeconds());
@@ -964,10 +907,6 @@ final class DukeRtsApp extends SimpleApplication {
     /** The gamma the whole picture is drawn through — see {@link Duke3D#gamma}. */
     private float gamma = 1f;
     private GammaPass gammaPass;
-    /** The sun's shadows — see {@link Duke3D#shadows} — and whether they are drawn, and in what colour. */
-    private SunShadows sunShadows;
-    private boolean shadowsOn = true;
-    private ColorRGBA shadowColour = SunShadows.DEFAULT_COLOUR;
     /** Which way the player's view scrolled last frame — {@code N}, {@code NE} … — or null: what the pointer shows. */
     private String scrolling;
 
@@ -980,7 +919,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** What grows on the ground round the camera — see {@link Duke3D#groundCover}. */
     void groundCover(GroundCover cover) {
-        terrain.onMadeMaterial(this::adoptFogged);
+        terrain.onMadeMaterial(groundLooks::adoptFogged);
         terrain.cover(cover);
     }
 
@@ -1008,7 +947,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (value.startsWith("#")) {
             return GroundPaint.colourOf(value);
         }
-        var texture = groundTexture(value);
+        var texture = groundLooks.groundTexture(value);
         return texture == null || texture.getImage() == null ? null : meanOf(texture.getImage());
     }
 
@@ -1031,18 +970,6 @@ final class DukeRtsApp extends SimpleApplication {
             }
         }
         return n == 0 ? null : new ColorRGBA(r / n, g / n, b / n, 1f);
-    }
-
-    /** A material made elsewhere of a fogged one kept up with the fog as the client's own are. */
-    private void adoptFogged(Material material) {
-        var def = material.getMaterialDef().getAssetName();
-        if (def != null && def.endsWith("FoggedTerrain.j3md") && !fogged.contains(material)) {
-            fogged.add(material);
-            tellWhereTheFogHolds(material);
-            if (fogMap != null) {
-                material.setVector2("FogSize", fogMap.worldSize());
-            }
-        }
     }
 
     void controls(ControlScheme controls) {
@@ -1253,17 +1180,11 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     void shadows(boolean on) {
-        this.shadowsOn = on;
-        if (sunShadows != null) {
-            sunShadows.on(on);
-        }
+        light.shadows(on);
     }
 
     void shadowColour(java.awt.Color colour) {
-        this.shadowColour = colour == null ? SunShadows.DEFAULT_COLOUR : Materials.colour(colour);
-        if (sunShadows != null) {
-            sunShadows.colour(shadowColour);
-        }
+        light.shadowColour(colour);
     }
 
     void gamma(float gamma) {
@@ -3453,67 +3374,6 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * Hand the burning things to the terrain shader.
-     *
-     * <p>The terrain is the one surface in the scene that does not read jME's
-     * light list — it carries its own sun and its own ambient, because for most of
-     * its life those were the only lights there were and a shader that spoke the
-     * whole lighting protocol would have been a copy of it for a scene with one
-     * light in it. That was a good trade until something burning flew down a
-     * corridor: creatures lit up, drawn as they are with the engine's lighting,
-     * and the floor under them did not.
-     *
-     * <p>So the lights go across as four pairs of vectors, every frame, to every
-     * material built from that shader. An unused slot goes across black, which
-     * costs the arithmetic and contributes nothing — cheaper than a branch, and
-     * the same cost every frame, which is the property worth having.
-     */
-    private void carryTheLightsToTheStone() {
-        if (fogged.isEmpty()) {
-            return;
-        }
-        var lights = effects.allLights();
-        for (int i = 0; i < TERRAIN_LIGHTS; i++) {
-            var light = i < lights.size() ? lights.get(i) : null;
-            var colour = light == null ? ColorRGBA.BlackNoAlpha : light.getColor();
-            var at = light == null ? Vector3f.ZERO : light.getPosition();
-            float radius = light == null ? 0f : light.getRadius();
-            // Written into the slots the materials already hold rather than
-            // replaced, so a material made before this frame is looking at the
-            // same two arrays as one made after it.
-            terrainLightColours[i].set(colour.r, colour.g, colour.b, 1f);
-            terrainLightPlaces[i].set(at.x, at.y, at.z, radius <= 0f ? 0f : 1f / radius);
-        }
-        for (var material : fogged) {
-            material.setParam("PointLightColours",
-                    com.jme3.shader.VarType.Vector4Array, terrainLightColours);
-            material.setParam("PointLightPositions",
-                    com.jme3.shader.VarType.Vector4Array, terrainLightPlaces);
-        }
-    }
-
-    /**
-     * As many as the terrain shader declares; see {@code FoggedTerrain.frag}.
-     */
-    private static final int TERRAIN_LIGHTS = 8;
-    /**
-     * The two arrays handed to every terrain material, filled with darkness to
-     * begin with.
-     *
-     * <p>Filled rather than empty, and set on a material the moment it is made:
-     * an array uniform the shader reads and nothing ever wrote is a different
-     * thing on every driver, and the one frame it would go wrong on is the first.
-     */
-    private final com.jme3.math.Vector4f[] terrainLightColours = darkness();
-    private final com.jme3.math.Vector4f[] terrainLightPlaces = darkness();
-
-    private static com.jme3.math.Vector4f[] darkness() {
-        var slots = new com.jme3.math.Vector4f[TERRAIN_LIGHTS];
-        java.util.Arrays.setAll(slots, i -> new com.jme3.math.Vector4f());
-        return slots;
-    }
-
-    /**
      * Build (or rebuild) the ground and rocks for the world as it stands now.
      */
     /** Footsteps told the ground under them, by the paint of the world now laid — see {@code GameSounds.surfaces}. */
@@ -3541,12 +3401,12 @@ final class DukeRtsApp extends SimpleApplication {
 
     private void buildTerrain() {
         // First: every material built from here on reads the sun, and this is the world it is for.
-        adoptTheSun();
+        light.adopt(sunlightOfTheGame());
         builtFrom = game.getTerrain();
         clearWhatIsBurning();
         builtPaint = GroundPaint.of(game.getMapRecord());
         hearTheGround();
-        scorchLooks.clear(); // each made for the fog of the world it was laid in
+        groundLooks.forgetScorches(); // each made for the fog of the world it was laid in
         if (strips != null) {
             strips.clear(); // a new world lays its own
         }
@@ -3557,7 +3417,7 @@ final class DukeRtsApp extends SimpleApplication {
         layTheGround();
         fogTintNow = null; // a new world's dark starts in the colour of whatever the camera looks at
         if (water != null) {
-            waterLooks.clear(); // the new world's water makes its own
+            groundLooks.forgetWater(); // the new world's water makes its own
             water.rebuild(game.getMapRecord() instanceof uz.dukeengine.core.map.Zoned zoned ? zoned.areas()
                     : java.util.List.of(), drawnGround(), visuals.getWater());
         }
@@ -3585,16 +3445,9 @@ final class DukeRtsApp extends SimpleApplication {
         discovery.window(fogWindowCells());
         discovery.follow(camera.targetX(), camera.targetZ());
         fogMap.resize(builtFrom, discovery);
-        // The one thing in a fogged material that a new world changes: how much ground its picture holds, and where.
-        // The water's too, made above before the picture took this world's size.
-        for (var material : fogged) {
-            material.setVector2("FogSize", fogMap.worldSize());
-        }
-        for (var material : waterLooks) {
-            material.setVector2("FogSize", fogMap.worldSize());
-        }
+        groundLooks.fogResized();
         fogWindowTold = fogMap.windowVersion();
-        tellEveryFogReaderWhereTheFogHolds();
+        groundLooks.tellEveryFogReaderWhereTheFogHolds();
     }
 
     /**
@@ -3613,74 +3466,6 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** The fog's window as last told to the materials that read it. */
     private int fogWindowTold;
-
-    /** The water's materials for the world drawn now, which read the fog as the ground's do. */
-    private final List<Material> waterLooks = new ArrayList<>();
-
-    /** Every material that reads the fog told where its picture holds now: the ground's, the scorches' and the water's. */
-    private void tellEveryFogReaderWhereTheFogHolds() {
-        forEveryFogReader(this::tellWhereTheFogHolds);
-    }
-
-    /** Each material that reads the fog: the ground's, the scorches' and the water's. */
-    private void forEveryFogReader(java.util.function.Consumer<Material> told) {
-        for (var material : fogged) {
-            told.accept(material);
-        }
-        for (var material : scorchLooks.values()) {
-            if (material != null) {
-                told.accept(material);
-            }
-        }
-        for (var material : waterLooks) {
-            told.accept(material);
-        }
-    }
-
-    /**
-     * Where the fog's picture holds, told to one material that reads it where the picture is of a window round the
-     * camera — past it, the shader draws never seen — and nothing where it is of the whole map, as it always was; and
-     * the haze, where the game keeps one.
-     */
-    private void tellWhereTheFogHolds(Material material) {
-        if (fogMap != null && fogMap.isWindowed()) {
-            material.setVector4("FogWindow", fogMap.window());
-        } else if (material.getParam("FogWindow") != null) {
-            material.clearParam("FogWindow");
-        }
-        tellTheHaze(material);
-    }
-
-    /** Where the camera looks, as the haze round it was last told to the ground. */
-    private float hazeToldX = Float.NaN;
-    private float hazeToldZ = Float.NaN;
-
-    /** The haze round where the camera looks told to one material that reads the fog, where the game keeps a haze. */
-    private void tellTheHaze(Material material) {
-        if (!visuals.hazes(game.getMapRecord()) || builtFrom == null) {
-            // A material kept from a hazy map drawn on one without.
-            if (material.getParam("Haze") != null) {
-                material.clearParam("Haze");
-            }
-            return;
-        }
-        float cell = builtFrom.getCellSize();
-        material.setVector4("Haze", new com.jme3.math.Vector4f(camera.targetX(), camera.targetZ(),
-                visuals.getHazeFrom() * cell, visuals.getHazeTo() * cell));
-    }
-
-    /** The haze kept round where the camera looks, told to the ground each time the camera moves. */
-    private void hazeRoundTheCamera() {
-        if (!visuals.hazes(game.getMapRecord()) || fogMap == null || builtFrom == null) {
-            return;
-        }
-        if (camera.targetX() == hazeToldX && camera.targetZ() == hazeToldZ) {
-            return;
-        }
-        hazeToldX = camera.targetX();
-        hazeToldZ = camera.targetZ();
-        forEveryFogReader(this::tellTheHaze);
-    }
 
     /** The look each cell of the world wears, by the cell's index, where its map names looks of its own; null for none. */
     private java.util.function.IntFunction<Visuals.Theme> cellLooks;
@@ -3756,9 +3541,7 @@ final class DukeRtsApp extends SimpleApplication {
      * picture is sent again only as the colour moves by a step it can hold.
      */
     private void followTheLookUnderTheCamera(float tpf) {
-        if (hour != null && hour.step(tpf)) {
-            lightTheHour(); // the hour's sun easing on, on the frames it moves
-        }
+        light.step(tpf);
         if (hazeWanted != null) {
             easeTheHaze(tpf); // the game's haze over the look's
             return;
@@ -3898,7 +3681,7 @@ final class DukeRtsApp extends SimpleApplication {
         fogMap.update(discovery, renderer);
         if (fogMap.windowVersion() != fogWindowTold) {
             fogWindowTold = fogMap.windowVersion();
-            tellEveryFogReaderWhereTheFogHolds();
+            groundLooks.tellEveryFogReaderWhereTheFogHolds();
         }
         terrain.applyDiscovery(discovery);
         applyMinimapDiscovery();
@@ -5677,9 +5460,9 @@ final class DukeRtsApp extends SimpleApplication {
         listShow.update(tpf);
         barrels.update(tpf);
         particleDrawing.draw(cam);
-        carryTheLightsToTheStone();
-        hazeRoundTheCamera();
-        slideTheShades();
+        groundLooks.carryTheLightsToTheStone(effects.allLights());
+        groundLooks.hazeRoundTheCamera();
+        groundLooks.slideTheShades();
         if (water != null && snapshot != null) {
             water.update(snapshot.gameTimeSeconds());
             trackMarks.see(snapshot.units(), visuals.getTrackMarks(), snapshot.frame(), this::floorHeightAt,
@@ -6904,22 +6687,6 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    /**
-     * How a piece laid along the ground is drawn: the ground's own material over its picture — lit and shrouded as the
-     * ground — blended by the picture's alpha over it, as the reference draws its roads. Null where it will not load.
-     */
-    private Material stripLook(String path) {
-        if (groundTexture(path) == null) {
-            return null;
-        }
-        var look = ground(ColorRGBA.White, path);
-        var state = look.getAdditionalRenderState();
-        state.setBlendMode(com.jme3.material.RenderState.BlendMode.Alpha);
-        state.setDepthWrite(false);
-        state.setPolyOffset(-1f, -1f);
-        return look;
-    }
-
     /** The ground as it is drawn, for a mark laid on it: its cells, its heights, and the cut each is drawn along. */
     private DrawnGround drawnGround() {
         var grid = builtFrom;
@@ -6953,51 +6720,6 @@ final class DukeRtsApp extends SimpleApplication {
                 return TerrainScene.drawnDiagonal(grid, paint, cx, cy);
             }
         };
-    }
-
-    /**
-     * How a mark burnt into the ground is drawn: its picture times the reference's one colour for every scorch — the
-     * ground's ambient and half its sun ({@code updateScorches}) — blended by its alpha over the ground, and shrouded
-     * as the ground is where the game keeps a fog. Null, said once, where the picture will not load.
-     */
-    private Material scorchLook(String path) {
-        if (scorchLooks.containsKey(path)) {
-            return scorchLooks.get(path);
-        }
-        Material look = null;
-        try {
-            var picture = assetManager.loadTexture(path);
-            picture.setWrap(com.jme3.texture.Texture.WrapMode.EdgeClamp);
-            var shade = ambientColour.add(sunColour.mult(0.5f));
-            shade.a = 1f;
-            if (fogMap == null) {
-                look = Materials.unshaded(assetManager, shade);
-                look.setTexture("ColorMap", picture);
-            } else {
-                look = new Material(assetManager, "MatDefs/duke/FoggedTerrain.j3md");
-                look.setColor("Color", ColorRGBA.White);
-                look.setColor("Ambient", shade);
-                look.setColor("Sun", ColorRGBA.Black);
-                look.setVector3("SunDirection", sunDirection);
-                look.setTexture("FogMap", fogMap.texture());
-                look.setVector2("FogSize", fogMap.worldSize());
-                tellWhereTheFogHolds(look);
-                look.setTexture("ColorMap", picture);
-                // Set, and dark: nothing burning lights a scorch, and an array never written differs by driver.
-                look.setParam("PointLightColours", com.jme3.shader.VarType.Vector4Array, darkness());
-                look.setParam("PointLightPositions", com.jme3.shader.VarType.Vector4Array, darkness());
-            }
-            var state = look.getAdditionalRenderState();
-            state.setBlendMode(com.jme3.material.RenderState.BlendMode.Alpha);
-            state.setDepthWrite(false);
-            state.setPolyOffset(-1f, -1f);
-        } catch (RuntimeException notThere) {
-            if (missingScorches.add(path)) {
-                LOG.warning(() -> "a scorch mark names a picture that will not load: " + path);
-            }
-        }
-        scorchLooks.put(path, look);
-        return look;
     }
 
     /** A thrown piece's house-colour meshes in the colour the thing it was thrown for wears, dead or alive. */
@@ -7290,8 +7012,8 @@ final class DukeRtsApp extends SimpleApplication {
         if (fogMap != null) {
             laid.depthFirstTraversal(spatial -> {
                 if (spatial instanceof Geometry geometry) {
-                    geometry.setMaterial(fogged(visual.tint == null ? ColorRGBA.White : Materials.colour(visual.tint),
-                            ambientColour.mult(PLAIN_AMBIENT), Bodies.skinOf(geometry.getMaterial())));
+                    geometry.setMaterial(groundLooks.plainFogged(visual.tint == null ? ColorRGBA.White
+                            : Materials.colour(visual.tint), Bodies.skinOf(geometry.getMaterial())));
                 }
             });
         }
@@ -7525,8 +7247,8 @@ final class DukeRtsApp extends SimpleApplication {
         drivenBones.drive(view.id(), node.body, visual.drivenBones, view, timer.getTimeInSeconds());
         // Its shadow, from its opaque pieces as drawn — none while it is drawn see-through or faded.
         boolean casts = visual.castsShadow && !stealthLook.looking(view.id());
-        if (sunShadows != null && node.body != null && (casts != node.casting || node.body != node.shadowBody)) {
-            sunShadows.cast(node.body, casts, visual.leastSunHeight);
+        if (light.shadows() != null && node.body != null && (casts != node.casting || node.body != node.shadowBody)) {
+            light.shadows().cast(node.body, casts, visual.leastSunHeight);
             node.casting = casts;
             node.shadowBody = node.body;
         }
@@ -7886,568 +7608,6 @@ final class DukeRtsApp extends SimpleApplication {
         return audio;
     }
 
-    /**
-     * Loads a modular kit's pieces.
-     *
-     * <p>Two things happen here that are easy to miss until the dungeon comes out
-     * black. First, jME's glTF loader gives every piece a <b>PBR</b> material, and
-     * PBR takes its ambient light from an environment map — of which this client
-     * has none, only a sun and a flat ambient, so a PBR scene renders nearly
-     * unlit. Kenney's kits are flat-shaded palette art anyway, so the material is
-     * rebuilt as plain lighting over the same texture, which is both correct and
-     * what the art was drawn for.
-     *
-     * <p>Second, a floor of several hundred tiles is several hundred copies of
-     * three meshes. They are cloned without cloning materials, and there is
-     * exactly <em>one</em> material for the whole kit: how dark a piece looks is
-     * decided by where its fragments stand, in the shader, so no piece needs a
-     * material of its own to be dimmer than its neighbour.
-     */
-    private final class KitTiles implements TileSource {
-
-        private final Map<String, Spatial> masters = new HashMap<>();
-
-        /**
-         * The atlas kit's shared materials, one per picture and cast.
-         *
-         * <p>Per tint because a tone may ask for the same stone in a colder cast,
-         * and one skin for the lot would give whichever floor was built first the
-         * casting vote over every later one.
-         *
-         * <p>And per texture, because a kit is not always one atlas. A floor of
-         * beaten earth with a line of trees standing along its edges is two packs
-         * and two pictures, and one skin over both hands the trees the floor's
-         * atlas — every leaf then reads its colour from whatever happens to sit at
-         * those coordinates on the other sheet, which came out as a row of grey
-         * mushrooms.
-         */
-        private final Map<String, Material> skins = new HashMap<>();
-
-        /**
-         * One ready piece, dressed the way its kit wants and holding the fog.
-         *
-         * <p>Kits come in two sorts and the difference is not cosmetic. One is
-         * drawn on a single colour atlas: every piece is the same picture, so one
-         * material serves the lot and sharing it is most of what keeps a floor of
-         * six hundred tiles cheap. The other ships no texture at all and says in
-         * its own materials what colour each part of each piece is; give that one
-         * a single skin and the whole kit turns one flat grey.
-         *
-         * <p>Either way the material has to be one that reads the fog, or the
-         * pieces would be lit and never darkened. So the second sort is not left
-         * with what it came with — it is rebuilt, one fogged material per material
-         * it brought, keeping the colour and gaining the dark.
-         *
-         * <p>Cached by kit and tint rather than by path alone, because the same
-         * piece under two tints is two different masters and every copy of one
-         * shares its materials.
-         */
-        @Override
-        public Spatial piece(String assetPath) {
-            return piece(assetPath, 0xFFFFFF);
-        }
-
-        /**
-         * The same, under a colour of this piece's own on top of the kit's.
-         *
-         * <p>Everything the plain call does, and it costs nothing more: the masters
-         * and the skins were already kept per tint, so a second tint is a second
-         * entry in maps that exist. The lid over the rock and the floors of two
-         * different storeys are then three materials rather than one, over a floor
-         * that is several hundred pieces.
-         */
-        @Override
-        public Spatial piece(String assetPath, int packedRgb) {
-            return piece(activeKit(), assetPath, packedRgb);
-        }
-
-        /**
-         * The same, dressed as {@code kit} dresses its pieces rather than as the kit in force — for a map whose cells
-         * wear looks of their own. Kept per kit's own tint and way of dressing, so two looks sharing a model share it
-         * only where they dress it alike.
-         */
-        @Override
-        public Spatial piece(Tileset kit, String assetPath, int packedRgb) {
-            return piece(kit, assetPath, packedRgb, "");
-        }
-
-        /** The same, drawn with {@code picture} in place of its own; kept apart from it by the picture's name. */
-        @Override
-        public Spatial piece(Tileset kit, String assetPath, int packedRgb, String picture) {
-            boolean own = kit != null && kit.keepsOwnMaterials();
-            int tint = blend(kit == null ? 0xFFFFFF : kit.getTint(), packedRgb);
-            com.jme3.texture.Texture drawnWith = picture == null || picture.isBlank() ? null : pictureFor(picture);
-            String key = assetPath + "#" + Integer.toHexString(tint) + (own ? "#own" : "")
-                    + (drawnWith == null ? "" : "@" + picture);
-            var master = masters.get(key);
-            if (master == null) {
-                try {
-                    master = assetManager.loadModel(assetPath);
-                } catch (RuntimeException e) {
-                    // A missing piece is a missing file, not a broken client: draw
-                    // the rest of the floor and say which one went missing.
-                    if (missing.firstTime(assetPath)) {
-                        LOG.warning(() -> "tile not found: " + assetPath + " (" + e.getMessage() + ")");
-                    }
-                    return null;
-                }
-                if (own) {
-                    refogOwnMaterials(master, Materials.colour(new java.awt.Color(tint)), drawnWith);
-                } else {
-                    // One skin per picture the kit draws on, and per tint over it.
-                    var atlas = drawnWith != null ? drawnWith : textureOf(master);
-                    master.setMaterial(skins.computeIfAbsent(
-                            nameOf(atlas) + "#" + Integer.toHexString(tint),
-                            ignored -> tileMaterial(atlas, Materials.colour(new java.awt.Color(tint)))));
-                }
-                masters.put(key, master);
-            }
-            return master.clone(false); // share the mesh and the material
-        }
-
-        /**
-         * Rebuild every material a model brought as one that reads the fog,
-         * keeping the colour it was given and multiplying the kit's tint over it.
-         */
-        private void refogOwnMaterials(Spatial model, ColorRGBA tint, com.jme3.texture.Texture picture) {
-            if (model instanceof Geometry geometry) {
-                var was = geometry.getMaterial();
-                var colour = colourOf(was).mult(tint);
-                var drawn = picture != null ? picture : textureOf(geometry);
-                geometry.setMaterial(fogMap == null
-                        ? litKitMaterial(colour, drawn)
-                        : fogged(colour, ambientColour.mult(KIT_AMBIENT), drawn));
-                return;
-            }
-            if (model instanceof Node node) {
-                for (var child : node.getChildren()) {
-                    refogOwnMaterials(child, tint, picture);
-                }
-            }
-        }
-
-        /** A picture a piece is drawn with in place of its own, loaded once; null for one that will not load. */
-        private com.jme3.texture.Texture pictureFor(String path) {
-            try {
-                return assetManager.loadTexture(path);
-            } catch (RuntimeException e) {
-                if (missing.firstTime(path)) {
-                    LOG.warning(() -> "picture not found: " + path + " (" + e.getMessage() + ")");
-                }
-                return null;
-            }
-        }
-
-        /**
-         * What colour a loaded material says its surface is; white if it says nothing.
-         */
-        private ColorRGBA colourOf(Material material) {
-            if (material == null) {
-                return ColorRGBA.White;
-            }
-            for (var name : new String[]{"Diffuse", "Color", "BaseColor"}) {
-                var param = material.getParam(name);
-                if (param != null && param.getValue() instanceof ColorRGBA colour) {
-                    return colour.clone();
-                }
-            }
-            return ColorRGBA.White;
-        }
-
-        private Material litKitMaterial(ColorRGBA colour, com.jme3.texture.Texture atlas) {
-            var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
-            material.setBoolean("UseMaterialColors", true);
-            material.setColor("Diffuse", colour);
-            material.setColor("Ambient", KIT_AMBIENT.mult(colour));
-            if (atlas != null) {
-                material.setTexture("DiffuseMap", atlas);
-            }
-            return material;
-        }
-
-        /**
-         * How much of the ambient the kit's palette art returns.
-         */
-        private static final ColorRGBA KIT_AMBIENT = new ColorRGBA(0.55f, 0.55f, 0.62f, 1f);
-
-        private Material tileMaterial(com.jme3.texture.Texture atlas, ColorRGBA tint) {
-            if (fogMap != null) {
-                return fogged(tint, ambientColour.mult(KIT_AMBIENT).mult(tint), atlas);
-            }
-            var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
-            material.setBoolean("UseMaterialColors", true);
-            material.setColor("Diffuse", tint);
-            material.setColor("Ambient", KIT_AMBIENT.mult(tint));
-            if (atlas != null) {
-                material.setTexture("DiffuseMap", atlas);
-            }
-            return material;
-        }
-
-        /**
-         * Two packed colours multiplied, channel by channel — white leaves the other alone.
-         */
-        private static int blend(int over, int under) {
-            if (under == 0xFFFFFF) {
-                return over;
-            }
-            int red = (over >> 16 & 0xFF) * (under >> 16 & 0xFF) / 255;
-            int green = (over >> 8 & 0xFF) * (under >> 8 & 0xFF) / 255;
-            int blue = (over & 0xFF) * (under & 0xFF) / 255;
-            return red << 16 | green << 8 | blue;
-        }
-
-        /**
-         * What a texture is called, for keying a skin by it; untextured pieces share one name.
-         */
-        private String nameOf(com.jme3.texture.Texture atlas) {
-            var key = atlas == null ? null : atlas.getKey();
-            return key == null ? "" : key.getName();
-        }
-
-        /**
-         * The kit's colour atlas, taken off whatever material the loader made.
-         */
-        private com.jme3.texture.Texture textureOf(Spatial model) {
-            if (model instanceof Geometry geometry && geometry.getMaterial() != null) {
-                for (var param : geometry.getMaterial().getParams()) {
-                    if (param.getValue() instanceof com.jme3.texture.Texture texture) {
-                        return texture;
-                    }
-                }
-            }
-            if (model instanceof Node node) {
-                for (var child : node.getChildren()) {
-                    var found = textureOf(child);
-                    if (found != null) {
-                        return found;
-                    }
-                }
-            }
-            return null;
-        }
-
-    }
-
-    /**
-     * A material for a piece of ground: the colour it is painted, and the picture the map named for it.
-     *
-     * <p>The picture is loaded by the name the map wrote and nothing else — no folder put in front of it,
-     * no suffix taken off. Where it will not load, that is said once and the ground is drawn in its colour,
-     * because a map with a typo in one palette entry should be a map with one grey field in it rather than
-     * a black screen.
-     *
-     * <p>Set to repeat, because the ground's texture coordinates run across the world rather than 0..1
-     * inside a cell — see {@code TerrainScene.paintGround}. Clamped, one cell would show the whole picture
-     * and every cell after it the picture's last column, which is a map drawn in stripes.
-     */
-    private Material ground(ColorRGBA colour, String texture) {
-        if (texture != null) {
-            colour = tinted(colour, visuals.getSurface(texture));
-        }
-        var picture = texture == null ? null : groundTexture(texture);
-        if (picture == null) {
-            return foggedGround() ? foggedTerrain(colour) : Materials.lit(assetManager, colour);
-        }
-        if (!foggedGround()) {
-            var material = Materials.lit(assetManager, colour);
-            material.setTexture("DiffuseMap", picture);
-            return material;
-        }
-        return fogged(colour, ambientColour.mult(PLAIN_AMBIENT), picture);
-    }
-
-    /**
-     * Whether the ground is drawn with its own shader: where there is a fog to lay over it, and where the game lights
-     * it by lights of its own or lays a picture over all of it, which only that shader draws.
-     */
-    private boolean foggedGround() {
-        return fogMap != null || visuals.getGroundLight() != null || !visuals.getGroundShades().isEmpty();
-    }
-
-    /**
-     * A picture laid over the ground and faded into it by the alpha each vertex carries.
-     *
-     * <p>The ground's own material with three things changed: it reads the vertex alpha, it blends over
-     * what is under it, and it neither writes depth nor loses to the ground it lies exactly on — pulled a
-     * hair toward the eye instead. It is only ever asked for by a map with a second layer, so the ground of
-     * every other map is built exactly as it was.
-     */
-    private Material groundOverlay(ColorRGBA colour, String texture) {
-        var material = ground(colour, texture);
-        if (foggedGround()) {
-            material.setBoolean("VertexAlpha", true);
-        } else {
-            material.setBoolean("UseVertexColor", true);
-        }
-        var state = material.getAdditionalRenderState();
-        state.setBlendMode(com.jme3.material.RenderState.BlendMode.Alpha);
-        state.setDepthWrite(false);
-        state.setPolyOffset(-1f, -1f);
-        return material;
-    }
-
-    /** The ground's materials, both kinds — see {@link Surfaces}. */
-    private final Surfaces groundSurfaces = new Surfaces() {
-        @Override
-        public Material of(ColorRGBA colour, String texture) {
-            return ground(colour, texture);
-        }
-
-        @Override
-        public Material overlay(ColorRGBA colour, String texture) {
-            return groundOverlay(colour, texture);
-        }
-
-        @Override
-        public Material blended(List<GroundPaint.Surface> surfaces, float[] spans) {
-            return blendedGround(surfaces, spans);
-        }
-    };
-
-    /** A surface's colour times the tint the game gave its picture ({@link Visuals#surface}). */
-    static ColorRGBA tinted(ColorRGBA colour, Visuals.SurfaceLook look) {
-        int tint = look.tint();
-        return colour.mult(new ColorRGBA((tint >> 16 & 0xFF) / 255f, (tint >> 8 & 0xFF) / 255f, (tint & 0xFF) / 255f,
-                1f));
-    }
-
-    /** A white picture of one texel, for a blended ground's surfaces that are colours or are not used. */
-    private com.jme3.texture.Texture white;
-
-    private com.jme3.texture.Texture white() {
-        if (white == null) {
-            var image = new com.jme3.texture.Image(com.jme3.texture.Image.Format.RGBA8, 1, 1,
-                    com.jme3.util.BufferUtils.createByteBuffer(new byte[] {-1, -1, -1, -1}),
-                    com.jme3.texture.image.ColorSpace.Linear);
-            white = new com.jme3.texture.Texture2D(image);
-            white.setWrap(com.jme3.texture.Texture.WrapMode.Repeat);
-        }
-        return white;
-    }
-
-    /**
-     * The material of ground blended from its paint: the ground's own fogged shader, its blended branch, each surface's
-     * picture — white for a colour — laid across the world at its span and multiplied by its colour; the game's noise
-     * and sharpness for the borders ({@link Visuals#paintBlend}).
-     */
-    private Material blendedGround(List<GroundPaint.Surface> surfaces, float[] spans) {
-        var material = fogged(ColorRGBA.White, ambientColour.mult(PLAIN_AMBIENT), null);
-        material.setBoolean("Blended", true);
-        var scales = new float[TerrainScene.BLEND_SLOTS];
-        var varied = new float[TerrainScene.BLEND_SLOTS];
-        var tints = new com.jme3.math.Vector4f[TerrainScene.BLEND_SLOTS];
-        for (int slot = 0; slot < TerrainScene.BLEND_SLOTS; slot++) {
-            var surface = slot < surfaces.size() ? surfaces.get(slot) : null;
-            var picture = surface == null || surface.texture() == null ? null : groundTexture(surface.texture());
-            material.setTexture("Surface" + slot, picture == null ? white() : picture);
-            var look = surface == null || surface.texture() == null ? Visuals.SurfaceLook.PLAIN
-                    : visuals.getSurface(surface.texture());
-            var colour = surface == null ? ColorRGBA.Black : tinted(surface.colour(), look);
-            varied[slot] = look.variation();
-            tints[slot] = new com.jme3.math.Vector4f(colour.r, colour.g, colour.b, 1f);
-            scales[slot] = slot < spans.length && spans[slot] > 0f ? 1f / spans[slot] : 1f;
-        }
-        material.setVector4("SurfaceScale0", new com.jme3.math.Vector4f(scales[0], scales[1], scales[2], scales[3]));
-        material.setVector4("SurfaceScale1", new com.jme3.math.Vector4f(scales[4], scales[5], scales[6], scales[7]));
-        material.setParam("SurfaceTints", com.jme3.shader.VarType.Vector4Array, tints);
-        var blend = visuals.getPaintBlend() == null ? Visuals.PaintBlend.SMOOTH : visuals.getPaintBlend();
-        material.setFloat("BlendSharp", blend.sharpness());
-        float cell = builtFrom == null ? uz.dukeengine.core.pathfind.PathGrid.DEFAULT_CELL_SIZE
-                : builtFrom.getCellSize();
-        var variation = blend.variation() == null ? null : groundTexture(blend.variation());
-        if (variation != null) {
-            material.setTexture("Variation", variation);
-            material.setFloat("VariationScale", 1f / (blend.variationCoverage() * cell));
-            material.setVector4("SurfaceVariation0",
-                    new com.jme3.math.Vector4f(varied[0], varied[1], varied[2], varied[3]));
-            material.setVector4("SurfaceVariation1",
-                    new com.jme3.math.Vector4f(varied[4], varied[5], varied[6], varied[7]));
-        }
-        var cliffs = visuals.getPaintCliffs();
-        var rock = cliffs == null ? null : groundTexture(cliffs.picture());
-        if (rock != null) {
-            material.setTexture("Cliff", rock);
-            material.setFloat("CliffScale", 1f / (cliffs.coverage() * cell));
-            material.setFloat("CliffSlope",
-                    com.jme3.math.FastMath.cos(cliffs.slope() * com.jme3.math.FastMath.DEG_TO_RAD));
-        }
-        var noise = blend.noise() == null ? null : groundTexture(blend.noise());
-        if (noise != null) {
-            material.setTexture("BlendNoise", noise);
-            material.setFloat("NoiseScale", 1f / (blend.noiseCoverage() * cell));
-            material.setFloat("BlendRagged", blend.raggedness());
-        }
-        return material;
-    }
-
-    private final java.util.Map<String, com.jme3.texture.Texture> groundTextures =
-            new java.util.HashMap<>();
-
-    /** How sharply the ground's pictures are drawn at a slant: anisotropic filtering, as far as the card allows. */
-    static final int GROUND_ANISOTROPY = 8;
-
-    /**
-     * A ground picture set to repeat, mipmapped and filtered at a slant as a model's skin is — ground seen far off
-     * under a tilted camera otherwise shimmers, every texel of a distant field fighting for one pixel.
-     */
-    static com.jme3.texture.Texture forTheGround(com.jme3.texture.Texture texture) {
-        texture.setWrap(com.jme3.texture.Texture.WrapMode.Repeat);
-        texture.setMinFilter(com.jme3.texture.Texture.MinFilter.Trilinear);
-        texture.setAnisotropicFilter(GROUND_ANISOTROPY);
-        return texture;
-    }
-
-    /** The picture a palette entry names, loaded once and set to repeat, or null with a word about why. */
-    private com.jme3.texture.Texture groundTexture(String path) {
-        return groundTextures.computeIfAbsent(path, named -> {
-            try {
-                return forTheGround(assetManager.loadTexture(named));
-            } catch (RuntimeException notThere) {
-                LOG.log(java.util.logging.Level.WARNING,
-                        "the ground names a picture that will not load: {0} ({1})",
-                        new Object[] {named, notThere.getMessage()});
-                return null;
-            }
-        });
-    }
-
-    /**
-     * The one sun and the one flat ambient the whole scene is lit by, as the game
-     * asked for them — see {@link Sunlight}.
-     *
-     * <p>Read once and kept, rather than asked of the visuals at each of the four
-     * places that want them: they are read while materials are built, which is
-     * often, and the answer cannot change while a scene stands.
-     *
-     * <p>They were three constants here until a player said the map looked flat.
-     * It did, and this is where: a sun far enough from vertical is the only thing
-     * that tells a floor from the top of a wall, since the two are the same tile
-     * with the same normal, and how far is a decision about how a game should look
-     * rather than a fact about drawing one.
-     */
-    private Vector3f sunDirection;
-    private ColorRGBA sunColour;
-    private ColorRGBA ambientColour;
-    /** The two scene lights, kept so a new world can relight them rather than add a second sun. */
-    private DirectionalLight sun;
-    private AmbientLight ambient;
-    /** The sunlight the scene is lit by now, so a world that asks for the same one changes nothing. */
-    private Sunlight litBy;
-
-    /**
-     * How much of the ambient plain terrain returns — what {@link #lit} asks for.
-     */
-    private static final float PLAIN_AMBIENT = 0.7f;
-
-    private Material foggedTerrain(ColorRGBA color) {
-        return fogged(color, ambientColour.mult(PLAIN_AMBIENT), null);
-    }
-
-    /**
-     * Terrain that reads the dark out of {@link FogMap} at the place each fragment
-     * stands.
-     *
-     * <p>The lighting is written out here rather than handed to the engine's
-     * because the shader is only ever used on terrain and the terrain is lit by
-     * exactly one sun and one flat ambient. Passing them as material parameters is
-     * a few lines; a shader that spoke the engine's light protocol would be a copy
-     * of its whole lighting pipeline, for a scene that has one light in it.
-     *
-     * @param ambient how much of the ambient the surface returns, already
-     *                multiplied by the ambient light itself
-     */
-    private Material fogged(ColorRGBA color, ColorRGBA ambient,
-                            com.jme3.texture.Texture atlas) {
-        var material = new Material(assetManager, "MatDefs/duke/FoggedTerrain.j3md");
-        material.setColor("Color", color);
-        material.setColor("Ambient", ambient);
-        material.setColor("Sun", sunColour);
-        material.setVector3("SunDirection", sunDirection);
-        material.setTexture("FogMap", fogMap != null ? fogMap.texture() : noFog());
-        material.setVector2("FogSize", fogMap != null ? fogMap.worldSize() : new com.jme3.math.Vector2f(1f, 1f));
-        tellWhereTheFogHolds(material);
-        if (atlas != null) {
-            material.setTexture("ColorMap", atlas);
-        }
-        var shades = visuals.getGroundShades();
-        for (int i = 0; i < shades.size(); i++) {
-            var picture = groundTexture(shades.get(i).picture());
-            if (picture != null) {
-                material.setTexture(i == 0 ? "ShadeMap" : "ShadeMap2", picture);
-            }
-        }
-        if (!shades.isEmpty()) {
-            material.setFloat("ShadeShown", shadesShown ? 1f : 0f);
-            placeShades(material, snapshot == null ? 0f : snapshot.gameTimeSeconds());
-        }
-        material.setParam("PointLightColours",
-                com.jme3.shader.VarType.Vector4Array, terrainLightColours);
-        material.setParam("PointLightPositions",
-                com.jme3.shader.VarType.Vector4Array, terrainLightPlaces);
-        fogged.add(material);
-        return material;
-    }
-
-    /**
-     * How a map's water is drawn: the water's own shader over its picture — laid across the world for standing water,
-     * along a river for running — in the ground's light times the game's tint, shrouded as the ground. Null where its
-     * picture will not load.
-     */
-    private Material waterLook(Visuals.WaterLook look, boolean river) {
-        var path = river && look.riverPicture() != null ? look.riverPicture() : look.picture();
-        var picture = path == null ? null : groundTexture(path);
-        if (path != null && picture == null) {
-            return null;
-        }
-        var material = new Material(assetManager, "MatDefs/duke/Water.j3md");
-        if (picture != null) {
-            material.setTexture("ColorMap", picture);
-        }
-        if (!river && look.overlay() != null && groundTexture(look.overlay()) != null) {
-            material.setTexture("OverlayMap", groundTexture(look.overlay()));
-        }
-        if (river && look.riverEdge() != null) {
-            try {
-                var edge = assetManager.loadTexture(look.riverEdge());
-                edge.setWrap(com.jme3.texture.Texture.WrapMode.EdgeClamp);
-                material.setTexture("EdgeMap", edge);
-            } catch (RuntimeException notThere) {
-                LOG.warning(() -> "a river's banks name a picture that will not load: " + look.riverEdge());
-            }
-        }
-        material.setBoolean("Along", river);
-        // W3DWater: the ground's light on flat ground, times the water's own colour for the hour.
-        var light = visuals.getGroundLight() != null ? visuals.getGroundLight().at(Vector3f.UNIT_Y)
-                : ambientColour.add(sunColour.mult(Math.max(0f, -sunDirection.y)));
-        int tint = look.tint();
-        material.setColor("Color", new ColorRGBA(Math.min(1f, light.r) * (tint >> 16 & 0xFF) / 255f,
-                Math.min(1f, light.g) * (tint >> 8 & 0xFF) / 255f, Math.min(1f, light.b) * (tint & 0xFF) / 255f,
-                (tint >>> 24) / 255f));
-        material.setTexture("FogMap", fogMap != null ? fogMap.texture() : noFog());
-        material.setVector2("FogSize", fogMap != null ? fogMap.worldSize() : new com.jme3.math.Vector2f(1f, 1f));
-        tellWhereTheFogHolds(material);
-        waterLooks.add(material);
-        return material;
-    }
-
-    private com.jme3.texture.Texture2D noFogTexture;
-
-    /** A fog of nothing, for ground drawn by the fog's shader where the game keeps no fog. */
-    private com.jme3.texture.Texture2D noFog() {
-        if (noFogTexture == null) {
-            var clear = com.jme3.util.BufferUtils.createByteBuffer(4);
-            clear.put(new byte[] {0, 0, 0, 0}).flip();
-            noFogTexture = new com.jme3.texture.Texture2D(
-                    new com.jme3.texture.Image(com.jme3.texture.Image.Format.RGBA8, 1, 1, clear,
-                            com.jme3.texture.image.ColorSpace.Linear));
-        }
-        return noFogTexture;
-    }
-
-    /** Whether the pictures laid over all the ground show — see {@link Duke3D#groundShades}. */
-    private volatile boolean shadesShown = true;
-
     /** The game's marks on the minimap — see {@link Duke3D#minimapMarks}. */
     private java.util.function.Supplier<java.util.List<MinimapMark>> minimapMarks;
     private final java.util.List<Geometry> markShapes = new java.util.ArrayList<>();
@@ -8505,58 +7665,6 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private static final float MARK_SIZE = 7f;
-
-    /** The world's sun on its way from one hour to the next — see {@link Duke3D#sunlight}; null before any was asked. */
-    private HourOfDay hour;
-    /** The ground's sun parameters laid over every material under the root at once. */
-    private com.jme3.material.MatParamOverride sunDirectionOverride;
-    private com.jme3.material.MatParamOverride ambientShiftOverride;
-    private com.jme3.material.MatParamOverride sunShiftOverride;
-
-    void sunlight(Sunlight light, float seconds) {
-        if (light == null) {
-            return;
-        }
-        if (hour == null) {
-            hour = new HourOfDay(new HourOfDay.Sun(sunDirection.clone(), sunColour.clone(), ambientColour.clone()));
-        }
-        hour.toward(HourOfDay.Sun.of(light), seconds);
-        lightTheHour();
-    }
-
-    /** The hour's sun on the lights, the shadows and the painted ground, as far as it has eased. */
-    private void lightTheHour() {
-        if (hour == null) {
-            return;
-        }
-        var now = hour.now();
-        if (sun != null) {
-            sun.setDirection(now.direction());
-            sun.setColor(now.colour());
-        }
-        if (ambient != null) {
-            ambient.setColor(now.ambient());
-        }
-        if (sunShadows != null) {
-            sunShadows.sun(now.direction());
-        }
-        // The ground's materials were built with the sun of their world: told the hour's share of it, all at once.
-        if (sunDirectionOverride == null) {
-            sunDirectionOverride = new com.jme3.material.MatParamOverride(com.jme3.shader.VarType.Vector3,
-                    "SunDirection", now.direction().clone());
-            ambientShiftOverride = new com.jme3.material.MatParamOverride(com.jme3.shader.VarType.Vector4,
-                    "AmbientShift", HourOfDay.shift(now.ambient(), ambientColour));
-            sunShiftOverride = new com.jme3.material.MatParamOverride(com.jme3.shader.VarType.Vector4,
-                    "SunShift", HourOfDay.shift(now.colour(), sunColour));
-            rootNode.addMatParamOverride(sunDirectionOverride);
-            rootNode.addMatParamOverride(ambientShiftOverride);
-            rootNode.addMatParamOverride(sunShiftOverride);
-        } else {
-            sunDirectionOverride.setValue(now.direction().clone());
-            ambientShiftOverride.setValue(HourOfDay.shift(now.ambient(), ambientColour));
-            sunShiftOverride.setValue(HourOfDay.shift(now.colour(), sunColour));
-        }
-    }
 
     /** The colour the haze is eased to, or null for the fog's own; and how quickly. */
     private ColorRGBA hazeWanted;
@@ -8710,29 +7818,10 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** The pictures laid over all the ground shown or put away — see {@link Duke3D#groundShades}. */
     void groundShades(boolean shown) {
-        this.shadesShown = shown;
+        groundLooks.groundShades(shown);
     }
 
-    /** Where each picture laid over all the ground lies {@code seconds} into the game, told to a ground material. */
-    private void placeShades(Material material, float seconds) {
-        var shades = visuals.getGroundShades();
-        for (int i = 0; i < shades.size(); i++) {
-            var place = shades.get(i).placeAt(seconds);
-            material.setVector4(i == 0 ? "ShadePlace" : "ShadePlace2",
-                    new com.jme3.math.Vector4f(place[0], place[1], place[2], place[3]));
-        }
-    }
-
-    /** The pictures over all the ground slid on with the game's time, and shown or put away as the game says. */
-    private void slideTheShades() {
-        if (visuals.getGroundShades().isEmpty() || snapshot == null) {
-            return;
-        }
-        for (var material : fogged) {
-            if (material.getParam("ShadeMap") != null) {
-                placeShades(material, snapshot.gameTimeSeconds());
-                material.setFloat("ShadeShown", shadesShown ? 1f : 0f);
-            }
-        }
+    void sunlight(Sunlight light, float seconds) {
+        this.light.sunlight(light, seconds);
     }
 }

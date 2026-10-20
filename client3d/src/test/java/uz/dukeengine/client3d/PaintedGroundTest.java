@@ -256,11 +256,11 @@ class PaintedGroundTest {
     /** Ground pictures are mipmapped and filtered at a slant, so ground far off does not shimmer. */
     @Test
     void groundPicturesAreMipmappedAndFilteredAtASlant() {
-        var texture = DukeRtsApp.forTheGround(
+        var texture = GroundLooks.forTheGround(
                 new com.jme3.texture.Texture2D(4, 4, com.jme3.texture.Image.Format.RGBA8));
 
         assertEquals(com.jme3.texture.Texture.MinFilter.Trilinear, texture.getMinFilter());
-        assertEquals(DukeRtsApp.GROUND_ANISOTROPY, texture.getAnisotropicFilter());
+        assertEquals(GroundLooks.GROUND_ANISOTROPY, texture.getAnisotropicFilter());
         assertEquals(com.jme3.texture.Texture.WrapMode.Repeat, texture.getWrap(com.jme3.texture.Texture.WrapAxis.S));
     }
 
