@@ -156,8 +156,8 @@ class GameSettingsTest {
 
     @Test
     void noBarIsLaidOverTheMatchBehindTheMenu() {
-        assertEquals(true, DukeRtsApp.barsHidden(DukeRtsApp.Screen.MENU, true), "the menu over a backdrop (E63)");
-        assertEquals(true, DukeRtsApp.barsHidden(DukeRtsApp.Screen.FRONT, false));
-        assertEquals(false, DukeRtsApp.barsHidden(DukeRtsApp.Screen.PLAYING, false));
+        assertEquals(true, DukeRtsApp.barsHidden(Screen.MENU, true), "the menu over a backdrop (E63)");
+        assertEquals(true, DukeRtsApp.barsHidden(Screen.FRONT, false));
+        assertEquals(false, DukeRtsApp.barsHidden(Screen.PLAYING, false));
     }
 }

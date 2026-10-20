@@ -80,12 +80,6 @@ final class DukeRtsApp extends SimpleApplication {
     private final boolean[] ctrlHeld = {false};
 
     /**
-     * What is on the screen. {@code FRONT} is a game's own front end, drawn on its canvas — see
-     * {@link Shell#drawnByTheGame} — with no match behind it.
-     */
-    enum Screen {MENU, FRONT, LOADING, PLAYING, PAUSED, SETTINGS}
-
-    /**
      * Persisted display/audio settings, shared by every duke-engine game.
      */
     static final java.util.prefs.Preferences PREFS =
@@ -140,13 +134,8 @@ final class DukeRtsApp extends SimpleApplication {
     private final Hotkeys hotkeys;
     private final CountDownLatch stopped = new CountDownLatch(1);
 
-    private Screen screen = Screen.MENU;
-    private Screen settingsReturn = Screen.MENU;
-    private StoneMenu menu;
-    /**
-     * The lettering the game asked its menus to be set in.
-     */
-    private StoneCraft craft;
+    /** What is on the screen, and the client's own menus — see {@link Screens}. */
+    private Screens screens;
     private Thread simThread; // started when the player presses Play
 
     private final Node unitsNode = new Node("units");
@@ -347,7 +336,7 @@ final class DukeRtsApp extends SimpleApplication {
     /** The controls bound, and the keys the player put them on — see {@link KeyBindings}. */
     private KeyBindings keyBindings;
     /**
-     * The line of controls along the bottom, which belongs to play and not to a menu.
+     * The line of controls along the bottom, which belongs to play and not to a screens.menu().
      */
     private BitmapText controlsHint;
     /**
@@ -376,6 +365,64 @@ final class DukeRtsApp extends SimpleApplication {
     private com.jme3.app.state.ScreenshotAppState screenshots;
     private BitmapText hud;
     private SceneVeil veil;
+
+    /** Whether a match is what is going on: played, with no menu over it. */
+    private boolean inPlay() {
+        return screens.now() == Screen.PLAYING && !screens.menu().isVisible();
+    }
+
+    /** What the menus ask of this window — see {@link Screens.Host}. */
+    private final Screens.Host menusHost = new Screens.Host() {
+        @Override
+        public DukeGame game() {
+            return game;
+        }
+
+        @Override
+        public DukeGame frontGame() {
+            return DukeRtsApp.this.frontGame();
+        }
+
+        @Override
+        public WorldSnapshot snapshot() {
+            return snapshot;
+        }
+
+        @Override
+        public void startGame() {
+            DukeRtsApp.this.startGame();
+        }
+
+        @Override
+        public void quitToTheMainMenu() {
+            DukeRtsApp.this.quitToTheMainMenu();
+        }
+
+        @Override
+        public void quitToTheDesktop() {
+            stop();
+        }
+
+        @Override
+        public void takeTheFrontMatchBack() {
+            DukeRtsApp.this.takeTheFrontMatchBack();
+        }
+
+        @Override
+        public void paused(boolean paused) {
+            setSimulationPaused(paused);
+        }
+
+        @Override
+        public void later(Runnable task) {
+            enqueue(task);
+        }
+
+        @Override
+        public boolean musicByGame() {
+            return musicByGame;
+        }
+    };
 
     /** Whether a scene the game plays keeps the player's hands off the world — see {@code GameCamera.lockInput}. */
     private boolean sceneLocked() {
@@ -653,7 +700,9 @@ final class DukeRtsApp extends SimpleApplication {
         minimapView.build(guiNode);
         readTheNewGrid();
         buildDragRectangle();
-        menu = buildMenu(cam.getWidth(), cam.getHeight());
+        screens = new Screens(menusHost, shell, visuals, hotkeys, preferences, choices, windowDisplay, keyBindings,
+                controls, () -> noises, parts, () -> settings, assetManager, guiNode, guiFont, this::fontOrDefault, timer,
+                cam.getWidth(), cam.getHeight());
         loading = new LoadingOverlay(guiFont, assetManager, guiNode,
                 cam.getWidth(), cam.getHeight());
         buildSounds();
@@ -661,7 +710,7 @@ final class DukeRtsApp extends SimpleApplication {
                 soundNodes, ground, fog, hitNumbers, floatingTexts, pictureStrips, new HurtMoments(visuals::hurtRule),
                 cam, timer, () -> game, () -> snapshot, () -> barReading, this::floorHeightAt);
         buildCanvas();
-        showMainMenu();
+        screens.showMainMenu();
         choices.applyVolume();
     }
 
@@ -756,7 +805,7 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public boolean playing() {
-            return screen == Screen.PLAYING && !menu.isVisible() && !(canvasInput != null && canvasInput.holdsKeys())
+            return inPlay() && !(canvasInput != null && canvasInput.holdsKeys())
                     && windowDisplay.focused();
         }
 
@@ -1138,7 +1187,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** Whether the client's own HUD is up: in play, for a game that does not draw its own. */
     private boolean clientHud() {
-        return screen == Screen.PLAYING && !shell.isDrawnByTheGame();
+        return screens.now() == Screen.PLAYING && !shell.isDrawnByTheGame();
     }
 
     /**
@@ -1147,7 +1196,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private boolean worldShown() {
         return backdropShown()
-                || !shell.isDrawnByTheGame() || (screen != Screen.FRONT && screen != Screen.LOADING);
+                || !shell.isDrawnByTheGame() || (screens.now() != Screen.FRONT && screens.now() != Screen.LOADING);
     }
 
     /** Whether the match behind the front end is what is drawn. */
@@ -1160,7 +1209,7 @@ final class DukeRtsApp extends SimpleApplication {
      * keeps the client's menus — its front menu, the questions it opens and the settings opened from it.
      */
     private boolean onTheFrontEnd() {
-        return onTheFrontEnd(screen, shell.isDrawnByTheGame(), settingsReturn);
+        return onTheFrontEnd(screens.now(), shell.isDrawnByTheGame(), screens.settingsReturn());
     }
 
     static boolean onTheFrontEnd(Screen screen, boolean drawnByTheGame, Screen settingsFrom) {
@@ -1192,7 +1241,7 @@ final class DukeRtsApp extends SimpleApplication {
         camera.resetView();
         game = frontMatch;
         frontMatch = null;
-        menu.liveBehind(false);
+        screens.menu().liveBehind(false);
     }
 
     /** What the game does as its backdrop becomes the played match — see {@link Duke3D#onBackdropAdopted}. */
@@ -1211,17 +1260,17 @@ final class DukeRtsApp extends SimpleApplication {
         var match = backdrop.running();
         simThread = backdrop.release();
         frontMatch = null;
-        menu.liveBehind(false);
+        screens.menu().liveBehind(false);
         game = match;
         played = match;
         artIsReady = true; // its art was read as it was made
         left = false;
         listenForChat(match);
-        menu.hide();
+        screens.menu().hide();
         if (!shell.isDrawnByTheGame() && !musicByGame) {
             choices.playChosenMusic();
         }
-        screen = Screen.PLAYING;
+        screens.set(Screen.PLAYING);
         var told = backdropAdopted;
         if (told != null) {
             match.runOnSimThread(() -> told.accept(match));
@@ -1245,10 +1294,10 @@ final class DukeRtsApp extends SimpleApplication {
             if (!shell.isDrawnByTheGame() && frontMatch == null) {
                 frontMatch = game; // what the client's front menu plays, kept for when it does
             }
-            forgetKeepingTheMenu(menu::isVisible, this::forgetTheWorld, menu::reveal);
+            forgetKeepingTheMenu(screens.menu()::isVisible, this::forgetTheWorld, screens.menu()::reveal);
             game = behind;
         }
-        menu.liveBehind(backdropShown());
+        screens.menu().liveBehind(backdropShown());
     }
 
     /**
@@ -1319,7 +1368,7 @@ final class DukeRtsApp extends SimpleApplication {
             backdrop.stop(); // torn down when a real match starts, made fresh when the front end comes back
         }
         frontMatch = null;
-        menu.liveBehind(false);
+        screens.menu().liveBehind(false);
         endTheMatch();
         forgetTheWorld();
         camera.resetView(); // unturned and at its start, whatever the last match or the backdrop left it at
@@ -1333,7 +1382,7 @@ final class DukeRtsApp extends SimpleApplication {
     void backToFrontEnd() {
         endTheMatch();
         forgetTheWorld();
-        showMainMenu();
+        screens.showMainMenu();
     }
 
     /**
@@ -1373,7 +1422,7 @@ final class DukeRtsApp extends SimpleApplication {
             commandBar.hide();
         }
         setSimulationPaused(false);
-        menu.hide();
+        screens.menu().hide();
     }
 
     /**
@@ -1501,7 +1550,7 @@ final class DukeRtsApp extends SimpleApplication {
         chevrons.show(look.model() == null ? orderMarkers.markers() : java.util.List.of(), now, this::floorHeightAt);
         attackFlash.show(orderMarkers.markers(), now, this::whereThatUnitIsNow, this::floorHeightAt);
         syncSkillRange(now);
-        events.drawTheBlows(now, screen == Screen.PLAYING);
+        events.drawTheBlows(now, screens.now() == Screen.PLAYING);
     }
 
     /**
@@ -1515,7 +1564,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private void syncSkillRange(float now) {
         var range = arming == null ? null : visuals.getSkillRange(arming);
-        if (range == null || screen != Screen.PLAYING) {
+        if (range == null || screens.now() != Screen.PLAYING) {
             rangeRings.hide();
             return;
         }
@@ -1585,246 +1634,6 @@ final class DukeRtsApp extends SimpleApplication {
         return terrain == null || !terrain.hasDecks() ? hit : GroundRay.deckHit(near, dir, hit, terrain.decks());
     }
 
-    // ---- menus ----
-
-    // skirmish choice (null = the game's defaults)
-    private String chosenMap;
-    private final java.util.List<String> chosenFactions = new java.util.ArrayList<>();
-
-    /**
-     * Show the front menu the game asked for.
-     *
-     * <p>Which entries exist is the game's call ({@link Shell}); whether one of
-     * them would mean anything is still the client's. Offering a LAN game to a
-     * game that seats one player, or a map choice to one with a single map, would
-     * be a dead button.
-     */
-    private void showMainMenu() {
-        if (shell.isDrawnByTheGame()) {
-            screen = Screen.FRONT; // the game's own front end, on its canvas
-            menu.hide();
-            return;
-        }
-        if (shell.startsImmediately()) {
-            startGame(); // this game has no front menu; nothing to come back to
-            return;
-        }
-        screen = Screen.MENU;
-        if (noises != null && !musicByGame) {
-            noises.sounds().music(null); // the dungeon is behind him for now
-        }
-        screen = Screen.MENU;
-        var items = new java.util.ArrayList<StoneMenu.Row>();
-        for (var row : shell.frontRows()) {
-            items.add(new StoneMenu.Action(row.label(), () -> takeFrontRow(row), false, row.picture()));
-        }
-        for (var chosen : shell.entries()) {
-            var action = actionFor(chosen.getKey());
-            if (action != null) {
-                items.add(new StoneMenu.Action(chosen.getValue(), action));
-            }
-        }
-        menu.show(frontGame().getTitle(), frontGame().getSubtitle(), items,
-                say("UP DOWN choose    ENTER take"), version(), false);
-    }
-
-    /** A game's row on the front menu taken: its own work, then its question if it has one, else the menu again. */
-    private void takeFrontRow(Shell.Option row) {
-        if (row.taken() != null) {
-            row.taken().run();
-        }
-        if (row.next() != null) {
-            screen = Screen.MENU;
-            showQuestion(row.next(), this::showMainMenu, this::startGame);
-        } else if (screen == Screen.MENU) {
-            showMainMenu();
-        }
-    }
-
-    /**
-     * What an entry does, or {@code null} when it would do nothing worth offering.
-     */
-    private Runnable actionFor(Shell.Entry entry) {
-        return switch (entry) {
-            // Play does not necessarily play. A game with something to ask first
-            // asks it here — see showQuestion — and starts when it is answered.
-            case PLAY -> shell.question() == null ? this::startGame : this::showQuestion;
-            case SKIRMISH -> !frontGame().getMapChoices().isEmpty() && !frontGame().isMultiplayer()
-                    ? this::showSkirmishMenu : null;
-            case HOST_LAN -> frontGame().supportsMultiplayer() && !frontGame().isMultiplayer()
-                    ? this::hostFlow : null;
-            case JOIN_LAN -> frontGame().supportsMultiplayer() && !frontGame().isMultiplayer()
-                    ? this::joinFlow : null;
-            case SETTINGS -> () -> showSettingsMenu(Screen.MENU);
-            case QUIT -> this::stop;
-        };
-    }
-
-    /**
-     * The one thing the game wants settled before it will start.
-     *
-     * <p>Built from the same stone as every other menu, and answered the same way:
-     * a column of words, one of which is taken. What it is <em>about</em> is the
-     * game's — this client has never heard of a hero, a difficulty or a side.
-     *
-     * <p>There is no entry that skips it. That is the whole point of asking: a
-     * question with a way past it is a setting, and the player would press Play,
-     * get whatever a file happened to say, and never find out he had a choice.
-     * Back returns to the front menu, which is a way out of the game rather than
-     * a way into it without answering.
-     *
-     * <p>The answer is taken <em>before</em> the world runs a frame — the
-     * simulation thread does not exist until {@link #startGame} — so what it does
-     * needs no hopping between threads and cannot race the first frame.
-     */
-    private void showQuestion() {
-        var question = shell.question();
-        if (question == null) {
-            startGame();
-            return;
-        }
-        showQuestion(question, this::showMainMenu);
-    }
-
-    /**
-     * One question of the path, and the way back out of it.
-     *
-     * <p>{@code back} is the screen before this one rather than the front menu,
-     * so a path three deep is walked backwards a step at a time. Handed in rather
-     * than remembered because that is exactly what it is: each screen already
-     * knows what opened it, and a stack would be a second copy of the path that
-     * could disagree with the first.
-     */
-    private void showQuestion(Shell.Question question, Runnable back) {
-        screen = Screen.MENU;
-        showQuestion(question, back, this::startGame);
-    }
-
-    /**
-     * The same, ending in {@code done} once the last of its answers is taken, on whatever screen it is asked from —
-     * so a question asked from the pause menu is still the pause menu's if the window is resized under it.
-     */
-    private void showQuestion(Shell.Question question, Runnable back, Runnable done) {
-        var items = new java.util.ArrayList<StoneMenu.Row>();
-        for (var option : question.options()) {
-            items.add(new StoneMenu.Action(option.label(), () -> {
-                if (option.taken() != null) {
-                    option.taken().run();
-                }
-                // Either it narrows the choice further or it was the last of them.
-                if (option.next() != null) {
-                    showQuestion(option.next(), () -> showQuestion(question, back, done), done);
-                } else {
-                    done.run();
-                }
-            }, false, option.picture()));
-            if (!option.blurb().isBlank()) {
-                // Under the name rather than beside it: what he is choosing is the
-                // word above, and the line below says what taking it means.
-                items.add(new StoneMenu.Words("", option.blurb()));
-            }
-        }
-        items.add(new StoneMenu.Action(say("Back"), back));
-        menu.show(frontGame().getTitle(), question.title(), items,
-                question.hint(), version(), false);
-    }
-
-    /**
-     * Choose the map and cycle each player's faction before playing.
-     */
-    private void showSkirmishMenu() {
-        var front = frontGame();
-        var maps = front.getMapChoices();
-        var factions = front.getFactionChoices();
-        if (chosenMap == null && !maps.isEmpty()) {
-            chosenMap = maps.get(0);
-        }
-        while (chosenFactions.size() < 2 && !factions.isEmpty()) {
-            chosenFactions.add(factions.get(chosenFactions.size() % factions.size()));
-        }
-
-        var items = new java.util.ArrayList<StoneMenu.Row>();
-        // The map's own preview beside the row while it is lit: what a map looks like is most of what a
-        // player is choosing between, and a column of names says none of it. A game that names no picture
-        // gets the row it always got.
-        items.add(new StoneMenu.Action("Map: " + chosenMap, () -> {
-            chosenMap = maps.get((maps.indexOf(chosenMap) + 1) % maps.size());
-            showSkirmishMenu();
-        }, false, front.getMapPicture(chosenMap)));
-        for (int p = 0; p < chosenFactions.size(); p++) {
-            final int player = p;
-            items.add(new StoneMenu.Action("Player " + (p + 1) + ": " + chosenFactions.get(p), () -> {
-                int next = (factions.indexOf(chosenFactions.get(player)) + 1) % factions.size();
-                chosenFactions.set(player, factions.get(next));
-                showSkirmishMenu();
-            }));
-        }
-        items.add(new StoneMenu.Action("Start match", () -> {
-            front.selectSkirmish(chosenMap, chosenFactions);
-            startGame();
-        }));
-        items.add(new StoneMenu.Action(say("Back"), this::showMainMenu));
-        menu.show(front.getTitle(), "skirmish setup", items,
-                "UP DOWN choose    ENTER take    ESC back", version(), false);
-    }
-
-    // ---- multiplayer flows (menu thread-hops: network blocks, jME must not) ----
-
-    private void hostFlow() {
-        takeTheFrontMatchBack();
-        int port = uz.dukeengine.game.MultiplayerSession.DEFAULT_PORT;
-        int wanted = game.getMaxNetworkPlayers();
-        showLobby(port, 0, wanted);
-        new Thread(() -> {
-            try {
-                // The count comes back as each guest arrives, so the host can see
-                // who is still missing instead of staring at "waiting…".
-                game.hostMultiplayer(port, wanted, joined -> enqueue(() -> showLobby(port, joined, wanted)));
-                enqueue(this::startGame);
-            } catch (Exception e) {
-                enqueue(this::showMainMenu); // cancelled or failed — back to the menu
-            }
-        }, "duke-host").start();
-    }
-
-    private void showLobby(int port, int joined, int wanted) {
-        menu.show(game.getTitle(),
-                "hosting on port " + port + " — " + (joined + 1) + " of " + wanted + " players in",
-                java.util.List.of(new StoneMenu.Action("Cancel", () -> {
-                    game.cancelHosting();
-                    showMainMenu();
-                })), "", version(), false);
-    }
-
-    private void joinFlow() {
-        takeTheFrontMatchBack();
-        menu.show(game.getTitle(), "joining…", java.util.List.of(), "", version(), false);
-        new Thread(() -> {
-            var ip = askText("Host IP address:", "127.0.0.1");
-            if (ip == null || ip.isBlank()) {
-                enqueue(this::showMainMenu);
-                return;
-            }
-            try {
-                game.joinMultiplayer(ip.trim(), uz.dukeengine.game.MultiplayerSession.DEFAULT_PORT);
-                enqueue(this::startGame);
-            } catch (Exception e) {
-                enqueue(this::showMainMenu);
-            }
-        }, "duke-join").start();
-    }
-
-    private static String askText(String prompt, String initial) {
-        var result = new String[1];
-        try {
-            javax.swing.SwingUtilities.invokeAndWait(() ->
-                    result[0] = javax.swing.JOptionPane.showInputDialog(null, prompt, initial));
-        } catch (Exception e) {
-            return null;
-        }
-        return result[0];
-    }
-
     private void startGame() {
         takeTheFrontMatchBack();
         left = false; // a new match: the game is told again when this one is let go
@@ -1847,13 +1656,13 @@ final class DukeRtsApp extends SimpleApplication {
         // Open on the player's own units rather than the middle of the map, which
         // left him hunting the map for whatever he is supposed to be controlling.
         camera.requestOwnUnit();
-        menu.hide();
+        screens.menu().hide();
         if (!shell.isDrawnByTheGame() && !musicByGame) {
-            // Underneath everything from here on, until he goes back to the menu. A game that draws its own
+            // Underneath everything from here on, until he goes back to the screens.menu(). A game that draws its own
             // screens, or chooses its own music, plays its own.
             choices.playChosenMusic();
         }
-        screen = Screen.PLAYING;
+        screens.set(Screen.PLAYING);
     }
 
     // ---- reading the art before it is wanted ----
@@ -1881,11 +1690,11 @@ final class DukeRtsApp extends SimpleApplication {
                         loadingEar.accept(percent);
                     }
                 }, holdStart);
-        menu.hide();
+        screens.menu().hide();
         if (!shell.isDrawnByTheGame()) {
             loading.show(game.getTitle()); // a game that draws its own screens draws its own load screen
         }
-        screen = Screen.LOADING;
+        screens.set(Screen.LOADING);
     }
 
     private void advanceLoadingArt() {
@@ -1896,7 +1705,7 @@ final class DukeRtsApp extends SimpleApplication {
             matchLoad = null;
             artLoad = null;
             loading.hide();
-            showMainMenu();
+            screens.showMainMenu();
             return;
         }
         loading.progress(matchLoad.percent() / 100f, artLoad == null ? "" : artLoad.what());
@@ -1922,98 +1731,10 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    private void showPauseMenu() {
-        screen = Screen.PAUSED;
-        // Set here rather than queued for the simulation thread, and it has to be:
-        // a paused engine does not step, so the task that would unpause it never
-        // runs and the game never starts again. The flag takes no part in the
-        // checksum -- pausing changes when frames happen, not what is in them.
-        setSimulationPaused(true);
-        var rows = new java.util.ArrayList<StoneMenu.Row>();
-        // What he stopped in the middle of. Read off the game's own status line
-        // rather than counted here, so a game that says nothing shows nothing —
-        // and parsed from the snapshot rather than taken from the panel, which
-        // has been put away by the time a menu is up.
-        for (var part : snapshot == null ? List.<HudPart>of() : parts) {
-            for (var fact : part.pauseFacts(snapshot)) {
-                rows.add(new StoneMenu.Words(fact[0], fact[1]));
-            }
-        }
-        rows.add(new StoneMenu.Action(say("Resume"), this::resumeGame));
-        rows.add(new StoneMenu.Action(say("Settings"), () -> showSettingsMenu(Screen.PAUSED)));
-        for (var row : shell.pauseRows()) {
-            rows.add(new StoneMenu.Action(row.label(), () -> takePauseRow(row), false, row.picture()));
-        }
-        // Marked, and asked about. They are the things on any of these screens
-        // that cost him something he cannot get back.
-        rows.add(new StoneMenu.Action(say("Quit to the main menu"),
-                () -> confirmQuit("QUIT TO THE MAIN MENU?", this::quitToTheMainMenu), true));
-        rows.add(new StoneMenu.Action(say("Quit to the desktop"),
-                () -> confirmQuit("QUIT TO THE DESKTOP?", this::stop), true));
-        menu.show(say("PAUSED"), "", rows, say("ESC resume"), "", true);
-    }
-
-    /** A game's row on the pause menu taken: its own work, then its question if it has one, then back. */
-    private void takePauseRow(Shell.Option row) {
-        if (row.taken() != null) {
-            row.taken().run();
-        }
-        if (row.next() != null) {
-            showQuestion(row.next(), this::showPauseMenu, this::showPauseMenu);
-        } else {
-            showPauseMenu();
-        }
-    }
-
-    /**
-     * Ask before throwing a run away.
-     *
-     * <p>A second screen rather than a dialog over the first: this client has no
-     * dialogs, and a menu that replaces a menu is the same mechanism doing the
-     * same job. The safe answer is the one already lit.
-     */
-    private void confirmQuit(String question, Runnable quit) {
-        menu.show(say(question), say("everything on this floor is lost"), java.util.List.of(
-                        new StoneMenu.Action(say("Keep playing"), this::showPauseMenu),
-                        new StoneMenu.Action(say("Quit"), quit, true)),
-                say("ESC keep playing"), "", true);
-    }
-
     /** The match let go, the game told first, and the front end shown. */
     private void quitToTheMainMenu() {
         leave();
         backToFrontEnd();
-    }
-
-    /**
-     * What the client calls itself, for the corner of the front menu.
-     */
-    private String version() {
-        var version = getClass().getPackage().getImplementationVersion();
-        return version == null ? "" : "v" + version;
-    }
-
-    /**
-     * The menu, built with whatever lettering the game asked for.
-     *
-     * <p>Rebuilt rather than resized when the window changes, because everything
-     * in it is laid out from the screen it was built against — see
-     * {@link #followTheWindowSize}.
-     */
-    private StoneMenu buildMenu(float width, float height) {
-        if (craft == null) {
-            craft = new StoneCraft(assetManager, guiFont, visuals.getMenuStyle());
-        }
-        var style = visuals.getMenuStyle();
-        var built = new StoneMenu(craft, fontOrDefault(style.titleFont()),
-                fontOrDefault(style.rowFont()), guiNode, width, height);
-        built.placeAt(shell.menuSide(), shell.menuMargin());
-        return built;
-    }
-
-    /** One of the client's fixed words, as the game says it — see {@link Shell#word}. */
-    private String say(String english) {
-        return shell.wordFor(english);
     }
 
     private com.jme3.font.BitmapFont fontOrDefault(String assetPath) {
@@ -2026,165 +1747,6 @@ final class DukeRtsApp extends SimpleApplication {
             missing.warn(assetPath, "font");
             return guiFont;
         }
-    }
-
-    private void resumeGame() {
-        setSimulationPaused(false);
-        menu.hide();
-        screen = Screen.PLAYING;
-    }
-
-    // ---- settings ----
-
-    /** The anti-aliasing a player may choose: none, or that many samples a pixel. */
-    private static final int[] SAMPLES = {0, 2, 4};
-
-    private void showSettingsMenu(Screen returnTo) {
-        settingsReturn = returnTo;
-        screen = Screen.SETTINGS;
-        var rows = new java.util.ArrayList<StoneMenu.Row>();
-        rows.add(new StoneMenu.Choice(say("Fullscreen"), java.util.List.of(say("NO"), say("YES")),
-                () -> preferences.flag("fullscreen", false) ? 1 : 0,
-                to -> {
-                    preferences.set("fullscreen", to == 1);
-                    windowDisplay.fillTheScreen(to == 1); // seen at once, like a volume is heard
-                }));
-        // The real ones, from the card, rather than three the client invented —
-        // a player who picks a size his monitor cannot show gets a black screen.
-        var sizes = windowDisplay.screenSizes();
-        rows.add(new StoneMenu.Opens(say("Size"),
-                sizes.stream().map(size -> size.shown().replace("MONITOR", say("MONITOR"))).toList(),
-                () -> WindowDisplay.indexOfSize(sizes, preferences.number("width", 0),
-                        preferences.number("height", 0)),
-                to -> {
-                    preferences.set("width", sizes.get(to).width());
-                    preferences.set("height", sizes.get(to).height());
-                    windowDisplay.applyDisplaySettings();
-                    menu.refresh(); // the row says what it now is
-                }));
-        // Taken by the window only as it is made, so it is kept for the next launch and said so below.
-        rows.add(new StoneMenu.Choice(say("Anti-aliasing"), java.util.List.of(say("OFF"), "2×", "4×"),
-                () -> indexOf(SAMPLES, preferences.number("samples", 0)),
-                to -> preferences.set("samples", SAMPLES[to])));
-        for (var row : shell.settingsRows()) {
-            rows.add(new StoneMenu.Choice(row.word(), row.choices(),
-                    () -> Math.clamp(preferences.number(row.key(), row.fallback()), 0, row.choices().size() - 1),
-                    to -> {
-                        preferences.set(row.key(), to);
-                        row.chosen().accept(to);
-                    }));
-        }
-        rows.add(new StoneMenu.Choice(say("Camera shake"), java.util.List.of(say("Full"), say("Half"), say("Off")),
-                () -> Math.clamp(preferences.number("shake", 0), 0, PlayerChoices.SHAKES.length - 1),
-                to -> {
-                    preferences.set("shake", to);
-                    choices.applyShake();
-                }));
-        rows.add(volumeRow(say("Volume"), "volume", 100));
-        // Only offered by a game that has any: this client draws three others and
-        // a knob for a channel with nothing on it is a dead button.
-        if (!visuals.getSounds().isEmpty()) {
-            rows.add(volumeRow(say("Effects"), "volEffects", 100));
-            rows.add(volumeRow(say("Ambience"), "volAmbience", 70));
-            rows.add(volumeRow(say("Voice"), "volVoice", 100));
-            rows.add(volumeRow(say("Music"), "volMusic", 60));
-            var tracks = visuals.getSounds().musicCues();
-            if (tracks.size() > 1 && !musicByGame) {
-                // A list that drops open, not cells side by side: a track is
-                // called "The Sentinel", and three of those across one row is
-                // three names too small to read.
-                rows.add(new StoneMenu.Opens(say("Track"),
-                        tracks.stream().map(SoundBank.Cue::shown).toList(),
-                        () -> Math.clamp(preferences.number("musicTrack", 0), 0, tracks.size() - 1),
-                        to -> {
-                            preferences.set("musicTrack", to);
-                            choices.playChosenMusic();
-                        }));
-            }
-        }
-        // Every key the game uses and every control of the client's own, each in the game's words; one taken, the
-        // next key pressed is its key.
-        var keys = KeyBindings.keyLines(hotkeys, this::say);
-        if (!keys.isEmpty()) {
-            var actions = KeyBindings.rebindable(hotkeys);
-            rows.add(new StoneMenu.Opens(say("Keys"), keys, () -> 0, to -> {
-                if (to < actions.size()) {
-                    keyBindings.await(actions.get(to));
-                }
-            }));
-        }
-        // The two buttons, in sockets rather than as two more rows: they are not
-        // settings, they are what happens to the settings.
-        rows.add(new StoneMenu.Buttons("", say("Save"), () -> {
-            preferences.save();
-            menu.refresh();
-        }, say("Cancel"), this::undoSettings,
-                preferences.number("samples", 0) != settings.getSamples() ? say("anti-aliasing from the next launch")
-                        : preferences.dirty() ? say("unsaved changes") : ""));
-        menu.show(say("SETTINGS"), "", rows,
-                say("UP DOWN choose    LEFT RIGHT change    ESC back"), "",
-                settingsReturn == Screen.PAUSED);
-    }
-
-    /**
-     * One knob, worded and wired the same way as the rest.
-     *
-     * <p>Applied as it moves, because a volume has to be heard to be chosen, and
-     * put back by Cancel — which is the promise the two buttons underneath make.
-     */
-    private StoneMenu.Row volumeRow(String word, String key, int fallback) {
-        return new StoneMenu.Level(word, () -> preferences.number(key, fallback),
-                to -> {
-                    preferences.set(key, to);
-                    choices.applyVolume();
-                }, 5);
-    }
-
-    /**
-     * Throw away what has not been saved, and put back what was already applied.
-     *
-     * <p>Everything on this screen takes effect while it is being chosen, so
-     * cancelling is not only forgetting: the volume has to come back down and the
-     * window has to go back to the shape it was.
-     */
-    private void undoSettings() {
-        var pending = preferences.pending();
-        preferences.cancel();
-        for (var row : shell.settingsRows()) {
-            if (pending.contains(row.key())) {
-                row.chosen().accept(preferences.number(row.key(), row.fallback())); // the game told its old choice
-            }
-        }
-        if (pending.contains("fullscreen")) {
-            windowDisplay.fillTheScreen(preferences.flag("fullscreen", false));
-        }
-        if (pending.contains("width") || pending.contains("height")) {
-            windowDisplay.applyDisplaySettings();
-            menu.refresh(); // the row says what it now is
-        }
-        choices.applyVolume();
-        choices.applyShake();
-        if (pending.contains("musicTrack")) {
-            choices.playChosenMusic();
-        }
-        leaveSettings();
-    }
-
-    private void leaveSettings() {
-        if (settingsReturn == Screen.PAUSED) {
-            showPauseMenu();
-        } else {
-            showMainMenu();
-        }
-    }
-
-    private static int indexOf(int[] values, int value) {
-        for (int i = 0; i < values.length; i++) {
-            if (values[i] == value) {
-                return i;
-            }
-        }
-        return 0;
     }
 
     /**
@@ -2242,14 +1804,7 @@ final class DukeRtsApp extends SimpleApplication {
             part.resized(width, height);
         }
         minimapView.place();
-        menu.destroy();
-        menu = buildMenu(width, height);
-        switch (screen) {
-            case MENU, FRONT -> showMainMenu();
-            case PAUSED -> showPauseMenu();
-            case SETTINGS -> showSettingsMenu(settingsReturn);
-            case PLAYING -> menu.hide();
-        }
+        screens.rebuild(width, height);
     }
 
     /**
@@ -2399,18 +1954,18 @@ final class DukeRtsApp extends SimpleApplication {
         keyBindings = new KeyBindings(inputManager, hotkeys, controls, preferences);
         // What each key does is worked out in one place, pressKey.
         ActionListener actions = (name, pressed, tpf) -> {
-            if (sceneLocked() && pressed && !name.startsWith(KeyBindings.KEY) && screen == Screen.PLAYING && !menu.isVisible()) {
+            if (sceneLocked() && pressed && !name.startsWith(KeyBindings.KEY) && inPlay()) {
                 return; // a scene the game plays: no picking, selecting or ordering until it lets go
             }
             switch (name) {
                 case "Select" -> {
-                    if (menu.isVisible()) {
+                    if (screens.menu().isVisible()) {
                         if (!pressed) {
-                            menu.release(); // letting go lets go of the slider
-                        } else if (menu.click(inputManager.getCursorPosition())) {
+                            screens.menu().release(); // letting go lets go of the slider
+                        } else if (screens.menu().click(inputManager.getCursorPosition())) {
                             noises.moment("menu_click", timer.getTimeInSeconds());
                         }
-                    } else if (screen == Screen.PLAYING) {
+                    } else if (screens.now() == Screen.PLAYING) {
                         if (!pressed && holdingASkill()) {
                             letGoOfHeldSkill(true); // he pressed its slot; this is the cast
                             break;
@@ -2447,7 +2002,7 @@ final class DukeRtsApp extends SimpleApplication {
                 }
                 case "Turn" -> turnByTheMiddleButton(pressed);
                 case "Order" -> {
-                    if (screen != Screen.PLAYING) {
+                    if (screens.now() != Screen.PLAYING) {
                         break;
                     }
                     var over = inputManager.getCursorPosition();
@@ -2479,7 +2034,7 @@ final class DukeRtsApp extends SimpleApplication {
                         pressKey(Integer.parseInt(name.substring(KeyBindings.KEY.length())), pressed);
                         return;
                     }
-                    if (screen != Screen.PLAYING) {
+                    if (screens.now() != Screen.PLAYING) {
                         return;
                     }
                     if (!pressed) {
@@ -2516,7 +2071,7 @@ final class DukeRtsApp extends SimpleApplication {
         keyBindings.install(actions);
 
         AnalogListener zoom = (name, value, tpf) -> {
-            if (screen == Screen.PLAYING && snapshot.camera() == null && !sceneLocked()) {
+            if (screens.now() == Screen.PLAYING && snapshot.camera() == null && !sceneLocked()) {
                 camera.wheel(name.equals("ZoomIn")); // nobody's to zoom while the game has it
             }
         };
@@ -2524,7 +2079,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * A key, down or up. On a menu it walks the menu. In play: Escape first gives up an aim; a letter the game
+     * A key, down or up. On a menu it walks the screens.menu(). In play: Escape first gives up an aim; a letter the game
      * claimed for itself is the game's; then whatever the game's key map puts on it; then the command bar button
      * showing it; then, if the digits are free, a build.
      */
@@ -2541,8 +2096,8 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         var key = new KeyMap.Key(code, ctrlHeld[0], shiftDown, altDown);
-        if (menu.isVisible() || screen != Screen.PLAYING) {
-            menuKey(code, key);
+        if (screens.menu().isVisible() || screens.now() != Screen.PLAYING) {
+            screens.key(code, key);
             return;
         }
         if (sceneLocked() && code != KeyInput.KEY_ESCAPE) {
@@ -2576,64 +2131,12 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    /** A key on a menu: the pan keys and the arrows walk it, Enter and Space take, Escape goes back. */
-    private void menuKey(int code, KeyMap.Key key) {
-        if (keyBindings.capturing()) {
-            if (keyBindings.capture(key)) {
-                showSettingsMenu(settingsReturn); // the keys page again, with the key on it
-            }
-            return;
-        }
-        var control = controls.controlOn(key);
-        if (control == KeyMap.Control.FULLSCREEN) {
-            windowDisplay.toggleFullscreen();
-            return;
-        }
-        if (menu.isVisible()) {
-            Runnable step = code == KeyInput.KEY_UP || control == KeyMap.Control.PAN_UP ? menu::up
-                    : code == KeyInput.KEY_DOWN || control == KeyMap.Control.PAN_DOWN ? menu::down
-                    : code == KeyInput.KEY_LEFT || control == KeyMap.Control.PAN_LEFT ? menu::left
-                    : code == KeyInput.KEY_RIGHT || control == KeyMap.Control.PAN_RIGHT ? menu::right : null;
-            if (step != null) {
-                step.run();
-                noises.moment("menu_hover", timer.getTimeInSeconds());
-                return;
-            }
-            if (code == KeyInput.KEY_RETURN || code == KeyInput.KEY_NUMPADENTER || code == KeyInput.KEY_SPACE) {
-                if (menu.enter()) {
-                    noises.moment("menu_click", timer.getTimeInSeconds());
-                }
-                return;
-            }
-        }
-        if (code != KeyInput.KEY_ESCAPE) {
-            return;
-        }
-        switch (screen) {
-            case PAUSED -> {
-                if (!menu.escape()) {
-                    resumeGame();
-                }
-            }
-            case SETTINGS -> {
-                // The open list first, then the screen. Escaping the screen keeps what he has seen applied, as
-                // closing the window does; Cancel is the one way back.
-                if (!menu.escape()) {
-                    preferences.keep();
-                    leaveSettings();
-                }
-            }
-            case PLAYING, MENU -> {
-            }
-        }
-    }
-
     /** A control of the client's own that is not about the world: the menu, the bar, chat, a picture, the clock. */
     private void clientControl(KeyMap.Control control) {
         switch (control) {
             case OPTIONS -> {
                 if (!shell.isDrawnByTheGame()) {
-                    showPauseMenu(); // a game that draws its own screens has its own for this
+                    screens.showPauseMenu(); // a game that draws its own screens has its own for this
                 }
             }
             case TOGGLE_COMMAND_BAR -> commandBarHidden = !commandBarHidden;
@@ -3280,7 +2783,7 @@ final class DukeRtsApp extends SimpleApplication {
      * them, and a frame later this would have taken both away.
      */
     private void keepHisOwnSelected() {
-        if (!findHimInTheNewWorld || screen != Screen.PLAYING) {
+        if (!findHimInTheNewWorld || screens.now() != Screen.PLAYING) {
             return;
         }
         for (var view : snapshot.units()) {
@@ -3730,7 +3233,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * Queue the {@code index}-th entry of the selected factory's build menu.
+     * Queue the {@code index}-th entry of the selected factory's build screens.menu().
      */
     private void queueBuild(int index) {
         var producer = selectedProducer();
@@ -3829,7 +3332,7 @@ final class DukeRtsApp extends SimpleApplication {
         showOnlyWhilePlaying();
         snapshot = game.getSnapshot();
         // What the pointer is on, so the next snapshot says whether an attack on it would be taken.
-        boolean pointing = screen == Screen.PLAYING && !menu.isVisible();
+        boolean pointing = inPlay();
         var pointedAt = pointing ? pickUnit() : null;
         var pointedGround = pointing && pointedAt == null ? pickGround() : null;
         game.setPointedAt(pointedAt == null || pointedAt.view == null ? -1 : pointedAt.view.id(),
@@ -3840,22 +3343,22 @@ final class DukeRtsApp extends SimpleApplication {
         // the world does leaves the player clicking Play with the operating
         // system's arrow -- which is the first thing he sees of the game.
         showTheRightPointer();
-        if (menu.isVisible()) {
+        if (screens.menu().isVisible()) {
             // A held slider follows the hand every frame; nothing else does, and
             // it makes no noise about it — a knob being pulled would be forty
             // clicks a second.
-            if (menu.isDragging()) {
-                menu.drag(inputManager.getCursorPosition());
-            } else if (menu.hover(inputManager.getCursorPosition())) {
+            if (screens.menu().isDragging()) {
+                screens.menu().drag(inputManager.getCursorPosition());
+            } else if (screens.menu().hover(inputManager.getCursorPosition())) {
                 noises.moment("menu_hover", (float) timer.getTimeInSeconds());
             }
         }
-        if ((screen == Screen.MENU || screen == Screen.FRONT) && !backdropShown()) {
+        if ((screens.now() == Screen.MENU || screens.now() == Screen.FRONT) && !backdropShown()) {
             hud.setText("");
             buildMenu.setText("");
             return; // the world starts when the player presses Play
         }
-        if (screen == Screen.LOADING) {
+        if (screens.now() == Screen.LOADING) {
             advanceLoadingArt();
             return; // and it waits until there is art to start it with
         }
@@ -3949,7 +3452,7 @@ final class DukeRtsApp extends SimpleApplication {
      * can afford. A frame is not worth racing for.
      */
     private void keepTheSelectionInStep() {
-        if (screen != Screen.PLAYING && screen != Screen.PAUSED) {
+        if (screens.now() != Screen.PLAYING && screens.now() != Screen.PAUSED) {
             return;
         }
         if (snapshot != null) {
@@ -3981,10 +3484,7 @@ final class DukeRtsApp extends SimpleApplication {
             if (buttons.isEmpty()) {
                 return; // nothing to draw and nothing to build for it
             }
-            if (craft == null) {
-                craft = new StoneCraft(assetManager, guiFont, visuals.getMenuStyle());
-            }
-            commandBar = new CommandBar(craft, fontOrDefault(visuals.getMenuStyle().rowFont()));
+            commandBar = new CommandBar(screens.craft(), fontOrDefault(visuals.getMenuStyle().rowFont()));
             guiNode.attachChild(commandBar.node());
         }
         commandBar.unhide();
@@ -4003,7 +3503,7 @@ final class DukeRtsApp extends SimpleApplication {
      * be doing another, or building a barracks would deselect the base that was about to build it.
      */
     private boolean commandBarClick() {
-        if (commandBar == null || commandBar.isEmpty() || screen != Screen.PLAYING) {
+        if (commandBar == null || commandBar.isEmpty() || screens.now() != Screen.PLAYING) {
             return false;
         }
         var cursor = inputManager.getCursorPosition();
@@ -4289,7 +3789,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     /** Whether a held control of the client's is held now, and play is what is going on. */
     private boolean held(KeyMap.Control control) {
-        return screen == Screen.PLAYING && !menu.isVisible() && controls.isHeld(control);
+        return inPlay() && controls.isHeld(control);
     }
 
     private void showOnlyWhilePlaying() {
@@ -4346,7 +3846,7 @@ final class DukeRtsApp extends SimpleApplication {
      * The six facts about the screen the choice is made from.
      */
     private Cursors.Over whatThePointerIsOver() {
-        boolean playing = screen == Screen.PLAYING && !menu.isVisible();
+        boolean playing = inPlay();
         if (!playing) {
             return new Cursors.Over(false, null, false, false, false, false);
         }
@@ -4408,7 +3908,7 @@ final class DukeRtsApp extends SimpleApplication {
         int tall = cam.getHeight();
         // No edge while a menu is up: the pointer is being used for something else, and a view that drifted out from
         // under a choice would be its own kind of bug.
-        boolean atTheEdges = screen == Screen.PLAYING && !menu.isVisible() && windowDisplay.pointerInTheWindow()
+        boolean atTheEdges = inPlay() && windowDisplay.pointerInTheWindow()
                 && !capture.captured(); // a held mouse scrolls nothing at the edges
         steering.stillHeld(windowDisplay.buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_RIGHT),
                 windowDisplay.buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_MIDDLE));
@@ -4493,7 +3993,7 @@ final class DukeRtsApp extends SimpleApplication {
         var at = inputManager.getCursorPosition();
         float now = timer.getTimeInSeconds();
         if (pressed) {
-            if (screen == Screen.PLAYING && !menu.isVisible() && snapshot.camera() == null && turnPerPixel() != 0f) {
+            if (inPlay() && snapshot.camera() == null && turnPerPixel() != 0f) {
                 steering.middleDown(at.x, at.y, now);
             }
         } else if (steering.middleUp(at.x, at.y, now) && snapshot.camera() == null) {
@@ -4508,7 +4008,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** The bars over the things drawn, but behind a front end — see {@link UnitScene#showBars}. */
     private void showUnitBars() {
-        if (barsHidden(screen, backdropShown())) {
+        if (barsHidden(screens.now(), backdropShown())) {
             unitBars.clear(); // behind a front end: a picture, with nothing of play laid over it
             return;
         }
@@ -4679,8 +4179,8 @@ final class DukeRtsApp extends SimpleApplication {
         // A game whose status the panel can draw gets it drawn; anything else is
         // still written out along the top, which is what every game got before.
         var cursor = inputManager.getCursorPosition();
-        var frame = new HudPart.Frame(snapshot, tpf, !menu.isVisible() && !snapshot.paused(), portraitSubject(),
-                cursor.x, cursor.y, screen == Screen.PLAYING);
+        var frame = new HudPart.Frame(snapshot, tpf, !screens.menu().isVisible() && !snapshot.paused(), portraitSubject(),
+                cursor.x, cursor.y, screens.now() == Screen.PLAYING);
         boolean drawn = false;
         for (var part : parts) {
             drawn |= part.show(frame);
@@ -4763,7 +4263,7 @@ final class DukeRtsApp extends SimpleApplication {
     private void holdTheMouse() {
         long window = windowDisplay.windowHandle();
         boolean was = capture.captured();
-        boolean freed = screen != Screen.PLAYING || menu.isVisible()
+        boolean freed = screens.now() != Screen.PLAYING || screens.menu().isVisible()
                 || canvasInput != null && canvasInput.holdsKeys() || snapshot == null || snapshot.camera() != null
                 || controls.isHeld(KeyMap.Control.FREE_POINTER) || !windowDisplay.focused();
         boolean held = capture.update(freed);
