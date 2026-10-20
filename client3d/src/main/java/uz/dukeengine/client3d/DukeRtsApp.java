@@ -162,16 +162,12 @@ final class DukeRtsApp extends SimpleApplication {
      * run) kept the old one on screen while everything else moved on.
      */
     private final Node terrainNode = new Node("terrain");
-    /**
-     * Built at init rather than construction: a modular kit needs the asset manager.
-     */
-    private TerrainScene terrain;
-    /**
-     * The dark, as a picture of the map that the terrain's material reads by world
-     * position — see {@link FogMap}. {@code null} for a game that never asked to be
-     * discovered, and then the terrain is drawn plainly.
-     */
-    private FogMap fogMap;
+    /** The world's ground as it is drawn, and what lies on it — see {@link WorldGround}. */
+    private WorldGround ground;
+    /** The looks in force, the floor's and its cells' — see {@link Looks}. */
+    private final Looks looks;
+    /** What the player has seen, and the dark over the rest — see {@link FogOfWar}. */
+    private FogOfWar fog;
     /** How the ground and what lies on it are drawn, and every material that reads the fog — see {@link GroundLooks}. */
     private GroundLooks groundLooks;
     /** The sun, the ambient and the sun's shadows the scene is lit by — see {@link SceneLight}. */
@@ -215,12 +211,7 @@ final class DukeRtsApp extends SimpleApplication {
     private final WordTints wordTints = new WordTints();
     /** How a thing kept from some players looks to the rest — see {@link StealthLook}. */
     private StealthLook stealthLook;
-    private Scorches scorches;
-    private Strips strips;
-    private Water water;
-    private TrackMarks trackMarks;
     private OcclusionMarks occlusionMarks;
-    private BorderRing border;
 
     /** The game's sky, hung behind everything; none where it names none or its pictures will not load. */
     private void hangTheSky() {
@@ -266,21 +257,6 @@ final class DukeRtsApp extends SimpleApplication {
         }
         occlusionMarks.mark(marked);
     }
-    private ShoreWaves shoreWaves;
-
-    /** The water's height over a point, else the ground's. */
-    private float waterOrGround(float worldX, float worldY) {
-        float surface = water == null ? Float.NaN : water.surfaceAt(worldX, worldY);
-        return Float.isNaN(surface) ? floorHeightAt(worldX, worldY) : surface;
-    }
-    /** How many of the game's pieces laid along the ground are laid, and for which game. */
-    private int stripsLaid;
-    private DukeGame stripsOf;
-    /** The paint the ground was last built with, for what is laid over it as it is drawn. */
-    private GroundPaint builtPaint;
-    /** How many of the game's own marks on the ground are laid, and for which game. */
-    private int marksLaid;
-    private DukeGame marksOf;
     private final SelectionFlash selectionFlash = new SelectionFlash();
     /** What was selected the frame before: a thing new to the selection flashes. */
     private java.util.Set<Integer> wasSelected = java.util.Set.of();
@@ -371,24 +347,6 @@ final class DukeRtsApp extends SimpleApplication {
      * The frame of the last cast this client drew, so one cast is drawn once.
      */
     private int lastCastFrameDrawn = Integer.MIN_VALUE;
-    /**
-     * The grid the terrain was built from — a different instance means a new world.
-     */
-    private uz.dukeengine.core.pathfind.PathGrid builtFrom;
-
-    /**
-     * What the player has seen, when the game asked to be discovered rather than
-     * shown. {@code null} for every other game, and then nothing below runs.
-     */
-    private Discovery discovery;
-    /**
-     * The discovering template's {@code VisionRange}, resolved once the game is up.
-     */
-    private float discoveryRadius = -1f;
-    /**
-     * Whose sight the radius above was read from — see syncDiscovery.
-     */
-    private String discoveryEyes;
     /** The minimap's ground: one picture, a texel a cell, repainted where the player's knowledge changed. */
     private final MinimapPicture minimapPicture = new MinimapPicture();
     /** How low and how high this map's ground stands: what the ray under the cursor is walked between. */
@@ -637,6 +595,7 @@ final class DukeRtsApp extends SimpleApplication {
         this.cameraFrame = visuals == null ? CameraFrame.NONE : visuals.getCameraFrame();
         camera.frame(cameraFrame);
         this.light = new SceneLight(sunlightOfTheGame(), rootNode);
+        this.looks = new Looks(visuals, missing);
     }
 
     /** The sun the game lights its world by now — see {@link SceneLight#adopt}. */
@@ -732,16 +691,17 @@ final class DukeRtsApp extends SimpleApplication {
         }
 
         // Before the terrain, which builds materials that read it.
-        if (visuals.drawsFog()) {
-            fogMap = new FogMap(visuals.getFog());
-        }
-        groundLooks = new GroundLooks(assetManager, visuals, light, fogMap, camera, () -> game, () -> builtFrom,
+        // The dark, as a picture of the map that the ground's materials read by world position; none for a game that
+        // never asked to be discovered, and then the ground is drawn plainly.
+        var fogMap = visuals.drawsFog() ? new FogMap(visuals.getFog()) : null;
+        groundLooks = new GroundLooks(assetManager, visuals, light, fogMap, camera, () -> game,
+                () -> ground == null ? null : ground.builtFrom(), () -> snapshot);
+        fog = new FogOfWar(visuals, fogMap, groundLooks, looks, camera, viewPort, renderer, () -> game,
                 () -> snapshot);
         // Needs the locators above, so it cannot be built with the app itself.
-        terrain = new TerrainScene(terrainNode,
-                groundLooks.surfaces,
-                visuals.drawsFog(), visuals.getTiles(),
-                new KitTiles(assetManager, missing, groundLooks, light, this::activeKit), true);
+        ground = new WorldGround(assetManager, terrainNode, listNode, visuals, groundLooks, looks,
+                new KitTiles(assetManager, missing, groundLooks, light, looks::activeKit), () -> game, () -> noises,
+                this::floorHeightAt);
 
         light.install(assetManager, viewPort, visuals.getThingSuns());
 
@@ -761,19 +721,13 @@ final class DukeRtsApp extends SimpleApplication {
         particleDrawing = new ParticleDrawing(particles, this::particleMaterial);
         rootNode.attachChild(particleDrawing.node());
         layered.drawsSystemsWith(particles);
-        scorches = new Scorches(listNode, this::drawnGround, groundLooks::scorchLook);
-        strips = new Strips(listNode, this::drawnGround, groundLooks::stripLook, visuals::getGroundLight);
-        water = new Water(listNode, groundLooks::waterLook);
-        trackMarks = new TrackMarks(listNode, groundLooks::flatPicture);
-        border = new BorderRing(listNode, assetManager);
         hangTheSky();
-        shoreWaves = new ShoreWaves(listNode, groundLooks::flatPicture);
         listShow = new ListShow(assetManager, listNode, effects.lights(), (cue, at) -> {
             if (noises != null) {
                 noises.sounds().play(cue, at, timer.getTimeInSeconds());
             }
         }, () -> new Vector3f(camera.targetX(), 0f, camera.targetZ()), this::floorHeightAt, bodies::debrisPiece,
-                (name, at) -> lists.play(name, EffectLists.Cue.at(at)), this::paintThrown, scorches);
+                (name, at) -> lists.play(name, EffectLists.Cue.at(at)), this::paintThrown, ground.scorches());
         applyShake();
         rootNode.attachChild(listNode);
         lists = new EffectLists(visuals::effectListNamed, particles, listShow, new java.util.Random().nextLong());
@@ -919,8 +873,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** What grows on the ground round the camera — see {@link Duke3D#groundCover}. */
     void groundCover(GroundCover cover) {
-        terrain.onMadeMaterial(groundLooks::adoptFogged);
-        terrain.cover(cover);
+        ground.cover(cover);
     }
 
     /** Each painted surface's colour, by its palette value: a picture's mean, or the palette's own colour. */
@@ -1665,7 +1618,7 @@ final class DukeRtsApp extends SimpleApplication {
                         : grid.getCellSize(),
                 // A thing sounds hurt where it starts to look hurt: its look's own words and shares.
                 template -> visuals.of(template).whenHurt, visuals.getVoicedWhen());
-        hearTheGround();
+        ground.hear();
         // What happens where he does not see, for the sounds fog does not hide.
         game.hearThroughFog(visuals.getSounds().hearsThroughFog());
         if (visuals.getSounds().hearing().placesTheListener()) {
@@ -1764,7 +1717,7 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         float cell = grid.getCellSize();
-        minimapPicture.follow(camera.targetX(), camera.targetZ(), discovery, renderer);
+        minimapPicture.follow(camera.targetX(), camera.targetZ(), discovery(), renderer);
         minimap = minimapRoundTheCamera(grid);
         float span = minimapPicture.span();
         var corners = minimapPicture.corners(camera.targetX() / cell - span / 2f, camera.targetZ() / cell - span / 2f);
@@ -1797,7 +1750,7 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         worldPicture = new WorldPicture(grid, worldPictureMost, visuals.drawsFog(), visuals.getFog().tintColour());
-        worldPicture.paint(discovery);
+        worldPicture.paint(discovery());
         worldPictureHanded.accept(worldPicture.picture());
     }
 
@@ -1846,7 +1799,7 @@ final class DukeRtsApp extends SimpleApplication {
      * thing, and it comes free.
      */
     private void applyMinimapDiscovery() {
-        minimapPicture.paint(discovery, renderer);
+        minimapPicture.paint(discovery(), renderer);
     }
 
     /**
@@ -1921,8 +1874,8 @@ final class DukeRtsApp extends SimpleApplication {
         syncSkillRange(now);
         syncHitNumbers(now);
         // Where the player's view of the point is clear, and nowhere else — the reference's fog test for its texts.
-        floatingTexts.update(snapshot.frame(), cam, (x, y) -> discovery == null || discovery.canSee(x, y));
-        pictureStrips.update(snapshot.frame(), cam, (x, y) -> discovery == null || discovery.canSee(x, y));
+        floatingTexts.update(snapshot.frame(), cam, (x, y) -> fog.canSee(x, y));
+        pictureStrips.update(snapshot.frame(), cam, (x, y) -> fog.canSee(x, y));
     }
 
     /**
@@ -2044,7 +1997,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (hitFlash == null || node == null || node.view == null) {
             return;
         }
-        var tint = visualFor(node.view).tint;
+        var tint = looks.visualFor(node.view).tint;
         var own = (tint == null ? ColorRGBA.White : Materials.colour(tint)).mult(Bodies.CREATURE_AMBIENT);
         hitFlash.struck(unitId, node.root, own);
     }
@@ -2156,9 +2109,9 @@ final class DukeRtsApp extends SimpleApplication {
         var dir = cam.getWorldCoordinates(new Vector2f(screenX, screenY), 1f)
                 .subtract(near).normalizeLocal();
         var terrain = game.getTerrain();
-        var ground = GroundRay.groundHit(near, dir, groundSpan, terrain == null ? 5f : terrain.getCellSize() / 2f,
+        var hit = GroundRay.groundHit(near, dir, groundSpan, terrain == null ? 5f : terrain.getCellSize() / 2f,
                 this::floorHeightAt);
-        return terrain == null || !terrain.hasDecks() ? ground : GroundRay.deckHit(near, dir, ground, terrain.decks());
+        return terrain == null || !terrain.hasDecks() ? hit : GroundRay.deckHit(near, dir, hit, terrain.decks());
     }
 
     /** A see-through thing's blip on its own side's radar, blinking once a second; every other blip whole. */
@@ -3259,15 +3212,6 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    // ---- themes ----
-
-    /**
-     * The look the game last named, as it wrote it: a theme and a variation.
-     */
-    private String currentLook;
-    private Visuals.Theme currentTheme;
-    private Tileset currentKit;
-
     /**
      * Whether the look has moved since the world was last built.
      *
@@ -3278,44 +3222,14 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private boolean lookChanged;
 
-    /**
-     * Take up the look the game says this floor wears.
-     *
-     * <p>The game names one of the themes it registered at launch, in the status
-     * channel, and that is the whole of the conversation: the client holds every
-     * look it was given and is told which of them is current. A game with no
-     * themes never gets here, and one whose look has not changed does nothing.
-     *
-     * <p>Everything a theme changes is presentation — the kit the floor is built
-     * from, the colour of the dark, and what some creatures are drawn as. None of
-     * it reaches the simulation, which is what lets a floor's look be decided from
-     * a seed without the world noticing.
-     */
+    /** Take up the look the game says this floor wears — see {@link Looks#adopt} — and its dark. */
     private void adoptTheLookTheGameNames() {
-        if (!visuals.hasThemes()) {
+        if (!looks.adopt(snapshot)) {
             return;
         }
-        var named = lookNamedInStatus();
-        if (java.util.Objects.equals(named, currentLook)) {
-            return;
-        }
-        currentLook = named;
-        // Whatever the game wrote is the name of a theme it registered. The
-        // client does not take the name apart: a look is one thing to it, and
-        // whether the game builds that name out of a theme and a variation is
-        // the game's own arrangement.
-        currentTheme = visuals.getTheme(named);
-        currentKit = currentTheme == null ? null : currentTheme.getTiles();
-        if (currentTheme != null && currentTheme.getFogTint() != null && fogMap != null) {
-            // The tint lives in the fog picture's own texels rather than in a
-            // material, so a new colour is the next repaint — which the new floor
-            // is about to ask for anyway.
-            var tint = new ColorRGBA(
-                    ((currentTheme.getFogTint() >> 16) & 0xFF) / 255f,
-                    ((currentTheme.getFogTint() >> 8) & 0xFF) / 255f,
-                    (currentTheme.getFogTint() & 0xFF) / 255f, 1f);
-            fogMap.tint(tint);
-            viewPort.setBackgroundColor(tint);
+        var tint = looks.floorFogTint();
+        if (tint != null) {
+            fog.tint(tint);
         }
         lookChanged = true;
         // Every creature is drawn again, because some of them are drawn
@@ -3328,265 +3242,13 @@ final class DukeRtsApp extends SimpleApplication {
         runningGear.clear();
     }
 
-    /**
-     * The {@code look=} field of the status line, or {@code null}.
-     */
-    private String lookNamedInStatus() {
-        if (snapshot == null || !snapshot.hasStatus()) {
-            return null;
-        }
-        var status = snapshot.status();
-        int at = status.indexOf("|look=");
-        if (at < 0) {
-            return null;
-        }
-        var field = status.substring(at + "|look=".length());
-        int end = field.indexOf('|');
-        return end < 0 ? field : field.substring(0, end);
-    }
-
-    /** The kit in force: the theme's, or the one the game started with. */
-    private Tileset activeKit() {
-        return currentKit != null ? currentKit : visuals.getTiles();
-    }
-
-    /** How a creature is drawn: what the current theme says, or what the game said about it outside any theme. */
-    private Visuals.UnitVisual visualFor(String templateName) {
-        var themed = currentTheme == null ? null : currentTheme.of(templateName);
-        return themed != null ? themed : visuals.of(templateName);
-    }
-
-    /** How a thing is drawn, by the look of the cell it stands on where it is still — see {@link #lookOf}. */
-    private Visuals.UnitVisual visualFor(UnitView view) {
-        return lookOf(visuals, currentTheme, lookUnder(view.x(), view.y()), view);
-    }
-
-    /**
-     * How a thing is drawn, of the looks in force: a still thing on a cell that wears a look of its own ({@code
-     * Looked}) as that look draws it, or as the game drew it outside any look; anything else as the floor's look draws
-     * it, or as the game did. A pillar in the wood is the wood's though the floor's look is the cave's, and a creature
-     * walking from one into the other stays what it was.
-     */
-    static Visuals.UnitVisual lookOf(Visuals visuals, Visuals.Theme floor, Visuals.Theme cell, UnitView view) {
-        var theme = view.mobile() || cell == null ? floor : cell;
-        var themed = theme == null ? null : theme.of(view.looksAs());
-        return themed != null ? themed : visuals.of(view.looksAs());
-    }
-
-    /**
-     * Build (or rebuild) the ground and rocks for the world as it stands now.
-     */
-    /** Footsteps told the ground under them, by the paint of the world now laid — see {@code GameSounds.surfaces}. */
-    private void hearTheGround() {
-        if (noises == null) {
-            return; // the sounds are made after the first world's ground, and hear it then
-        }
-        var paint = builtPaint;
-        var grid = builtFrom;
-        noises.surfaces(paint == null || grid == null ? null : (x, y) -> paint.surfaceNameAt(
-                (int) Math.floor(x / grid.mapCellSize()), (int) Math.floor(y / grid.mapCellSize())));
-    }
-
-    /** The scenery a world has taken away, by index — none where there is no world yet, as behind a splash. */
-    static java.util.List<Integer> removedScenery(uz.dukeengine.core.GameLogic logic) {
-        return logic == null ? java.util.List.of() : logic.getRemovedScenery();
-    }
-
-    /** The ground and its scenery laid again, as the world's terrain stands. */
-    private void layTheGround() {
-        terrain.rebuildLooked(builtFrom, currentKit, builtPaint, visuals.getGroundLight(), kitsOfTheCells(builtFrom),
-                game.getMapRecord() instanceof uz.dukeengine.core.map.Dressed dressed ? dressed.scenery()
-                        : java.util.List.of());
-    }
-
+    /** Build (or rebuild) the ground and its dark for the world as it stands now. */
     private void buildTerrain() {
         // First: every material built from here on reads the sun, and this is the world it is for.
         light.adopt(sunlightOfTheGame());
-        builtFrom = game.getTerrain();
         clearWhatIsBurning();
-        builtPaint = GroundPaint.of(game.getMapRecord());
-        hearTheGround();
-        groundLooks.forgetScorches(); // each made for the fog of the world it was laid in
-        if (strips != null) {
-            strips.clear(); // a new world lays its own
-        }
-        terrain.streamWithin(visuals.streamGroundFor(game.getMapRecord()));
-        terrain.blendWith(visuals.getPaintBlend());
-        terrain.quarterWith(visuals.isPaintInQuarters());
-        terrain.hideScenery(removedScenery(game.getLogic())); // what a save carried felled
-        layTheGround();
-        fogTintNow = null; // a new world's dark starts in the colour of whatever the camera looks at
-        if (water != null) {
-            groundLooks.forgetWater(); // the new world's water makes its own
-            water.rebuild(game.getMapRecord() instanceof uz.dukeengine.core.map.Zoned zoned ? zoned.areas()
-                    : java.util.List.of(), drawnGround(), visuals.getWater());
-        }
-        if (border != null) {
-            border.lay(drawnGround(), visuals.getBorderCells());
-        }
-        if (trackMarks != null) {
-            trackMarks.clear();
-            shoreWaves.lay(visuals.getShoreWaves());
-        }
-        if (!visuals.drawsFog()) {
-            return;
-        }
-        // A new floor is a floor nobody has walked: memory belongs to one world,
-        // and carrying it over would open rooms in a dungeon nobody has entered.
-        if (discovery == null) {
-            discovery = new Discovery(builtFrom, visuals.getFog());
-        } else {
-            discovery.reset(builtFrom);
-        }
-        if (visuals.fogStartsExploredFor(game.getMapRecord())) {
-            discovery.startExplored(); // a world whose lie he knows: remembered, not seen
-        }
-        // On a world whose ground is built round the camera, its dark is kept round the camera too.
-        discovery.window(fogWindowCells());
-        discovery.follow(camera.targetX(), camera.targetZ());
-        fogMap.resize(builtFrom, discovery);
-        groundLooks.fogResized();
-        fogWindowTold = fogMap.windowVersion();
-        groundLooks.tellEveryFogReaderWhereTheFogHolds();
-    }
-
-    /**
-     * How many cells a side the dark is kept for round the camera: as far as the ground is built from where the camera
-     * looks — the chunks within {@link Visuals#streamGround}, and the ring kept a while past them — each way, and a cell
-     * over, since a texel reads the cells round it; 0, the whole map, where the ground is built whole.
-     */
-    private int fogWindowCells() {
-        int stream = visuals.streamGroundFor(game.getMapRecord());
-        if (stream <= 0) {
-            return 0;
-        }
-        int reach = Math.ceilDiv(stream, TerrainScene.CHUNK_CELLS) + 2;
-        return 2 * reach * TerrainScene.CHUNK_CELLS + 2;
-    }
-
-    /** The fog's window as last told to the materials that read it. */
-    private int fogWindowTold;
-
-    /** The look each cell of the world wears, by the cell's index, where its map names looks of its own; null for none. */
-    private java.util.function.IntFunction<Visuals.Theme> cellLooks;
-
-    /**
-     * The kit each cell wears where the world's map names looks of its own ({@link uz.dukeengine.core.map.Looked}),
-     * each a theme the game registered; null where it names none, so a map of one look is laid as it always was. A name
-     * the game never registered is said once and the cell wears the map's own. On a world built round the camera
-     * ({@link Visuals#streamGround}) each cell's look is asked of the map as its ground is built, and as the camera
-     * stands over it, never the whole world's at once.
-     */
-    private java.util.function.IntFunction<Tileset> kitsOfTheCells(uz.dukeengine.core.pathfind.PathGrid grid) {
-        cellLooks = null;
-        if (grid == null || !visuals.hasThemes()
-                || !(game.getMapRecord() instanceof uz.dukeengine.core.map.Looked looked)) {
-            return null;
-        }
-        int width = grid.getWidth();
-        if (visuals.streamGroundFor(game.getMapRecord()) > 0) {
-            java.util.function.IntFunction<Visuals.Theme> look = cell -> themeNamed(looked.lookAt(cell % width,
-                    cell / width));
-            cellLooks = look;
-            return cell -> {
-                var theme = look.apply(cell);
-                return theme == null ? null : theme.getTiles();
-            };
-        }
-        var looks = new Visuals.Theme[width * grid.getHeight()];
-        var kits = new Tileset[looks.length];
-        boolean any = false;
-        for (int cell = 0; cell < looks.length; cell++) {
-            var name = looked.lookAt(cell % width, cell / width);
-            if (name == null) {
-                continue;
-            }
-            var theme = visuals.getTheme(name);
-            if (theme == null) {
-                missing.warn(name, "look");
-                continue;
-            }
-            looks[cell] = theme;
-            kits[cell] = theme.getTiles();
-            any = true;
-        }
-        if (!any) {
-            return null;
-        }
-        cellLooks = cell -> looks[cell];
-        return cell -> kits[cell];
-    }
-
-    /** The theme a map's look names; null for none, and for one the game never registered, said once. */
-    private Visuals.Theme themeNamed(String name) {
-        if (name == null) {
-            return null;
-        }
-        var theme = visuals.getTheme(name);
-        if (theme == null) {
-            missing.warn(name, "look");
-        }
-        return theme;
-    }
-
-    /** The fog's colour as drawn now, eased toward the colour of the look the camera looks at; null to start afresh. */
-    private ColorRGBA fogTintNow;
-
-    /** How fast the fog's colour turns to a new look's: most of the way in a second. */
-    private static final float FOG_TINT_TURN = 4f;
-
-    /**
-     * On a map whose cells wear looks of their own, the dark turns to the colour of the look under the point the camera
-     * looks at, over about a second — walking from a wood into a cave, the wood's dark gives way to the cave's. The
-     * picture is sent again only as the colour moves by a step it can hold.
-     */
-    private void followTheLookUnderTheCamera(float tpf) {
-        light.step(tpf);
-        if (hazeWanted != null) {
-            easeTheHaze(tpf); // the game's haze over the look's
-            return;
-        }
-        if (cellLooks == null || fogMap == null || builtFrom == null) {
-            return;
-        }
-        var view = camera.view();
-        var wanted = fogTintOf(lookUnder(view.x(), view.z()));
-        var eased = fogTintNow == null ? wanted
-                : fogTintNow.clone().interpolateLocal(wanted, 1f - (float) Math.exp(-tpf * FOG_TINT_TURN));
-        if (fogTintNow == null || packedRgb(eased) != packedRgb(fogTintNow)) {
-            fogMap.recolour(eased);
-            viewPort.setBackgroundColor(eased);
-        }
-        fogTintNow = eased;
-    }
-
-    /** The look of the cell under a point of the world, where the world's map names one there; null for none. */
-    private Visuals.Theme lookUnder(float x, float y) {
-        if (cellLooks == null || builtFrom == null) {
-            return null;
-        }
-        float cell = builtFrom.getCellSize();
-        int cx = Math.clamp((int) Math.floor(x / cell), 0, builtFrom.getWidth() - 1);
-        int cy = Math.clamp((int) Math.floor(y / cell), 0, builtFrom.getHeight() - 1);
-        return cellLooks.apply(cy * builtFrom.getWidth() + cx);
-    }
-
-    /** The dark a look wears: its own, or the map's look's, or the game's fog's. */
-    private ColorRGBA fogTintOf(Visuals.Theme look) {
-        for (var theme : new Visuals.Theme[] {look, currentTheme}) {
-            if (theme != null && theme.getFogTint() != null) {
-                int tint = theme.getFogTint();
-                return new ColorRGBA(((tint >> 16) & 0xFF) / 255f, ((tint >> 8) & 0xFF) / 255f,
-                        (tint & 0xFF) / 255f, 1f);
-            }
-        }
-        return visuals.getFog().tintColour();
-    }
-
-    private static int packedRgb(ColorRGBA colour) {
-        return Math.round(Math.clamp(colour.r, 0f, 1f) * 255f) << 16
-                | Math.round(Math.clamp(colour.g, 0f, 1f) * 255f) << 8
-                | Math.round(Math.clamp(colour.b, 0f, 1f) * 255f);
+        ground.build();
+        fog.newWorld(ground.builtFrom(), game.getMapRecord());
     }
 
     /** A new world is a world with nothing burning in it yet. */
@@ -3611,87 +3273,6 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * Open the map around the player's own units and redraw what that changes.
-     *
-     * <p>Entirely a matter of what is drawn. It reads the snapshot the client is
-     * already given and writes nothing back, so the simulation runs the same
-     * whether anyone is looking at it or not — which is the only way fog can be
-     * added to a deterministic game without becoming part of it.
-     */
-    private void syncDiscovery(float tpf) {
-        if (discovery == null) {
-            return;
-        }
-        if (snapshot.revealed()) {
-            discovery.openEverything(); // the map revealed to this player, or a watcher's seat
-            drawWhatIsOpen(tpf);
-            return;
-        }
-        if (visuals.isFogBySight()) {
-            discovery.fromSight(snapshot.sight()); // the simulation's cells of what this player has seen
-            drawWhatIsOpen(tpf);
-            return;
-        }
-        // Re-read when the eyes change, not only the first time. A game may say
-        // late — or differently — whose sight opens the map: the dungeon lets the
-        // player choose who he is, and a knight sees a shorter way than an archer.
-        // Cached once, the second hero would walk about inside the first one's
-        // circle, which looks like the fog being wrong rather than stale.
-        var eyes = visuals.getDiscoveryTemplate();
-        if (discoveryRadius < 0f || !eyes.equals(discoveryEyes)) {
-            var template = game.getLogic() == null ? null : game.getLogic().findTemplate(eyes);
-            if (template == null) {
-                return; // the game has not finished booting; the map stays black
-            }
-            discoveryRadius = uz.dukeengine.core.thing.Sighted.of(template);
-            discoveryEyes = eyes;
-        }
-        discovery.blockSight(whatBlocksSight());
-        discovery.reveal(snapshot.units(), game.getLocalPlayerIndex(), discoveryRadius,
-                visuals.getDiscoveryTemplate(), visuals.getAlsoSeen());
-        drawWhatIsOpen(tpf);
-    }
-
-    /**
-     * The footprints of what stands in this frame's snapshot and hides what is behind it — a shut gate — read from its
-     * template, so the fog's line of sight stops at them and a gate opened lets it through the next frame.
-     */
-    private List<uz.dukeengine.core.thing.Footprint> whatBlocksSight() {
-        var logic = game.getLogic();
-        var standing = new ArrayList<uz.dukeengine.core.thing.Footprint>();
-        for (var view : snapshot.units()) {
-            var template = logic == null ? null : logic.getThingFactory().findTemplate(view.templateName());
-            if (template instanceof uz.dukeengine.core.thing.Solid solid && solid.blocksSight()) {
-                standing.add(new uz.dukeengine.core.thing.Footprint(solid.geometry(),
-                        new Coord3D(view.x(), view.y(), 0f), view.orientation()));
-            }
-        }
-        return standing;
-    }
-
-    /** What is open, decided: drawn. */
-    private void drawWhatIsOpen(float tpf) {
-        // How it is drawn eases toward what is open, so the
-        // edge sweeps rather than switching. Seconds, not frames.
-        discovery.soften(tpf);
-        // On a wide world the dark is kept round where the camera looks, and the ground coming into it drawn.
-        discovery.follow(camera.targetX(), camera.targetZ());
-        // The picture is what the player actually sees the dark as; the terrain is
-        // only told what is so far behind it that drawing it is waste.
-        fogMap.update(discovery, renderer);
-        if (fogMap.windowVersion() != fogWindowTold) {
-            fogWindowTold = fogMap.windowVersion();
-            groundLooks.tellEveryFogReaderWhereTheFogHolds();
-        }
-        terrain.applyDiscovery(discovery);
-        applyMinimapDiscovery();
-        if (worldPicture != null) {
-            worldPicture.heard(discovery);
-            worldPicture.paint(discovery);
-        }
-    }
-
-    /**
      * Notice that the game has swapped in a different world and rebuild
      * everything that was drawn from the old one.
      *
@@ -3703,7 +3284,7 @@ final class DukeRtsApp extends SimpleApplication {
      * that has been left behind.
      */
     private void refreshWorldIfChanged() {
-        if (game.getTerrain() == builtFrom && !lookChanged) {
+        if (game.getTerrain() == ground.builtFrom() && !lookChanged) {
             return;
         }
         // A rebuilt world has nothing burning in it, and whoever is in it has just
@@ -4723,6 +4304,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (!grid.inBounds(cx, cy) || grid.isTerrainBlocked(cx, cy)) {
             return false;
         }
+        var discovery = discovery();
         return discovery == null || discovery.stateAt(cx, cy) != Discovery.State.UNSEEN;
     }
 
@@ -4755,6 +4337,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (!grid.inBounds(cx, cy)) {
             return false;
         }
+        var discovery = discovery();
         if (discovery != null && discovery.stateAt(cx, cy) == Discovery.State.UNSEEN) {
             return true; // unknown ground is not known to be bad
         }
@@ -5390,7 +4973,7 @@ final class DukeRtsApp extends SimpleApplication {
         var pointedGround = pointing && pointedAt == null ? pickGround() : null;
         game.setPointedAt(pointedAt == null || pointedAt.view == null ? -1 : pointedAt.view.id(),
                 pointedGround == null ? null : new Coord3D(pointedGround.x, pointedGround.z, pointedGround.y),
-                pointedGround == null || discovery == null || discovery.everSeen(pointedGround.x, pointedGround.z));
+                pointedGround == null || discovery() == null || discovery().everSeen(pointedGround.x, pointedGround.z));
         // Before every early return below, not after them. The menu and the
         // loading screen are screens too, and a pointer that only appears once
         // the world does leaves the player clicking Play with the operating
@@ -5420,9 +5003,18 @@ final class DukeRtsApp extends SimpleApplication {
         // floor's kit would be a floor of the wrong stone until the next one.
         adoptTheLookTheGameNames();
         refreshWorldIfChanged(); // a new run lays out a new world; redraw it
-        terrain.stream(camera.targetX(), camera.targetZ()); // the ground as far as the camera sees, on a wide world
-        syncDiscovery(tpf);
-        followTheLookUnderTheCamera(tpf);
+        ground.stream(camera.targetX(), camera.targetZ()); // the ground as far as the camera sees, on a wide world
+        if (fog.sync(tpf)) {
+            var seen = fog.discovery();
+            ground.applyDiscovery(seen);
+            applyMinimapDiscovery();
+            if (worldPicture != null) {
+                worldPicture.heard(seen);
+                worldPicture.paint(seen);
+            }
+        }
+        light.step(tpf);
+        fog.followTheLookUnderTheCamera(tpf);
         camera.focusOnOwnUnit(snapshot.units(), game.getLocalPlayerIndex());
         updateCamera(tpf);
         game.setViewRays(worldRegion.raysThrough(cam));
@@ -5430,8 +5022,7 @@ final class DukeRtsApp extends SimpleApplication {
         // live list before anything decides it merely vanished. It also means a
         // shot lights its muzzle on the frame it was fired rather than the next.
         handleEvents();
-        layTheMapsMarks();
-        layTheMapsStrips();
+        ground.layWhatTheGameLaid();
         // What this frame is worth hearing. Reads the same snapshot everything
         // else does and writes nothing back -- see GameSounds.
         placeTheListener();
@@ -5463,16 +5054,11 @@ final class DukeRtsApp extends SimpleApplication {
         groundLooks.carryTheLightsToTheStone(effects.allLights());
         groundLooks.hazeRoundTheCamera();
         groundLooks.slideTheShades();
-        if (water != null && snapshot != null) {
-            water.update(snapshot.gameTimeSeconds());
-            trackMarks.see(snapshot.units(), visuals.getTrackMarks(), snapshot.frame(), this::floorHeightAt,
-                    (x, y) -> !Float.isNaN(water.surfaceAt(x, y)));
-            shoreWaves.see(snapshot.frame(), this::waterOrGround);
+        if (snapshot != null) {
+            ground.see(snapshot);
         }
         markTheHidden();
-        if (border != null) {
-            border.colour(viewPort.getBackgroundColor()); // the unexplored colour, whatever the theme makes it
-        }
+        ground.colourTheBorder(viewPort.getBackgroundColor()); // the unexplored colour, whatever the theme makes it
         reapTheDead();
         followWithTheMinimap();
         syncMinimap();
@@ -5736,7 +5322,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (named == null) {
             return;
         }
-        var look = visualFor(named);
+        var look = looks.visualFor(named);
         Spatial body = look != null && look.modelPath != null ? bodies.buildBody(look, java.util.List.of()) : null;
         if (body == null) {
             body = bodies.asFiled(named, "ghost");
@@ -6139,7 +5725,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private java.util.List<UnitBars.Badge> badgesOf(UnitNode node) {
         var view = node.view;
-        var look = visualFor(view);
+        var look = looks.visualFor(view);
         if (look.marks.isEmpty()) {
             return java.util.List.of();
         }
@@ -6175,7 +5761,7 @@ final class DukeRtsApp extends SimpleApplication {
             boolean isNew = !unitNodes.containsKey(view.id());
             var node = unitNodes.computeIfAbsent(view.id(), id -> createUnitNode(view));
             updateUnitNode(node, view);
-            var look = visualFor(view);
+            var look = looks.visualFor(view);
             if (isNew) {
                 layered.flying(view.id(), look.effect, node.root,
                         new Vector3f(look.effectForward, look.yOffset, 0f), cam);
@@ -6201,14 +5787,14 @@ final class DukeRtsApp extends SimpleApplication {
             var node = entry.getValue();
             var at = node.root.getLocalTranslation();
             if (Landing.arrived(node.view, game.getLocalPlayerIndex(),
-                    discovery == null || discovery.canSee(at.x, at.z))) {
+                    fog.canSee(at.x, at.z))) {
                 // ★ Here, and not on ObjectDied. An arrow, a fireball and the mark a
                 // meteor falls on have no body, and the core removes a thing with no
                 // body without ever posting that it died. Gone is the moment it
                 // ended; whether it ended in a strike is only known once this
                 // frame's blows are read -- see burstWhatStruck.
                 endedShots.add(new Landing.Gone(entry.getKey(),
-                        visualFor(node.view).effect,
+                        looks.visualFor(node.view).effect,
                         node.view.playerIndex() == game.getLocalPlayerIndex(),
                         node.bornX, node.bornZ, node.bornAt, at.x, at.z,
                         timer.getTimeInSeconds()));
@@ -6248,7 +5834,13 @@ final class DukeRtsApp extends SimpleApplication {
                 : terrain.groundHeight(new uz.dukeengine.core.math.Coord3D(worldX, worldY, 0f));
     }
 
+    /** What the player has seen, or null for a game that is never discovered, or before the window opened. */
+    private Discovery discovery() {
+        return fog == null ? null : fog.discovery();
+    }
+
     private boolean outOfSight(UnitView view) {
+        var discovery = discovery();
         return discovery != null
                 && view.playerIndex() != game.getLocalPlayerIndex()
                 && !discovery.canSee(view.x(), view.y());
@@ -6412,7 +6004,7 @@ final class DukeRtsApp extends SimpleApplication {
                 }
                 var where = new Vector3f(died.position().x(), 0f, died.position().y());
                 var dying = unitNodes.get(died.object().value());
-                var look = dying != null ? visualFor(dying.view) : visualFor(died.templateName()); // as it was drawn
+                var look = dying != null ? looks.visualFor(dying.view) : looks.visualFor(died.templateName()); // as it was drawn
                 playSound(look.dieSound, where);
                 // "Destroyed" is what this event means, so it is the arrow landing
                 // as much as the monster falling. What it draws where it struck is
@@ -6446,11 +6038,11 @@ final class DukeRtsApp extends SimpleApplication {
                             fired.shooter().value());
                 }
                 if (node != null) {
-                    playSound(visualFor(node.view).fireSound,
+                    playSound(looks.visualFor(node.view).fireSound,
                             node.root.getLocalTranslation());
                     // The swing, on the frame the weapon let go — unless it began with the wind-up this shot ends.
                     if (!node.swungFromWindUp) {
-                        playOnce(node, visualFor(node.view).attackAnim);
+                        playOnce(node, looks.visualFor(node.view).attackAnim);
                     }
                     node.swungFromWindUp = false;
                 }
@@ -6458,7 +6050,7 @@ final class DukeRtsApp extends SimpleApplication {
                 var node = unitNodes.get(wound.shooter().value());
                 if (node != null) {
                     // The whole wind-up drawn: the swing begins now and its blow meets the shot.
-                    playOnce(node, visualFor(node.view).attackAnim);
+                    playOnce(node, looks.visualFor(node.view).attackAnim);
                     node.swungFromWindUp = true;
                 }
             } else if (event instanceof uz.dukeengine.core.event.ObjectHurt hurt) {
@@ -6477,10 +6069,7 @@ final class DukeRtsApp extends SimpleApplication {
                     }
                 }
             } else if (event instanceof uz.dukeengine.core.event.SceneryChanged changed) {
-                if (terrain.showScenery(changed.index(), !changed.removed())) {
-                    // ponytail: a ground built whole is built whole again for one tree; streamed worlds rebuild a chunk
-                    layTheGround();
-                }
+                ground.showScenery(changed.index(), !changed.removed());
             } else if (event instanceof uz.dukeengine.core.event.TextFloated text) {
                 floatingTexts.add(text, text.frame());
             } else if (event instanceof uz.dukeengine.core.event.StripPlayed strip) {
@@ -6625,7 +6214,7 @@ final class DukeRtsApp extends SimpleApplication {
 
             @Override
             public boolean canSee(float x, float z) {
-                return discovery == null || discovery.canSee(x, z);
+                return fog.canSee(x, z);
             }
         };
     }
@@ -6659,67 +6248,6 @@ final class DukeRtsApp extends SimpleApplication {
                 selectionFlash.flash(rider.view.id(), rider.root, look, Materials.colour(game.getColor(rider.view.wears())));
             }
         }
-    }
-
-    /** The marks the game burnt into its ground since the last frame, laid whatever the player sees. */
-    private void layTheMapsMarks() {
-        if (marksOf != game) {
-            marksOf = game;
-            marksLaid = 0;
-        }
-        var marks = game.groundMarks();
-        for (; marksLaid < marks.size(); marksLaid++) {
-            var mark = marks.get(marksLaid);
-            scorches.lay(mark.x(), mark.y(), mark.radius(), mark.picture());
-        }
-    }
-
-    /** The pieces the game laid along its ground since the last frame. */
-    private void layTheMapsStrips() {
-        if (stripsOf != game) {
-            stripsOf = game;
-            stripsLaid = 0;
-        }
-        var pieces = game.stripPieces();
-        if (stripsLaid < pieces.size()) {
-            strips.lay(List.copyOf(pieces.subList(stripsLaid, pieces.size())));
-            stripsLaid = pieces.size();
-        }
-    }
-
-    /** The ground as it is drawn, for a mark laid on it: its cells, its heights, and the cut each is drawn along. */
-    private DrawnGround drawnGround() {
-        var grid = builtFrom;
-        if (grid == null) {
-            return DrawnGround.NONE;
-        }
-        var paint = builtPaint;
-        return new DrawnGround() {
-            @Override
-            public float cellSize() {
-                return grid.getCellSize();
-            }
-
-            @Override
-            public int columns() {
-                return grid.getWidth();
-            }
-
-            @Override
-            public int rows() {
-                return grid.getHeight();
-            }
-
-            @Override
-            public float heightAt(float x, float z) {
-                return floorHeightAt(x, z);
-            }
-
-            @Override
-            public uz.dukeengine.core.pathfind.HeightMap.Diagonal diagonal(int cx, int cy) {
-                return TerrainScene.drawnDiagonal(grid, paint, cx, cy);
-            }
-        };
     }
 
     /** A thrown piece's house-colour meshes in the colour the thing it was thrown for wears, dead or alive. */
@@ -6773,7 +6301,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (node == null) {
             return;
         }
-        var clipName = visualFor(node.view).dieAnimFor(deathType, unitId, frame);
+        var clipName = looks.visualFor(node.view).dieAnimFor(deathType, unitId, frame);
         var clip = clipName == null || node.composer == null
                 ? null : node.composer.getAnimClip(clipName);
         node.diedOn = frame;
@@ -6823,7 +6351,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private void lookDead(UnitNode node, UnitView view) {
         node.view = view;
-        var visual = visualFor(view);
+        var visual = looks.visualFor(view);
         var world = visuals.getWorldConditions();
         var holding = visual.holding(view.healthFraction(), world, view.conditions());
         var wanted = visual.modelFor(view.healthFraction(), world, view.conditions());
@@ -6859,7 +6387,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private UnitNode createUnitNode(UnitView view) {
-        var visual = visualFor(view);
+        var visual = looks.visualFor(view);
         var node = new UnitNode();
         node.root = new Node("unit-" + view.id());
         node.bornX = view.x();
@@ -7009,7 +6537,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private Spatial layAlong(Spatial model, UnitView view, Visuals.UnitVisual visual, UnitNode node) {
         var laid = LinePieces.lay(model, visual.line, view.span().from(), view.span().to());
-        if (fogMap != null) {
+        if (groundLooks.fogs()) {
             laid.depthFirstTraversal(spatial -> {
                 if (spatial instanceof Geometry geometry) {
                     geometry.setMaterial(groundLooks.plainFogged(visual.tint == null ? ColorRGBA.White
@@ -7078,7 +6606,7 @@ final class DukeRtsApp extends SimpleApplication {
      * and with no models yet there is nothing else to say it with.
      */
     private ColorRGBA colourOf(UnitView view) {
-        var own = visualFor(view).colour;
+        var own = looks.visualFor(view).colour;
         return Materials.colour(own != null ? own : game.getColor(view.wears()));
     }
 
@@ -7185,7 +6713,7 @@ final class DukeRtsApp extends SimpleApplication {
         // What it looks like can change while it stands there: a building past a health threshold is a
         // wrecked building, and the wreck is a different file. Asked every frame because the answer is a
         // lookup against a map that is empty for every template that named no second model.
-        var visual = visualFor(view);
+        var visual = looks.visualFor(view);
         // Its own words too — an upgrade's weapon set, a rank — for a look that chooses anything by them.
         var holding = visual.choosesByWords()
                 ? visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()) : null;
@@ -7302,7 +6830,7 @@ final class DukeRtsApp extends SimpleApplication {
                     || view.attacking();
             if (flinches.flinches(visuals.getFlinch(), view.id(), now, busy, before - view.health(),
                     criticalThisFrame.contains(view.id()), visuals.getHitNumbers().bigAt())) {
-                playOnce(node, visualFor(view).hurtAnim);
+                playOnce(node, looks.visualFor(view).hurtAnim);
             }
         }
     }
@@ -7345,7 +6873,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (timer.getTimeInSeconds() < node.actionUntil) {
             return; // a blow or a flinch has the model; it will hand it back
         }
-        var visual = visualFor(view);
+        var visual = looks.visualFor(view);
         if (playByWords(node, visual, view)) {
             return;
         }
@@ -7430,7 +6958,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (clip == null) {
             return;
         }
-        var joint = node.view.moving() ? visualFor(node.view).upperBody : null;
+        var joint = node.view.moving() ? looks.visualFor(node.view).upperBody : null;
         var skin = joint == null ? null
                 : AnimationLibrary.findControl(node.body, com.jme3.anim.SkinningControl.class);
         if (skin != null && UpperBody.play(node.composer, skin.getArmature(), joint, clipName)) {
@@ -7490,7 +7018,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (skin == null) {
             return;
         }
-        var visual = visualFor(node.view);
+        var visual = looks.visualFor(node.view);
         for (var one : visual.carried) {
             if (one.bone == null || skin.getArmature().getJoint(one.bone) == null) {
                 continue;
@@ -7665,27 +7193,8 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private static final float MARK_SIZE = 7f;
-
-    /** The colour the haze is eased to, or null for the fog's own; and how quickly. */
-    private ColorRGBA hazeWanted;
-    private float hazeSeconds;
-
     void hazeColour(int rgb, float seconds) {
-        hazeWanted = rgb < 0 ? null : new ColorRGBA(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f,
-                (rgb & 0xFF) / 255f, 1f);
-        hazeSeconds = Math.max(0f, seconds);
-    }
-
-    /** The haze eased to the game's colour, the fog map and the void behind the world with it. */
-    private void easeTheHaze(float tpf) {
-        var from = fogTintNow != null ? fogTintNow : viewPort.getBackgroundColor().clone();
-        float share = hazeSeconds <= 0f ? 1f : 1f - (float) Math.exp(-tpf / hazeSeconds);
-        var eased = from.clone().interpolateLocal(hazeWanted, share);
-        if (fogMap != null && packedRgb(eased) != packedRgb(from)) {
-            fogMap.recolour(eased);
-        }
-        viewPort.setBackgroundColor(eased);
-        fogTintNow = eased;
+        fog.hazeColour(rgb, seconds);
     }
 
     void lightScale(float times) {
@@ -7754,7 +7263,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** A ridden mount walking as its rider walks, at his speed — the rider is what moves — else standing. */
     private void paceTheMount(UnitNode mount, UnitView rider) {
-        var visual = visualFor(mount.view);
+        var visual = looks.visualFor(mount.view);
         if (mount.composer == null) {
             return;
         }
