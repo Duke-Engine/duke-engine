@@ -27,7 +27,7 @@ class CardAndBarsTest {
      */
     @Test
     void andThePanelStillTakesTheSameLine() {
-        assertNotNull(HeroPanel.Reading.parse(REAL),
+        assertNotNull(PanelReading.parse(REAL),
                 "the panel refused a line its own game sends");
     }
 }

@@ -10,7 +10,7 @@ import uz.dukeengine.rpg.skill.SkillBook;
 import uz.dukeengine.rpg.skill.SkillRanks;
 
 /**
- * The hero card, written: what {@link HeroPanel} reads off the status line, built a field at a time on the simulation's
+ * The hero card, written: what {@link PanelReading} reads off the status line, built a field at a time on the simulation's
  * thread by the game, which decides what goes on it — its words, its pictures, whose card it is. The format lives here
  * beside its reader, so the two cannot drift.
  *

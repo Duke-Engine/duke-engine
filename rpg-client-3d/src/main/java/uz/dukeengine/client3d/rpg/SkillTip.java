@@ -79,7 +79,7 @@ final class SkillTip {
     private final BitmapText foot;
     private final List<BitmapText> labels = new ArrayList<>();
     private final List<BitmapText> values = new ArrayList<>();
-    /** The bar's lettering and the scale it is baked for — see {@link HeroPanel#letters}. */
+    /** The bar's lettering and the scale it is baked for — see {@link PanelBrush#letters}. */
     private final BitmapFont font;
     private final float letteringScale;
 
@@ -87,17 +87,17 @@ final class SkillTip {
     SkillTip(AssetManager assets, BitmapFont font, Node parent, PanelLook look, Lettering lettering,
             Lettering titleLettering, float letteringScale) {
         var palette = look == null ? PanelLook.DEFAULTS : look;
-        edgeColour = HeroPanel.rgb(palette.dropColour());
-        faceTop = HeroPanel.rgb(palette.cardTopColour());
-        faceFoot = HeroPanel.rgb(palette.cardFootColour());
-        ruleColour = HeroPanel.rgb(palette.cardRuleColour());
-        nameColour = HeroPanel.rgb(palette.goldHiColour());
-        quietColour = HeroPanel.rgb(palette.cardQuietColour());
-        bodyColour = HeroPanel.rgb(palette.cardBodyColour());
-        valueColour = HeroPanel.rgb(palette.cardValueColour());
-        gainColour = HeroPanel.rgb(palette.gainColour());
-        footColour = HeroPanel.rgb(palette.goldColour());
-        footDeadColour = HeroPanel.rgb(palette.lockLabelColour());
+        edgeColour = PanelColours.rgb(palette.dropColour());
+        faceTop = PanelColours.rgb(palette.cardTopColour());
+        faceFoot = PanelColours.rgb(palette.cardFootColour());
+        ruleColour = PanelColours.rgb(palette.cardRuleColour());
+        nameColour = PanelColours.rgb(palette.goldHiColour());
+        quietColour = PanelColours.rgb(palette.cardQuietColour());
+        bodyColour = PanelColours.rgb(palette.cardBodyColour());
+        valueColour = PanelColours.rgb(palette.cardValueColour());
+        gainColour = PanelColours.rgb(palette.gainColour());
+        footColour = PanelColours.rgb(palette.goldColour());
+        footDeadColour = PanelColours.rgb(palette.lockLabelColour());
         this.assets = assets;
         this.font = font;
         this.letteringScale = letteringScale;
@@ -190,7 +190,7 @@ final class SkillTip {
         // it, which is what an empty tooltip looks like.
         //
         // Lines times line height is the real answer and is what jME lays out.
-        float perDesign = 1f / blurb.getLocalScale().x; // its own pixels to the design's: see HeroPanel.letters
+        float perDesign = 1f / blurb.getLocalScale().x; // its own pixels to the design's: see PanelBrush.letters
         blurb.setBox(new Rectangle(0f, 0f, (WIDTH - PAD * 2f) * perDesign, 0f));
         blurb.setText(tip.blurb());
         float wrapped = blurb.getLineCount() * blurb.getLineHeight() / perDesign;
@@ -224,7 +224,7 @@ final class SkillTip {
         top -= AT_SIZE + GAP;
 
         if (blurbHeight > 0f) {
-            HeroPanel.box(blurb, PAD, top, WIDTH - PAD * 2f, wrapped);
+            PanelBrush.box(blurb, PAD, top, WIDTH - PAD * 2f, wrapped);
             blurb.setLocalTranslation(0f, 0f, 2f);
             blurb.setCullHint(Spatial.CullHint.Inherit);
             top -= blurbHeight;
@@ -272,12 +272,12 @@ final class SkillTip {
 
     /** A line of the design's {@code size} in its box, in the design's pixels. */
     private void place(BitmapText text, float size, float x, float y, float width) {
-        HeroPanel.box(text, x, y + size, width, size * 1.4f);
+        PanelBrush.box(text, x, y + size, width, size * 1.4f);
         text.setLocalTranslation(0f, 0f, 2f);
     }
 
     private BitmapText line(Lettering face, float size, ColorRGBA colour, BitmapFont.Align align) {
-        var letters = HeroPanel.letters(face, font, size, letteringScale);
+        var letters = PanelBrush.letters(face, font, size, letteringScale);
         var text = new BitmapText(letters.font());
         text.setLocalScale(1f / letters.perDesign());
         text.setSize(letters.size());
@@ -285,7 +285,7 @@ final class SkillTip {
         // A box before the alignment, and both before it is attached. An empty
         // BitmapText with no box has no bound at all, and attaching one to a node
         // is enough to make jME throw the next time anything measures the node.
-        HeroPanel.box(text, 0f, size, WIDTH, size * 1.4f);
+        PanelBrush.box(text, 0f, size, WIDTH, size * 1.4f);
         text.setAlignment(align);
         node.attachChild(text);
         return text;

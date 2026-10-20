@@ -43,11 +43,11 @@ class SelectedCardSoundTest {
     void pickingOutACreatureAndLettingGoRingsNothing() {
         var heard = new Heard();
         var sounds = listening(heard);
-        sounds.status(HeroPanel.Reading.parse(HERO));
+        sounds.status(PanelReading.parse(HERO));
         heard.played.clear();
 
-        sounds.status(HeroPanel.Reading.parse(SKELETON));
-        sounds.status(HeroPanel.Reading.parse(HERO));
+        sounds.status(PanelReading.parse(SKELETON));
+        sounds.status(PanelReading.parse(HERO));
 
         assertEquals(List.of(), heard.played,
                 "looking at something is not a thing that happened to him");
@@ -62,10 +62,10 @@ class SelectedCardSoundTest {
     void aRankChangingOnTheCardIsNotALevel() {
         var heard = new Heard();
         var sounds = listening(heard);
-        sounds.status(HeroPanel.Reading.parse(HERO));
+        sounds.status(PanelReading.parse(HERO));
         heard.played.clear();
 
-        sounds.status(HeroPanel.Reading.parse(HERO.replace("7-daraja", "8-daraja")));
+        sounds.status(PanelReading.parse(HERO.replace("7-daraja", "8-daraja")));
 
         assertEquals(List.of(), heard.played, "a level is told, never read off the card");
     }
@@ -81,10 +81,10 @@ class SelectedCardSoundTest {
     void goingDownIsHeardEvenWhileLookingAtSomething() {
         var heard = new Heard();
         var sounds = listening(heard);
-        sounds.status(HeroPanel.Reading.parse(SKELETON));
+        sounds.status(PanelReading.parse(SKELETON));
         heard.played.clear();
 
-        sounds.status(HeroPanel.Reading.parse(SKELETON.replace("depth=III", "depth=IV")));
+        sounds.status(PanelReading.parse(SKELETON.replace("depth=III", "depth=IV")));
 
         assertTrue(heard.played.contains("depth"), heard.played.toString());
     }

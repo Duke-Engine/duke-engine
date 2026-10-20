@@ -172,7 +172,7 @@ class PanelLookTest {
         var rim = (Geometry) find(panel(with("slabRimColour", 0x123456)).gui(), "rim");
 
         assertNotNull(rim);
-        assertEquals(Shade.linear(HeroPanel.rgb(0x123456)), rim.getMaterial().getParam("Color").getValue());
+        assertEquals(Shade.linear(PanelColours.rgb(0x123456)), rim.getMaterial().getParam("Color").getValue());
     }
 
     @Test

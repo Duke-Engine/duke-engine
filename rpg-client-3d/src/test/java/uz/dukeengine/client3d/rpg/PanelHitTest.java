@@ -22,17 +22,17 @@ class PanelHitTest {
 
     @Test
     void aPointInsideTheSquareHits() {
-        assertTrue(HeroPanel.hits(100f, 100f, 90f, 90f, 62f));
-        assertTrue(HeroPanel.hits(90f, 90f, 90f, 90f, 62f), "the near corner counts");
-        assertTrue(HeroPanel.hits(152f, 152f, 90f, 90f, 62f), "so does the far one");
+        assertTrue(PanelMetrics.hits(100f, 100f, 90f, 90f, 62f));
+        assertTrue(PanelMetrics.hits(90f, 90f, 90f, 90f, 62f), "the near corner counts");
+        assertTrue(PanelMetrics.hits(152f, 152f, 90f, 90f, 62f), "so does the far one");
     }
 
     @Test
     void aPointOutsideDoesNot() {
-        assertFalse(HeroPanel.hits(89f, 100f, 90f, 90f, 62f));
-        assertFalse(HeroPanel.hits(100f, 89f, 90f, 90f, 62f));
-        assertFalse(HeroPanel.hits(153f, 100f, 90f, 90f, 62f));
-        assertFalse(HeroPanel.hits(100f, 153f, 90f, 90f, 62f));
+        assertFalse(PanelMetrics.hits(89f, 100f, 90f, 90f, 62f));
+        assertFalse(PanelMetrics.hits(100f, 89f, 90f, 90f, 62f));
+        assertFalse(PanelMetrics.hits(153f, 100f, 90f, 90f, 62f));
+        assertFalse(PanelMetrics.hits(100f, 153f, 90f, 90f, 62f));
     }
 
     /**
@@ -49,8 +49,8 @@ class PanelHitTest {
         float slotBottom = 40f;
         float size = 62f;
         // Drawn at 200..231 across and 20..51 up, so a click at 215,35 is on it.
-        assertTrue(HeroPanel.hits(215f / scale, 35f / scale, slotLeft, slotBottom, size));
-        assertFalse(HeroPanel.hits(190f / scale, 35f / scale, slotLeft, slotBottom, size),
+        assertTrue(PanelMetrics.hits(215f / scale, 35f / scale, slotLeft, slotBottom, size));
+        assertFalse(PanelMetrics.hits(190f / scale, 35f / scale, slotLeft, slotBottom, size),
                 "a click to the left of the drawn slot must miss it");
     }
 }
