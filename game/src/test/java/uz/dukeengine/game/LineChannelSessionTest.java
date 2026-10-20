@@ -37,11 +37,11 @@ class LineChannelSessionTest {
     @Timeout(60)
     void twoSessionsOverAPairOfLineChannelsPlay300FramesWithEqualChecksums() throws Exception {
         var sessions = joined(LineChannel.pair());
-        var worlds = List.of(HostLeavesTest.watched(2, sessions.get(0)), HostLeavesTest.watched(2, sessions.get(1)));
+        var worlds = List.of(HostLeavesTest.watched(2, sessions.getFirst()), HostLeavesTest.watched(2, sessions.get(1)));
         HostLeavesTest.stepUntil(worlds, 300, System.nanoTime() + 40_000_000_000L);
         for (int frame = 0; frame < 300; frame++) {
-            assertNotNull(worlds.get(0).sums().get(frame), "frame " + frame + " summed");
-            assertEquals(worlds.get(0).sums().get(frame), worlds.get(1).sums().get(frame), "frame " + frame);
+            assertNotNull(worlds.getFirst().sums().get(frame), "frame " + frame + " summed");
+            assertEquals(worlds.getFirst().sums().get(frame), worlds.get(1).sums().get(frame), "frame " + frame);
         }
         sessions.forEach(MultiplayerSession::close);
     }
@@ -51,7 +51,7 @@ class LineChannelSessionTest {
     void aChannelClosedMidGameIsALostLinkToldAsASocketsCloseIs() throws Exception {
         var ends = LineChannel.pair();
         var sessions = joined(ends);
-        var host = HostLeavesTest.watched(2, sessions.get(0));
+        var host = HostLeavesTest.watched(2, sessions.getFirst());
         var guest = HostLeavesTest.watched(2, sessions.get(1));
         HostLeavesTest.stepUntil(List.of(host, guest), 150, System.nanoTime() + 30_000_000_000L);
         ends[1].close();

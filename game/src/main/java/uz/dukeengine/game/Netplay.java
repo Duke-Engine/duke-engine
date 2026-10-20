@@ -57,7 +57,7 @@ final class Netplay {
         if (server != null) {
             try {
                 server.close();
-            } catch (IOException ignored) {
+            } catch (IOException _) {
                 // best-effort cancel
             }
         }

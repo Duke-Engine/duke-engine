@@ -87,7 +87,7 @@ class GameOrderTest {
 
         assertEquals(2, hostHeard.size(), () -> "heard " + hostHeard);
         assertEquals(hostHeard, guestHeard, "the same orders, on the same frame, in the same order, on both");
-        assertEquals(true, hostHeard.get(0).contains("after the move") && hostHeard.get(0).contains("moving=true"));
+        assertEquals(true, hostHeard.getFirst().contains("after the move") && hostHeard.getFirst().contains("moving=true"));
         assertEquals(true, hostHeard.get(1).contains("before the move") && hostHeard.get(1).contains("moving=false"));
         hosted.get().close();
         joined.close();

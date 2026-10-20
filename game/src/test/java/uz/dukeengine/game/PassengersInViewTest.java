@@ -39,9 +39,9 @@ class PassengersInViewTest {
         var riflemen = things.stream().filter(t -> t.getTemplate().name().equals("Rifleman")).toList();
         var hold = humvee.findModule(ContainModule.class);
         hold.load(riflemen.get(2));
-        hold.load(riflemen.get(0));
+        hold.load(riflemen.getFirst());
         hold.load(riflemen.get(1));
-        hold.unload(riflemen.get(0));
+        hold.unload(riflemen.getFirst());
 
         game.runHeadless(1);
 

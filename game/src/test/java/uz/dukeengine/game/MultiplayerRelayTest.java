@@ -91,7 +91,7 @@ class MultiplayerRelayTest {
                 new Coord3D(400f, 300f, 0f)));
         HostLeavesTest.stepUntil(worlds, 300, System.nanoTime() + 60_000_000_000L);
         for (int frame = 0; frame < 300; frame++) {
-            var sum = worlds.get(0).sums().get(frame);
+            var sum = worlds.getFirst().sums().get(frame);
             assertNotNull(sum, "frame " + frame + " summed");
             assertEquals(sum, worlds.get(1).sums().get(frame), "frame " + frame);
             assertEquals(sum, worlds.get(2).sums().get(frame), "frame " + frame);
@@ -120,7 +120,7 @@ class MultiplayerRelayTest {
             replay.runHeadless(1);
         }
         for (int frame = 0; frame < 300; frame++) {
-            assertEquals(worlds.get(0).sums().get(frame), replayed.get(frame), "replayed, frame " + frame);
+            assertEquals(worlds.getFirst().sums().get(frame), replayed.get(frame), "replayed, frame " + frame);
         }
         seated.close();
     }
@@ -143,9 +143,9 @@ class MultiplayerRelayTest {
             staying.forEach(world -> world.game().runHeadless(1));
             Thread.sleep(1);
         }
-        assertNotNull(staying.get(0).leftAt().get(3), "told seat 3 is gone");
-        assertEquals(staying.get(0).leftAt().get(3), staying.get(1).leftAt().get(3), "on the same frame");
-        seated.guestEnds().get(0).close();
+        assertNotNull(staying.getFirst().leftAt().get(3), "told seat 3 is gone");
+        assertEquals(staying.getFirst().leftAt().get(3), staying.get(1).leftAt().get(3), "on the same frame");
+        seated.guestEnds().getFirst().close();
         seated.guestEnds().get(1).close();
         long end = System.nanoTime() + 10_000_000_000L;
         while (!over.get() && System.nanoTime() < end) {

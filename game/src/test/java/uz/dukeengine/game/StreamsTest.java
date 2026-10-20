@@ -43,7 +43,7 @@ class StreamsTest {
         field.game().runHeadless(1);
         var pieces = field.flame().pieces();
         assertEquals(2, pieces.size(), "two ribbon pieces");
-        assertEquals(2, pieces.get(0).size());
+        assertEquals(2, pieces.getFirst().size());
         assertEquals(3, pieces.get(1).size());
     }
 
@@ -58,7 +58,7 @@ class StreamsTest {
         logic.rideStream("Flame", field.shots().get(3), 20);
         field.game().runHeadless(1);
         var piece = field.flame().pieces().getFirst();
-        assertEquals(List.of(160f, 100f, 140f), List.of(piece.get(2).x(), piece.get(0).x(), piece.get(1).x()),
+        assertEquals(List.of(160f, 100f, 140f), List.of(piece.get(2).x(), piece.getFirst().x(), piece.get(1).x()),
                 "the landed one gone, the new one riding, in the order they started");
         assertEquals(3, piece.size());
     }

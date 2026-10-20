@@ -58,7 +58,7 @@ class SkirmishTest {
         game.runHeadless(1);
         assertEquals(3, game.getLogic().getObjects().size());
 
-        var mine = game.getLogic().getObjects().get(0);
+        var mine = game.getLogic().getObjects().getFirst();
         var theirs = game.getLogic().getObjects().get(1);
         var farOff = game.getLogic().getObjects().get(2);
         float whole = theirs.getBody().getHealth();

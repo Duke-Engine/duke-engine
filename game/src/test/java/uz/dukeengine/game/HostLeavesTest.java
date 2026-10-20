@@ -161,13 +161,13 @@ class HostLeavesTest {
     @Timeout(90)
     void threePlayersTheNextInTheSeatsRelaysAndBothPlayOnInTheSameWorld() throws Exception {
         var sessions = sessions(THREE_PORT, 3);
-        var host = watched(3, sessions.get(0));
+        var host = watched(3, sessions.getFirst());
         var two = watched(3, sessions.get(1));
         var three = watched(3, sessions.get(2));
         long giveUp = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(75);
 
         stepUntil(List.of(host, two, three), HOST_GOES_AT, giveUp);
-        sessions.get(0).close(); // the host's machine gone; its world is never stepped again
+        sessions.getFirst().close(); // the host's machine gone; its world is never stepped again
         int hostWasAt = host.frame();
 
         var guests = List.of(two, three);
@@ -201,12 +201,12 @@ class HostLeavesTest {
     @Timeout(60)
     void twoPlayersTheGuestPlaysOnAloneAndIsToldTheHostLeft() throws Exception {
         var sessions = sessions(TWO_PORT, 2);
-        var host = watched(2, sessions.get(0));
+        var host = watched(2, sessions.getFirst());
         var guest = watched(2, sessions.get(1));
         long giveUp = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(45);
 
         stepUntil(List.of(host, guest), HOST_GOES_AT, giveUp);
-        sessions.get(0).close();
+        sessions.getFirst().close();
         stepUntil(List.of(guest), host.frame() + 300, giveUp);
 
         assertTrue(guest.frame() >= host.frame() + 300, "the guest's match goes on: frame " + guest.frame());
