@@ -263,7 +263,7 @@ final class DukeRtsApp extends SimpleApplication {
                     || view.playerIndex() != local && !visuals.getOcclusionMarked().test(view)) {
                 continue;
             }
-            marked.put(node.root, toColor(game.getColor(view.playerIndex())));
+            marked.put(node.root, Materials.colour(game.getColor(view.playerIndex())));
         }
         occlusionMarks.mark(marked);
     }
@@ -362,7 +362,7 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public Spatial body(Visuals.UnitVisual visual, java.util.Collection<String> alsoWanted) {
-            return buildBody(visual, alsoWanted);
+            return bodies.buildBody(visual, alsoWanted);
         }
 
         @Override
@@ -411,7 +411,12 @@ final class DukeRtsApp extends SimpleApplication {
     /** What is selected, in the order it was selected: the order the game is told it in. */
     private final Set<Integer> selected = new java.util.LinkedHashSet<>();
     private final Map<String, AudioNode> audioCache = new HashMap<>();
-    private final Set<String> missingAssets = new HashSet<>();
+    /** The files the game named that would not load, each said once. */
+    private final MissingAssets missing = new MissingAssets();
+    /** Things' bodies as the game's looks make them — built once there is an asset manager. */
+    private Bodies bodies;
+    /** Where the art read ahead of a match is kept — see {@link ArtLoad}. */
+    private ArtLoad.Store artStore;
     /**
      * Every noise the game makes, and what it makes them for.
      */
@@ -801,6 +806,7 @@ final class DukeRtsApp extends SimpleApplication {
         // it and there has to be something there to clear.
         var budget = visuals.getEffectBudget();
         effects = new ProjectileEffects(assetManager, rootNode, visuals, budget.lights());
+        bodies = new Bodies(assetManager, missing, effects);
         skillEffects = new SkillEffects(visuals, budget.distance());
         layered = new LayeredEffects(assetManager, rootNode, visuals, effects.lights(),
                 surroundings(), visuals.getParticleBudget(), budget.distance());
@@ -823,14 +829,14 @@ final class DukeRtsApp extends SimpleApplication {
             if (noises != null) {
                 noises.sounds().play(cue, at, timer.getTimeInSeconds());
             }
-        }, () -> new Vector3f(camera.targetX(), 0f, camera.targetZ()), this::floorHeightAt, this::debrisPiece,
+        }, () -> new Vector3f(camera.targetX(), 0f, camera.targetZ()), this::floorHeightAt, bodies::debrisPiece,
                 (name, at) -> lists.play(name, EffectLists.Cue.at(at)), this::paintThrown, scorches);
         applyShake();
         rootNode.attachChild(listNode);
         lists = new EffectLists(visuals::effectListNamed, particles, listShow, new java.util.Random().nextLong());
         lasers = new Lasers(assetManager, listNode, visuals::laserNamed, this::floorHeightAt);
         ridingEffects = new RidingEffects(particles, rootNode);
-        rallyMarks = new RallyMarks(assetManager, listNode, this::loadMarkModel);
+        rallyMarks = new RallyMarks(assetManager, listNode, path -> bodies.asFiled(path, "order mark"));
         groundPictures = new GroundPictures(assetManager, listNode);
         stealthLook = new StealthLook(assetManager);
         layered.drawsListsWith(lists);
@@ -843,7 +849,7 @@ final class DukeRtsApp extends SimpleApplication {
         rootNode.attachChild(markerNode);
         chevrons = new Chevrons(assetManager, markerNode, visuals.getOrderMark());
         attackFlash = new AttackFlash(assetManager, markerNode, visuals.getOrderMark());
-        modelMarks = new ModelMarks(markerNode, this::loadMarkModel);
+        modelMarks = new ModelMarks(markerNode, path -> bodies.asFiled(path, "order mark"));
         hitNumbers = new FloatingNumbers(guiFont, guiNode, visuals.getHitNumbers());
         floatingTexts = new FloatingTexts(guiFont, guiNode, visuals.getFloatingText());
         pictureStrips = new PictureStrips(guiNode, this::stripPicture, visuals::stripNamed, picture -> {
@@ -861,8 +867,8 @@ final class DukeRtsApp extends SimpleApplication {
         rangeRings = new RangeRings(assetManager, markerNode, visuals.getRangeLook());
         veil = new SceneVeil(assetManager);
         guiNode.attachChild(veil.node());
-        warmNode.setCullHint(Spatial.CullHint.Always);
-        rootNode.attachChild(warmNode);
+        artStore = new ArtLoad.Store(assetManager, renderManager, bodies, rootNode, terrainNode, this::soundNode,
+                missing);
 
         centerCameraOnMap();
         installInput();
@@ -923,7 +929,7 @@ final class DukeRtsApp extends SimpleApplication {
         surround.setClearFlags(true, true, true);
         surround.setEnabled(false);
         if (backdropRecipe != null) {
-            backdrop = new Backdrop(backdropRecipe, built -> new ArtLoad(built.templatesThisMatchCanDraw()),
+            backdrop = new Backdrop(backdropRecipe, built -> new ArtLoad(built.templatesThisMatchCanDraw(), visuals, artStore),
                     backdropEar == null ? percent -> { } : backdropEar);
         }
         // First of all: a title card that takes the input takes it before the game's canvas or any control.
@@ -1254,8 +1260,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     void shadowColour(java.awt.Color colour) {
-        this.shadowColour = colour == null ? SunShadows.DEFAULT_COLOUR
-                : new ColorRGBA(colour.getRed() / 255f, colour.getGreen() / 255f, colour.getBlue() / 255f, 1f);
+        this.shadowColour = colour == null ? SunShadows.DEFAULT_COLOUR : Materials.colour(colour);
         if (sunShadows != null) {
             sunShadows.colour(shadowColour);
         }
@@ -1449,7 +1454,7 @@ final class DukeRtsApp extends SimpleApplication {
                 painter.paint(frame);
             }
         } catch (RuntimeException e) {
-            warnOnce(String.valueOf(e), "canvas painter failure");
+            missing.warn(String.valueOf(e), "canvas painter failure");
         }
         // Over everything the game painted: the card is the story's, and says so above its own screens too.
         if (titleCard != null && !titleCard.paint(frame, tpf)) {
@@ -1923,40 +1928,6 @@ final class DukeRtsApp extends SimpleApplication {
         minimapPicture.paint(discovery, renderer);
     }
 
-    /** How low and how high a map's ground stands anywhere, in world units. */
-    record GroundSpan(float lowest, float highest) {
-
-        /** Its storeys, a stair up from the highest of them, and its relief's lowest and highest corners. */
-        static GroundSpan of(uz.dukeengine.core.pathfind.PathGrid grid) {
-            int lowestLevel = 0;
-            int highestLevel = 0;
-            for (int cy = 0; cy < grid.getHeight(); cy++) {
-                for (int cx = 0; cx < grid.getWidth(); cx++) {
-                    lowestLevel = Math.min(lowestLevel, grid.level(cx, cy));
-                    highestLevel = Math.max(highestLevel, grid.level(cx, cy));
-                }
-            }
-            float lowest = lowestLevel * grid.getLevelHeight();
-            float highest = (highestLevel + 1) * grid.getLevelHeight();
-            var relief = grid.getRelief();
-            if (relief == null) {
-                return new GroundSpan(lowest, highest);
-            }
-            int least = Integer.MAX_VALUE;
-            int most = Integer.MIN_VALUE;
-            for (int row = 0; row < relief.rows(); row++) {
-                for (int column = 0; column < relief.columns(); column++) {
-                    least = Math.min(least, relief.at(column, row));
-                    most = Math.max(most, relief.at(column, row));
-                }
-            }
-            var fixed = uz.dukeengine.core.pathfind.HeightMap.SUBCELL;
-            return new GroundSpan(
-                    lowest + uz.dukeengine.core.pathfind.HeightMap.lengthOf(least * fixed, grid.getCellSize()),
-                    highest + uz.dukeengine.core.pathfind.HeightMap.lengthOf(most * fixed, grid.getCellSize()));
-        }
-    }
-
     /**
      * If the cursor is over the minimap, move the camera there. Returns true if handled.
      */
@@ -1986,7 +1957,7 @@ final class DukeRtsApp extends SimpleApplication {
         mesh.updateBound();
 
         viewportOutline = new Geometry("mm-viewport", mesh);
-        viewportOutline.setMaterial(unshaded(new ColorRGBA(1f, 1f, 1f, 0.85f)));
+        viewportOutline.setMaterial(Materials.unshaded(assetManager, new ColorRGBA(1f, 1f, 1f, 0.85f)));
         viewportOutline.setLocalTranslation(0, 0, 2); // above the dots
         minimapNode.attachChild(viewportOutline);
     }
@@ -1997,7 +1968,7 @@ final class DukeRtsApp extends SimpleApplication {
      * The selection box: an outline, so it never hides what is being selected.
      */
     private void buildDragRectangle() {
-        dragRectangle = new DragBox(visuals.getDragBox(), unshaded(ColorRGBA.White));
+        dragRectangle = new DragBox(visuals.getDragBox(), Materials.unshaded(assetManager, ColorRGBA.White));
         guiNode.attachChild(dragRectangle.geometry());
     }
 
@@ -2153,7 +2124,7 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         var tint = visualFor(node.view).tint;
-        var own = (tint == null ? ColorRGBA.White : toColor(tint)).mult(CREATURE_AMBIENT);
+        var own = (tint == null ? ColorRGBA.White : Materials.colour(tint)).mult(Bodies.CREATURE_AMBIENT);
         hitFlash.struck(unitId, node.root, own);
     }
 
@@ -2264,102 +2235,9 @@ final class DukeRtsApp extends SimpleApplication {
         var dir = cam.getWorldCoordinates(new Vector2f(screenX, screenY), 1f)
                 .subtract(near).normalizeLocal();
         var terrain = game.getTerrain();
-        var ground = groundHit(near, dir, groundSpan, terrain == null ? 5f : terrain.getCellSize() / 2f,
+        var ground = GroundRay.groundHit(near, dir, groundSpan, terrain == null ? 5f : terrain.getCellSize() / 2f,
                 this::floorHeightAt);
-        return terrain == null || !terrain.hasDecks() ? ground : deckHit(near, dir, ground, terrain.decks());
-    }
-
-    /**
-     * The ray's meeting with an open deck, where it meets one before it meets the ground: a click on a bridge lands on
-     * the bridge, at its height, so the order sent is one the simulation reads as on it ({@code PathGrid.floorAt}).
-     */
-    static Vector3f deckHit(Vector3f near, Vector3f dir, Vector3f ground,
-                            java.util.List<uz.dukeengine.core.pathfind.Deck> decks) {
-        var best = ground;
-        float bestT = ground.subtract(near).dot(dir);
-        for (var deck : decks) {
-            if (!deck.isOpen()) {
-                continue;
-            }
-            // Its plane, y = a·x + b·z + c in the scene's axes: the map's y is the scene's z.
-            float c = deck.heightAt(0f, 0f);
-            float a = deck.heightAt(1f, 0f) - c;
-            float b = deck.heightAt(0f, 1f) - c;
-            float facing = dir.y - a * dir.x - b * dir.z;
-            if (Math.abs(facing) < 1e-6f) {
-                continue;
-            }
-            float t = (a * near.x + b * near.z + c - near.y) / facing;
-            var hit = near.add(dir.mult(t));
-            if (t > 0f && t < bestT && deck.covers(hit.x, hit.z)) {
-                best = hit;
-                bestT = t;
-            }
-        }
-        return best;
-    }
-
-    /**
-     * Where the ray under the cursor first meets the ground: the surface the player sees, a hill's near face and not
-     * the ground behind it.
-     *
-     * <p>The ray is walked from where it comes down to the highest ground, {@code step} across the map at a time, to
-     * the first point at or under the ground, and the meeting is halved down between that point and the one before.
-     * A plane met first and the hit settled onto the ground from there — what was here before — lands behind a hill:
-     * the plane at zero lies past a rise the ray has already struck, and on a steep face the settling never settles.
-     * Storeys and stairs are ground like any other, so a raised room is met on its floor and not behind it.
-     *
-     * @param step    how far across the map the ray is walked at a time: half a cell, so no rise is stepped over
-     * @param floorAt how high the floor is at a point on the map, a stair's between its two storeys
-     */
-    static Vector3f groundHit(Vector3f near, Vector3f dir, GroundSpan span, float step,
-                              java.util.function.BiFunction<Float, Float, Float> floorAt) {
-        if (dir.y > -1e-6f) {
-            return meetsAt(near, dir, 0f); // it never comes down
-        }
-        float from = Math.max(0f, (span.highest() - near.y) / dir.y);
-        float to = Math.max(from, (span.lowest() - near.y) / dir.y);
-        float across = (float) Math.sqrt(dir.x * dir.x + dir.z * dir.z);
-        float stride = across < 1e-6f ? to - from : step / across;
-        float above = from;
-        for (float t = from; ; t = Math.min(t + stride, to)) {
-            var at = near.add(dir.mult(t));
-            if (at.y <= floorAt.apply(at.x, at.z)) {
-                return onTheGround(near, dir, above, t, floorAt);
-            }
-            if (t >= to) {
-                return new Vector3f(at.x, floorAt.apply(at.x, at.z), at.z); // off the map, under all of it
-            }
-            above = t;
-        }
-    }
-
-    /** The meeting between a point of the ray over the ground and a later one at or under it, halved down onto it. */
-    private static Vector3f onTheGround(Vector3f near, Vector3f dir, float above, float under,
-                                        java.util.function.BiFunction<Float, Float, Float> floorAt) {
-        for (int halving = 0; halving < 12; halving++) {
-            float middle = (above + under) / 2f;
-            var at = near.add(dir.mult(middle));
-            if (at.y <= floorAt.apply(at.x, at.z)) {
-                under = middle;
-            } else {
-                above = middle;
-            }
-        }
-        var at = near.add(dir.mult(under));
-        return new Vector3f(at.x, floorAt.apply(at.x, at.z), at.z);
-    }
-
-    /**
-     * Where a ray meets a level plane at {@code height}.
-     *
-     * <p>A ray above the horizon never meets it, so it is followed a long way
-     * instead and the projection clamps the result to the map — which is what the
-     * player sees anyway: the view running off the edge of the world.
-     */
-    private static Vector3f meetsAt(Vector3f near, Vector3f dir, float height) {
-        float t = Math.abs(dir.y) < 1e-6f ? -1f : (height - near.y) / dir.y;
-        return near.add(dir.mult(t < 0 ? 10_000f : t));
+        return terrain == null || !terrain.hasDecks() ? ground : GroundRay.deckHit(near, dir, ground, terrain.decks());
     }
 
     /** A see-through thing's blip on its own side's radar, blinking once a second; every other blip whole. */
@@ -2385,7 +2263,7 @@ final class DukeRtsApp extends SimpleApplication {
             var dot = minimapDots.computeIfAbsent(view.id(), id -> {
                 float size = view.structure() ? 6f : 3.5f;
                 var geometry = new Geometry("mm-dot", new Quad(size, size));
-                geometry.setMaterial(unshaded(colourOf(view)));
+                geometry.setMaterial(Materials.unshaded(assetManager, colourOf(view)));
                 minimapNode.attachChild(geometry);
                 return geometry;
             });
@@ -2705,7 +2583,7 @@ final class DukeRtsApp extends SimpleApplication {
      * {@link Visuals}, which has known since before the window opened.
      */
     private void beginLoading() {
-        matchLoad = new MatchLoad(game, built -> artLoad = new ArtLoad(built.templatesThisMatchCanDraw()),
+        matchLoad = new MatchLoad(game, built -> artLoad = new ArtLoad(built.templatesThisMatchCanDraw(), visuals, artStore),
                 percent -> {
                     if (loadingEar != null) {
                         loadingEar.accept(percent);
@@ -2750,246 +2628,6 @@ final class DukeRtsApp extends SimpleApplication {
         if (matchLoad != null) {
             matchLoad.release();
         }
-    }
-
-    /**
-     * One pass over every file the game named, in two halves.
-     *
-     * <p>The reading half runs on a thread of its own, because that is the slow
-     * part and doing it here would freeze the very screen that exists to show it
-     * happening. jME's asset manager is built for this: a loader off the render
-     * thread parses into the shared cache, and nothing touches the scene graph.
-     *
-     * <p>The second half cannot be moved and does not need to be. Handing a mesh
-     * or a texture to the card, and compiling the shader that will draw it, is
-     * work only the render thread may do — so it is done here a piece at a time,
-     * between frames, while the bar keeps moving. It is the half that matters:
-     * a file read but never handed over stalls on first sight exactly as before.
-     *
-     * <p>Both halves keep what they load, and that is not tidiness. jME's asset
-     * cache holds what it has parsed through a <em>weak</em> reference: an asset
-     * nobody is holding is collected, and the next request for it reads the file
-     * again. Load twenty megabytes, drop it on the floor, and the collector is
-     * free to undo the entire exercise before the first monster walks in — with
-     * no error, no warning, and a stall in exactly the frame this exists to spare.
-     * So one instance of each is kept for the life of the window.
-     */
-    private final class ArtLoad implements MatchLoad.Art {
-
-        /**
-         * How long one frame may spend handing things to the card.
-         *
-         * <p>A share of a frame rather than a count of pieces. It was one piece a frame, which made the
-         * wait a count of frames: 876 models were 876 frames, a quarter of a minute at sixty, however
-         * fast the card was. Half of a sixty-a-second frame keeps the bar moving and lets a quick machine
-         * be quick.
-         */
-        private static final long WARM_BUDGET_NANOS = 8_000_000L;
-
-        /** One model to show the card, and the look that says how it is dressed. */
-        private record Warm(Visuals.UnitVisual look, String path) {
-        }
-
-        /** The templates this match can draw, or null to read everything the game registered. */
-        private final java.util.Set<String> only;
-        private final List<Preload.Job> files;
-        /**
-         * One entry per model file, not one per creature: six kinds cut from one kit
-         * share a file, and showing the card the same mesh six times teaches it
-         * nothing it did not know after the first. A look's models for its
-         * conditions are here too — a building first drawn wrecked is a stall.
-         */
-        private final List<Warm> looks;
-        /**
-         * Every sound, from both places a game may name one.
-         *
-         * <p>A unit's fire and death sounds are named on the unit; everything else
-         * is in the bank. The music is left out on purpose — it is streamed from
-         * disc as it plays rather than held, so reading it here would be reading a
-         * megabyte to throw it away.
-         */
-        private final List<String> sounds;
-        private final java.util.concurrent.atomic.AtomicInteger read =
-                new java.util.concurrent.atomic.AtomicInteger();
-        private volatile String reading = "";
-        private int warmed;
-
-        ArtLoad(java.util.Set<String> only) {
-            this.only = only;
-            this.files = Preload.plan(visuals, only);
-            this.looks = warmList();
-            this.sounds = soundList();
-            var reader = new Thread(this::readEverything, "duke-art");
-            reader.setDaemon(true); // a window closed mid-load must still close
-            reader.start();
-        }
-
-        private List<Warm> warmList() {
-            var byPath = new java.util.LinkedHashMap<String, Warm>();
-            for (var look : only == null ? visuals.allLooks() : visuals.looksNamed(only)) {
-                if (look.modelPath != null) {
-                    byPath.putIfAbsent(look.modelPath, new Warm(look, look.modelPath));
-                }
-                for (var path : look.conditionalModels.values()) {
-                    byPath.putIfAbsent(path, new Warm(look, path));
-                }
-            }
-            return List.copyOf(byPath.values());
-        }
-
-        private List<String> soundList() {
-            var everyTemplate = visuals.lookNames();
-            return java.util.stream.Stream.concat(
-                            files.stream().filter(job -> job.kind() == Preload.Kind.SOUND)
-                                    .map(Preload.Job::assetPath),
-                            visuals.getSounds().all().stream()
-                                    .filter(cue -> cue.channel() != SoundBank.Channel.MUSIC)
-                                    .filter(cue -> belongsToThisMatch(cue.name(), everyTemplate))
-                                    .flatMap(cue -> cue.files().stream()))
-                    .distinct().toList();
-        }
-
-        /**
-         * Whether a cue can be heard in this match.
-         *
-         * <p>A cue made for one template ends with its name — {@code died.Rifleman}, which the client plays
-         * when a rifleman dies — and is this match's only if that template is. Everything else, a click, a
-         * voice line, {@code died} on its own, is anybody's and stays. Only what is provably another
-         * template's is left out, so a game that names its cues some other way loses nothing.
-         */
-        private boolean belongsToThisMatch(String cue, java.util.Set<String> everyTemplate) {
-            if (only == null) {
-                return true;
-            }
-            int dot = cue.lastIndexOf('.');
-            var whose = dot < 0 ? null : cue.substring(dot + 1);
-            return whose == null || !everyTemplate.contains(whose) || only.contains(whose);
-        }
-
-        private void readEverything() {
-            for (var job : files) {
-                reading = job.assetPath();
-                try {
-                    switch (job.kind()) {
-                        case MODEL, TILE -> keep(assetManager.loadModel(job.assetPath()));
-                        case ANIMATIONS -> animationLibraries.computeIfAbsent(job.assetPath(),
-                                assetManager::loadModel);
-                        case TEXTURE -> keep(assetManager.loadTexture(job.assetPath()));
-                        // Sound is the render thread's: an audio node goes into the
-                        // scene, and the scene is not this thread's to touch.
-                        case SOUND -> {
-                        }
-                    }
-                } catch (RuntimeException | LinkageError e) {
-                    warnOnce(job.assetPath(), job.kind().name().toLowerCase(
-                            java.util.Locale.ROOT));
-                } finally {
-                    // In a finally, because a thread that dies holding the count
-                    // leaves the loading screen up for ever, and a game that will
-                    // not start is worse than a game missing one texture.
-                    read.incrementAndGet();
-                }
-            }
-            reading = "";
-        }
-
-        /**
-         * How far along, counting both halves as one.
-         */
-        @Override
-        public float done() {
-            return (read.get() + warmed) / (float) Math.max(1, total());
-        }
-
-        String what() {
-            return reading;
-        }
-
-        private int total() {
-            return files.size() + looks.size() + sounds.size() + 1;
-        }
-
-        /**
-         * Do this frame's share of the work; {@code true} once there is none left.
-         */
-        @Override
-        public boolean step() {
-            if (read.get() < files.size()) {
-                return false; // still reading; the bar is the only thing to do
-            }
-            int all = looks.size() + sounds.size() + 1;
-            // At least one a frame, however slow the one; then as many more as fit in the budget.
-            long until = System.nanoTime() + WARM_BUDGET_NANOS;
-            do {
-                if (warmed >= all) {
-                    break;
-                }
-                warmOne();
-                warmed++;
-            } while (System.nanoTime() < until);
-            return warmed >= all;
-        }
-
-        private void warmOne() {
-            if (warmed < looks.size()) {
-                warmLook(looks.get(warmed));
-            } else if (warmed < looks.size() + sounds.size()) {
-                soundNode(sounds.get(warmed - looks.size()));
-            } else {
-                // The floor is already standing, and its several hundred tiles are
-                // three meshes and one material the card has still never seen.
-                renderManager.preloadScene(terrainNode);
-            }
-        }
-
-        /**
-         * Build one of this creature exactly as the game will, show it to the card,
-         * and throw it away.
-         *
-         * <p>Thrown away and still worth doing, because what is kept is not the
-         * model: it is the parsed file in the asset cache, the texture in graphics
-         * memory, and the compiled shader for the one material every creature of
-         * this kit shares. The next one built is the cheap one.
-         */
-        private void warmLook(Warm one) {
-            var look = one.look();
-            reading = one.path();
-            try {
-                var body = assetManager.loadModel(one.path());
-                if (look.modelPart != null) {
-                    body = partOf(body, look.modelPart, one.path());
-                }
-                dressModel(body, look, one.path());
-                // Left in the scene, culled, for as long as the window lasts. A
-                // clone is what holds a parsed model in jME's cache; drop it and
-                // the file is read again the first time a creature needs it.
-                warmNode.attachChild(body);
-                rootNode.updateGeometricState();
-                renderManager.preloadScene(body);
-            } catch (RuntimeException e) {
-                warnOnce(one.path(), "model");
-            }
-        }
-    }
-
-    /**
-     * Where one of each creature stands, culled, for the life of the window.
-     *
-     * <p>In the scene rather than off to the side of it, because a spatial with no
-     * parent has no world transform and jME says so with an assertion. Never
-     * drawn — the node is culled outright — and never emptied, because these
-     * are the references that hold the parsed models in the asset cache.
-     */
-    private final Node warmNode = new Node("warm");
-
-    /**
-     * Textures and pieces with nothing else holding them. See {@link ArtLoad}.
-     */
-    private final List<Object> artKeptAlive =
-            java.util.Collections.synchronizedList(new ArrayList<>());
-
-    private void keep(Object asset) {
-        artKeptAlive.add(asset);
     }
 
     private void showPauseMenu() {
@@ -3148,7 +2786,7 @@ final class DukeRtsApp extends SimpleApplication {
         try {
             return assetManager.loadFont(assetPath);
         } catch (RuntimeException e) {
-            warnOnce(assetPath, "font");
+            missing.warn(assetPath, "font");
             return guiFont;
         }
     }
@@ -3329,7 +2967,7 @@ final class DukeRtsApp extends SimpleApplication {
                 }
             }
         } catch (RuntimeException e) {
-            warnOnce("display modes", "screen");
+            missing.warn("display modes", "screen");
         }
         if (found.isEmpty()) {
             found.add(new Size(1280, 720, false));
@@ -4080,7 +3718,7 @@ final class DukeRtsApp extends SimpleApplication {
             }
             var theme = visuals.getTheme(name);
             if (theme == null) {
-                warnOnce(name, "look");
+                missing.warn(name, "look");
                 continue;
             }
             looks[cell] = theme;
@@ -4101,7 +3739,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         var theme = visuals.getTheme(name);
         if (theme == null) {
-            warnOnce(name, "look");
+            missing.warn(name, "look");
         }
         return theme;
     }
@@ -5807,7 +5445,7 @@ final class DukeRtsApp extends SimpleApplication {
                 .toSet());
         var shown = snapshot.rallies().stream().filter(rally -> own.contains(rally.id())).toList();
         rallyMarks.show(visuals.getRally(), shown, RallyMarks.flagOf(shown, selected.size()),
-                toColor(game.getColor(game.getLocalPlayerIndex())), visuals.getHouseColour(), this::floorHeightAt,
+                Materials.colour(game.getColor(game.getLocalPlayerIndex())), visuals.getHouseColour(), this::floorHeightAt,
                 cam.getLocation());
     }
 
@@ -5827,16 +5465,6 @@ final class DukeRtsApp extends SimpleApplication {
     void answerMove(Coord3D place) {
         markOrder(place.x(), place.y(), OrderMarkers.Kind.MOVE);
         hintMove(place.x(), place.y());
-    }
-
-    /** A move mark's model, as the file has it: no dressing, it is the game's own answer to a click. */
-    private Spatial loadMarkModel(String path) {
-        try {
-            return assetManager.loadModel(path);
-        } catch (RuntimeException notThere) {
-            warnOnce(path, "order mark");
-            return null;
-        }
     }
 
     /**
@@ -6326,18 +5954,16 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         var look = visualFor(named);
-        Spatial body = look != null && look.modelPath != null ? buildBody(look, java.util.List.of()) : null;
+        Spatial body = look != null && look.modelPath != null ? bodies.buildBody(look, java.util.List.of()) : null;
         if (body == null) {
-            try {
-                body = assetManager.loadModel(named);
-            } catch (RuntimeException notAModel) {
-                warnOnce(named, "ghost");
+            body = bodies.asFiled(named, "ghost");
+            if (body == null) {
                 return;
             }
         }
         var ghostLook = visuals.getGhostLook();
         if (ghostLook != null && visuals.getHouseColour() != null) {
-            paintOwner(body, visuals.getHouseColour(), toColor(game.getColor(game.getLocalPlayerIndex())));
+            Bodies.paintOwner(body, visuals.getHouseColour(), Materials.colour(game.getColor(game.getLocalPlayerIndex())));
         }
         ghost = new Ghost(assetManager, markerNode, body, ghostLook);
     }
@@ -7244,10 +6870,10 @@ final class DukeRtsApp extends SimpleApplication {
         if (node == null || node.view == null) {
             return;
         }
-        selectionFlash.flash(id, node.root, look, toColor(game.getColor(node.view.wears())));
+        selectionFlash.flash(id, node.root, look, Materials.colour(game.getColor(node.view.wears())));
         for (var rider : unitNodes.values()) {
             if (rider.view != null && rider.view.ridesOn() == id) {
-                selectionFlash.flash(rider.view.id(), rider.root, look, toColor(game.getColor(rider.view.wears())));
+                selectionFlash.flash(rider.view.id(), rider.root, look, Materials.colour(game.getColor(rider.view.wears())));
             }
         }
     }
@@ -7345,7 +6971,7 @@ final class DukeRtsApp extends SimpleApplication {
             var shade = ambientColour.add(sunColour.mult(0.5f));
             shade.a = 1f;
             if (fogMap == null) {
-                look = unshaded(shade);
+                look = Materials.unshaded(assetManager, shade);
                 look.setTexture("ColorMap", picture);
             } else {
                 look = new Material(assetManager, "MatDefs/duke/FoggedTerrain.j3md");
@@ -7378,51 +7004,8 @@ final class DukeRtsApp extends SimpleApplication {
     private void paintThrown(Spatial piece, Spatial thing) {
         Integer wears = thing.getUserData("wears");
         if (visuals.getHouseColour() != null && wears != null) {
-            paintOwner(piece, visuals.getHouseColour(), toColor(game.getColor(wears)));
+            Bodies.paintOwner(piece, visuals.getHouseColour(), Materials.colour(game.getColor(wears)));
         }
-    }
-
-    /** A fresh copy of a model, or of one named piece of it, for something thrown off; null where it will not load. */
-    private Spatial debrisPiece(String model, String piece) {
-        try {
-            var loaded = assetManager.loadModel(model);
-            return piece == null ? loaded : partOf(loaded, piece, model);
-        } catch (RuntimeException notThere) {
-            warnOnce(model, "debris model");
-            return null;
-        }
-    }
-
-    /**
-     * Lift one named mesh out of a loaded model and stand it on its own.
-     *
-     * <p>Taken out of its parents entirely rather than hidden among them: the
-     * piece is wanted at the origin, pointing along its own axis, and it arrives
-     * carrying wherever it sat on the character — in a hand, at an angle, at head
-     * height. Dropping that transform is what makes an arrow an arrow rather than
-     * an arrow held by an invisible archer.
-     *
-     * <p>A part that is not there leaves the whole model, which is visibly wrong
-     * and says so in the log — better than a unit that quietly disappears.
-     */
-    private Spatial partOf(Spatial model, String partName, String path) {
-        var found = new Spatial[1];
-        model.depthFirstTraversal(spatial -> {
-            if (found[0] == null && spatial instanceof Geometry
-                    && partName.equals(spatial.getName())) {
-                found[0] = spatial;
-            }
-        });
-        if (found[0] == null) {
-            warnOnce(path + "#" + partName, "model part");
-            return model;
-        }
-        var piece = found[0];
-        piece.removeFromParent();
-        piece.setLocalTransform(new com.jme3.math.Transform()); // its own origin
-        var holder = new Node(partName);
-        holder.attachChild(piece);
-        return holder;
     }
 
     /**
@@ -7543,13 +7126,13 @@ final class DukeRtsApp extends SimpleApplication {
         }
         for (var layer : node.layers) {
             layer.wear(node.root, view, world, snapshot.frame(), body -> paintHouseColour(body, view),
-                    clip -> warnOnce(view.templateName() + "/" + clip, "animation"),
+                    clip -> missing.warn(view.templateName() + "/" + clip, "animation"),
                     bone -> boneOf(node, layer, bone));
         }
         if (node.composer != null) {
             node.currentAnim = WordClip.playDead(node.composer, node.wordClip, node.currentAnim, visual, holding,
                     snapshot.frame(), view.id(), node.deathClip, node.diedOn,
-                    clip -> warnOnce(view.templateName() + "/" + clip, "animation"));
+                    clip -> missing.warn(view.templateName() + "/" + clip, "animation"));
         }
     }
 
@@ -7564,7 +7147,7 @@ final class DukeRtsApp extends SimpleApplication {
         node.root.setUserData("wears", view.wears()); // for what it throws once it is gone from the snapshot
 
         node.modelPath = visual.modelFor(view.healthFraction(), visuals.getWorldConditions(), view.conditions());
-        Spatial body = visual.shapeless ? new Node("no-shape") : buildBody(visual, java.util.List.of(), node.modelPath);
+        Spatial body = visual.shapeless ? new Node("no-shape") : bodies.buildBody(visual, java.util.List.of(), node.modelPath);
         if (body != null && visual.line != null && view.span() != null) {
             body = layAlong(body, view, visual, node);
         }
@@ -7594,7 +7177,7 @@ final class DukeRtsApp extends SimpleApplication {
 
         node.boneSystems = new BoneSystems(particles, rootNode);
         for (var look : visual.layers.values()) {
-            node.layers.add(new ModelLayer(look, path -> buildBody(look, java.util.List.of(), path),
+            node.layers.add(new ModelLayer(look, path -> bodies.buildBody(look, java.util.List.of(), path),
                     new BoneSystems(particles, rootNode)));
         }
         node.ring = buildSelectionRing(view);
@@ -7605,36 +7188,11 @@ final class DukeRtsApp extends SimpleApplication {
         return node;
     }
 
-    /**
-     * A creature's body: its model, its skin, its tint, whatever it carries, and
-     * the clips it was named — or {@code null} for a thing that has no model, or
-     * whose model would not load.
-     *
-     * <p>Pulled out of {@link #createUnitNode} because the hero panel's live
-     * portrait wants the same body built the same way, and a second copy of this
-     * paragraph would be a portrait of somebody slightly else — a different tint,
-     * an unarmed archer, a model that is lit and one that is not. Everything about
-     * what a creature <em>is</em> is here; where it stands and what it is doing
-     * belong to whoever asked for it.
-     *
-     * <p>Every material is its own, never shared with another body. A skinned
-     * material holds the pose of the skeleton driving it, so two things on one
-     * material both stand in whichever pose was written last — which is why the
-     * portrait needs a body of its own rather than the one in the world.
-     *
-     * @param alsoWanted clips beyond the creature's own five. A unit asks for
-     *                   none; the portrait asks for the ones only it plays, and nothing else
-     *                   would ever fetch them off the library
-     */
-    private Spatial buildBody(Visuals.UnitVisual visual, java.util.Collection<String> alsoWanted) {
-        return buildBody(visual, alsoWanted, visual.modelPath);
-    }
-
     /** Whatever a node has to know about the body it is drawn with: how it is animated, and how tall it is. */
     private void takeUpBody(UnitNode node, Spatial body, Visuals.UnitVisual visual) {
-        node.composer = findControl(body, AnimComposer.class);
+        node.composer = Bodies.findControl(body, AnimComposer.class);
         node.legacyChannel = null;
-        var legacy = findControl(body, AnimControl.class);
+        var legacy = Bodies.findControl(body, AnimControl.class);
         if (node.composer == null && legacy != null) {
             node.legacyChannel = legacy.createChannel();
         }
@@ -7696,7 +7254,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private void swapBody(UnitNode node, UnitView view, Visuals.UnitVisual visual, String wanted) {
         stealthLook.forget(view.id()); // what it laid over the old body goes with it
-        var body = buildBody(visual, java.util.List.of(), wanted);
+        var body = bodies.buildBody(visual, java.util.List.of(), wanted);
         if (body != null && visual.line != null && view.span() != null) {
             body = layAlong(body, view, visual, node);
         }
@@ -7732,8 +7290,8 @@ final class DukeRtsApp extends SimpleApplication {
         if (fogMap != null) {
             laid.depthFirstTraversal(spatial -> {
                 if (spatial instanceof Geometry geometry) {
-                    geometry.setMaterial(fogged(visual.tint == null ? ColorRGBA.White : toColor(visual.tint),
-                            ambientColour.mult(PLAIN_AMBIENT), skinOf(geometry.getMaterial())));
+                    geometry.setMaterial(fogged(visual.tint == null ? ColorRGBA.White : Materials.colour(visual.tint),
+                            ambientColour.mult(PLAIN_AMBIENT), Bodies.skinOf(geometry.getMaterial())));
                 }
             });
         }
@@ -7741,263 +7299,6 @@ final class DukeRtsApp extends SimpleApplication {
         return laid;
     }
 
-    /**
-     * The same, drawn from a named file rather than from the visual's plain one.
-     *
-     * <p>Which file is the caller's: a template may name a model for a set of conditions — hurt, in snow,
-     * at night — and which of them holds is decided per thing and per frame. Everything else about the body
-     * is the same whichever file it came from.
-     */
-    private Spatial buildBody(Visuals.UnitVisual visual, java.util.Collection<String> alsoWanted,
-            String modelPath) {
-        if (modelPath == null) {
-            return null;
-        }
-        try {
-            var body = assetManager.loadModel(modelPath);
-            if (visual.modelPart != null) {
-                body = partOf(body, visual.modelPart, modelPath);
-            }
-            body.setLocalScale(visual.scale);
-            body.setLocalTranslation(0, visual.yOffset, 0);
-            body.setLocalRotation(new Quaternion().fromAngles(0,
-                    FastMath.DEG_TO_RAD * visual.facingDegrees, 0));
-            dressModel(body, visual, modelPath);
-            // After being dressed, because dressing replaces every material on
-            // it and would put the fire out again.
-            effects.lightThePartsOf(body, visual.effect);
-            putInHisHand(body, visual);
-            borrowAnimations(body, visual, alsoWanted);
-            return body;
-        } catch (RuntimeException e) {
-            warnOnce(modelPath, "model");
-            return null;
-        }
-    }
-
-    /**
-     * Give a loaded model the colour map and tint the game asked for, on a
-     * material this client can actually light.
-     *
-     * <p>The loader's own material is replaced rather than added to, and the
-     * reason is the whole bug this fixes. jME's glTF loader builds a
-     * <b>PBR</b> material, and physically based shading takes its ambient light
-     * from an environment map — a light probe. This client has a sun and a flat
-     * ambient and no probe, so a PBR model comes out black: not untextured, not
-     * mis-scaled, simply unlit. It looks exactly like a missing texture, which is
-     * what makes it worth a comment.
-     *
-     * <p>Plain lighting over the same colour map is what the tiles already use and
-     * what these flat-shaded kits are drawn for. It carries {@code NumberOfBones}
-     * and {@code BoneMatrices}, so skinning keeps working — the one thing the PBR
-     * material was being kept for.
-     *
-     * <p>A material per geometry per unit, never shared: a skinned material holds
-     * the pose of the skeleton driving it, so two monsters on one material would
-     * both stand in whichever pose was written last.
-     */
-    private void dressModel(Spatial body, Visuals.UnitVisual visual, String modelPath) {
-        com.jme3.texture.Texture skin = null;
-        if (visual.texturePath != null) {
-            try {
-                skin = assetManager.loadTexture(skinKey(visual.texturePath, visual.modelPath));
-            } catch (RuntimeException e) {
-                warnOnce(visual.texturePath, "texture");
-            }
-        }
-        var tint = visual.tint == null ? ColorRGBA.White : toColor(visual.tint);
-        var named = skin;
-        var marked = blendsOf(modelPath);
-        body.depthFirstTraversal(spatial -> {
-            if (spatial instanceof Geometry geometry) {
-                var loaded = geometry.getMaterial();
-                var blend = loaded == null || loaded.getName() == null ? null : marked.get(loaded.getName());
-                var colours = named != null ? named : skinOf(loaded);
-                var coloured = ownColour(loaded, colours, modelPath).mult(tint);
-                // A marked light or shadow stays as unlit as the file made it; the rest is lit as it always was.
-                var dressed = blend != null && ModelBlends.unlit(loaded)
-                        ? unlitMaterial(colours, coloured) : creatureMaterial(colours, coloured);
-                ModelBlends.carryOver(loaded, dressed, geometry, blend);
-                geometry.setMaterial(dressed);
-            }
-        });
-    }
-
-    /**
-     * The colour a dressed piece of a model is drawn in before the look's tint. Where the piece has a picture — the
-     * look's, or the one it came with — the picture carries its colours and this is white, the tint laid over it alone.
-     * A glTF model's piece with none is drawn in the colour its file gives its surface, {@code baseColorFactor}, which
-     * jME's loader holds as {@code BaseColor} — {@code Color} on an unlit surface: kept as a picture is kept, so a silver
-     * key with no texture is drawn silver, not white. White for any other file, as every piece was.
-     */
-    static ColorRGBA ownColour(Material loaded, com.jme3.texture.Texture colours, String modelPath) {
-        if (colours != null || loaded == null || !isGltf(modelPath)) {
-            return ColorRGBA.White.clone();
-        }
-        for (var name : new String[] {"BaseColor", "Color"}) {
-            if (loaded.getParamValue(name) instanceof ColorRGBA base) {
-                return base.clone();
-            }
-        }
-        return ColorRGBA.White.clone();
-    }
-
-    private static boolean isGltf(String modelPath) {
-        return modelPath != null && (modelPath.endsWith(".glb") || modelPath.endsWith(".gltf"));
-    }
-
-    /** The materials of a model file the game marked with a blend of its own — see {@link ModelBlends}. Read once. */
-    private final Map<String, Map<String, ModelBlends.Blend>> blendsByModel = new HashMap<>();
-
-    private Map<String, ModelBlends.Blend> blendsOf(String modelPath) {
-        if (modelPath == null || !modelPath.endsWith(".glb")) {
-            return Map.of();
-        }
-        return blendsByModel.computeIfAbsent(modelPath, path -> {
-            var found = assetManager.locateAsset(new com.jme3.asset.AssetKey<>(path));
-            if (found == null) {
-                return Map.of();
-            }
-            try (var in = found.openStream()) {
-                return ModelBlends.read(in);
-            } catch (java.io.IOException | RuntimeException e) {
-                warnOnce(path, "model's materials");
-                return Map.of();
-            }
-        });
-    }
-
-    /** An unlit material over a colour map, tinted: for a marked light or shadow the file drew without lighting. */
-    private Material unlitMaterial(com.jme3.texture.Texture colours, ColorRGBA colour) {
-        var material = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        material.setColor("Color", colour);
-        if (colours != null) {
-            material.setTexture("ColorMap", colours);
-        }
-        return material;
-    }
-
-    /**
-     * How a skin named for a model has to be read to land where the model's own skin did.
-     *
-     * <p>A glTF model's UVs count down from the top of its picture and its loader reads
-     * its own skin that way, where a texture loaded by name alone is turned the other way
-     * up. On a kit whose colours are swatches laid out in rows that is no small error:
-     * every face samples the row below the one it was painted for, and the Skeleton
-     * Healer's green robe came out cream. Anything that is not glTF is read as it always
-     * was.
-     */
-    static com.jme3.asset.TextureKey skinKey(String texturePath, String modelPath) {
-        var key = new com.jme3.asset.TextureKey(texturePath, !isGltf(modelPath));
-        key.setGenerateMips(true);
-        return key;
-    }
-
-    /**
-     * Hang the thing this unit carries on the bone that is there to carry it.
-     *
-     * <p>jME builds the attachment node itself and parents it under the joint, so
-     * the weapon is moved by the same clip that moves the hand and there is
-     * nothing to keep in step each frame. What it does <em>not</em> do is dress
-     * it: a weapon loads with the same PBR material the body does, and this client
-     * cannot light one, so an undressed bow is a black bow. Nor does it know which
-     * way round the model goes — see {@link Visuals.UnitVisual#heldTurn}.
-     *
-     * <p>A bone the rig does not have is a warning rather than a failure. The unit
-     * is drawn empty-handed, which is a thing you can see and think about; a
-     * missing model is not worth a black screen.
-     */
-    private void putInHisHand(Spatial body, Visuals.UnitVisual visual) {
-        if (visual.carried.isEmpty()) {
-            return;
-        }
-        var skin = findControl(body, com.jme3.anim.SkinningControl.class);
-        if (skin == null) {
-            return; // nothing rigged to hang anything on
-        }
-        for (var one : visual.carried) {
-            hang(skin, one, visual);
-        }
-    }
-
-    /**
-     * One carried thing, on one bone. Each failure is its own and loses only itself.
-     */
-    private void hang(com.jme3.anim.SkinningControl skin, Visuals.UnitVisual.Carried one,
-                      Visuals.UnitVisual visual) {
-        if (one.path == null || one.bone == null) {
-            return;
-        }
-        if (skin.getArmature().getJoint(one.bone) == null) {
-            warnOnce(one.path + "@" + one.bone, "bone");
-            return;
-        }
-        Spatial held;
-        try {
-            held = assetManager.loadModel(one.path);
-        } catch (RuntimeException e) {
-            warnOnce(one.path, "model");
-            return;
-        }
-        var tint = visual.tint == null ? ColorRGBA.White : toColor(visual.tint);
-        held.depthFirstTraversal(spatial -> {
-            if (spatial instanceof Geometry geometry) {
-                var loaded = geometry.getMaterial();
-                var colours = skinOf(loaded);
-                geometry.setMaterial(creatureMaterial(colours, ownColour(loaded, colours, one.path).mult(tint)));
-            }
-        });
-        held.setLocalScale(one.scale);
-        held.setLocalRotation(new Quaternion().fromAngles(
-                FastMath.DEG_TO_RAD * one.pitch,
-                FastMath.DEG_TO_RAD * one.yaw,
-                FastMath.DEG_TO_RAD * one.roll));
-        held.setLocalTranslation(one.x, one.y, one.z);
-        skin.getAttachmentsNode(one.bone).attachChild(held);
-    }
-
-    /**
-     * The colour map a loaded material already holds.
-     *
-     * <p>Creatures come with a skin beside them and the game names it; kit props
-     * do not — a barrel carries its colours inside its own glTF, pointing at the
-     * pack's atlas. Naming no texture therefore means <em>the one it came
-     * with</em>, not <em>none</em>. Reading it as none is how a barrel and a bare
-     * tree came out plain white: the right shape, lit correctly, wearing the
-     * tint over nothing at all.
-     */
-    static com.jme3.texture.Texture skinOf(Material material) {
-        if (material == null) {
-            return null;
-        }
-        // Asked by its role first: jME lists a glTF piece's normal and emissive maps before its base colour, and a
-        // piece dressed in its normal map comes out pale lavender.
-        for (var role : SKIN_ROLES) {
-            var param = material.getTextureParam(role);
-            if (param != null && param.getTextureValue() != null) {
-                return param.getTextureValue();
-            }
-        }
-        for (var param : material.getParams()) {
-            if (param.getValue() instanceof com.jme3.texture.Texture texture) {
-                return texture;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * How much of its own colour a creature keeps where no light reaches it --
-     * which is also where a hit flash starts from and fades back to.
-     */
-    private static final float CREATURE_AMBIENT = 0.55f;
-
-    /** The names a material holds its base colour's picture by, in the order asked. */
-    private static final String[] SKIN_ROLES = {"BaseColorMap", "DiffuseMap", "ColorMap"};
-
-    /**
-     * Flat lighting over a kit's own colour map, tinted.
-     */
     /**
      * Paint the parts of a body its art marked for its owner in its owner's colour.
      *
@@ -8015,66 +7316,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (prefix == null || body == null) {
             return; // a game that names none is drawn as it always was
         }
-        paintOwner(body, prefix, toColor(game.getColor(view.wears()))); // a disguise's to those it fools
-    }
-
-    /**
-     * The parts of {@code body} named with {@code prefix} painted {@code owner}: the colour each was drawn with, kept
-     * the first time, times the owner's — so painting again for a new owner gives that colour times theirs.
-     */
-    static void paintOwner(Spatial body, String prefix, ColorRGBA owner) {
-        body.depthFirstTraversal(spatial -> {
-            if (!(spatial instanceof Geometry geometry) || !isHouseColoured(geometry, body, prefix)) {
-                return;
-            }
-            var material = geometry.getMaterial();
-            for (var channel : java.util.List.of("Diffuse", "Ambient")) {
-                // From the colour it was drawn with, kept the first time: painted again for a new owner, it is that
-                // colour times theirs, not the last owner's times theirs.
-                ColorRGBA base = geometry.getUserData("house." + channel);
-                if (base == null && material.getParamValue(channel) instanceof ColorRGBA was) {
-                    base = was.clone();
-                    geometry.setUserData("house." + channel, base);
-                }
-                if (base != null) {
-                    material.setColor(channel, base.mult(owner));
-                }
-            }
-        });
-    }
-
-    /**
-     * Whether a mesh is one of the parts marked for its owner: its own name, or the name of anything it
-     * hangs under inside this body, begins with the prefix the game gave — letter case aside.
-     *
-     * <p>The ancestors as well as the mesh, because a loader does not always keep a name where the art put
-     * it. A glTF node called {@code HOUSECOLOR01} may reach the scene as a node of that name holding a
-     * geometry called something else entirely, and it is the node the artist named.
-     */
-    static boolean isHouseColoured(Spatial geometry, Spatial body, String prefix) {
-        for (Spatial at = geometry; at != null; at = at.getParent()) {
-            var name = at.getName();
-            if (name != null && name.regionMatches(true, 0, prefix, 0, prefix.length())) {
-                return true;
-            }
-            if (at == body) {
-                return false; // nothing above the body is part of it
-            }
-        }
-        return false;
-    }
-
-    private Material creatureMaterial(com.jme3.texture.Texture skin, ColorRGBA colour) {
-        var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
-        material.setBoolean("UseMaterialColors", true);
-        material.setColor("Diffuse", colour);
-        material.setColor("Ambient", colour.mult(CREATURE_AMBIENT));
-        material.setColor("Specular", ColorRGBA.Black); // kit art has no highlights
-        material.setFloat("Shininess", 1f);
-        if (skin != null) {
-            material.setTexture("DiffuseMap", skin);
-        }
-        return material;
+        Bodies.paintOwner(body, prefix, Materials.colour(game.getColor(view.wears()))); // a disguise's to those it fools
     }
 
     /**
@@ -8106,79 +7348,6 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * Fetch this unit's animations out of a library file built on the same
-     * skeleton, and put them on the model that has none.
-     *
-     * <p>The library is loaded once and kept: it is a large file and every monster
-     * on the floor wants clips out of it. What each monster gets is its own,
-     * though — a clip's tracks point straight at the joints they drive, so a clip
-     * shared between two monsters would animate whichever of them was built first
-     * and leave the other standing.
-     */
-    private void borrowAnimations(Spatial body, Visuals.UnitVisual visual,
-                                  java.util.Collection<String> alsoWanted) {
-        var wanted = new java.util.ArrayList<String>();
-        for (var name : new String[]{visual.idleAnim, visual.walkAnim,
-                visual.attackAnim, visual.hurtAnim, visual.dieAnim}) {
-            if (name != null) {
-                wanted.add(name);
-            }
-        }
-        for (var name : alsoWanted) {
-            if (name != null && !wanted.contains(name)) {
-                wanted.add(name);
-            }
-        }
-        for (var name : visual.dieAnims.values()) {
-            if (!wanted.contains(name)) {
-                wanted.add(name);
-            }
-        }
-        for (var picks : visual.rolePicks.values()) {
-            for (var pick : picks) {
-                if (!wanted.contains(pick.clip())) {
-                    wanted.add(pick.clip());
-                }
-            }
-        }
-        // And whatever else the game said this one needs -- a gesture it casts
-        // with, say. A clip nobody asked for by name is not copied, and then
-        // nothing can play it: see Visuals.UnitVisual.alsoAnimation.
-        for (var name : visual.otherAnims) {
-            if (!wanted.contains(name)) {
-                wanted.add(name);
-            }
-        }
-        for (var source : visual.animations) {
-            var library = animationLibraries.get(source.assetPath());
-            if (library == null) {
-                try {
-                    library = assetManager.loadModel(source.assetPath());
-                } catch (RuntimeException e) {
-                    warnOnce(source.assetPath(), "animation library");
-                    continue;
-                }
-                animationLibraries.put(source.assetPath(), library);
-            }
-            boolean arrived = source.clipName() == null
-                    ? AnimationLibrary.copy(library, body, wanted) > 0
-                    : AnimationLibrary.copySingle(library, body, source.clipName());
-            if (!arrived && missingAssets.add(source.assetPath() + "#clips")) {
-                var path = source.assetPath();
-                LOG.warning(() -> "no animation was taken from " + path
-                        + " — either it holds none, or it and the model are on"
-                        + " different skeletons");
-            }
-        }
-    }
-
-    /**
-     * Animation libraries, loaded once each and shared by everything that borrows.
-     */
-    private final Map<String, Spatial> animationLibraries =
-            new java.util.concurrent.ConcurrentHashMap<>();
-
-    /**
      * What colour to draw this unit: the type's own if the game gave it one,
      * otherwise its player's.
      *
@@ -8188,7 +7357,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private ColorRGBA colourOf(UnitView view) {
         var own = visualFor(view).colour;
-        return toColor(own != null ? own : game.getColor(view.wears()));
+        return Materials.colour(own != null ? own : game.getColor(view.wears()));
     }
 
     /**
@@ -8199,17 +7368,17 @@ final class DukeRtsApp extends SimpleApplication {
         var group = new Node("primitive");
         if (view.structure()) {
             var box = new Geometry("b", new Box(2.6f, 1.8f, 2.6f));
-            box.setMaterial(lit(color));
+            box.setMaterial(Materials.lit(assetManager, color));
             box.setLocalTranslation(0, 1.8f, 0);
             group.attachChild(box);
         } else {
             var hull = new Geometry("h", new Cylinder(2, 16, 1.1f, 2.4f, true));
-            hull.setMaterial(lit(color));
+            hull.setMaterial(Materials.lit(assetManager, color));
             hull.rotate(FastMath.HALF_PI, 0, 0);
             hull.setLocalTranslation(0, 1.2f, 0);
             group.attachChild(hull);
             var barrel = new Geometry("barrel", new Box(1.1f, 0.18f, 0.18f));
-            barrel.setMaterial(lit(color.mult(1.4f)));
+            barrel.setMaterial(Materials.lit(assetManager, color.mult(1.4f)));
             barrel.setLocalTranslation(1.2f, 1.4f, 0);
             group.attachChild(barrel);
         }
@@ -8226,7 +7395,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private Geometry buildSelectionRing(UnitView view) {
         var ring = new Geometry("ring", new com.jme3.scene.Mesh());
-        ring.setMaterial(unshaded(view.playerIndex() == game.getLocalPlayerIndex()
+        ring.setMaterial(Materials.unshaded(assetManager, view.playerIndex() == game.getLocalPlayerIndex()
                 ? new ColorRGBA(0.4f, 1f, 0.4f, 1f) : new ColorRGBA(1f, 0.36f, 0.3f, 1f)));
         ring.setCullHint(Spatial.CullHint.Always);
         return ring;
@@ -8252,7 +7421,7 @@ final class DukeRtsApp extends SimpleApplication {
      * A colour that is drawn over the scene rather than into it.
      */
     private Material overlay(ColorRGBA colour) {
-        var material = unshaded(colour);
+        var material = Materials.unshaded(assetManager, colour);
         material.getAdditionalRenderState().setDepthTest(false);
         return material;
     }
@@ -8348,7 +7517,7 @@ final class DukeRtsApp extends SimpleApplication {
         for (var layer : node.layers) {
             layer.wear(node.root, view, visuals.getWorldConditions(), snapshot.frame(),
                     body -> paintHouseColour(body, view),
-                    clip -> warnOnce(view.templateName() + "/" + clip, "animation"),
+                    clip -> missing.warn(view.templateName() + "/" + clip, "animation"),
                     bone -> boneOf(node, layer, bone));
         }
         runningGear.see(view.id(), view, snapshot.frame());
@@ -8496,7 +7665,7 @@ final class DukeRtsApp extends SimpleApplication {
         var holding = visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions());
         boolean had = node.wordClip.chosen();
         var chosen = WordClip.playOn(node.composer, node.wordClip, node.currentAnim, visual, holding, snapshot.frame(),
-                view.id(), view.speed(), clip -> warnOnce(view.templateName() + "/" + clip, "animation"));
+                view.id(), view.speed(), clip -> missing.warn(view.templateName() + "/" + clip, "animation"));
         if (chosen == null) {
             if (had) {
                 node.currentAnim = "";
@@ -8569,7 +7738,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         var clip = node.composer.getAnimClip(gesture.clip());
         if (clip == null) {
-            warnOnce(node.view.templateName() + "/" + gesture.clip(), "cast animation");
+            missing.warn(node.view.templateName() + "/" + gesture.clip(), "cast animation");
             return;
         }
         float length = (float) clip.getLength();
@@ -8623,7 +7792,7 @@ final class DukeRtsApp extends SimpleApplication {
             }
             node.currentAnim = clipName;
         } catch (IllegalArgumentException e) {
-            warnOnce(templateName + "/" + clipName, "animation");
+            missing.warn(templateName + "/" + clipName, "animation");
             node.currentAnim = clipName; // don't retry every frame
         }
     }
@@ -8696,7 +7865,7 @@ final class DukeRtsApp extends SimpleApplication {
      * frame the arrow leaves the bow, which is the frame that can least afford it.
      */
     private AudioNode soundNode(String assetPath) {
-        if (assetPath == null || missingAssets.contains(assetPath)) {
+        if (assetPath == null || missing.contains(assetPath)) {
             return null;
         }
         var audio = audioCache.computeIfAbsent(assetPath, path -> {
@@ -8707,31 +7876,14 @@ final class DukeRtsApp extends SimpleApplication {
                 rootNode.attachChild(node);
                 return node;
             } catch (RuntimeException e) {
-                warnOnce(path, "sound");
+                missing.warn(path, "sound");
                 return null;
             }
         });
         if (audio == null) {
-            missingAssets.add(assetPath);
+            missing.firstTime(assetPath);
         }
         return audio;
-    }
-
-    private void warnOnce(String asset, String kind) {
-        if (missingAssets.add(asset)) {
-            LOG.warning(() -> "could not load " + kind + " '" + asset + "' — using fallback");
-        }
-    }
-
-    private static <T extends com.jme3.scene.control.Control> T findControl(Spatial spatial, Class<T> type) {
-        var found = new Object[1];
-        spatial.depthFirstTraversal(s -> {
-            var control = s.getControl(type);
-            if (control != null && found[0] == null) {
-                found[0] = control;
-            }
-        });
-        return type.cast(found[0]);
     }
 
     /**
@@ -8834,19 +7986,19 @@ final class DukeRtsApp extends SimpleApplication {
                 } catch (RuntimeException e) {
                     // A missing piece is a missing file, not a broken client: draw
                     // the rest of the floor and say which one went missing.
-                    if (missingAssets.add(assetPath)) {
+                    if (missing.firstTime(assetPath)) {
                         LOG.warning(() -> "tile not found: " + assetPath + " (" + e.getMessage() + ")");
                     }
                     return null;
                 }
                 if (own) {
-                    refogOwnMaterials(master, toColor(new java.awt.Color(tint)), drawnWith);
+                    refogOwnMaterials(master, Materials.colour(new java.awt.Color(tint)), drawnWith);
                 } else {
                     // One skin per picture the kit draws on, and per tint over it.
                     var atlas = drawnWith != null ? drawnWith : textureOf(master);
                     master.setMaterial(skins.computeIfAbsent(
                             nameOf(atlas) + "#" + Integer.toHexString(tint),
-                            ignored -> tileMaterial(atlas, toColor(new java.awt.Color(tint)))));
+                            ignored -> tileMaterial(atlas, Materials.colour(new java.awt.Color(tint)))));
                 }
                 masters.put(key, master);
             }
@@ -8879,7 +8031,7 @@ final class DukeRtsApp extends SimpleApplication {
             try {
                 return assetManager.loadTexture(path);
             } catch (RuntimeException e) {
-                if (missingAssets.add(path)) {
+                if (missing.firstTime(path)) {
                     LOG.warning(() -> "picture not found: " + path + " (" + e.getMessage() + ")");
                 }
                 return null;
@@ -8977,14 +8129,6 @@ final class DukeRtsApp extends SimpleApplication {
 
     }
 
-    private Material lit(ColorRGBA color) {
-        var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
-        material.setBoolean("UseMaterialColors", true);
-        material.setColor("Diffuse", color);
-        material.setColor("Ambient", color.mult(0.7f));
-        return material;
-    }
-
     /**
      * A material for a piece of ground: the colour it is painted, and the picture the map named for it.
      *
@@ -9003,10 +8147,10 @@ final class DukeRtsApp extends SimpleApplication {
         }
         var picture = texture == null ? null : groundTexture(texture);
         if (picture == null) {
-            return foggedGround() ? foggedTerrain(colour) : lit(colour);
+            return foggedGround() ? foggedTerrain(colour) : Materials.lit(assetManager, colour);
         }
         if (!foggedGround()) {
-            var material = lit(colour);
+            var material = Materials.lit(assetManager, colour);
             material.setTexture("DiffuseMap", picture);
             return material;
         }
@@ -9326,7 +8470,7 @@ final class DukeRtsApp extends SimpleApplication {
             var mark = marks.get(at);
             if (at >= markShapes.size()) {
                 var shape = new Geometry("mm-mark", new Quad(MARK_SIZE, MARK_SIZE));
-                shape.setMaterial(unshaded(ColorRGBA.White));
+                shape.setMaterial(Materials.unshaded(assetManager, ColorRGBA.White));
                 shape.getMaterial().getAdditionalRenderState().setBlendMode(
                         com.jme3.material.RenderState.BlendMode.Alpha);
                 minimapNode.attachChild(shape);
@@ -9347,7 +8491,7 @@ final class DukeRtsApp extends SimpleApplication {
             } else {
                 material.clearParam("ColorMap");
             }
-            material.setColor("Color", toColor(new java.awt.Color(mark.colour())));
+            material.setColor("Color", Materials.colour(new java.awt.Color(mark.colour())));
             var point = minimap.markAt(mark.x(), mark.y());
             // A diamond is the square turned an eighth; a picture stands upright.
             float turn = picture == null ? com.jme3.math.FastMath.QUARTER_PI : 0f;
@@ -9590,15 +8734,5 @@ final class DukeRtsApp extends SimpleApplication {
                 material.setFloat("ShadeShown", shadesShown ? 1f : 0f);
             }
         }
-    }
-
-    private Material unshaded(ColorRGBA color) {
-        var material = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        material.setColor("Color", color);
-        return material;
-    }
-
-    private static ColorRGBA toColor(java.awt.Color color) {
-        return new ColorRGBA(color.getRed() / 255f, color.getGreen() / 255f, color.getBlue() / 255f, 1f);
     }
 }

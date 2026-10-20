@@ -16,19 +16,19 @@ class UnitSkinTest {
 
     @Test
     void aGltfModelsSkinIsReadTopRowFirst() {
-        assertFalse(DukeRtsApp.skinKey("models/monsters/skin.png", "models/monsters/mage.glb").isFlipY());
-        assertFalse(DukeRtsApp.skinKey("models/heroes/skin.png", "models/heroes/rogue.gltf").isFlipY());
+        assertFalse(Bodies.skinKey("models/monsters/skin.png", "models/monsters/mage.glb").isFlipY());
+        assertFalse(Bodies.skinKey("models/heroes/skin.png", "models/heroes/rogue.gltf").isFlipY());
     }
 
     @Test
     void anythingElseIsReadAsATextureLoadedByNameAlwaysWas() {
-        assertTrue(DukeRtsApp.skinKey("models/old/skin.png", "models/old/thing.j3o").isFlipY());
-        assertTrue(DukeRtsApp.skinKey("models/old/skin.png", null).isFlipY());
+        assertTrue(Bodies.skinKey("models/old/skin.png", "models/old/thing.j3o").isFlipY());
+        assertTrue(Bodies.skinKey("models/old/skin.png", null).isFlipY());
     }
 
     @Test
     void itIsMippedAsATextureLoadedByNameIs() {
-        assertTrue(DukeRtsApp.skinKey("models/monsters/skin.png", "models/monsters/mage.glb")
+        assertTrue(Bodies.skinKey("models/monsters/skin.png", "models/monsters/mage.glb")
                 .isGenerateMips());
     }
 }

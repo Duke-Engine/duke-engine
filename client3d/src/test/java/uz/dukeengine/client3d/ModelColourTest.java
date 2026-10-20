@@ -91,12 +91,12 @@ class ModelColourTest {
                 "materials": [{"name": "silver mat", "pbrMetallicRoughness": {
                   "baseColorFactor": [0.24, 0.24, 0.25, 1.0], "metallicFactor": 1.0, "roughnessFactor": 0.16}}]
                 """);
-        assertNull(DukeRtsApp.skinOf(silver), "no picture of its own");
+        assertNull(Bodies.skinOf(silver), "no picture of its own");
 
-        var colour = DukeRtsApp.ownColour(silver, null, "key.gltf").mult(ColorRGBA.White);
+        var colour = Bodies.ownColour(silver, null, "key.gltf").mult(ColorRGBA.White);
         assertColour(0.24f, 0.24f, 0.25f, colour);
 
-        var tinted = DukeRtsApp.ownColour(silver, null, "key.gltf").mult(new ColorRGBA(0.5f, 1f, 1f, 1f));
+        var tinted = Bodies.ownColour(silver, null, "key.gltf").mult(new ColorRGBA(0.5f, 1f, 1f, 1f));
         assertColour(0.12f, 0.24f, 0.25f, tinted);
     }
 
@@ -108,7 +108,7 @@ class ModelColourTest {
                 "materials": [{"name": "glow", "extensions": {"KHR_materials_unlit": {}},
                   "pbrMetallicRoughness": {"baseColorFactor": [1.0, 0.8, 0.2, 1.0]}}]
                 """);
-        assertColour(1f, 0.8f, 0.2f, DukeRtsApp.ownColour(lamp, null, "lamp.gltf"));
+        assertColour(1f, 0.8f, 0.2f, Bodies.ownColour(lamp, null, "lamp.gltf"));
     }
 
     /** A textured piece draws as it did: its picture carries its colours, and the tint is laid over it alone. */
@@ -120,9 +120,9 @@ class ModelColourTest {
                 "textures": [{"source": 0}],
                 "images": [{"uri": "data:image/png;base64,%s"}]
                 """.formatted(onePixel()));
-        var picture = DukeRtsApp.skinOf(gate);
+        var picture = Bodies.skinOf(gate);
         assertNotNull(picture, "the picture it came with");
-        assertEquals(ColorRGBA.White, DukeRtsApp.ownColour(gate, picture, "gate.gltf"));
+        assertEquals(ColorRGBA.White, Bodies.ownColour(gate, picture, "gate.gltf"));
     }
 
     /** A piece with a normal and an emissive map is dressed in its base colour, whichever jME lists first (E64). */
@@ -136,7 +136,7 @@ class ModelColourTest {
         knight.setTexture("EmissiveMap", emissive);
         knight.setTexture("NormalMap", normal);
         knight.setTexture("BaseColorMap", base);
-        assertEquals(base, DukeRtsApp.skinOf(knight));
+        assertEquals(base, Bodies.skinOf(knight));
     }
 
     /** A piece given the look's own picture is drawn in that picture, whatever colour its file gives it. */
@@ -146,7 +146,7 @@ class ModelColourTest {
                 "materials": [{"name": "silver", "pbrMetallicRoughness": {"baseColorFactor": [0.24, 0.24, 0.24, 1.0]}}]
                 """);
         var named = new com.jme3.texture.Texture2D(1, 1, com.jme3.texture.Image.Format.RGBA8);
-        assertEquals(ColorRGBA.White, DukeRtsApp.ownColour(silver, named, "amulet.gltf"));
+        assertEquals(ColorRGBA.White, Bodies.ownColour(silver, named, "amulet.gltf"));
     }
 
     /** Any other file is dressed as every piece was: white under the tint. */
@@ -154,7 +154,7 @@ class ModelColourTest {
     void aPieceOfAnotherKindOfFileIsWhiteAsBefore() {
         var material = new Material(ASSETS, "Common/MatDefs/Light/PBRLighting.j3md");
         material.setColor("BaseColor", new ColorRGBA(0.2f, 0.4f, 0.6f, 1f));
-        assertEquals(ColorRGBA.White, DukeRtsApp.ownColour(material, null, "barrel.j3o"));
-        assertEquals(ColorRGBA.White, DukeRtsApp.ownColour(null, null, "key.glb"));
+        assertEquals(ColorRGBA.White, Bodies.ownColour(material, null, "barrel.j3o"));
+        assertEquals(ColorRGBA.White, Bodies.ownColour(null, null, "key.glb"));
     }
 }

@@ -28,8 +28,8 @@ class GroundPickTest {
     private static final Vector3f DOWNWARD = new Vector3f(0f, -0.8f, -0.6f).normalizeLocal();
 
     /** Two storeys, and a stair up from the upper one. */
-    private static final DukeRtsApp.GroundSpan STOREYS = new DukeRtsApp.GroundSpan(0f, 2 * STOREY);
-    private static final DukeRtsApp.GroundSpan FLAT = new DukeRtsApp.GroundSpan(0f, 0f);
+    private static final GroundSpan STOREYS = new GroundSpan(0f, 2 * STOREY);
+    private static final GroundSpan FLAT = new GroundSpan(0f, 0f);
     /** Half a cell of 10: how far across the map the ray is walked at a time. */
     private static final float STEP = 5f;
 
@@ -39,13 +39,13 @@ class GroundPickTest {
     }
 
     private static Vector3f pick(Vector3f from) {
-        return DukeRtsApp.groundHit(from, DOWNWARD, STOREYS, STEP, GroundPickTest::terraced);
+        return GroundRay.groundHit(from, DOWNWARD, STOREYS, STEP, GroundPickTest::terraced);
     }
 
     /** On a hill the click lands on the hill, where the ground under the cursor is — not on the level plane under it. */
     @Test
     void aClickOnASlopeLandsOnTheSlope() {
-        var hit = DukeRtsApp.groundHit(new Vector3f(50f, 40f, 100f), DOWNWARD, STOREYS, STEP, (x, z) -> x * 0.08f);
+        var hit = GroundRay.groundHit(new Vector3f(50f, 40f, 100f), DOWNWARD, STOREYS, STEP, (x, z) -> x * 0.08f);
 
         assertEquals(hit.x * 0.08f, hit.y, 0.02f, "standing on the ground at " + hit);
     }
@@ -86,7 +86,7 @@ class GroundPickTest {
     /** A stair is between two storeys, and a click on one lands on the slope. */
     @Test
     void aClickOnAStairLandsOnTheSlope() {
-        var hit = DukeRtsApp.groundHit(new Vector3f(150f, 40f, 100f), DOWNWARD, STOREYS, STEP,
+        var hit = GroundRay.groundHit(new Vector3f(150f, 40f, 100f), DOWNWARD, STOREYS, STEP,
                 (x, z) -> 4f); // a ramp, halfway up
 
         assertEquals(4f, hit.y, 0.001f, "on the step it is actually standing on");
@@ -101,24 +101,24 @@ class GroundPickTest {
                 new uz.dukeengine.core.math.Coord3D(270f, 220f, 20f),
                 new uz.dukeengine.core.math.Coord3D(270f, 180f, 20f));
         var over = new Vector3f(200f, 100f, 275f); // the scene's z is the map's y
-        var ground = DukeRtsApp.groundHit(over, DOWNWARD, FLAT, STEP, (x, z) -> 0f);
+        var ground = GroundRay.groundHit(over, DOWNWARD, FLAT, STEP, (x, z) -> 0f);
 
-        var hit = DukeRtsApp.deckHit(over, DOWNWARD, ground, grid.decks());
+        var hit = GroundRay.deckHit(over, DOWNWARD, ground, grid.decks());
         assertEquals(20f, hit.y, 1e-3f, "on the deck, at its height");
         assertEquals(215f, hit.z, 1e-3f, "where the ray meets it");
 
         var beside = new Vector3f(200f, 100f, 350f);
-        var groundBeside = DukeRtsApp.groundHit(beside, DOWNWARD, FLAT, STEP, (x, z) -> 0f);
-        assertEquals(0f, DukeRtsApp.deckHit(beside, DOWNWARD, groundBeside, grid.decks()).y, 1e-3f, "beside it");
+        var groundBeside = GroundRay.groundHit(beside, DOWNWARD, FLAT, STEP, (x, z) -> 0f);
+        assertEquals(0f, GroundRay.deckHit(beside, DOWNWARD, groundBeside, grid.decks()).y, 1e-3f, "beside it");
 
         grid.setDeckOpen(deck, false);
-        assertEquals(0f, DukeRtsApp.deckHit(over, DOWNWARD, ground, grid.decks()).y, 1e-3f, "closed, the ground");
+        assertEquals(0f, GroundRay.deckHit(over, DOWNWARD, ground, grid.decks()).y, 1e-3f, "closed, the ground");
     }
 
     /** A game with no height in it is answered exactly as it always was. */
     @Test
     void aFlatMapIsPickedAtZero() {
-        var hit = DukeRtsApp.groundHit(new Vector3f(150f, 40f, 100f), DOWNWARD, FLAT, STEP,
+        var hit = GroundRay.groundHit(new Vector3f(150f, 40f, 100f), DOWNWARD, FLAT, STEP,
                 (x, z) -> 0f);
 
         assertEquals(0f, hit.y, 0.001f);
@@ -131,7 +131,7 @@ class GroundPickTest {
      */
     @Test
     void aRayIntoTheSkyStillAnswers() {
-        var hit = DukeRtsApp.groundHit(new Vector3f(50f, 40f, 100f),
+        var hit = GroundRay.groundHit(new Vector3f(50f, 40f, 100f),
                 new Vector3f(0f, 0.8f, -0.6f).normalizeLocal(), STOREYS, STEP, (x, z) -> 0f);
 
         assertTrue(hit.length() > 1000f, "it should run off toward the edge of the world");
@@ -144,7 +144,7 @@ class GroundPickTest {
      */
     @Test
     void aClickOnAHillsNearFaceLandsOnIt() {
-        var hit = DukeRtsApp.groundHit(new Vector3f(0f, 90f, 280f), DOWNWARD, new DukeRtsApp.GroundSpan(0f, 40f), STEP,
+        var hit = GroundRay.groundHit(new Vector3f(0f, 90f, 280f), DOWNWARD, new GroundSpan(0f, 40f), STEP,
                 (x, z) -> 40f * Math.max(0f, 1f - Math.abs(z - 215f) / 20f));
 
         assertEquals(226f, hit.z, 0.05f, "on the face the cursor is over: " + hit);
@@ -157,7 +157,7 @@ class GroundPickTest {
      */
     @Test
     void aClickOnANarrowHillLandsOnItAndNotOnTheGroundBehindIt() {
-        var hit = DukeRtsApp.groundHit(new Vector3f(0f, 90f, 280f), DOWNWARD, new DukeRtsApp.GroundSpan(0f, 40f), STEP,
+        var hit = GroundRay.groundHit(new Vector3f(0f, 90f, 280f), DOWNWARD, new GroundSpan(0f, 40f), STEP,
                 (x, z) -> 40f * Math.max(0f, 1f - Math.abs(z - 225f) / 8f));
 
         assertEquals(280f - 0.6f * 325f / 3.8f, hit.z, 0.05f, "on the hill: " + hit);
@@ -172,7 +172,7 @@ class GroundPickTest {
         grid.setLevel(2, 0, 1);
         grid.setRelief(uz.dukeengine.core.pathfind.HeightMap.parse(java.util.List.of("0 0 8 24", "0 0 8 24")));
 
-        assertEquals(new DukeRtsApp.GroundSpan(0f, 2 * STOREY + 15f), DukeRtsApp.GroundSpan.of(grid),
+        assertEquals(new GroundSpan(0f, 2 * STOREY + 15f), GroundSpan.of(grid),
                 "24 sixteenths of a cell of 10 over a stair above the upper storey");
     }
 }
