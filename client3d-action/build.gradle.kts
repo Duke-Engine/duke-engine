@@ -8,6 +8,8 @@ plugins {
 // the client as its ControlScheme. A game that never names it never has any of it.
 dependencies {
     api(project(":client3d"))
+    // The orders its mouse sends, and the module that carries them out.
+    api(project(":action"))
     // A kind of game for the tests' matches to run on; the module itself names none.
     testImplementation(project(":rts"))
 }

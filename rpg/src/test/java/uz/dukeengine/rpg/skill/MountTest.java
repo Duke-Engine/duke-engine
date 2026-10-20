@@ -37,6 +37,14 @@ class MountTest {
                 d.summonExperiencePercent(), 0, d.manaRegen());
     }
 
+    /** Walked along +x a whole step a frame, no route: his speed and nothing else. */
+    private static void walkAlongX(uz.dukeengine.core.thing.GameObject hero) {
+        ((MoveUpdate) hero.getLocomotor()).steerBy((legs, step) -> {
+            var at = legs.getOwner().getPosition();
+            return legs.stepStraightTo(new Coord3D(at.x() + step, at.y(), at.z()));
+        });
+    }
+
     private static RpgWorld world() {
         var world = new RpgWorld(Map.of("Hero", List.of(mount(), strike())), Seal.NONE)
                 .template("Hero", new ActiveBody.Data(100f), new MoveUpdate.Data(60f), new SkillBook.Data(),
@@ -55,7 +63,7 @@ class MountTest {
         assertTrue(book.cast('M', 1));
         world.run(1);
         assertTrue(book.isRiding());
-        hero.getLocomotor().moveAlong(0);
+        walkAlongX(hero);
         world.run(30);
         assertEquals(220f, hero.getPosition().x(), 1e-2f, "120 in a second: twice his sixty");
 

@@ -418,7 +418,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     }
 
     private void head(Coord3D destination, boolean place, Band band) {
-        this.alongAngle = -1;
+        this.steering = null;
         if (linkPlan != null && !linkPlan.goal().equals(destination)) {
             linkPlan = null; // a new order: whatever link it meant to cross is forgotten
         }
@@ -646,7 +646,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     /** Cancel any current move: it holds the block it stands on from now. */
     public void stop() {
-        this.alongAngle = -1;
+        this.steering = null;
         this.band = null;
         this.speedNow = 0f;
         this.brakingOnto = false;
@@ -691,7 +691,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     @Override
     public boolean isMoving() {
-        return waiting || waypointIndex < waypoints.size() || alongAngle >= 0;
+        return waiting || waypointIndex < waypoints.size() || steering != null;
     }
 
     /** What its {@link SpeedModifier}s make of its speed now, all of them multiplied; 1 for none. */
@@ -777,46 +777,36 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     /** How near its near end a walker must stand to cross a link. */
     private static final float LINK_REACH = 6f;
 
-    /** The direction it walks along, in 256ths of a turn, or -1 for none — see {@link #moveAlong}. */
-    private int alongAngle = -1;
+    /** What it walks by in place of a route, or null — see {@link #steerBy}. */
+    private Steering steering;
 
-    @Override
-    public void moveAlong(int angle) {
+    /**
+     * Walk by {@code way} until stopped or sent somewhere, no route planned: asked for each frame's step. Null stops it
+     * where it stands. Either way a link it meant to cross, or was crossing, is given up.
+     */
+    public void steerBy(Steering way) {
         linkPlan = null;
         crossing = null;
         stop();
-        alongAngle = angle < 0 ? -1 : angle & 0xFF;
-    }
-
-    /** The direction it walks along, or -1. */
-    public int getAlongAngle() {
-        return alongAngle;
+        steering = way;
     }
 
     /**
-     * A step along its direction, no route: the whole step, else its x part alone, else its y part alone — in that
-     * order, so every machine slides alike along what stops it — or none, facing the way still, the order kept.
+     * A step straight to {@code to}, no route, unless something refuses it: stone or anything solid — where it does not
+     * stand in them already — or a ground mover it may not pass through and does not overlap where it stands. Taken,
+     * it stands on the floor the step leads to, at its height.
+     *
+     * @return whether it took the step
      */
-    private void walkAlong(GameObject owner, float step) {
-        double turn = alongAngle * (2.0 * StrictMath.PI / 256.0);
-        float dx = (float) StrictMath.cos(turn) * step;
-        float dy = (float) StrictMath.sin(turn) * step;
-        owner.setOrientation((float) StrictMath.atan2(dy, dx));
+    public boolean stepStraightTo(Coord3D to) {
+        var owner = getOwner();
         var here = owner.getPosition();
-        boolean escaping = isBlocked(owner, here, -1);
-        var before = moversOverlapping(owner, here);
-        for (var to : List.of(new Coord3D(here.x() + dx, here.y() + dy, here.z()),
-                new Coord3D(here.x() + dx, here.y(), here.z()), new Coord3D(here.x(), here.y() + dy, here.z()))) {
-            if (to.x() == here.x() && to.y() == here.y()) {
-                continue; // a part of the step that is nothing
-            }
-            if ((escaping || !isBlocked(owner, to, -1)) && before.containsAll(moversOverlapping(owner, to))) {
-                stepTo(owner, to, -1);
-                speedNow = step * GameConstants.LOGICFRAMES_PER_SECOND;
-                return;
-            }
+        if (!isBlocked(owner, here, -1) && isBlocked(owner, to, -1)
+                || !moversOverlapping(owner, here).containsAll(moversOverlapping(owner, to))) {
+            return false;
         }
-        speedNow = 0f;
+        stepTo(owner, to, -1);
+        return true;
     }
 
     /** Whether it is waiting its turn for a route; see {@link #waiting}. */
@@ -874,13 +864,13 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             speedNow = 0f;
             return; // dead, inside a transport, frozen or held — cannot move, and keeps its orders for when it can
         }
-        if (alongAngle >= 0) {
+        if (steering != null) {
             if (owner.getBusyClip() != null) {
                 speedNow = 0f; // at work or staggered: held, and walks on after
                 return;
             }
-            walkAlong(owner, (owner.hasStatus(ObjectStatus.SLOWED) ? stepPerFrame * 0.5f : stepPerFrame)
-                    * speedShare(owner));
+            float step = (owner.hasStatus(ObjectStatus.SLOWED) ? stepPerFrame * 0.5f : stepPerFrame) * speedShare(owner);
+            speedNow = steering.step(this, step) ? step * GameConstants.LOGICFRAMES_PER_SECOND : 0f;
             return;
         }
         if (asideUntil >= 0 && world != null && world.getFrame() > asideUntil) {

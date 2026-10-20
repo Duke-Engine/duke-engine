@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.client3d.SkillRange;
+import uz.dukeengine.action.ActionOrders;
 import uz.dukeengine.combat.message.CombatOrder;
 import uz.dukeengine.core.thing.ObjectId;
 
@@ -62,12 +63,12 @@ class ActionControlsTest {
                 "the one ten degrees off is in the cone");
 
         var only40 = new MouseScheme.Swing().pressAhead(scheme, 0, HERO, 100f, 100f, 120f, 0f, List.of(off40), 0);
-        var shot = (CombatOrder.AttackToward) only40.getFirst();
-        assertEquals(220f, shot.point().x(), 1e-3f, "none in the cone: straight ahead at his full reach");
-        assertEquals(100f, shot.point().y(), 1e-3f);
+        var shot = (uz.dukeengine.combat.message.GameOrder) only40.getFirst();
+        assertEquals(220f, shot.place().x(), 1e-3f, "none in the cone: straight ahead at his full reach");
+        assertEquals(100f, shot.place().y(), 1e-3f);
 
-        var melee = (CombatOrder.AttackToward) new MouseScheme.Swing()
+        var melee = (uz.dukeengine.combat.message.GameOrder) new MouseScheme.Swing()
                 .pressAhead(scheme, 0, HERO, 100f, 100f, 12f, 0f, List.of(near10), 0).getFirst();
-        assertEquals(112f, melee.point().x(), 1e-3f, "a sword swings at the point its reach ahead");
+        assertEquals(112f, melee.place().x(), 1e-3f, "a sword swings at the point its reach ahead");
     }
 }

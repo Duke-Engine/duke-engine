@@ -123,10 +123,10 @@ public final class WeaponUpdate extends UpdateModule {
             boolean attackOnTheMove, List<String> targets,
             int reloadFramesMax, int clipSize, int clipReloadFrames, boolean autoReload,
             String name, List<WeaponSet> weaponSets, DeathType deathType, int targetScanFrames,
-            int preAttackFrames, float swingArcDegrees) implements ModuleData {
+            int preAttackFrames) implements ModuleData {
         /** What a block leaves out: plain damage, no splash, a shot taken on the move, at anything, no clip. */
         static final Data DEFAULTS = new Data(0f, 0f, 0, DamageType.NORMAL, 0f, true, List.of(),
-                0, 0, 0, true, null, List.of(), DeathType.NORMAL, 0, 0, 0f);
+                0, 0, 0, true, null, List.of(), DeathType.NORMAL, 0, 0);
 
         public Data {
             damageType = damageType == null ? DamageType.NORMAL : damageType;
@@ -135,20 +135,6 @@ public final class WeaponUpdate extends UpdateModule {
             weaponSets = weaponSets == null ? List.of() : List.copyOf(weaponSets);
             targetScanFrames = Math.max(0, targetScanFrames);
             preAttackFrames = Math.max(0, preAttackFrames);
-            swingArcDegrees = swingArcDegrees <= 0f ? DEFAULT_SWING_ARC : Math.min(360f, swingArcDegrees);
-        }
-
-        /** The arc a swing toward a point strikes in where its weapon names none: a third of a turn. */
-        public static final float DEFAULT_SWING_ARC = 120f;
-
-        /** A weapon written in place whose swing toward a point strikes in the third of a turn before it. */
-        public Data(float damage, float attackRange, int reloadFrames, DamageType damageType, float splashRadius,
-                boolean attackOnTheMove, List<String> targets, int reloadFramesMax, int clipSize,
-                int clipReloadFrames, boolean autoReload, String name, List<WeaponSet> weaponSets,
-                DeathType deathType, int targetScanFrames, int preAttackFrames) {
-            this(damage, attackRange, reloadFrames, damageType, splashRadius, attackOnTheMove, targets,
-                    reloadFramesMax, clipSize, clipReloadFrames, autoReload, name, weaponSets, deathType,
-                    targetScanFrames, preAttackFrames, 0f);
         }
 
         /** A weapon written in place that winds up before no shot, as every one did before one could. */
@@ -284,14 +270,10 @@ public final class WeaponUpdate extends UpdateModule {
     /** Whether it held a target or walked as it last looked, to tell the frame it falls idle. A new thing did. */
     private boolean busy = true;
 
-    /** The arc a swing toward a point strikes in, in degrees. */
-    private final float swingArc;
-
     public WeaponUpdate(GameObject owner, Data data) {
         super(owner);
         this.sets = data.weaponSets();
         this.scanFrames = data.targetScanFrames();
-        this.swingArc = data.swingArcDegrees();
         var written = Weapon.of(data);
         this.inPlace = sets.isEmpty()
                 ? List.of(new Armed(0, IN_PLACE, written, clipOf(written)))
@@ -628,61 +610,49 @@ public final class WeaponUpdate extends UpdateModule {
         return acquiresNothing;
     }
 
-    /** The point it attacks toward, or null — see {@link #attackToward}. */
-    private Coord3D toward;
-    /** Whether the attack toward a point goes on while the weapon readies, or ends after the swing under way. */
-    private boolean towardHeld;
-    /** Whether it has swung toward the point since it was given one. */
-    private boolean towardSwung;
-    /** The frame the wind-up of a swing toward a point ends on, or -1 for none under way. */
-    private int towardWindEnds = -1;
+    /** The attack toward a point it is on, or null — see {@link #attackToward}. */
+    private PointAttack pointAttack;
+    /** The frame the wind-up of a blow toward a point ends on, or -1 for none under way. */
+    private int pointWindEnds = -1;
 
     /**
-     * Attack toward {@code point} — see {@code CombatOrder.AttackToward}: one attack at the weapon's own timing,
-     * again while {@code held}; let go, it ends after the swing under way, or makes its one swing where none was.
+     * Attack toward a point as {@code attack} says, until it is over or a new order lets it go: whatever it was firing
+     * on let go, and a wind-up toward a point it was already attacking kept. Asked at once whether it is over, as it
+     * is each frame, so one over as it is given is none.
      */
-    public void attackToward(Coord3D point, boolean held) {
-        if (point == null) {
+    public void attackToward(PointAttack attack) {
+        if (attack == null) {
             return;
         }
-        boolean going = toward != null;
         groundTarget = null;
         target = null;
         forced = false;
-        if (!going) {
-            towardSwung = false;
-            towardWindEnds = -1;
+        if (pointAttack == null) {
+            pointWindEnds = -1;
         }
-        toward = point;
-        towardHeld = held;
-        if (!held && going && towardSwung && towardWindEnds < 0) {
-            toward = null; // let go between swings: over now
-        }
+        pointAttack = attack.point(pointWindEnds >= 0) == null ? null : attack;
     }
 
-    /** The point it attacks toward, or null. */
-    public Coord3D getToward() {
-        return toward;
+    /** The attack toward a point it is on, or null. */
+    public PointAttack getPointAttack() {
+        return pointAttack;
     }
 
     /** Its target let go, as {@link #holdFire} does, but not an attack toward a point: a walk goes on swinging. */
     public void dropTarget() {
-        var keep = toward;
-        boolean held = towardHeld;
-        boolean swung = towardSwung;
-        int winds = towardWindEnds;
+        var keep = pointAttack;
+        int winds = pointWindEnds;
         holdFire();
-        toward = keep;
-        towardHeld = held;
-        towardSwung = swung;
-        towardWindEnds = winds;
+        pointAttack = keep;
+        pointWindEnds = winds;
     }
 
     /**
      * A swing toward its point: turned to it, wound up as the weapon winds, then loosed along the line by a launcher
-     * that carries to a place, or else struck at the enemy nearest its front within its reach and arc — or at nothing.
+     * that carries to a place, or else struck at what its attack toward the point names — or at nothing.
      */
-    private void fireToward(uz.dukeengine.core.thing.World world, GameObject owner, Armed chosen, boolean walking) {
+    private void fireToward(uz.dukeengine.core.thing.World world, GameObject owner, Armed chosen, boolean walking,
+            Coord3D toward) {
         var here = owner.getPosition();
         float dx = toward.x() - here.x();
         float dy = toward.y() - here.y();
@@ -694,19 +664,18 @@ public final class WeaponUpdate extends UpdateModule {
             return;
         }
         if (weapon.preAttackFrames() > 0) {
-            if (towardWindEnds < 0) {
-                towardWindEnds = world.getFrame() + weapon.preAttackFrames();
+            if (pointWindEnds < 0) {
+                pointWindEnds = world.getFrame() + weapon.preAttackFrames();
                 world.post(new uz.dukeengine.combat.event.WeaponWoundUp(world.getFrame(), owner.getId(), null,
                         weapon.name(), chosen.index(), weapon.preAttackFrames()));
             }
-            if (world.getFrame() < towardWindEnds) {
+            if (world.getFrame() < pointWindEnds) {
                 windingUp = chosen.index();
                 return;
             }
-            towardWindEnds = -1;
+            pointWindEnds = -1;
         }
-        var keep = toward;
-        boolean held = towardHeld;
+        var attack = pointAttack;
         float reach = range(owner, weapon);
         double facing = StrictMath.atan2(dy, dx);
         var along = new Coord3D(here.x() + (float) StrictMath.cos(facing) * reach,
@@ -730,7 +699,7 @@ public final class WeaponUpdate extends UpdateModule {
             world.post(new WeaponFired(world.getFrame(), owner.getId(), null, here, along, weapon.name(),
                     chosen.index(), false, shot.radius()).ranked(rankOf(owner)));
         } else {
-            var victim = inTheSwing(world, owner, weapon, (float) facing);
+            var victim = attack.struck(this, reach, (float) facing);
             if (victim != null) {
                 fire(world, owner, victim, chosen); // struck as a targeted blow is
             } else {
@@ -740,55 +709,15 @@ public final class WeaponUpdate extends UpdateModule {
                         chosen.index(), weapon.isContact(world.cellSize()), shot.radius()).ranked(rankOf(owner)));
             }
         }
-        // A blow that killed lets its target go; the swing toward the point is not over for that.
+        // A blow that killed lets its target go; the attack toward the point is not over for that.
         target = null;
-        toward = held ? keep : null;
-        towardHeld = held;
-        towardSwung = true;
+        pointAttack = attack.attacked() ? attack : null;
     }
-
-    /**
-     * The enemy a swing along {@code facing} strikes: the nearest — by reach, then the lowest id — within the weapon's
-     * range of it and inside the weapon's swing arc before it; null for none.
-     */
-    private GameObject inTheSwing(uz.dukeengine.core.thing.World world, GameObject owner, Weapon weapon,
-            float facing) {
-        float reach = range(owner, weapon);
-        float half = (float) Math.toRadians(swingArc) / 2f;
-        var here = owner.getPosition();
-        GameObject best = null;
-        float bestGap = Float.MAX_VALUE;
-        for (var other : world.objectsInRange(here, reach + SWING_LOOK, thing -> thing != owner)) {
-            if (other.isEffectivelyDead() || other.getBody() == null
-                    || world.getRelationship(owner.getPlayerIndex(), other.getPlayerIndex()) != Relationship.ENEMIES
-                    || !canFireAt(other)) {
-                continue;
-            }
-            float gap = rangeTo(owner, other);
-            if (gap > reach) {
-                continue;
-            }
-            var at = other.getPosition();
-            float off = (float) StrictMath.atan2(at.y() - here.y(), at.x() - here.x()) - facing;
-            off = (float) StrictMath.atan2(StrictMath.sin(off), StrictMath.cos(off));
-            if (Math.abs(off) > half) {
-                continue;
-            }
-            if (gap < bestGap || gap == bestGap && best != null && other.getId().value() < best.getId().value()) {
-                best = other;
-                bestGap = gap;
-            }
-        }
-        return best;
-    }
-
-    /** How far past its reach a swing looks for middles, the bodies' own sizes beyond them. */
-    private static final float SWING_LOOK = 40f;
 
     /** Let its target go: the attack is over, and a lock until it was is let go with it. */
     public void holdFire() {
-        toward = null;
-        towardWindEnds = -1;
+        pointAttack = null;
+        pointWindEnds = -1;
         groundTarget = null;
         this.target = null;
         this.forced = false;
@@ -961,9 +890,13 @@ public final class WeaponUpdate extends UpdateModule {
             fireOnTheGround(world, owner, armed, walking);
             return;
         }
-        if (toward != null) {
-            fireToward(world, owner, armed.getFirst(), walking);
-            return;
+        if (pointAttack != null) {
+            var toward = pointAttack.point(pointWindEnds >= 0);
+            if (toward != null) {
+                fireToward(world, owner, armed.getFirst(), walking, toward);
+                return;
+            }
+            pointAttack = null; // over
         }
 
         if (target == null) {
