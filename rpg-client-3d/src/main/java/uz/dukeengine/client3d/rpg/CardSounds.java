@@ -29,7 +29,7 @@ final class CardSounds {
      * picked up, a skill that has just gone on its cooldown. Read rather than
      * announced, for the same reason as the rest — it is already being sent.
      */
-    void status(HeroPanel.Reading reading) {
+    void status(PanelReading reading) {
         if (reading == null) {
             return;
         }
@@ -56,7 +56,7 @@ final class CardSounds {
             lastNote = note;
         }
         for (var slot : reading.skills()) {
-            boolean cooling = slot.state() == HeroPanel.Reading.State.COOLING;
+            boolean cooling = slot.state() == PanelReading.State.COOLING;
             // Going onto a cooldown is the only outward sign that a skill went
             // off: the client asked, and the simulation is what decides.
             if (cooling && !wasCooling.getOrDefault(slot.key(), false)) {

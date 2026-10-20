@@ -47,7 +47,7 @@ class HeroCardTest {
                 .item("icons/items/sword.png", 3).ordersAreHis(true).order('A', "icons/cmd/attack.png", "Hujum", true)
                 .points(2, "OCHKO").field("deep", "3").toString();
 
-        var read = HeroPanel.Reading.parse(card);
+        var read = PanelReading.parse(card);
 
         assertNotNull(read, card);
         assertEquals("Erika", read.name());
@@ -63,13 +63,13 @@ class HeroCardTest {
         assertEquals("MAHORAT", read.skillsWord());
         assertEquals("NARSALAR", read.itemsWord());
         assertEquals("Qilich", read.note());
-        assertEquals(List.of(new HeroPanel.Reading.Stat("Zarba", "34", "+4", "icons/stats/attack.png")), read.stats());
-        assertEquals(List.of(new HeroPanel.Reading.Stat("Kuch", "12", "+2", "icons/stats/str.png", true)),
+        assertEquals(List.of(new PanelReading.Stat("Zarba", "34", "+4", "icons/stats/attack.png")), read.stats());
+        assertEquals(List.of(new PanelReading.Stat("Kuch", "12", "+2", "icons/stats/str.png", true)),
                 read.attributes());
         assertEquals("Kuch", read.attributeTips().get(0).name());
-        assertEquals(List.of(new HeroPanel.Reading.ItemReading("icons/items/sword.png", 3)), read.items());
+        assertEquals(List.of(new PanelReading.ItemReading("icons/items/sword.png", 3)), read.items());
         assertTrue(read.ordersAreHis());
-        assertEquals(List.of(new HeroPanel.Reading.OrderReading('A', "icons/cmd/attack.png", "Hujum", true)),
+        assertEquals(List.of(new PanelReading.OrderReading('A', "icons/cmd/attack.png", "Hujum", true)),
                 read.orders());
         assertEquals(2, read.points());
         assertEquals("OCHKO", read.pointsWord());
@@ -94,13 +94,13 @@ class HeroCardTest {
         ranks.startWith(skills);
         ranks.raise('Q', 1);
 
-        var read = HeroPanel.Reading.parse(HeroCard.named("Erika").skills(book, ranks, 1, WORDS).toString());
+        var read = PanelReading.parse(HeroCard.named("Erika").skills(book, ranks, 1, WORDS).toString());
 
         assertNotNull(read);
         assertEquals(2, read.skills().size());
-        assertEquals(HeroPanel.Reading.State.READY, read.skills().get(0).state(), "a point in it: ready");
-        assertEquals(HeroPanel.Reading.State.LOCKED, read.skills().get(1).state(), "none: locked");
+        assertEquals(PanelReading.State.READY, read.skills().get(0).state(), "a point in it: ready");
+        assertEquals(PanelReading.State.LOCKED, read.skills().get(1).state(), "none: locked");
         assertEquals("Zarba", read.tips().get('Q').name());
-        assertEquals(new HeroPanel.Reading.CostReading('Q', 12, true), read.costs().get(0));
+        assertEquals(new PanelReading.CostReading('Q', 12, true), read.costs().get(0));
     }
 }

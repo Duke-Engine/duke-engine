@@ -464,10 +464,10 @@ class PanelLayoutTest {
 
         // Each list in its own room and its own lettering: the figures down the
         // left, the attributes down the right.
-        float figureRoom = look.figureColumn() - HeroPanel.COLUMN_GAP - look.figureIcon()
-                - HeroPanel.ICON_GAP;
-        float attributeRoom = HeroPanel.VITALS_WIDTH - HeroPanel.attributeColumnAt(look)
-                - look.attributeIcon() - HeroPanel.ICON_GAP;
+        float figureRoom = look.figureColumn() - StatBlock.COLUMN_GAP - look.figureIcon()
+                - StatBlock.ICON_GAP;
+        float attributeRoom = PanelMetrics.VITALS_WIDTH - StatBlock.attributeColumnAt(look)
+                - look.attributeIcon() - StatBlock.ICON_GAP;
         fits(font, List.of("Zarba", "Zirh", "Tezlik", "Qon"), look.figureText(), figureRoom);
         fits(font, List.of("Kuch", "Epchillik", "Aql"), look.attributeText(), attributeRoom);
     }
@@ -478,7 +478,7 @@ class PanelLayoutTest {
      */
     private static void fits(com.jme3.font.BitmapFont font, List<String> words, float size,
             float room) {
-        float lent = HeroPanel.lentRoom(size);
+        float lent = StatBlock.lentRoom(size);
         float widest = 0f;
         for (var word : words) {
             widest = Math.max(widest, width(font, word, size));
@@ -486,7 +486,7 @@ class PanelLayoutTest {
         for (var figure : List.of("0", "34", "129", "10%")) {
             // A clear gap, not merely a fit: two strings that end and begin in the
             // same pixel are two strings nobody can tell apart.
-            float wide = widest + HeroPanel.WORD_GAP + width(font, figure, size);
+            float wide = widest + StatBlock.WORD_GAP + width(font, figure, size);
             assertTrue(wide + GAP <= room - lent,
                     "\"" + figure + "\" after the widest of " + words + " wants "
                             + Math.round(wide + GAP) + " of the " + Math.round(room - lent)
@@ -591,7 +591,7 @@ class PanelLayoutTest {
             // window -- so it is read back from how tall the trough came out.
             var trough = (BoundingBox) ((Node) find(gui, "experience")).getChild("trough")
                     .getWorldBound();
-            float scale = (top(trough) - bottom(trough)) / HeroPanel.XP_HEIGHT;
+            float scale = (top(trough) - bottom(trough)) / PanelMetrics.XP_HEIGHT;
             float underTheBar = bottom(trough);
             var column = spanOf(gui, "vitals");
             for (var socket : sockets) {
@@ -660,8 +660,8 @@ class PanelLayoutTest {
                 "strength's two sockets -- in the middle and in the list -- should say K: "
                         + letters);
         assertTrue(letters.contains("Z"), "and a figure with no picture says its letter: " + letters);
-        assertEquals("E", HeroPanel.initial("epchillik"));
-        assertEquals("?", HeroPanel.initial(" "));
+        assertEquals("E", StatBlock.initial("epchillik"));
+        assertEquals("?", StatBlock.initial(" "));
     }
 
     private static void lettersIn(Spatial spatial, List<String> letters) {

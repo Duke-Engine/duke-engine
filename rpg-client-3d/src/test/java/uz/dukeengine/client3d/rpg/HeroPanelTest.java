@@ -37,7 +37,7 @@ class HeroPanelTest {
 
     @Test
     void aDungeonLineIsRead() {
-        var reading = HeroPanel.Reading.parse(LINE);
+        var reading = PanelReading.parse(LINE);
 
         assertNotNull(reading, "the panel should have understood its own game's line");
         assertEquals("Erika", reading.name());
@@ -53,19 +53,19 @@ class HeroPanelTest {
     /** Each of the three states a slot can be in, and what it needs to draw it. */
     @Test
     void eachSkillStateIsRead() {
-        var skills = HeroPanel.Reading.parse(LINE).skills();
+        var skills = PanelReading.parse(LINE).skills();
 
-        assertEquals(HeroPanel.Reading.State.READY, skills.get(0).state());
+        assertEquals(PanelReading.State.READY, skills.get(0).state());
         assertEquals('Q', skills.get(0).key());
 
         var cooling = skills.get(1);
-        assertEquals(HeroPanel.Reading.State.COOLING, cooling.state());
+        assertEquals(PanelReading.State.COOLING, cooling.state());
         // 72 frames of 30 is 2.4 seconds, and 72 of 165 is how much shadow is left.
         assertEquals("2.4", cooling.label());
         assertEquals(72f / 165f, cooling.left(), 0.001f);
 
         var locked = skills.get(3);
-        assertEquals(HeroPanel.Reading.State.LOCKED, locked.state());
+        assertEquals(PanelReading.State.LOCKED, locked.state());
         assertEquals("5-daraja", locked.label(),
                 "the level it waits for is the game's words, not the client's");
     }
@@ -76,7 +76,7 @@ class HeroPanelTest {
      */
     @Test
     void aLongCooldownIsRoundedToWholeSeconds() {
-        var skills = HeroPanel.Reading.parse(
+        var skills = PanelReading.parse(
                 "name=E|rank=1|hp=1/1|xp=0/1|depth=I|depthWord=D|skill=R,,cool,820,900").skills();
 
         assertEquals("27", skills.get(0).label());
@@ -85,10 +85,10 @@ class HeroPanelTest {
     /** Anything that is not this format leaves the panel out of it. */
     @Test
     void anotherGamesStatusIsNotTakenOver() {
-        assertNull(HeroPanel.Reading.parse(null));
-        assertNull(HeroPanel.Reading.parse(""));
-        assertNull(HeroPanel.Reading.parse("Wave 4    2 bases left"));
-        assertNull(HeroPanel.Reading.parse("name=Erika|morale=high"),
+        assertNull(PanelReading.parse(null));
+        assertNull(PanelReading.parse(""));
+        assertNull(PanelReading.parse("Wave 4    2 bases left"));
+        assertNull(PanelReading.parse("name=Erika|morale=high"),
                 "a field this panel cannot draw means the line was never meant for it");
     }
 
@@ -105,7 +105,7 @@ class HeroPanelTest {
      */
     @Test
     void aLineCarryingACastIsStillRead() {
-        var reading = HeroPanel.Reading.parse(
+        var reading = PanelReading.parse(
                 LINE + "|cast=FrostNova,412,150.0,150.0,40.0");
 
         assertNotNull(reading, "the bar went dark the moment a skill was cast");
@@ -124,7 +124,7 @@ class HeroPanelTest {
      */
     @Test
     void aSlotSaysWhatIsInItAndWhetherItMayGrow() {
-        var reading = HeroPanel.Reading.parse(LINE
+        var reading = PanelReading.parse(LINE
                 + "|srank=Q,2,4,up,2 → 3|srank=R,0,3,no,4-daraja|pts=2,NUQTA");
 
         assertNotNull(reading);
@@ -150,7 +150,7 @@ class HeroPanelTest {
      */
     @Test
     void aLockedSlotNeedNotNameALevel() {
-        var reading = HeroPanel.Reading.parse(
+        var reading = PanelReading.parse(
                 "name=Erika|hp=1/2|xp=0/1|skill=Q,,lock|skill=R,,lock,4-daraja");
 
         assertNotNull(reading, "the bar went dark on an unbought skill");
@@ -162,10 +162,10 @@ class HeroPanelTest {
     /** A malformed line of the right shape is refused rather than half-drawn. */
     @Test
     void aBrokenLineIsRefused() {
-        assertNull(HeroPanel.Reading.parse("name=Erika|hp=lots/200"));
-        assertNull(HeroPanel.Reading.parse("name=Erika|hp=200"));
-        assertNull(HeroPanel.Reading.parse("name=Erika|skill=Q,,melted"));
-        assertNull(HeroPanel.Reading.parse("name=Erika|skill=Q,,cool,72"),
+        assertNull(PanelReading.parse("name=Erika|hp=lots/200"));
+        assertNull(PanelReading.parse("name=Erika|hp=200"));
+        assertNull(PanelReading.parse("name=Erika|skill=Q,,melted"));
+        assertNull(PanelReading.parse("name=Erika|skill=Q,,cool,72"),
                 "a cooldown without its total has no fraction to sweep");
     }
 
@@ -175,7 +175,7 @@ class HeroPanelTest {
      */
     @Test
     void slotsKeepTheOrderTheyWereSentIn() {
-        var skills = HeroPanel.Reading.parse(LINE).skills();
+        var skills = PanelReading.parse(LINE).skills();
 
         var keys = new StringBuilder();
         skills.forEach(skill -> keys.append(skill.key()));
@@ -192,7 +192,7 @@ class HeroPanelTest {
      */
     @Test
     void aFieldThePanelDrawsNothingForIsStillReadable() {
-        var reading = HeroPanel.Reading.parse(LINE + "|look=SciFi,Bare");
+        var reading = PanelReading.parse(LINE + "|look=SciFi,Bare");
 
         assertNotNull(reading, "the panel went blank over a field meant for somebody else");
         assertEquals("Erika", reading.name());
@@ -213,7 +213,7 @@ class HeroPanelTest {
      */
     @Test
     void thePictureForASlotComesDownTheLine() {
-        var skills = HeroPanel.Reading.parse(LINE).skills();
+        var skills = PanelReading.parse(LINE).skills();
 
         assertEquals("icons/skills/arrowhead.png", skills.get(0).icon());
         assertEquals("icons/skills/arrow_cluster.png", skills.get(1).icon(),
@@ -221,7 +221,7 @@ class HeroPanelTest {
         assertEquals("icons/skills/hood.png", skills.get(3).icon(),
                 "and so does one that is still locked");
 
-        var renamed = HeroPanel.Reading.parse(
+        var renamed = PanelReading.parse(
                 LINE.replace("icons/skills/arrowhead.png", "Some/Other/picture.png")).skills();
         assertEquals("Some/Other/picture.png", renamed.get(0).icon(),
                 "the file said a different picture, so the slot gets a different picture");
@@ -235,12 +235,12 @@ class HeroPanelTest {
      */
     @Test
     void aSlotWithNoPictureIsStillRead() {
-        var skills = HeroPanel.Reading.parse(
+        var skills = PanelReading.parse(
                 "name=E|rank=1|hp=1/1|xp=0/1|depth=I|depthWord=D|skill=Q,,ready").skills();
 
         assertEquals(1, skills.size());
         assertEquals("", skills.get(0).icon());
-        assertEquals(HeroPanel.Reading.State.READY, skills.get(0).state());
+        assertEquals(PanelReading.State.READY, skills.get(0).state());
     }
 
     /**
@@ -273,7 +273,7 @@ class HeroPanelTest {
     /** A hero with no skills at all is still a hero with health. */
     @Test
     void aPanelWithoutSkillsIsStillAPanel() {
-        var reading = HeroPanel.Reading.parse(
+        var reading = PanelReading.parse(
                 "name=Erika|rank=1-daraja|hp=550/550|xp=0/30|depth=I|depthWord=CHUQURLIK");
 
         assertNotNull(reading);
@@ -289,7 +289,7 @@ class HeroPanelTest {
 
     @Test
     void theFiguresUnderTheBarsAreRead() {
-        var stats = HeroPanel.Reading.parse(FULL).stats();
+        var stats = PanelReading.parse(FULL).stats();
 
         assertEquals(3, stats.size());
         assertEquals("Zarba", stats.get(0).word());
@@ -306,8 +306,8 @@ class HeroPanelTest {
      */
     @Test
     void thePickupNoteIsRead() {
-        assertEquals("O'tkir tig'", HeroPanel.Reading.parse(FULL).note());
-        assertEquals("", HeroPanel.Reading.parse(LINE).note(),
+        assertEquals("O'tkir tig'", PanelReading.parse(FULL).note());
+        assertEquals("", PanelReading.parse(LINE).note(),
                 "an ordinary frame has nothing to announce");
     }
 
@@ -332,7 +332,7 @@ class HeroPanelTest {
         var painted = new IconLook(true);
 
         for (var state : new boolean[][] {{false, false}, {false, true}, {true, false}}) {
-            var colour = HeroPanel.skillColour(painted, PanelLook.DEFAULTS, state[0], state[1]);
+            var colour = SkillRow.skillColour(painted, PanelLook.DEFAULTS, state[0], state[1]);
             assertEquals(colour.r, colour.g, 0.001f,
                     "a painted picture may be darkened but never tinted");
             assertEquals(colour.g, colour.b, 0.001f,
@@ -344,9 +344,9 @@ class HeroPanelTest {
     @Test
     void andItsThreeStatesAreStillToldApart() {
         var painted = new IconLook(true);
-        float ready = HeroPanel.skillColour(painted, PanelLook.DEFAULTS, false, false).r;
-        float cooling = HeroPanel.skillColour(painted, PanelLook.DEFAULTS, false, true).r;
-        float locked = HeroPanel.skillColour(painted, PanelLook.DEFAULTS, true, false).r;
+        float ready = SkillRow.skillColour(painted, PanelLook.DEFAULTS, false, false).r;
+        float cooling = SkillRow.skillColour(painted, PanelLook.DEFAULTS, false, true).r;
+        float locked = SkillRow.skillColour(painted, PanelLook.DEFAULTS, true, false).r;
 
         assertTrue(ready > cooling, "a skill he can cast is brighter than one reloading");
         assertTrue(cooling > locked, "and one reloading is brighter than one he has not earned");
@@ -357,9 +357,9 @@ class HeroPanelTest {
     @Test
     void aWhiteDrawingIsStillColouredByItsState() {
         var white = IconLook.DEFAULT;
-        var ready = HeroPanel.skillColour(white, PanelLook.DEFAULTS, false, false);
-        var cooling = HeroPanel.skillColour(white, PanelLook.DEFAULTS, false, true);
-        var locked = HeroPanel.skillColour(white, PanelLook.DEFAULTS, true, false);
+        var ready = SkillRow.skillColour(white, PanelLook.DEFAULTS, false, false);
+        var cooling = SkillRow.skillColour(white, PanelLook.DEFAULTS, false, true);
+        var locked = SkillRow.skillColour(white, PanelLook.DEFAULTS, true, false);
 
         assertNotEquals(ready.r, ready.b, "the torch colour is warm, not grey");
         assertFalse(ready.equals(cooling) || cooling.equals(locked),
@@ -376,7 +376,7 @@ class HeroPanelTest {
      */
     @Test
     void aFigureUnderTheBarsCarriesItsOwnPicture() {
-        var stats = HeroPanel.Reading.parse(LINE
+        var stats = PanelReading.parse(LINE
                 + "|stat=Zarba,31,+6,icons/stats/stat_attack.png"
                 + "|stat=Zirh,12,,icons/stats/stat_armor.png").stats();
 
@@ -390,7 +390,7 @@ class HeroPanelTest {
     /** And a game that names none is read as before rather than refused. */
     @Test
     void andAGameThatNamesNoPictureIsStillRead() {
-        var stats = HeroPanel.Reading.parse(LINE + "|stat=Wave,4").stats();
+        var stats = PanelReading.parse(LINE + "|stat=Wave,4").stats();
 
         assertEquals(1, stats.size());
         assertEquals("", stats.get(0).icon());
@@ -399,7 +399,7 @@ class HeroPanelTest {
     /** His attributes are read apart from the figures, and his primary is marked. */
     @Test
     void hisAttributesAreReadApartFromTheFiguresWithHisPrimaryMarked() {
-        var reading = HeroPanel.Reading.parse(LINE
+        var reading = PanelReading.parse(LINE
                 + "|attr=Kuch,22,,icons/stats/stat_strength.png,primary"
                 + "|attr=Aql,8,+2,icons/stats/stat_intelligence.png"
                 + "|stat=Zarba,30,,icons/stats/stat_attack.png");
@@ -419,7 +419,7 @@ class HeroPanelTest {
     /** An attribute's card is read by its place in the list, footer and all. */
     @Test
     void anAttributesCardIsReadByItsPlaceInTheList() {
-        var reading = HeroPanel.Reading.parse(LINE
+        var reading = PanelReading.parse(LINE
                 + "|attr=Kuch,22,,,primary|attr=Epchillik,10,,"
                 + "|atTipName=0,Kuch|atTipAt=0,Asosiy atribut|atTipText=0,Har bir birlik beradi:"
                 + "|atTipRow=0,Jon,+12,|atTipRow=0,Zarba,+1,"
@@ -449,7 +449,7 @@ class HeroPanelTest {
      */
     @Test
     void anAttributeTheGameAddsIsReadLikeTheOthers() {
-        var reading = HeroPanel.Reading.parse(LINE
+        var reading = PanelReading.parse(LINE
                 + "|attr=Kuch,10,,icons/stats/stat_strength.png"
                 + "|attr=Epchillik,12,,icons/stats/stat_agility.png,primary"
                 + "|attr=Aql,8,,icons/stats/stat_intelligence.png"
@@ -468,7 +468,7 @@ class HeroPanelTest {
     /** The pool and the prices are read off the line. */
     @Test
     void theManaBarAndItsPricesAreRead() {
-        var reading = HeroPanel.Reading.parse(LINE
+        var reading = PanelReading.parse(LINE
                 + "|mana=48/120|cost=Q,22,yes|cost=R,70,no");
 
         assertNotNull(reading);
@@ -490,7 +490,7 @@ class HeroPanelTest {
      */
     @Test
     void aGameWithNoManaIsReadAsItAlwaysWas() {
-        var reading = HeroPanel.Reading.parse(LINE);
+        var reading = PanelReading.parse(LINE);
 
         assertNotNull(reading);
         assertEquals(0f, reading.maxMana(), 0.001f, "no pool at all");
@@ -500,16 +500,16 @@ class HeroPanelTest {
     /** The refusal arrives stamped, so it can be sounded once rather than every frame. */
     @Test
     void aRefusalIsStampedWithItsFrame() {
-        assertEquals(0, HeroPanel.Reading.parse(LINE).refusedForManaAt(),
+        assertEquals(0, PanelReading.parse(LINE).refusedForManaAt(),
                 "nothing was refused");
-        assertEquals(412, HeroPanel.Reading.parse(LINE + "|noMana=412").refusedForManaAt());
+        assertEquals(412, PanelReading.parse(LINE + "|noMana=412").refusedForManaAt());
     }
 
     /** And a price that will not parse refuses the line, like every other field. */
     @Test
     void aBrokenPriceRefusesTheLine() {
-        assertNull(HeroPanel.Reading.parse(LINE + "|cost=Q,lots,yes"));
-        assertNull(HeroPanel.Reading.parse(LINE + "|cost=Q"));
+        assertNull(PanelReading.parse(LINE + "|cost=Q,lots,yes"));
+        assertNull(PanelReading.parse(LINE + "|cost=Q"));
     }
 
     /** The glyph vocabulary is by name, and an unknown name is a shape, not a gap. */
@@ -517,7 +517,7 @@ class HeroPanelTest {
     void everyIconNameDrawsSomething() {
         for (var icon : new String[] {"shot", "burst", "dash", "star", "clock", "heart",
             "boot", "plus", "times", "Q", "W", "E", "R", "no-such-icon"}) {
-            var mesh = HeroPanel.glyph(icon, 24f);
+            var mesh = PanelGlyphs.of(icon, 24f);
             assertNotNull(mesh, icon);
             assertTrue(mesh.getVertexCount() > 0, icon + " drew nothing at all");
         }
@@ -600,10 +600,10 @@ class HeroPanelTest {
      */
     @Test
     void theTitleIsLetteredWithAirInIt() {
-        assertEquals("O ' q   u s t a s i", HeroPanel.spacedOut("O'q ustasi"));
-        assertEquals("", HeroPanel.spacedOut(""), "a game that gives him no title");
-        assertEquals("", HeroPanel.spacedOut(null));
-        assertEquals("M", HeroPanel.spacedOut("M"), "one letter has nothing to space from");
+        assertEquals("O ' q   u s t a s i", VitalsColumn.spacedOut("O'q ustasi"));
+        assertEquals("", VitalsColumn.spacedOut(""), "a game that gives him no title");
+        assertEquals("", VitalsColumn.spacedOut(null));
+        assertEquals("M", VitalsColumn.spacedOut("M"), "one letter has nothing to space from");
     }
 
     /**

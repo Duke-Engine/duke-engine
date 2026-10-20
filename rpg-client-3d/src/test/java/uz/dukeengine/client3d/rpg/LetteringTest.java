@@ -36,7 +36,7 @@ class LetteringTest {
     /** A 17-pixel line of a bar drawn at 1.3 lands 22 pixels tall: baked there, drawn there, scaled back 1.3. */
     @Test
     void aLineInANamedFaceIsDrawnAtItsOwnSizeAndScaledBackAgainstTheBar() {
-        var letters = HeroPanel.letters(sans, null, 17f, 1.3f);
+        var letters = PanelBrush.letters(sans, null, 17f, 1.3f);
 
         assertEquals(letters.font().getCharSet().getRenderedSize(), letters.size(), 1e-4f,
                 "at the size it was baked at, a texel to a pixel");
@@ -53,7 +53,7 @@ class LetteringTest {
     void withNoFaceNamedTheBitmapFontIsDrawnAtTheDesignsSizeThroughTheBarsScale() {
         var bitmap = assets.loadFont("Interface/Fonts/Default.fnt");
 
-        var letters = HeroPanel.letters(null, bitmap, 17f, 1.3f);
+        var letters = PanelBrush.letters(null, bitmap, 17f, 1.3f);
 
         assertSame(bitmap, letters.font());
         assertEquals(17f, letters.size(), 1e-4f);
@@ -87,7 +87,7 @@ class LetteringTest {
     @Test
     void theSkillCardIsLetteredAsTheBarIs() {
         var font = assets.loadFont("Interface/Fonts/Default.fnt");
-        var card = HeroPanel.Reading.parse("name=Erika|hp=5/5|skill=Q,,lock|tipName=Q,Og'ir o'q|tipAt=Q,Q"
+        var card = PanelReading.parse("name=Erika|hp=5/5|skill=Q,,lock|tipName=Q,Og'ir o'q|tipAt=Q,Q"
                 + "|tipText=Q,Kamonni to'liq tortib otadi. O'q xonani kesib o'tadi, nishon qochib ulgurishi mumkin."
                 + "|tipRow=Q,Zarar,,45|tipFoot=Q,Ctrl+Q").tips().get('Q');
         var gui = new com.jme3.scene.Node("gui");

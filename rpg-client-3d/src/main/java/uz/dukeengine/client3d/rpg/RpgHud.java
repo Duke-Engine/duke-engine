@@ -231,7 +231,7 @@ public final class RpgHud implements HudPart {
     /** How deep the run is and the hero's rank, off the card, which the panel has put away by the time a menu is up. */
     @Override
     public List<String[]> pauseFacts(WorldSnapshot snapshot) {
-        var run = snapshot.hasStatus() ? HeroPanel.Reading.parse(snapshot.status()) : null;
+        var run = snapshot.hasStatus() ? PanelReading.parse(snapshot.status()) : null;
         var facts = new ArrayList<String[]>();
         if (run != null) {
             facts.add(new String[] {run.depthWord().isEmpty() ? "DEPTH" : run.depthWord(), run.depth()});

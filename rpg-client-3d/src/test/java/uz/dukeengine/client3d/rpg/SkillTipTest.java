@@ -55,7 +55,7 @@ class SkillTipTest {
     /** Every part of a card survives the trip. */
     @Test
     void theLineCarriesTheWholeCard() {
-        var reading = HeroPanel.Reading.parse(LINE);
+        var reading = PanelReading.parse(LINE);
 
         assertNotNull(reading, "the line was refused outright");
         var card = reading.tips().get('Q');
@@ -72,7 +72,7 @@ class SkillTipTest {
     /** A sentence with a comma in it is not cut at the comma. */
     @Test
     void aSentenceKeepsItsCommas() {
-        var card = HeroPanel.Reading.parse(LINE).tips().get('Q');
+        var card = PanelReading.parse(LINE).tips().get('Q');
 
         assertTrue(card.blurb().contains("o'tadi, shuning uchun"),
                 "the description was cut at its first comma: " + card.blurb());
@@ -81,7 +81,7 @@ class SkillTipTest {
     /** And the footer's offer follows the slot rather than being said twice. */
     @Test
     void aSlotWithNoPointOffersNothing() {
-        var card = HeroPanel.Reading.parse(LINE).tips().get('W');
+        var card = PanelReading.parse(LINE).tips().get('W');
 
         assertNotNull(card);
         assertFalse(card.canRaise(), "W says 'no' on its rank field, so its card must agree");
@@ -169,7 +169,7 @@ class SkillTipTest {
     /** And the key is on the card, whether or not he owns the skill yet. */
     @Test
     void theCardNamesItsKeys() {
-        var reading = HeroPanel.Reading.parse(LINE);
+        var reading = PanelReading.parse(LINE);
 
         assertEquals("Q", reading.tips().get('Q').at(),
                 "an unbought skill still has to say which key casts it");
