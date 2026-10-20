@@ -239,6 +239,8 @@ final class DukeRtsApp extends SimpleApplication {
     private WorldPointer pointer;
     /** What the player has selected and what he orders it to do — see {@link Orders}. */
     private Orders orders;
+    /** The game's own keys, pressed, armed, held and cast — see {@link SkillKeys}. */
+    private SkillKeys skillKeys;
     /** What happened in the world this frame, drawn and heard — see {@link WorldEvents}. */
     private WorldEvents events;
     /** The sounds a look names by file, each read once — see {@link SoundNodes}. */
@@ -649,7 +651,7 @@ final class DukeRtsApp extends SimpleApplication {
                 fontOrDefault(visuals.getMenuStyle().rowFont()));
         unitBars.look(visuals.getUnitBars());
         guiNode.attachChild(unitBars.node());
-        rangeRings = new RangeRings(assetManager, markerNode, visuals.getRangeLook());
+        var rangeRings = new RangeRings(assetManager, markerNode, visuals.getRangeLook());
         veil = new SceneVeil(assetManager);
         guiNode.attachChild(veil.node());
         artStore = new ArtLoad.Store(assetManager, renderManager, bodies, rootNode, terrainNode,
@@ -701,6 +703,8 @@ final class DukeRtsApp extends SimpleApplication {
         orders = new Orders(() -> game, () -> snapshot, selected, visuals, hotkeys, controls, parts, () -> noises,
                 () -> mouse, pointer, unitScene, minimapView::click, orderMarkers, modelMarks, rallyMarks,
                 dragRectangle, cam, inputManager, timer, () -> screens.now(), this::floorHeightAt);
+        skillKeys = new SkillKeys(hotkeys, visuals, parts, orders, pointer, () -> scheme, rangeRings, () -> noises,
+                () -> game, () -> snapshot, () -> screens.now(), inputManager, timer, this::floorHeightAt);
         screens = new Screens(menusHost, shell, visuals, hotkeys, preferences, choices, windowDisplay, keyBindings,
                 controls, () -> noises, parts, () -> settings, assetManager, guiNode, guiFont, this::fontOrDefault, timer,
                 cam.getWidth(), cam.getHeight());
@@ -905,7 +909,7 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public void castArmed() {
-            aimArmedKey();
+            skillKeys.aimArmedKey();
         }
 
         @Override
@@ -1427,42 +1431,8 @@ final class DukeRtsApp extends SimpleApplication {
         // A move the game answers with its own model has no arrowheads; an attack it answers with nothing, no ring.
         chevrons.show(look.model() == null ? orderMarkers.markers() : java.util.List.of(), now, this::floorHeightAt);
         attackFlash.show(orderMarkers.markers(), now, this::whereThatUnitIsNow, this::floorHeightAt);
-        syncSkillRange(now);
+        skillKeys.syncSkillRange(now);
         events.drawTheBlows(now, screens.now() == Screen.PLAYING);
-    }
-
-    /**
-     * Draw how far the armed skill reaches, and whether the click as it stands
-     * would be obeyed.
-     *
-     * <p>Round the hero rather than round the selection: a skill is cast by the
-     * man who has it whether or not the player has him clicked, so a ring drawn at
-     * the selection would be in the wrong place exactly when he had picked a
-     * monster out to look at.
-     */
-    private void syncSkillRange(float now) {
-        var range = arming == null ? null : visuals.getSkillRange(arming);
-        if (range == null || screens.now() != Screen.PLAYING) {
-            rangeRings.hide();
-            return;
-        }
-        var hero = whereHisHeroIs();
-        if (hero == null) {
-            rangeRings.hide();
-            return;
-        }
-        Coord3D aimedAt = null;
-        boolean allowed = true;
-        if (range.needsAiming()) {
-            var at = inputManager.getCursorPosition();
-            var ground = pointer.groundUnder(at.x, at.y);
-            aimedAt = new Coord3D(ground.x, ground.z, 0f);
-            // Out of reach is not a refusal -- the click is pulled back to the
-            // edge, and the ring is what says so. What refuses is ground he
-            // cannot aim at: stone, or somewhere he has never been.
-            allowed = pointer.isOpenAndSeen(ground);
-        }
-        rangeRings.show(range, hero, aimedAt, allowed, now, this::floorHeightAt);
     }
 
     /**
@@ -1475,19 +1445,6 @@ final class DukeRtsApp extends SimpleApplication {
     private Coord3D whereThatUnitIsNow(int unitId) {
         for (var view : snapshot.units()) {
             if (view.id() == unitId) {
-                return new Coord3D(view.x(), view.y(), 0f);
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Where the player's own unit is standing, or null before there is one.
-     */
-    private Coord3D whereHisHeroIs() {
-        int local = game.getLocalPlayerIndex();
-        for (var view : snapshot.units()) {
-            if (view.playerIndex() == local && view.selectable()) {
                 return new Coord3D(view.x(), view.y(), 0f);
             }
         }
@@ -1814,15 +1771,15 @@ final class DukeRtsApp extends SimpleApplication {
                             noises.moment("menu_click", timer.getTimeInSeconds());
                         }
                     } else if (screens.now() == Screen.PLAYING) {
-                        if (!pressed && holdingASkill()) {
-                            letGoOfHeldSkill(true); // he pressed its slot; this is the cast
+                        if (!pressed && skillKeys.holdingASkill()) {
+                            skillKeys.letGoOfHeldSkill(true); // he pressed its slot; this is the cast
                             break;
                         }
-                        if (pressed && clickedASkillSlot()) {
+                        if (pressed && skillKeys.clickedASkillSlot()) {
                             // The bar took it; nothing else may have it.
                             break;
                         }
-                        if (holdingASkill()) {
+                        if (skillKeys.holdingASkill()) {
                             break; // the mouse has no part in a skill being held
                         }
                         if (pressed && commandBarClick()) {
@@ -1834,11 +1791,11 @@ final class DukeRtsApp extends SimpleApplication {
                             aimArmedButton(); // this click is the armed button's place or thing
                         } else if (!pressed && aiming.placement() != null && aiming.placement().pressed()) {
                             releaseArmedButton(); // let go: put down where it went down, turned as dragged
-                        } else if (pressed && arming != null) {
+                        } else if (pressed && skillKeys.armed()) {
                             // This click belongs to the armed key, not to selection.
                             // The release is swallowed with it, or letting go would
                             // end a drag that never began.
-                            aimArmedKey();
+                            skillKeys.aimArmedKey();
                         } else if (scheme.left(pressed)) {
                             // the scheme's: a lock, a swing or a strike ahead, and no selecting by the left button
                         } else if (pressed) {
@@ -1862,13 +1819,13 @@ final class DukeRtsApp extends SimpleApplication {
                         if (pressed) {
                             cameraRig.rightDown(over.x, y);
                         } else if (cameraRig.rightUp(over.x, y)) {
-                            if (aiming.isArmed() || arming != null || mouse.rightClickLetsGo()) {
+                            if (aiming.isArmed() || skillKeys.armed() || mouse.rightClickLetsGo()) {
                                 secondThoughts();
                             } else if (pointer.pointerOnTheWorld() && !onAPanel(over.x, over.y)) {
                                 orders.order();
                             }
                         }
-                    } else if (pressed && (aiming.isArmed() || arming != null || mouse.rightClickLetsGo())) {
+                    } else if (pressed && (aiming.isArmed() || skillKeys.armed() || mouse.rightClickLetsGo())) {
                         secondThoughts();
                     } else if (pressed && pointer.pointerOnTheWorld() && !onAPanel(over.x, over.y)
                             && scheme.rightOrders(snapshot.contextOrder() != null, pointer.pickUnit() != null)) {
@@ -1886,13 +1843,13 @@ final class DukeRtsApp extends SimpleApplication {
                     if (!pressed) {
                         // Letting go of a skill that was drawn while it was held.
                         // See SkillRange.castOnRelease.
-                        if (name.startsWith(KeyBindings.HOTKEY) && arming != null
-                                && arming == name.charAt(KeyBindings.HOTKEY.length())) {
+                        if (name.startsWith(KeyBindings.HOTKEY)
+                                && skillKeys.armedWith(name.charAt(KeyBindings.HOTKEY.length()))) {
                             if (scheme.aiming() && scheme.castsOnRelease()) {
-                                aimArmedKey(); // aimed from him, cast as the key is let go
+                                skillKeys.aimArmedKey(); // aimed from him, cast as the key is let go
                                 return;
                             }
-                            letGoOfHeldSkill(false);
+                            skillKeys.letGoOfHeldSkill(false);
                         }
                         return;
                     }
@@ -1906,9 +1863,9 @@ final class DukeRtsApp extends SimpleApplication {
                             // of its own means nothing new to learn and nothing to
                             // press by accident -- Q alone still casts, and always
                             // will.
-                            raiseSkill(letter);
+                            skillKeys.raiseSkill(letter);
                         } else {
-                            pressHotkey(letter, false);
+                            skillKeys.pressHotkey(letter, false);
                         }
                     }
                 }
@@ -1949,11 +1906,11 @@ final class DukeRtsApp extends SimpleApplication {
         if (sceneLocked() && code != KeyInput.KEY_ESCAPE) {
             return; // the scene's: Esc alone still reaches the menu
         }
-        if (code == KeyInput.KEY_ESCAPE && (aiming.isArmed() || arming != null)) {
+        if (code == KeyInput.KEY_ESCAPE && (aiming.isArmed() || skillKeys.armed())) {
             if (aiming.isArmed()) {
                 disarmButton(); // mid-aim with a bar button: one keypress deep
             } else {
-                disarm(); // mid-aim with a key: the same
+                skillKeys.disarm(); // mid-aim with a key: the same
             }
             return;
         }
@@ -2066,125 +2023,6 @@ final class DukeRtsApp extends SimpleApplication {
         }
     };
 
-    /**
-     * The game key that has been pressed and is waiting to be pointed at something.
-     */
-    private Character arming;
-
-    /**
-     * Whether it was armed by clicking its slot rather than by pressing its key.
-     *
-     * <p>Only a held skill cares, and it cares a great deal: what casts it is
-     * letting go of the same thing that armed it. Without this, arming with the
-     * keyboard and then releasing a mouse button that happened to be down would
-     * fire it.
-     */
-    private boolean armedByMouse;
-
-    /**
-     * Draws how far an armed skill reaches. See RangeRings.
-     */
-    private RangeRings rangeRings;
-
-    /**
-     * A game key was pressed.
-     *
-     * <p>Most act at once. One that needs pointing at something instead goes
-     * quiet and waits for the next click — pressed again it thinks better of it,
-     * and so does a right-click or escape. All any of this may do in the end is
-     * post a command: the render thread has no business in the simulation.
-     */
-    private void pressHotkey(char key, boolean byMouse) {
-        var binding = hotkeys.all().get(key);
-        if (binding == null) {
-            return;
-        }
-        var range = visuals.getSkillRange(key);
-        if (ordersSelection(key) && !parts.stream().allMatch(HudPart::mayOrder)) {
-            // The four orders belong to whatever is selected, and what is selected
-            // is not his -- so there is nothing to give the order to. The panel
-            // draws them dim for the same reason; this is the half that stops the
-            // key going round the outside of the dim button.
-            return;
-        }
-        if (range != null && !ordersSelection(key) && orders.selectedIds().isEmpty()) {
-            // A skill is something one of his creatures does, so it needs that
-            // creature picked out — pressing Q with nothing selected, or with a
-            // skeleton selected to look at it, used to cast anyway. The orders
-            // beside them are deliberately not like this: they are the player
-            // talking to whoever he owns, and are meant to work with an empty
-            // selection.
-            //
-            // ★ Which is why the order has to be asked about by name. It used to
-            // be enough that only a skill had a reach to draw — until the attack
-            // order was given one too, and it is worth having: the ring says how
-            // far he hits from, which is the question a player is asking when he
-            // reaches for that key.
-            return;
-        }
-        if (binding.aim() == Hotkeys.Aim.NOW) {
-            if (range != null && range.castOnRelease()) {
-                // Held rather than spent. A skill with nothing to point at used to
-                // go off the instant the key went down, which left the player no
-                // way to ask how far it reaches except by spending it. Holding
-                // shows him; letting go casts, so a tap is still a cast and all
-                // that has changed is that looking is now free.
-                if (ready(key)) {
-                    arm(key, byMouse);
-                } else {
-                    sayWhyNot(key);
-                }
-                return;
-            }
-            disarm();
-            hotkeys.pressNow(game, key);
-            return;
-        }
-        if (arming != null && arming == key) {
-            if (scheme.aiming()) {
-                aimArmedKey(); // aimed by the scheme: the key again casts
-                return;
-            }
-            disarm();
-            return;
-        }
-        // Refusing here rather than arming and going quiet: a slot the panel is
-        // already showing as spent would take a click and do nothing with it.
-        if (!ready(key)) {
-            sayWhyNot(key);
-            return;
-        }
-        arm(key, byMouse);
-        if (scheme.armed(key, byMouse, range)) {
-            return; // the scheme aims it
-        }
-        if (scheme.castsAtOnce(byMouse)) {
-            quickCasting = true;
-            try {
-                aimArmedKey(); // cast at once, as if its aim were clicked where the pointer is
-            } finally {
-                quickCasting = false;
-            }
-        }
-    }
-
-    /** Answer a key that was refused, where a part's panel does not already show why. */
-    private void sayWhyNot(char key) {
-        for (var part : parts) {
-            part.refused(key, timer.getTimeInSeconds());
-        }
-    }
-
-    /** Whether a key orders what is selected, as a part's panel says. */
-    private boolean ordersSelection(char key) {
-        return parts.stream().anyMatch(part -> part.ordersSelection(key));
-    }
-
-    /** Whether a key may be pressed now, as every part's panel says. */
-    private boolean ready(char key) {
-        return parts.stream().allMatch(part -> part.ready(key));
-    }
-
     /** Whether a point of the window is on a part's panel. */
     private boolean onAPanel(float x, float y) {
         return parts.stream().anyMatch(part -> part.covers(x, y));
@@ -2200,196 +2038,6 @@ final class DukeRtsApp extends SimpleApplication {
         }
         return null;
     }
-
-    /**
-     * Arm a key: the panel lights its slot, and its reach is drawn on the floor.
-     */
-    private void arm(char key, boolean byMouse) {
-        arming = key;
-        armedByMouse = byMouse;
-        tellThePartsWhatIsArmed(key);
-    }
-
-    /**
-     * Letting go of a held skill casts it.
-     *
-     * <p>Whichever way it was armed and only that way: the key it was pressed
-     * with, or the mouse, if he pressed its slot on the bar. Otherwise releasing
-     * the mouse after arming from the keyboard would fire it before the player had
-     * aimed his eyes, never mind his hand.
-     */
-    private void letGoOfHeldSkill(boolean byMouse) {
-        if (!holdingASkill() || armedByMouse != byMouse) {
-            return;
-        }
-        var binding = hotkeys.all().get(arming);
-        disarm();
-        if (binding != null) {
-            binding.run().accept(game, null);
-        }
-    }
-
-    /**
-     * Whether what is armed is drawn while held and cast when let go.
-     */
-    private boolean holdingASkill() {
-        if (arming == null) {
-            return false;
-        }
-        var range = visuals.getSkillRange(arming);
-        return range != null && range.castOnRelease();
-    }
-
-    private void disarm() {
-        scheme.disarmed();
-        arming = null;
-        armedByMouse = false;
-        tellThePartsWhatIsArmed(null);
-        rangeRings.hide();
-    }
-
-    private void tellThePartsWhatIsArmed(Character key) {
-        for (var part : parts) {
-            part.armed(key);
-        }
-    }
-
-    /** Whether the aim is a quick cast's, where a creature near the pointer counts as under it. */
-    private boolean quickCasting;
-
-    /**
-     * The click that completes an armed key. Clicking nothing usable drops it,
-     * rather than leaving the player armed and wondering why nothing happened.
-     */
-    private void aimArmedKey() {
-        // ★ Read BEFORE disarming, which nulls it. The clamp below asks what the
-        // armed key reaches, and asking after the disarm got null every time --
-        // so the mark it was written to put in the right place was left at the
-        // cursor, which is the one place it was written not to be.
-        char aimed = arming == null ? 0 : arming;
-        var binding = hotkeys.all().get(arming);
-        var ahead = pointer.schemeAim(); // read before the disarm lets the scheme's aim go
-        disarm();
-        if (binding == null) {
-            return;
-        }
-        boolean mayBeACreature = binding.aim() == Hotkeys.Aim.UNIT
-                || binding.aim() == Hotkeys.Aim.UNIT_OR_GROUND;
-        if (mayBeACreature) {
-            var unit = ahead != null ? pointer.nearTheGround(ahead) : pointer.pickUnit(); // the creature nearest where it aims, within six
-            if (unit == null && quickCasting) {
-                var under = pointer.pickGround();
-                unit = under == null ? null : pointer.nearTheGround(under);
-            }
-            if (unit != null) {
-                binding.run().accept(game, new Hotkeys.Aimed(unit.view.id(), null));
-                orders.markOrder(unit.view.x(), unit.view.y(), unit.view.id(),
-                        OrderMarkers.Kind.ATTACK);
-                noises.moment("vo.attack", timer.getTimeInSeconds());
-                return;
-            }
-            if (binding.aim() == Hotkeys.Aim.UNIT) {
-                return; // it had to be a creature, and the click found none
-            }
-        }
-        var ground = ahead != null ? ahead : pointer.pickGround();
-        if (ground == null) {
-            return;
-        }
-        if (binding.aim() == Hotkeys.Aim.OPEN_GROUND && !pointer.isOpenAndSeen(ground)) {
-            return; // stone, or somewhere he has never been — nothing is sent
-        }
-        var spot = new Coord3D(ground.x, ground.z, 0f);
-        binding.run().accept(game, new Hotkeys.Aimed(0, spot));
-        // ★ The mark goes where the SKILL goes, not where the mouse was. A click
-        // past the ring is read by the simulation as "as far that way as I can"
-        // -- it clamps to the edge -- so a mark left at the cursor would stand a
-        // long way from where the thing actually landed and the picture would be
-        // a lie in exactly the case the player most needs it to be true.
-        //
-        // An ORDER is not clamped, and the difference is real rather than an
-        // exception: the ring on an order says how far he HITS from, which is
-        // worth knowing and is not a fence. He may be sent to fight his way
-        // across the whole floor.
-        var landing = ordersSelection(aimed) ? spot : clampedToReach(aimed, spot);
-        boolean attackMove = binding.aim() == Hotkeys.Aim.UNIT_OR_GROUND;
-        orders.markOrder(landing.x(), landing.y(), attackMove ? OrderMarkers.Kind.ATTACK_MOVE : OrderMarkers.Kind.MOVE);
-        if (attackMove) {
-            orders.hintMove(landing.x(), landing.y());
-        }
-    }
-
-    /**
-     * A spot pulled back to the edge of what the armed skill can reach.
-     *
-     * <p>The same rule {@code SkillBook.withinReach} applies on the far side,
-     * drawn from the same {@link SkillRange} the ring on the floor is drawn from
-     * -- so the mark, the ring and the cast all agree about where "as far that
-     * way as I can" is. A skill with no ring, or a click already inside it, is
-     * left exactly where it was.
-     */
-    private Coord3D clampedToReach(char key, Coord3D wanted) {
-        var range = key == 0 ? null : visuals.getSkillRange(key);
-        var hero = whereHisHeroIs();
-        if (range == null || hero == null) {
-            return wanted;
-        }
-        return range.within(hero, wanted);
-    }
-
-
-    /**
-     * A click on a skill slot casts it, exactly as pressing its key would.
-     *
-     * <p>Down the same road, deliberately: the click ends in {@link #pressHotkey},
-     * so a skill that needs pointing at something arms and waits for the next
-     * click just as the keyboard's does, and a skill that does not goes off at
-     * once. Anything else would be a second copy of the rules for casting, and the
-     * two would drift.
-     *
-     * <p>A slot that is cooling or locked eats the click and does nothing, which
-     * is what a stone slot with a shadow over it looks like it should do.
-     * Spend a level on a slot, from the keyboard.
-     *
-     * <p>Refused in silence when there is nothing to spend or nowhere to spend
-     * it, and that is a requirement rather than an omission: Ctrl is held for
-     * other reasons, and a key that made a noise every time the player happened
-     * to be holding it would be a key he learns to dread. The panel is asked
-     * rather than the simulation because the panel is what is showing him a
-     * badge -- if there is no badge, the press means nothing and says nothing.
-     *
-     * @return whether the bar took the click
-     */
-    private void raiseSkill(char key) {
-        if (parts.stream().noneMatch(part -> part.raises(key))) {
-            return;
-        }
-        hotkeys.raiseSkill(game, key);
-        noises.moment("power_taken", (float) timer.getTimeInSeconds());
-    }
-
-    private boolean clickedASkillSlot() {
-        var cursor = inputManager.getCursorPosition();
-        // The badge before the slot, because it hangs over the slot's own corner
-        // and a click there means the badge. It is only ever there when a point
-        // may go into that slot, so the corner of a socket with nothing to buy
-        // arms the skill exactly as it always did.
-        Character raising = firstOfTheParts(part -> part.raiseAt(cursor.x, cursor.y));
-        if (raising != null) {
-            hotkeys.raiseSkill(game, raising);
-            noises.moment("power_taken", timer.getTimeInSeconds());
-            return true;
-        }
-        Character key = firstOfTheParts(part -> part.keyAt(cursor.x, cursor.y));
-        if (key != null) {
-            pressHotkey(key, true);
-            return true;
-        }
-        // The rest of a panel swallows clicks too. Without this, clicking its
-        // portrait sends the hero walking to wherever the panel happens to cover.
-        return onAPanel(cursor.x, cursor.y);
-    }
-
     // ---- per-frame sync ----
 
     @Override
@@ -2642,7 +2290,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     private void arm(uz.dukeengine.core.view.CommandButton button, boolean fromTheBar, float radius, String pointer,
             AimDecal decal, java.util.function.Consumer<AimOutcome> told) {
-        disarm(); // a hotkey armed first is given up: one thing waits for the next click, never two
+        skillKeys.disarm(); // a hotkey armed first is given up: one thing waits for the next click, never two
         disarmButton();
         if (button.aim() == uz.dukeengine.core.view.CommandButton.Aim.NOW) {
             return; // nothing to wait for: a button that needs no place is pressed, not armed
@@ -2915,8 +2563,7 @@ final class DukeRtsApp extends SimpleApplication {
             return new Cursors.Over(false, null, false, false, false, false);
         }
         var at = inputManager.getCursorPosition();
-        var binding = arming == null ? null : hotkeys.all().get(arming);
-        var armed = binding == null ? null : binding.aim();
+        var armed = skillKeys.armedAim();
         // Armed is not aiming -- see Hotkeys.Aim.needsPointing. A skill that goes
         // off round him is held to be looked at, and while it is the pointer goes
         // on answering the ordinary questions.
@@ -2948,8 +2595,8 @@ final class DukeRtsApp extends SimpleApplication {
     private void secondThoughts() {
         if (aiming.isArmed()) {
             disarmButton();
-        } else if (arming != null) {
-            disarm();
+        } else if (skillKeys.armed()) {
+            skillKeys.disarm();
         } else if (mouse.rightClickLetsGo()) {
             selected.clear();
         }
