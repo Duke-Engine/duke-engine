@@ -112,7 +112,7 @@ class MinimapPictureTest {
         var image = new com.jme3.texture.Image(com.jme3.texture.Image.Format.RGBA8, 2, 1,
                 com.jme3.util.BufferUtils.createByteBuffer(new byte[] {(byte) 255, 0, 0, (byte) 255, 0, 0, (byte) 255,
                     (byte) 255}), com.jme3.texture.image.ColorSpace.Linear);
-        var mean = DukeRtsApp.meanOf(image);
+        var mean = MinimapView.meanOf(image);
         assertEquals(0.5f, mean.r, 1e-3f);
         assertEquals(0f, mean.g, 1e-3f);
         assertEquals(0.5f, mean.b, 1e-3f);

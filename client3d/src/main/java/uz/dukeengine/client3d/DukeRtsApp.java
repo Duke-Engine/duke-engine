@@ -347,8 +347,6 @@ final class DukeRtsApp extends SimpleApplication {
      * The frame of the last cast this client drew, so one cast is drawn once.
      */
     private int lastCastFrameDrawn = Integer.MIN_VALUE;
-    /** The minimap's ground: one picture, a texel a cell, repainted where the player's knowledge changed. */
-    private final MinimapPicture minimapPicture = new MinimapPicture();
     /** How low and how high this map's ground stands: what the ray under the cursor is walked between. */
     private GroundSpan groundSpan = new GroundSpan(0f, 0f);
     private final Map<Integer, UnitNode> unitNodes = new HashMap<>();
@@ -407,31 +405,8 @@ final class DukeRtsApp extends SimpleApplication {
     }
     private BitmapText buildMenu;
     private BannerPanel banner;
-
-    // minimap: fixed-size overlay in the bottom-right corner
-    private static final float MINIMAP_SIZE = 190f;
-    private final Node minimapNode = new Node("minimap");
-    /**
-     * Backdrop and rock cells — replaced as a unit when the world changes.
-     */
-    private final Node minimapTerrainNode = new Node("minimap-terrain");
-    private final Map<Integer, Geometry> minimapDots = new HashMap<>();
-    private MinimapProjection minimap = new MinimapProjection(700f, 450f, MINIMAP_SIZE);
-    private float minimapX;       // screen position of the minimap's origin
-    private float minimapY;
-    /**
-     * How much the minimap is shrunk to fit the hero bar's socket, or 1 when it
-     * is drawn in the corner as an RTS draws it.
-     *
-     * <p>Scaled rather than rebuilt at the socket's size: the projection and the
-     * cells are laid out once per world, and a window resize must not mean
-     * rebuilding a few thousand quads.
-     */
-    private float minimapScale = 1f;
-    /**
-     * The camera's footprint, drawn as an outline over the minimap.
-     */
-    private Geometry viewportOutline;
+    /** The minimap, in the corner or in a part's socket — see {@link MinimapView}. */
+    private MinimapView minimapView;
 
     /**
      * The box the player is dragging, drawn over the world while the button is down.
@@ -749,11 +724,8 @@ final class DukeRtsApp extends SimpleApplication {
         modelMarks = new ModelMarks(markerNode, path -> bodies.asFiled(path, "order mark"));
         hitNumbers = new FloatingNumbers(guiFont, guiNode, visuals.getHitNumbers());
         floatingTexts = new FloatingTexts(guiFont, guiNode, visuals.getFloatingText());
-        pictureStrips = new PictureStrips(guiNode, this::stripPicture, visuals::stripNamed, picture -> {
-            var look = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-            look.setTexture("ColorMap", picture);
-            return look;
-        });
+        pictureStrips = new PictureStrips(guiNode, this::stripPicture, visuals::stripNamed,
+                picture -> Materials.picture(assetManager, picture));
         // The display face a boss's name is set in is the one the game already
         // named for its menus. A second field naming the same file would be a
         // second thing to keep in step with it, for no second decision.
@@ -800,7 +772,10 @@ final class DukeRtsApp extends SimpleApplication {
             part.open(window, cam.getWidth(), cam.getHeight());
         }
 
-        buildMinimap();
+        minimapView = new MinimapView(assetManager, visuals, () -> game, () -> snapshot, camera, cam, renderer, parts,
+                this::discovery, groundLooks::groundTexture, this::colourOf, timer);
+        minimapView.build(guiNode);
+        readTheNewGrid();
         buildDragRectangle();
         menu = buildMenu(cam.getWidth(), cam.getHeight());
         loading = new LoadingOverlay(guiFont, assetManager, guiNode,
@@ -875,56 +850,6 @@ final class DukeRtsApp extends SimpleApplication {
     void groundCover(GroundCover cover) {
         ground.cover(cover);
     }
-
-    /** Each painted surface's colour, by its palette value: a picture's mean, or the palette's own colour. */
-    private final Map<String, ColorRGBA> surfaceColours = new HashMap<>();
-
-    /**
-     * The ground's own colour at a cell of {@code grid} — the painted surface of the map's cell it lies in — or null
-     * where the map is not painted.
-     */
-    private java.util.function.BiFunction<Integer, Integer, ColorRGBA> groundColours(uz.dukeengine.core.pathfind.PathGrid grid) {
-        var paint = GroundPaint.of(game.getMapRecord());
-        if (grid == null || paint == null) {
-            return (cx, cy) -> null;
-        }
-        int k = Math.max(1, grid.cellsPerMapCell());
-        return (cx, cy) -> {
-            var value = paint.pictureAt(cx / k, cy / k);
-            return value == null || value.isBlank() ? null : surfaceColours.computeIfAbsent(value, this::colourOfSurface);
-        };
-    }
-
-    /** A surface's colour: {@code #RRGGBB} as written, a picture by the mean of its texels, null for one not loaded. */
-    private ColorRGBA colourOfSurface(String value) {
-        if (value.startsWith("#")) {
-            return GroundPaint.colourOf(value);
-        }
-        var texture = groundLooks.groundTexture(value);
-        return texture == null || texture.getImage() == null ? null : meanOf(texture.getImage());
-    }
-
-    /** The mean colour of a picture, read a texel in every few so a large one costs little. */
-    static ColorRGBA meanOf(com.jme3.texture.Image image) {
-        var raster = com.jme3.texture.image.ImageRaster.create(image);
-        int step = Math.max(1, Math.max(image.getWidth(), image.getHeight()) / 64);
-        float r = 0f;
-        float g = 0f;
-        float b = 0f;
-        int n = 0;
-        var texel = new ColorRGBA();
-        for (int y = 0; y < image.getHeight(); y += step) {
-            for (int x = 0; x < image.getWidth(); x += step) {
-                raster.getPixel(x, y, texel);
-                r += texel.r;
-                g += texel.g;
-                b += texel.b;
-                n++;
-            }
-        }
-        return n == 0 ? null : new ColorRGBA(r / n, g / n, b / n, 1f);
-    }
-
     void controls(ControlScheme controls) {
         this.scheme = controls == null ? ControlScheme.CLASSIC : controls;
         scheme.attach(schemeContext);
@@ -1650,84 +1575,6 @@ final class DukeRtsApp extends SimpleApplication {
         noises.sounds().gameVolume(channel, zeroToOne);
     }
 
-    /**
-     * Assemble the minimap once: its terrain layer, then the viewport outline over it.
-     */
-    private void buildMinimap() {
-        minimapY = 34f; // above the hint line, until a hero bar claims it
-        minimapNode.attachChild(minimapTerrainNode);
-        rebuildMinimapTerrain();
-        buildViewportOutline();
-        guiNode.attachChild(minimapNode);
-    }
-
-    /**
-     * The minimap's static layer — map bounds and blocked terrain — for the world
-     * as it stands now. Like the 3D terrain it empties its node first, so a new
-     * world replaces the old picture instead of being drawn over it.
-     */
-    private void rebuildMinimapTerrain() {
-        minimapTerrainNode.detachAllChildren();
-        var grid = game.getTerrain();
-        float worldW = grid == null ? 700f : grid.getWidth() * grid.getCellSize();
-        float worldH = grid == null ? 450f : grid.getHeight() * grid.getCellSize();
-        // The ground and its stone as one picture on one quad, the cells unwalked where there is discovery: an
-        // undiscovered floor is as black as undiscovered stone. Of the ground round the camera, on a wide world.
-        minimapPicture.ground(visuals.getMinimapUnseenShows(), groundColours(grid));
-        minimapPicture.rebuild(grid, visuals.drawsFog(), visuals.getFog().tintColour(), visuals.getMinimapSpan());
-        minimap = minimapPicture.isWindowed() ? minimapRoundTheCamera(grid)
-                : new MinimapProjection(worldW, worldH, MINIMAP_SIZE);
-        groundSpan = grid == null ? new GroundSpan(0f, 0f) : GroundSpan.of(grid);
-        // The camera may look at exactly what the minimap draws, and no further.
-        // Until there is a map there is nothing to fence it into: the sizes above
-        // are only something to draw an empty minimap at.
-        camera.keepInside(grid == null ? 0f : worldW, grid == null ? 0f : worldH);
-        minimapX = cam.getWidth() - minimap.widthPixels() - 12f;
-
-        var ground = new Geometry("mm-ground", new Quad(minimap.widthPixels(), minimap.heightPixels()));
-        var look = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        look.setTexture("ColorMap", minimapPicture.texture());
-        ground.setMaterial(look);
-        minimapTerrainNode.attachChild(ground);
-        minimapGround = ground;
-        followWithTheMinimap();
-        placeMinimap();
-        makeTheWorldPicture(grid);
-    }
-
-    /** The quad the minimap's ground is drawn on, whose picture slides under it on a wide world. */
-    private Geometry minimapGround;
-
-    /** The minimap's projection of the {@link Visuals#minimapSpan} of ground round where the camera looks now. */
-    private MinimapProjection minimapRoundTheCamera(uz.dukeengine.core.pathfind.PathGrid grid) {
-        float cell = grid.getCellSize();
-        float span = minimapPicture.span() * cell;
-        return new MinimapProjection(camera.targetX() - span / 2f, camera.targetZ() - span / 2f, span, span,
-                MINIMAP_SIZE);
-    }
-
-    /**
-     * On a wide world, the minimap kept on the ground round where the camera looks: the cells coming into its window
-     * painted, its picture slid under its quad by a fraction of a cell as the camera moves, and its projection — the
-     * things on it, the view's outline, a click on it — moved with it. Nothing where it shows the whole map.
-     */
-    private void followWithTheMinimap() {
-        var grid = game.getTerrain();
-        if (!minimapPicture.isWindowed() || grid == null || minimapGround == null) {
-            return;
-        }
-        float cell = grid.getCellSize();
-        minimapPicture.follow(camera.targetX(), camera.targetZ(), discovery(), renderer);
-        minimap = minimapRoundTheCamera(grid);
-        float span = minimapPicture.span();
-        var corners = minimapPicture.corners(camera.targetX() / cell - span / 2f, camera.targetZ() / cell - span / 2f);
-        var mesh = minimapGround.getMesh();
-        var coordinates = mesh.getFloatBuffer(com.jme3.scene.VertexBuffer.Type.TexCoord);
-        coordinates.clear();
-        coordinates.put(corners).flip();
-        mesh.getBuffer(com.jme3.scene.VertexBuffer.Type.TexCoord).setUpdateNeeded();
-    }
-
     /** The whole world's picture the game asked for, at most how many texels a side, and whom it is handed to. */
     private int worldPictureMost;
     private java.util.function.Consumer<Picture> worldPictureHanded;
@@ -1743,6 +1590,18 @@ final class DukeRtsApp extends SimpleApplication {
         makeTheWorldPicture(game.getTerrain());
     }
 
+    /** What else is read off a new world's grid with its minimap: the span the pointer's ray walks, and its picture. */
+    private void readTheNewGrid() {
+        var grid = game.getTerrain();
+        groundSpan = grid == null ? new GroundSpan(0f, 0f) : GroundSpan.of(grid);
+        makeTheWorldPicture(grid);
+    }
+
+    /** The game's marks on the minimap — see {@link Duke3D#minimapMarks}. */
+    void minimapMarks(java.util.function.Supplier<java.util.List<MinimapMark>> marks) {
+        minimapView.marks(marks);
+    }
+
     /** The whole world's picture for the world laid now, where the game asked for one, painted and handed over. */
     private void makeTheWorldPicture(uz.dukeengine.core.pathfind.PathGrid grid) {
         if (worldPictureHanded == null || grid == null || !worldPictureFor.test(game.getMapRecord())) {
@@ -1753,90 +1612,6 @@ final class DukeRtsApp extends SimpleApplication {
         worldPicture.paint(discovery());
         worldPictureHanded.accept(worldPicture.picture());
     }
-
-    /**
-     * Put the minimap where the hero bar says, or back in the corner when there
-     * is no bar.
-     *
-     * <p>The bar owns the socket because it owns the arrangement; the minimap owns
-     * the picture. Neither has to know the other's arithmetic — one hands over a
-     * rectangle in window pixels and the other fits itself to it.
-     */
-    private void placeMinimap() {
-        float[] socket = null;
-        float panelHeight = 0f;
-        for (var part : parts) {
-            socket = socket != null ? socket : part.minimapSocket();
-            panelHeight = Math.max(panelHeight, part.panelHeight());
-        }
-        if (socket != null) {
-            minimapScale = socket[2] / Math.max(1f, Math.max(minimap.widthPixels(),
-                    minimap.heightPixels()));
-            // Centred in its socket: a map that is not square leaves a margin, and
-            // the margin belongs on both sides rather than all on one.
-            minimapX = socket[0] + (socket[2] - minimap.widthPixels() * minimapScale) / 2f;
-            minimapY = socket[1] + (socket[2] - minimap.heightPixels() * minimapScale) / 2f;
-        } else {
-            // In the corner, over a bar that is showing without a socket for it.
-            minimapScale = 1f;
-            minimapX = cam.getWidth() - minimap.widthPixels() - 12f;
-            minimapY = 34f + panelHeight;
-        }
-        minimapNode.setLocalScale(minimapScale);
-        // Over the hole cut for it, at the depth the bar says: the GUI bucket is drawn in order of depth, and a map
-        // behind the hole looks exactly like a minimap that stopped working. The bar's depths grow with its scale, so
-        // a depth of the map's own was under the hole once the bar was drawn larger than the design.
-        minimapNode.setLocalTranslation(minimapX, minimapY, socket != null ? socket[3] : 0f);
-    }
-
-    /**
-     * Paint the minimap with what the player knows: black where they have not
-     * been, dim where they have, bright where they are looking — the cells whose state changed, on its one picture.
-     *
-     * <p>The unit dots need no help — the snapshot only ever carries what the
-     * engine's own fog lets through, so a monster in a room the player walked out
-     * of is already gone from it. That is the whole "where did it go?" of the
-     * thing, and it comes free.
-     */
-    private void applyMinimapDiscovery() {
-        minimapPicture.paint(discovery(), renderer);
-    }
-
-    /**
-     * If the cursor is over the minimap, move the camera there. Returns true if handled.
-     */
-    private boolean minimapClick() {
-        var cursor = inputManager.getCursorPosition();
-        float localX = (cursor.x - minimapX) / minimapScale;
-        float localY = (cursor.y - minimapY) / minimapScale;
-        if (!minimap.contains(localX, localY)) {
-            return false;
-        }
-        camera.lookAt(minimap.toWorldX(localX), minimap.toWorldY(localY));
-        return true;
-    }
-
-    /**
-     * The outline showing what the camera can see, drawn as an empty loop.
-     *
-     * <p>An outline rather than a filled box on purpose: the minimap's whole job is
-     * showing where the rooms and the fighting are, and a translucent rectangle
-     * over a third of it would dim exactly the part the player is looking at.
-     */
-    private void buildViewportOutline() {
-        var mesh = new com.jme3.scene.Mesh();
-        mesh.setMode(com.jme3.scene.Mesh.Mode.LineLoop);
-        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Position, 3, new float[VIEWPORT_CORNERS * 3]);
-        mesh.setDynamic();
-        mesh.updateBound();
-
-        viewportOutline = new Geometry("mm-viewport", mesh);
-        viewportOutline.setMaterial(Materials.unshaded(assetManager, new ColorRGBA(1f, 1f, 1f, 0.85f)));
-        viewportOutline.setLocalTranslation(0, 0, 2); // above the dots
-        minimapNode.attachChild(viewportOutline);
-    }
-
-    private static final int VIEWPORT_CORNERS = 4;
 
     /**
      * The selection box: an outline, so it never hides what is being selected.
@@ -2065,37 +1840,6 @@ final class DukeRtsApp extends SimpleApplication {
         return null;
     }
 
-    /**
-     * Redraw the viewport outline from where the camera is now — it moves and
-     * resizes as the player pans and zooms.
-     *
-     * <p>The camera looks at the ground from an angle, so what it sees is a
-     * trapezium rather than a rectangle: the far edge of the screen covers more
-     * ground than the near one. Rather than approximate that with a box, each
-     * screen corner is cast onto the ground and the true quadrilateral is drawn.
-     */
-    private void syncViewportOutline() {
-        // The corners of the world's part of the window, in turn round it so the loop does not cross.
-        float[][] corners = worldRegion.corners(cam.getWidth(), cam.getHeight());
-        var worldXs = new float[VIEWPORT_CORNERS];
-        var worldYs = new float[VIEWPORT_CORNERS];
-        for (int i = 0; i < VIEWPORT_CORNERS; i++) {
-            var ground = groundUnder(corners[i][0], corners[i][1]);
-            // World y is the ground plane's z: the map lies in x/z, y is height.
-            worldXs[i] = ground.x;
-            worldYs[i] = ground.z;
-        }
-
-        var outline = minimap.viewportOutline(worldXs, worldYs);
-        var vertices = new float[VIEWPORT_CORNERS * 3];
-        for (int i = 0; i < outline.length; i++) {
-            vertices[i * 3] = outline[i].x();
-            vertices[i * 3 + 1] = outline[i].y();
-        }
-        var mesh = viewportOutline.getMesh();
-        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Position, 3, vertices);
-        mesh.updateBound();
-    }
 
     /**
      * Where the ray through a screen point meets the ground.
@@ -2112,59 +1856,6 @@ final class DukeRtsApp extends SimpleApplication {
         var hit = GroundRay.groundHit(near, dir, groundSpan, terrain == null ? 5f : terrain.getCellSize() / 2f,
                 this::floorHeightAt);
         return terrain == null || !terrain.hasDecks() ? hit : GroundRay.deckHit(near, dir, hit, terrain.decks());
-    }
-
-    /** A see-through thing's blip on its own side's radar, blinking once a second; every other blip whole. */
-    private void blink(Geometry dot, UnitView view) {
-        var word = visuals.getSeeThroughWord();
-        boolean blinking = word != null && view.allied() && view.conditions().contains(word);
-        var colour = (ColorRGBA) dot.getMaterial().getParamValue("Color");
-        float alpha = blinking ? StealthLook.radarAlpha(snapshot.frame()) : 1f;
-        if (colour != null && colour.a != alpha) {
-            dot.getMaterial().setColor("Color", new ColorRGBA(colour.r, colour.g, colour.b, alpha));
-            dot.getMaterial().getAdditionalRenderState().setBlendMode(
-                    alpha < 1f ? com.jme3.material.RenderState.BlendMode.Alpha : com.jme3.material.RenderState.BlendMode.Off);
-        }
-    }
-
-    /**
-     * Live unit dots, coloured by player, sized up for structures.
-     */
-    private void syncMinimap() {
-        var seen = new HashSet<Integer>();
-        for (var view : snapshot.units()) {
-            seen.add(view.id());
-            var dot = minimapDots.computeIfAbsent(view.id(), id -> {
-                float size = view.structure() ? 6f : 3.5f;
-                var geometry = new Geometry("mm-dot", new Quad(size, size));
-                geometry.setMaterial(Materials.unshaded(assetManager, colourOf(view)));
-                minimapNode.attachChild(geometry);
-                return geometry;
-            });
-            var wanted = colourOf(view);
-            var now = (ColorRGBA) dot.getMaterial().getParamValue("Color");
-            if (now == null || now.r != wanted.r || now.g != wanted.g || now.b != wanted.b) {
-                // A blip wears the colours the thing does to this viewer: a disguise's, as the reference's radar does.
-                float alpha = now == null ? 1f : now.a;
-                dot.getMaterial().setColor("Color", new ColorRGBA(wanted.r, wanted.g, wanted.b, alpha));
-            }
-            var point = minimap.toMinimap(view.x(), view.y());
-            dot.setLocalTranslation(point.x() - 2f, point.y() - 2f, 1);
-            if (minimapPicture.isWindowed()) {
-                // The ground round the camera: a thing past it has no place on the minimap.
-                dot.setCullHint(minimap.contains(point.x(), point.y()) ? Spatial.CullHint.Inherit
-                        : Spatial.CullHint.Always);
-            }
-            blink(dot, view);
-        }
-        var gone = minimapDots.entrySet().iterator();
-        while (gone.hasNext()) {
-            var entry = gone.next();
-            if (!seen.contains(entry.getKey())) {
-                entry.getValue().removeFromParent();
-                gone.remove();
-            }
-        }
     }
 
     // ---- menus ----
@@ -3170,7 +2861,7 @@ final class DukeRtsApp extends SimpleApplication {
         for (var part : parts) {
             part.resized(width, height);
         }
-        placeMinimap();
+        minimapView.place();
         menu.destroy();
         menu = buildMenu(width, height);
         switch (screen) {
@@ -3295,7 +2986,8 @@ final class DukeRtsApp extends SimpleApplication {
         parts.forEach(HudPart::newWorld);
         lookChanged = false;
         buildTerrain();
-        rebuildMinimapTerrain();
+        minimapView.rebuild();
+        readTheNewGrid();
         noises.forget(); // a new floor; nothing about the last one is news
         orderMarkers.clear(); // orders given in the old world mean nothing here
         if (modelMarks != null) {
@@ -4464,7 +4156,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void beginDrag() {
-        if (minimapClick()) {
+        if (minimapView.click(inputManager.getCursorPosition())) {
             return; // the minimap took the press; not a selection
         }
         var cursor = inputManager.getCursorPosition();
@@ -5007,7 +4699,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (fog.sync(tpf)) {
             var seen = fog.discovery();
             ground.applyDiscovery(seen);
-            applyMinimapDiscovery();
+            minimapView.paintWhatIsKnown();
             if (worldPicture != null) {
                 worldPicture.heard(seen);
                 worldPicture.paint(seen);
@@ -5060,10 +4752,10 @@ final class DukeRtsApp extends SimpleApplication {
         markTheHidden();
         ground.colourTheBorder(viewPort.getBackgroundColor()); // the unexplored colour, whatever the theme makes it
         reapTheDead();
-        followWithTheMinimap();
-        syncMinimap();
-        syncMinimapMarks();
-        syncViewportOutline();
+        minimapView.follow();
+        minimapView.syncDots();
+        minimapView.syncMarks();
+        minimapView.outline(worldRegion, this::groundUnder);
         syncDragRectangle();
         syncOrderMarkers();
         updateHud(tpf);
@@ -5071,7 +4763,7 @@ final class DukeRtsApp extends SimpleApplication {
         updateCommandBar();
         followTheAim(); // the bar's aim or the game's, whether or not the client's bar is up
         updateBanner();
-        placeMinimap();
+        minimapView.place();
     }
 
     private CommandBar commandBar;
@@ -5433,7 +5125,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     private void showOnlyWhilePlaying() {
         var hint = clientHud() ? Spatial.CullHint.Never : Spatial.CullHint.Always;
-        minimapNode.setCullHint(hint);
+        minimapView.show(clientHud());
         if (controlsHint != null) {
             controlsHint.setCullHint(hint);
         }
@@ -5506,7 +5198,7 @@ final class DukeRtsApp extends SimpleApplication {
         var over = aiming ? null : pickUnit();
         // Over a window of the game's own canvas, or off the world's part of the window, is over the panel: the
         // arrow, as the reference shows it over any window of its interface.
-        boolean overPanel = onAPanel(at.x, at.y) || overTheMinimap(at)
+        boolean overPanel = onAPanel(at.x, at.y) || minimapView.covers(at)
                 || canvasInputs != null && canvasInputs.pointerTaken() || !pointerOnTheWorld();
         var own = selectedOwn();
         return new Cursors.Over(true, armed, canReach, overPanel,
@@ -5514,16 +5206,6 @@ final class DukeRtsApp extends SimpleApplication {
                 snapshot.attackable(), !own.isEmpty(), snapshot.contextOrder(), // a thing's, or the ground's
                 scrolling, groundTakes(game.getLocalPlayerIndex(), own, game.namesGroundOrders(), parts),
                 controls.isHeld(KeyMap.Control.FORCE_ATTACK));
-    }
-
-    /**
-     * Whether a screen point is inside the minimap, which takes its own clicks.
-     */
-    private boolean overTheMinimap(Vector2f at) {
-        float wide = minimap.widthPixels() * minimapScale;
-        float tall = minimap.heightPixels() * minimapScale;
-        return at.x >= minimapX && at.x <= minimapX + wide
-                && at.y >= minimapY && at.y <= minimapY + tall;
     }
 
     private void updateCamera(float tpf) {
@@ -7135,64 +6817,6 @@ final class DukeRtsApp extends SimpleApplication {
         }
         return audio;
     }
-
-    /** The game's marks on the minimap — see {@link Duke3D#minimapMarks}. */
-    private java.util.function.Supplier<java.util.List<MinimapMark>> minimapMarks;
-    private final java.util.List<Geometry> markShapes = new java.util.ArrayList<>();
-    private final Map<String, com.jme3.texture.Texture> markPictures = new HashMap<>();
-
-    void minimapMarks(java.util.function.Supplier<java.util.List<MinimapMark>> marks) {
-        this.minimapMarks = marks;
-    }
-
-    /** The game's marks drawn over the dots, one shape each, kept from frame to frame and hidden when not asked. */
-    private void syncMinimapMarks() {
-        var marks = minimapMarks == null ? java.util.List.<MinimapMark>of() : minimapMarks.get();
-        marks = marks == null ? java.util.List.of() : marks;
-        boolean lit = (int) (timer.getTimeInSeconds() * 4f) % 2 == 0;
-        for (int at = 0; at < Math.max(marks.size(), markShapes.size()); at++) {
-            if (at >= marks.size()) {
-                markShapes.get(at).setCullHint(Spatial.CullHint.Always);
-                continue;
-            }
-            var mark = marks.get(at);
-            if (at >= markShapes.size()) {
-                var shape = new Geometry("mm-mark", new Quad(MARK_SIZE, MARK_SIZE));
-                shape.setMaterial(Materials.unshaded(assetManager, ColorRGBA.White));
-                shape.getMaterial().getAdditionalRenderState().setBlendMode(
-                        com.jme3.material.RenderState.BlendMode.Alpha);
-                minimapNode.attachChild(shape);
-                markShapes.add(shape);
-            }
-            var shape = markShapes.get(at);
-            var material = shape.getMaterial();
-            var picture = mark.picture() == null ? null : markPictures.computeIfAbsent(mark.picture(), path -> {
-                try {
-                    return assetManager.loadTexture(path);
-                } catch (RuntimeException notThere) {
-                    LOG.warning(() -> "a minimap mark names a picture that will not load: " + path);
-                    return null;
-                }
-            });
-            if (picture != null) {
-                material.setTexture("ColorMap", picture);
-            } else {
-                material.clearParam("ColorMap");
-            }
-            material.setColor("Color", Materials.colour(new java.awt.Color(mark.colour())));
-            var point = minimap.markAt(mark.x(), mark.y());
-            // A diamond is the square turned an eighth; a picture stands upright.
-            float turn = picture == null ? com.jme3.math.FastMath.QUARTER_PI : 0f;
-            shape.setLocalRotation(new com.jme3.math.Quaternion().fromAngles(0f, 0f, turn));
-            float half = MARK_SIZE / 2f;
-            float offX = picture == null ? 0f : -half;
-            float offY = picture == null ? -half * com.jme3.math.FastMath.sqrt(2f) : -half;
-            shape.setLocalTranslation(point.x() + offX, point.y() + offY, 2);
-            shape.setCullHint(!mark.blinks() || lit ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
-        }
-    }
-
-    private static final float MARK_SIZE = 7f;
     void hazeColour(int rgb, float seconds) {
         fog.hazeColour(rgb, seconds);
     }
