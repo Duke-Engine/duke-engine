@@ -52,7 +52,7 @@ class LockstepSchedulerTest {
 
         var drained = scheduler.takeCommands(7);
         assertEquals(2, drained.size());
-        assertEquals(1, drained.get(0).playerIndex());
+        assertEquals(1, drained.getFirst().playerIndex());
         assertEquals(2, drained.get(1).playerIndex());
     }
 

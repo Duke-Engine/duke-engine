@@ -95,7 +95,7 @@ public final class ModelBones {
         var loader = Thread.currentThread().getContextClassLoader();
         try (var in = loader == null ? ClassLoader.getSystemResourceAsStream(path) : loader.getResourceAsStream(path)) {
             return in == null ? Model.NONE : model(in.readAllBytes(), path);
-        } catch (IOException | RuntimeException e) {
+        } catch (IOException | RuntimeException _) {
             return Model.NONE;
         }
     }
@@ -216,7 +216,7 @@ public final class ModelBones {
         try (var in = loader == null ? ClassLoader.getSystemResourceAsStream(beside)
                 : loader.getResourceAsStream(beside)) {
             return in == null ? null : in.readAllBytes();
-        } catch (IOException e) {
+        } catch (IOException _) {
             return null;
         }
     }

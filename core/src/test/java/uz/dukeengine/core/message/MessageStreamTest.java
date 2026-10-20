@@ -25,7 +25,7 @@ class MessageStreamTest {
         stream.propagate(received::add);
 
         assertEquals(3, received.size());
-        assertTrue(received.get(0) instanceof TestCommand.Halt);
+        assertTrue(received.getFirst() instanceof TestCommand.Halt);
         assertTrue(received.get(1) instanceof TestCommand.Move);
         assertTrue(received.get(2) instanceof TestCommand.Ping);
         assertTrue(stream.isEmpty());

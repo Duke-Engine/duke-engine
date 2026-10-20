@@ -56,7 +56,7 @@ class EffectListTest {
 
         assertEquals("FX_TankDie", list.name());
         assertEquals(7, list.entries().size());
-        var system = assertInstanceOf(EffectList.ParticleSystem.class, list.entries().get(0));
+        var system = assertInstanceOf(EffectList.ParticleSystem.class, list.entries().getFirst());
         assertEquals(2, system.count());
         assertEquals(List.of(0f, 0f, 5f), system.offset());
         assertTrue(system.orientToObject());

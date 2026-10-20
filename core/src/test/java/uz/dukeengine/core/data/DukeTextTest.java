@@ -38,7 +38,7 @@ class DukeTextTest {
         assertEquals(List.of("Monster", "Hero"), blocks.stream().map(Block::word).toList());
         var monster = blocks.getFirst();
         assertEquals(2, monster.line());
-        assertEquals(new Value.Text("Brute"), monster.fields().get(0).value());
+        assertEquals(new Value.Text("Brute"), monster.fields().getFirst().value());
         assertEquals(new Value.Text("O'q ustasi"), monster.fields().get(1).value());
 
         var geometry = assertInstanceOf(Value.Nested.class, monster.fields().get(2).value()).block();
@@ -67,7 +67,7 @@ class DukeTextTest {
                 End
                 """, "units.duke").getFirst().fields();
 
-        assertEquals(new Value.Text("Sphere"), fields.get(0).value());
+        assertEquals(new Value.Text("Sphere"), fields.getFirst().value());
         assertEquals(new Value.Text("HeavyArrow"), fields.get(1).value());
         assertEquals("PortraitArt", assertInstanceOf(Value.Nested.class, fields.get(2).value()).block().word());
         assertEquals(new Value.Text("Fire"), fields.get(3).value());
@@ -109,7 +109,7 @@ class DukeTextTest {
                 End
                 """, "content.duke").getFirst().fields();
 
-        assertEquals(new Value.Items(List.of("INFANTRY", "SELECTABLE")), fields.get(0).value());
+        assertEquals(new Value.Items(List.of("INFANTRY", "SELECTABLE")), fields.getFirst().value());
         assertEquals(new Value.Items(List.of("units/rogue.duke", "units/knight.duke")), fields.get(1).value());
         assertEquals(new Value.Items(List.of("You died", "a, b; c", "")), fields.get(2).value());
         assertEquals(new Value.Items(List.of()), fields.get(3).value());
@@ -175,7 +175,7 @@ class DukeTextTest {
                 End
                 """, "panel.duke").getFirst().fields();
 
-        assertInstanceOf(Value.Items.class, fields.get(0).value(), "a value on a line is a list of values");
+        assertInstanceOf(Value.Items.class, fields.getFirst().value(), "a value on a line is a list of values");
         var pieces = assertInstanceOf(Value.NestedEntries.class, fields.get(1).value()).entries();
         assertEquals(List.of("Minimap", "Portrait"), pieces.stream().map(Field::key).toList());
         var minimap = assertInstanceOf(Value.Nested.class, pieces.getFirst().value()).block();

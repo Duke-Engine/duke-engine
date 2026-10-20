@@ -76,7 +76,7 @@ class GaitTest {
         var after = steps(tank, 3);
 
         assertEquals(15f / 900f, before.get(2) - before.get(1), 1e-4f, "0.017 a frame each frame, at 15");
-        assertEquals(30f / 900f, after.get(0) - before.get(2), 1e-4f, "0.033 from the next frame, at 30");
+        assertEquals(30f / 900f, after.getFirst() - before.get(2), 1e-4f, "0.033 from the next frame, at 30");
         assertEquals(30f / 900f, after.get(2) - after.get(1), 1e-4f);
         assertEquals(goal, legs.getGoal(), "still going where it was going");
         assertEquals(block, world.getPathGrid().movers().goalOf(tank.getId().value()), "to the block it held");
@@ -95,7 +95,7 @@ class GaitTest {
 
         var steps = steps(soldier, 2);
 
-        assertEquals(50f / 900f, steps.get(0), 1e-4f, "0.056 a frame each frame, at 50");
+        assertEquals(50f / 900f, steps.getFirst(), 1e-4f, "0.056 a frame each frame, at 50");
         assertEquals(100f / 900f, steps.get(1), 1e-4f);
     }
 

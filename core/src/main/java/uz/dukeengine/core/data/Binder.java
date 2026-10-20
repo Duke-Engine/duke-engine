@@ -54,7 +54,7 @@ public final class Binder {
                 }
                 field.setAccessible(true);
                 return Optional.ofNullable(field.get(null));
-            } catch (NoSuchFieldException e) {
+            } catch (NoSuchFieldException _) {
                 return Optional.empty();
             } catch (IllegalAccessException e) {
                 throw new IllegalStateException(e);
@@ -119,7 +119,7 @@ public final class Binder {
                     if (Modifier.isStatic(method.getModifiers()) && type.isAssignableFrom(method.getReturnType())) {
                         return Optional.of(method);
                     }
-                } catch (NoSuchMethodException e) {
+                } catch (NoSuchMethodException _) {
                     // try the next name
                 }
             }
@@ -459,7 +459,7 @@ public final class Binder {
             if (factory != null) {
                 return factory.invoke(null, text);
             }
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             throw new DataException(where, "'" + key + "' is a number, not '" + text + "'");
         } catch (InvocationTargetException e) {
             throw new DataException(where, "'" + key + "': " + e.getCause().getMessage(), e.getCause());

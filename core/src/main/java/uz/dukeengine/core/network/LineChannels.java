@@ -60,7 +60,7 @@ final class LineChannels {
                     return null;
                 }
                 return line.get();
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
                 return null;
             }
@@ -97,7 +97,7 @@ final class LineChannels {
                     out.flush();
                 }
                 return true;
-            } catch (java.net.SocketException gone) {
+            } catch (java.net.SocketException _) {
                 return false;
             } catch (IOException e) {
                 throw new UncheckedIOException("failed to send " + line, e);
@@ -108,7 +108,7 @@ final class LineChannels {
         public String receive() {
             try {
                 return in.readLine();
-            } catch (IOException e) {
+            } catch (IOException _) {
                 return null; // closed or errored: the end of the channel either way
             }
         }
@@ -117,7 +117,7 @@ final class LineChannels {
         public void close() {
             try {
                 socket.close();
-            } catch (IOException ignored) {
+            } catch (IOException _) {
                 // closing best-effort
             }
         }

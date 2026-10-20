@@ -91,7 +91,7 @@ public record UnitView(
                     return new Riding(Integer.parseInt(parts[0]), parts.length > 1 ? parts[1] : "",
                             at.length == 3 ? Float.parseFloat(at[0]) : 0f, at.length == 3 ? Float.parseFloat(at[1]) : 0f,
                             at.length == 3 ? Float.parseFloat(at[2]) : 0f);
-                } catch (NumberFormatException e) {
+                } catch (NumberFormatException _) {
                     return null;
                 }
             }

@@ -93,7 +93,7 @@ class PartitionManagerTest {
                 Coord3D.ZERO, 10f, PartitionFilter.enemiesOf(logic, me).and(PartitionFilter.alive()));
 
         assertEquals(1, liveEnemies.size());
-        assertSame(enemy1, liveEnemies.get(0));
+        assertSame(enemy1, liveEnemies.getFirst());
     }
 
     @Test

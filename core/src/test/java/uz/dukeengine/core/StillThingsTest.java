@@ -165,7 +165,7 @@ class StillThingsTest {
     @Test
     void aWorldOfMoversIsNeverLaidForThem() {
         var world = stage(1);
-        var hut = world.createObject(KINDS.get(0));
+        var hut = world.createObject(KINDS.getFirst());
         hut.setPosition(new Coord3D(105f, 105f, 0f));
         world.update();
         int version = world.getPathGrid().getObstacleVersion();

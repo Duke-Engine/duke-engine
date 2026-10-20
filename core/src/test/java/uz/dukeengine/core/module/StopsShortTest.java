@@ -58,7 +58,7 @@ class StopsShortTest {
 
     private static GameLogic field() {
         var things = new ThingFactory(ModuleFactory.withDefaults()
-                .register(AtWork.Data.class, (owner, data) -> new AtWork(owner)));
+                .register(AtWork.Data.class, (owner, _) -> new AtWork(owner)));
         things.addTemplate(WALKER);
         things.addTemplate(WORKER);
         things.addTemplate(KEEP);

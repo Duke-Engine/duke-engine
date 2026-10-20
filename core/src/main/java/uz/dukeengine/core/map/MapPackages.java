@@ -103,7 +103,7 @@ public final class MapPackages {
         if (fs == null || !fs.isOpen()) {
             try {
                 fs = FileSystems.newFileSystem(uri, Map.of());
-            } catch (FileSystemAlreadyExistsException already) {
+            } catch (FileSystemAlreadyExistsException _) {
                 fs = FileSystems.getFileSystem(uri);
             }
             OPENED.put(uri, fs);

@@ -73,7 +73,7 @@ class GameEngineTest {
         engine.setQuitting(true);
         try {
             runner.join(2000);
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
         }
 

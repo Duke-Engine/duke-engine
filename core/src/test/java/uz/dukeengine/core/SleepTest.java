@@ -63,8 +63,8 @@ class SleepTest {
     private static final class World extends GameLogic {
         World() {
             super(new ThingFactory(ModuleFactory.withDefaults()
-                    .register(Counter.Data.class, (owner, data) -> new Counter(owner))
-                    .register(Striker.Data.class, (owner, data) -> new Striker(owner))));
+                    .register(Counter.Data.class, (owner, _) -> new Counter(owner))
+                    .register(Striker.Data.class, (owner, _) -> new Striker(owner))));
         }
 
         @Override

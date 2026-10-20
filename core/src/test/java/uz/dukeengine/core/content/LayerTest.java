@@ -33,7 +33,7 @@ class LayerTest {
                 End
                 """, "effects.duke").getFirst(), Effect.class);
 
-        var renewing = effect.layers().get(0);
+        var renewing = effect.layers().getFirst();
         assertEquals(Boolean.TRUE, renewing.renews());
         assertEquals("true", renewing.fields().get("renews"));
         assertEquals("false", effect.layers().get(1).fields().get("renews"));

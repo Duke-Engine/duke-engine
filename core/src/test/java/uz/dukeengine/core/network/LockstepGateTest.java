@@ -171,7 +171,7 @@ class LockstepGateTest {
      * computed the same world.
      */
     private static void assertIdentical(List<Peer> peers, String when) {
-        var reference = peers.get(0);
+        var reference = peers.getFirst();
         int compared = 0;
         for (var entry : reference.checksums.entrySet()) {
             for (var peer : peers) {
@@ -220,7 +220,7 @@ class LockstepGateTest {
             stepAll(peers);
         }
 
-        assertTrue(peers.get(0).logic.getFrame() > LockstepGate.CHECKSUM_INTERVAL * 3,
+        assertTrue(peers.getFirst().logic.getFrame() > LockstepGate.CHECKSUM_INTERVAL * 3,
                 "the game must run long enough to have been checked several times");
         for (var peer : peers) {
             assertNull(peer.gate.getDesync(), "peer " + peer.index + " cried wolf");
@@ -257,7 +257,7 @@ class LockstepGateTest {
     void aGamesOwnNumberThatDiffersIsCaughtOnTheNextCheckedFrame() {
         var board = new Switchboard();
         var peers = peers(2, board);
-        peers.get(0).logic.checksumAlso(() -> 7L);
+        peers.getFirst().logic.checksumAlso(() -> 7L);
         peers.get(1).logic.checksumAlso(() -> 8L); // its computer player's plan went another way
 
         for (int turn = 0; turn < 150; turn++) {
@@ -296,7 +296,7 @@ class LockstepGateTest {
         // right, which is precisely what makes this the hard case: nothing is
         // obviously broken, the two worlds simply stop being the same.
         peers.get(1).logic.dropNextCommand = true;
-        peers.get(0).gate.issueLocal(new TestCommand.Move(1,
+        peers.getFirst().gate.issueLocal(new TestCommand.Move(1,
                 List.of(new ObjectId(1)), new Coord3D(400f, 200f, 0f)));
 
         for (int turn = 0; turn < 200; turn++) {
@@ -355,7 +355,7 @@ class LockstepGateTest {
                 "a guest cannot check every peer itself; the host's word is enough");
         assertFalse(gate.beforeStep(logic));
         assertEquals(1, reported.size(), "and the player is told, so the screen is not just frozen");
-        assertEquals(90, reported.get(0).frame());
+        assertEquals(90, reported.getFirst().frame());
     }
 
     @Test
@@ -365,17 +365,17 @@ class LockstepGateTest {
         for (int turn = 0; turn < 20; turn++) {
             stepAll(peers);
         }
-        int frameAtDeparture = peers.get(0).logic.getFrame();
+        int frameAtDeparture = peers.getFirst().logic.getFrame();
 
         // Player 3's machine is gone. It stops stepping; the host notices the link.
-        var remaining = List.of(peers.get(0), peers.get(1));
+        var remaining = List.of(peers.getFirst(), peers.get(1));
         board.cut(3);
 
         for (int turn = 0; turn < 60; turn++) {
             stepAll(remaining);
         }
 
-        assertTrue(peers.get(0).logic.getFrame() > frameAtDeparture + 20,
+        assertTrue(peers.getFirst().logic.getFrame() > frameAtDeparture + 20,
                 "the game must carry on rather than stall for a player who will never answer");
         assertIdentical(remaining, "after a player left");
         for (var peer : remaining) {
@@ -392,7 +392,7 @@ class LockstepGateTest {
         }
 
         board.cut(3);
-        var remaining = List.of(peers.get(0), peers.get(1));
+        var remaining = List.of(peers.getFirst(), peers.get(1));
         for (int turn = 0; turn < 60; turn++) {
             stepAll(remaining);
         }

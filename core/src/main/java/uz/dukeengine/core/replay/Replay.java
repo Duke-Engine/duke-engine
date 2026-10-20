@@ -68,21 +68,21 @@ public final class Replay {
             switch (NetFraming.decode(line, codec)) {
                 case CommandPacket packet -> commands.put(packet.frame(), packet.commands());
                 case FrameChecksum sum -> checkpoints.put(sum.frame(), sum.checksum());
-                case PeerLeft ignored -> {
+                case PeerLeft _ -> {
                     // Membership is a fact about a live network, not about a game
                     // that already happened; a recording has no use for it.
                 }
-                case SessionHalted ignored -> {
+                case SessionHalted _ -> {
                     // Likewise: a recording of a game that ended in a desync still
                     // replays as far as it goes, and stops where the frames run out.
                 }
-                case LoadProgress ignored -> {
+                case LoadProgress _ -> {
                     // A figure for a load screen, said before the first frame.
                 }
-                case ChatLine ignored -> {
+                case ChatLine _ -> {
                     // What the players said is not what happened; a recording keeps the match alone.
                 }
-                case uz.dukeengine.core.network.Resent ignored -> {
+                case uz.dukeengine.core.network.Resent _ -> {
                     // The relay moving is a fact about the network too; the frames it ran are the recording.
                 }
             }

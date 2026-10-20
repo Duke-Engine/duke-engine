@@ -80,9 +80,9 @@ class CreatedTest {
     @BeforeEach
     void setUp() {
         var modules = ModuleFactory.withDefaults()
-                .register(BornVeteran.Data.class, (owner, data) -> new BornVeteran(owner))
-                .register(Reader.Data.class, (owner, data) -> new Reader(owner))
-                .register(Maker.Data.class, (owner, data) -> new Maker(owner));
+                .register(BornVeteran.Data.class, (owner, _) -> new BornVeteran(owner))
+                .register(Reader.Data.class, (owner, _) -> new Reader(owner))
+                .register(Maker.Data.class, (owner, _) -> new Maker(owner));
         var factory = new ThingFactory(modules);
         veteran = ObjectTemplate.named("Ranger").module(new BornVeteran.Data()).module(new Reader.Data()).build();
         factory.addTemplate(veteran);

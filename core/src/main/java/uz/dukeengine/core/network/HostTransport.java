@@ -144,7 +144,7 @@ public final class HostTransport implements Transport, AutoCloseable {
         boolean sent;
         try {
             sent = link.channel.send(NetFraming.encode(message, codec));
-        } catch (UncheckedIOException e) {
+        } catch (UncheckedIOException _) {
             sent = false;
         }
         if (!sent) {
