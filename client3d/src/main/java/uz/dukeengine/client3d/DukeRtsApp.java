@@ -235,6 +235,8 @@ final class DukeRtsApp extends SimpleApplication {
     private HitFlash hitFlash;
     /** The things of the world as they are drawn, one node each — see {@link UnitScene}. */
     private UnitScene unitScene;
+    /** What the pointer is on in the world — see {@link WorldPointer}. */
+    private WorldPointer pointer;
     /** What happened in the world this frame, drawn and heard — see {@link WorldEvents}. */
     private WorldEvents events;
     /** The sounds a look names by file, each read once — see {@link SoundNodes}. */
@@ -301,8 +303,6 @@ final class DukeRtsApp extends SimpleApplication {
     /** The floor's half of this frame's status line, read once for the bars and the moments. */
     private UnitBarReading barReading = UnitBarReading.NOTHING;
 
-    /** How low and how high this map's ground stands: what the ray under the cursor is walked between. */
-    private GroundSpan groundSpan = new GroundSpan(0f, 0f);
     /** What is selected, in the order it was selected: the order the game is told it in. */
     private final Set<Integer> selected = new java.util.LinkedHashSet<>();
     /** The files the game named that would not load, each said once. */
@@ -626,6 +626,8 @@ final class DukeRtsApp extends SimpleApplication {
                 hitFlash, groundPictures, stealthLook, missing, fog, rootNode, unitsNode, cam, timer, () -> game,
                 () -> snapshot, selected, this::floorHeightAt, id -> events.criticalThisFrame(id),
                 shot -> events.shotEnded(shot));
+        pointer = new WorldPointer(cam, inputManager, unitScene, () -> game, () -> scheme, () -> worldRegion,
+                this::discovery, this::floorHeightAt);
 
         rootNode.attachChild(terrainNode);
         buildTerrain();
@@ -805,14 +807,14 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public uz.dukeengine.core.view.UnitView pointedUnit() {
-            var unit = pickUnit();
+            var unit = pointer.pickUnit();
             return unit == null ? null : unit.view;
         }
 
         @Override
         public float[] pointedGround() {
             var click = inputManager.getCursorPosition();
-            var ground = groundUnder(click.x, click.y);
+            var ground = pointer.groundUnder(click.x, click.y);
             return ground == null ? null : new float[] {ground.x, ground.z, ground.y};
         }
 
@@ -994,12 +996,6 @@ final class DukeRtsApp extends SimpleApplication {
         var bottom = worldRegion.bottomPixel(cam.getHeight());
         unitBars.within(worldRegion.leftPixel(cam.getWidth()), bottom, worldRegion.rightPixel(cam.getWidth()),
                 worldRegion.topPixel(cam.getHeight()));
-    }
-
-    /** Whether the pointer is over the world: in the part of the window it is drawn in. */
-    private boolean pointerOnTheWorld() {
-        var at = inputManager.getCursorPosition();
-        return worldRegion.contains(at.x, at.y, cam.getWidth(), cam.getHeight());
     }
 
     /** Play a movie — see {@link Duke3D#playMovie}; one playing is stopped first. */
@@ -1373,7 +1369,7 @@ final class DukeRtsApp extends SimpleApplication {
     /** What else is read off a new world's grid with its minimap: the span the pointer's ray walks, and its picture. */
     private void readTheNewGrid() {
         var grid = game.getTerrain();
-        groundSpan = grid == null ? new GroundSpan(0f, 0f) : GroundSpan.of(grid);
+        pointer.readGrid(grid);
         makeTheWorldPicture(grid);
     }
 
@@ -1450,18 +1446,18 @@ final class DukeRtsApp extends SimpleApplication {
             rangeRings.hide();
             return;
         }
-        Coord3D pointer = null;
+        Coord3D aimedAt = null;
         boolean allowed = true;
         if (range.needsAiming()) {
             var at = inputManager.getCursorPosition();
-            var ground = groundUnder(at.x, at.y);
-            pointer = new Coord3D(ground.x, ground.z, 0f);
+            var ground = pointer.groundUnder(at.x, at.y);
+            aimedAt = new Coord3D(ground.x, ground.z, 0f);
             // Out of reach is not a refusal -- the click is pulled back to the
             // edge, and the ring is what says so. What refuses is ground he
             // cannot aim at: stone, or somewhere he has never been.
-            allowed = isOpenAndSeen(ground);
+            allowed = pointer.isOpenAndSeen(ground);
         }
-        rangeRings.show(range, hero, pointer, allowed, now, this::floorHeightAt);
+        rangeRings.show(range, hero, aimedAt, allowed, now, this::floorHeightAt);
     }
 
     /**
@@ -1493,23 +1489,6 @@ final class DukeRtsApp extends SimpleApplication {
         return null;
     }
 
-
-    /**
-     * Where the ray through a screen point meets the ground.
-     *
-     * <p>A corner above the horizon never meets it, so the ray is followed a long
-     * way instead and the projection clamps the result to the map — which is what
-     * the player sees anyway: the view running off the edge of the world.
-     */
-    private Vector3f groundUnder(float screenX, float screenY) {
-        var near = cam.getWorldCoordinates(new Vector2f(screenX, screenY), 0f);
-        var dir = cam.getWorldCoordinates(new Vector2f(screenX, screenY), 1f)
-                .subtract(near).normalizeLocal();
-        var terrain = game.getTerrain();
-        var hit = GroundRay.groundHit(near, dir, groundSpan, terrain == null ? 5f : terrain.getCellSize() / 2f,
-                this::floorHeightAt);
-        return terrain == null || !terrain.hasDecks() ? hit : GroundRay.deckHit(near, dir, hit, terrain.decks());
-    }
 
     private void startGame() {
         takeTheFrontMatchBack();
@@ -1846,7 +1825,7 @@ final class DukeRtsApp extends SimpleApplication {
                         if (pressed && commandBarClick()) {
                             // The bar took it -- before anything armed does, so pressing a
                             // second button is that button and not a place for the first.
-                        } else if (pressed && !pointerOnTheWorld()) {
+                        } else if (pressed && !pointer.pointerOnTheWorld()) {
                             // Off the world's part of the window: nothing of the world is there to take it.
                         } else if (pressed && aiming.isArmed()) {
                             aimArmedButton(); // this click is the armed button's place or thing
@@ -1882,14 +1861,14 @@ final class DukeRtsApp extends SimpleApplication {
                         } else if (cameraRig.rightUp(over.x, y)) {
                             if (aiming.isArmed() || arming != null || mouse.rightClickLetsGo()) {
                                 secondThoughts();
-                            } else if (pointerOnTheWorld() && !onAPanel(over.x, over.y)) {
+                            } else if (pointer.pointerOnTheWorld() && !onAPanel(over.x, over.y)) {
                                 order();
                             }
                         }
                     } else if (pressed && (aiming.isArmed() || arming != null || mouse.rightClickLetsGo())) {
                         secondThoughts();
-                    } else if (pressed && pointerOnTheWorld() && !onAPanel(over.x, over.y)
-                            && scheme.rightOrders(snapshot.contextOrder() != null, pickUnit() != null)) {
+                    } else if (pressed && pointer.pointerOnTheWorld() && !onAPanel(over.x, over.y)
+                            && scheme.rightOrders(snapshot.contextOrder() != null, pointer.pickUnit() != null)) {
                         order(); // a right-click on the bar, or off the world, is not an order to the world
                     }
                 }
@@ -2093,82 +2072,6 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * The unit under the mouse cursor, or {@code null}.
-     * The unit under the cursor, found by the boxes of the pieces of it drawn now
-     * rather than by its triangles — see {@link Picking}.
-     *
-     * <p>Triangle-accurate picking stopped working the day the creatures got
-     * models. A skinned mesh is deformed on the graphics card; the copy this side
-     * keeps is the pose it was modelled in, so the shape the ray is tested against
-     * is not the shape on screen. Clicking a monster missed it and the click fell
-     * through to the floor behind — which reads as an order given to the wrong
-     * place rather than as a click that hit nothing.
-     *
-     * <p>A piece's box does not care how a thing is posed. It is a more
-     * generous target than the mesh, which is the right way to be wrong: in a
-     * dungeon the cost of a click landing on the monster you meant is nothing, and
-     * the cost of it landing on the floor behind him is a hero who walks into a
-     * room instead of shooting into it. The box of the whole model in the world's
-     * axes was too generous: a hidden muzzle flash made a tank a third longer, and
-     * a building put down at 45 degrees twice its area, so a click on the ground
-     * beside one's own things picked them and the move was never given.
-     *
-     * <p>Only things the game says are selectable, so an arrow crossing in front
-     * of a monster cannot be clicked instead of it.
-     */
-    private UnitNode pickUnit() {
-        if (!pointerOnTheWorld()) {
-            return null; // nothing of the world under a pointer off the world's part of the window
-        }
-        var click = inputManager.getCursorPosition();
-        var near = cam.getWorldCoordinates(new Vector2f(click.x, click.y), 0f);
-        var ray = new Ray(near, cam.getWorldCoordinates(new Vector2f(click.x, click.y), 1f)
-                .subtract(near).normalizeLocal());
-        UnitNode nearest = null;
-        float closest = Float.MAX_VALUE;
-        for (var node : unitScene.nodes()) {
-            var picked = unitScene.pickedAs(node);
-            if (picked == null || !picked.view.selectable() || node.body == null) {
-                continue;
-            }
-            // The nearest hit along the ray wins, so clicking a monster standing in
-            // front of another picks the one you can see — not the one whose middle
-            // is nearer, which a big thing behind a small one can be.
-            float away = Picking.drawnHit(node.body, ray);
-            if (away < closest) {
-                closest = away;
-                nearest = picked;
-            }
-        }
-        return nearest;
-    }
-
-    /**
-     * Where the mouse is pointing at the ground.
-     *
-     * <p>One way of answering this, used by everything that asks — orders,
-     * markers, aimed skills, the minimap's outline. There were two: this one met
-     * the plane at zero and was what every click actually went through, while the
-     * one that knew about storeys was only being asked by the outline. So the
-     * click kept landing a pace beyond the cursor upstairs however carefully the
-     * other was fixed.
-     */
-    private Vector3f pickGround() {
-        var aimed = schemeAim();
-        if (aimed != null) {
-            return aimed; // no pointer: where the scheme aims
-        }
-        var click = inputManager.getCursorPosition();
-        return groundUnder(click.x, click.y);
-    }
-
-    /** Where the scheme aims what is armed, on the ground; null while it aims nothing. */
-    private Vector3f schemeAim() {
-        var at = scheme.aiming() ? scheme.aimPoint() : null;
-        return at == null ? null : new Vector3f(at[0], floorHeightAt(at[0], at[1]), at[1]);
-    }
-
-    /**
      * Click a unit to select it — anyone's, not only the player's own.
      *
      * <p>Clicking something that is not his is <em>inspecting</em> it: the panel
@@ -2184,7 +2087,7 @@ final class DukeRtsApp extends SimpleApplication {
      * which half it applied to. One enemy on its own, or his own units.
      */
     private void select(boolean add) {
-        var hit = pickUnit();
+        var hit = pointer.pickUnit();
         boolean mine = hit != null && hit.view.playerIndex() == game.getLocalPlayerIndex();
         var clicked = SelectionBox.click(hit == null ? null
                 : new SelectionBox.Candidate(hit.view.id(), 0f, 0f, mine, hit.view.selectable()),
@@ -2398,38 +2301,6 @@ final class DukeRtsApp extends SimpleApplication {
     /** Whether the aim is a quick cast's, where a creature near the pointer counts as under it. */
     private boolean quickCasting;
 
-    /** How near the pointer a quick cast takes a creature that is not under it. */
-    static final float QUICK_CAST_REACH = 6f;
-
-    /** The creature nearest {@code ground} within {@link #QUICK_CAST_REACH} of it, the lowest id on a tie; or null. */
-    private UnitNode nearTheGround(Vector3f ground) {
-        var views = new ArrayList<uz.dukeengine.core.view.UnitView>();
-        for (var node : unitScene.nodes()) {
-            if (node.view != null) {
-                views.add(node.view);
-            }
-        }
-        int id = nearestWithin(views, ground.x, ground.z, QUICK_CAST_REACH);
-        return id < 0 ? null : unitScene.node(id);
-    }
-
-    /** The living creature nearest ({@code x}, {@code y}) within {@code reach}, the lowest id on a tie; -1 for none. */
-    static int nearestWithin(List<uz.dukeengine.core.view.UnitView> views, float x, float y, float reach) {
-        int best = -1;
-        float bestGap = Float.MAX_VALUE;
-        for (var view : views) {
-            if (view.maxHealth() <= 0f || view.health() <= 0f) {
-                continue;
-            }
-            float gap = (float) Math.hypot(view.x() - x, view.y() - y);
-            if (gap <= reach && (gap < bestGap || gap == bestGap && view.id() < best)) {
-                best = view.id();
-                bestGap = gap;
-            }
-        }
-        return best;
-    }
-
     /**
      * The click that completes an armed key. Clicking nothing usable drops it,
      * rather than leaving the player armed and wondering why nothing happened.
@@ -2441,7 +2312,7 @@ final class DukeRtsApp extends SimpleApplication {
         // cursor, which is the one place it was written not to be.
         char aimed = arming == null ? 0 : arming;
         var binding = hotkeys.all().get(arming);
-        var ahead = schemeAim(); // read before the disarm lets the scheme's aim go
+        var ahead = pointer.schemeAim(); // read before the disarm lets the scheme's aim go
         disarm();
         if (binding == null) {
             return;
@@ -2449,10 +2320,10 @@ final class DukeRtsApp extends SimpleApplication {
         boolean mayBeACreature = binding.aim() == Hotkeys.Aim.UNIT
                 || binding.aim() == Hotkeys.Aim.UNIT_OR_GROUND;
         if (mayBeACreature) {
-            var unit = ahead != null ? nearTheGround(ahead) : pickUnit(); // the creature nearest where it aims, within six
+            var unit = ahead != null ? pointer.nearTheGround(ahead) : pointer.pickUnit(); // the creature nearest where it aims, within six
             if (unit == null && quickCasting) {
-                var under = pickGround();
-                unit = under == null ? null : nearTheGround(under);
+                var under = pointer.pickGround();
+                unit = under == null ? null : pointer.nearTheGround(under);
             }
             if (unit != null) {
                 binding.run().accept(game, new Hotkeys.Aimed(unit.view.id(), null));
@@ -2465,11 +2336,11 @@ final class DukeRtsApp extends SimpleApplication {
                 return; // it had to be a creature, and the click found none
             }
         }
-        var ground = ahead != null ? ahead : pickGround();
+        var ground = ahead != null ? ahead : pointer.pickGround();
         if (ground == null) {
             return;
         }
-        if (binding.aim() == Hotkeys.Aim.OPEN_GROUND && !isOpenAndSeen(ground)) {
+        if (binding.aim() == Hotkeys.Aim.OPEN_GROUND && !pointer.isOpenAndSeen(ground)) {
             return; // stone, or somewhere he has never been — nothing is sent
         }
         var spot = new Coord3D(ground.x, ground.z, 0f);
@@ -2510,67 +2381,6 @@ final class DukeRtsApp extends SimpleApplication {
         return range.within(hero, wanted);
     }
 
-    /**
-     * Whether that spot is somewhere the player could stand and has already seen.
-     *
-     * <p>Asked here rather than of the simulation because both halves are the
-     * client's to answer. The map's shape it has; what the player has <em>seen</em>
-     * of it only it has — that is a fact about this screen, not about the world,
-     * and the simulation would be wrong to hold it.
-     *
-     * <p>A game with no discovery at all has seen everything, which is the right
-     * answer rather than a special case: with the whole map on screen there is no
-     * such thing as aiming into the dark.
-     */
-    private boolean isOpenAndSeen(Vector3f ground) {
-        var grid = game.getTerrain();
-        if (grid == null) {
-            return true;
-        }
-        int cx = grid.toCellX(new Coord3D(ground.x, ground.z, 0f));
-        int cy = grid.toCellY(new Coord3D(ground.x, ground.z, 0f));
-        if (!grid.inBounds(cx, cy) || grid.isTerrainBlocked(cx, cy)) {
-            return false;
-        }
-        var discovery = discovery();
-        return discovery == null || discovery.stateAt(cx, cy) != Discovery.State.UNSEEN;
-    }
-
-    /**
-     * Whether that spot is somewhere he could put his feet, as far as the player
-     * knows.
-     *
-     * <p>A different question from {@link #isOpenAndSeen}, and the difference is
-     * the whole of what each is for. A skill has to be <em>aimed</em>, so it may
-     * only be sent somewhere the player has actually seen. A walking order is not
-     * aimed — it may be given anywhere on the map, the dark included, and how far
-     * he gets is the simulation's business.
-     *
-     * <p>So the dark reads as open here. Not as a kindness: a pointer that turned
-     * away over undiscovered stone would be reading the map out to the player
-     * through the shape of his own cursor.
-     *
-     * <p>What it does say no to is a place he plainly cannot stand — a wall, or
-     * the barrel in the middle of the room. That is a warning and not a veto: the
-     * click still goes, and he walks as near it as the floor allows.
-     */
-    private boolean couldStandThere(Vector3f ground) {
-        var grid = game.getTerrain();
-        if (grid == null) {
-            return true;
-        }
-        var at = new Coord3D(ground.x, ground.z, 0f);
-        int cx = grid.toCellX(at);
-        int cy = grid.toCellY(at);
-        if (!grid.inBounds(cx, cy)) {
-            return false;
-        }
-        var discovery = discovery();
-        if (discovery != null && discovery.stateAt(cx, cy) == Discovery.State.UNSEEN) {
-            return true; // unknown ground is not known to be bad
-        }
-        return !grid.isBlocked(cx, cy);
-    }
 
     /**
      * A click on a skill slot casts it, exactly as pressing its key would.
@@ -2716,7 +2526,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         var cursor = inputManager.getCursorPosition();
         if (!isBox(visuals, from.x, from.y, cursor.x, cursor.y)) {
-            var hit = pickUnit();
+            var hit = pointer.pickUnit();
             boolean onOwn = hit != null && hit.view.selectable()
                     && hit.view.playerIndex() == game.getLocalPlayerIndex();
             // The force-attack key held: a click on his own thing is an attack on it, not a pick.
@@ -2851,7 +2661,7 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         int local = game.getLocalPlayerIndex();
-        var enemy = pickUnit();
+        var enemy = pointer.pickUnit();
         if (enemy != null && snapshot.contextOrder() != null) {
             // The order the game said a click on this thing gives — see DukeGame.contextOrder.
             game.postCommand(new uz.dukeengine.combat.message.GameOrder(local, snapshot.contextOrder(), units,
@@ -2864,7 +2674,7 @@ final class DukeRtsApp extends SimpleApplication {
         // MSG_DO_FORCE_ATTACK_OBJECT — and open ground is shelled (MSG_DO_FORCE_ATTACK_GROUND).
         boolean forced = controls.isHeld(KeyMap.Control.FORCE_ATTACK);
         if (forced && enemy == null) {
-            var place = pickGround();
+            var place = pointer.pickGround();
             if (place != null) {
                 game.postCommand(new CombatOrder.AttackGround(local, units, new Coord3D(place.x, place.z, place.y),
                         true));
@@ -2895,7 +2705,7 @@ final class DukeRtsApp extends SimpleApplication {
             noises.moment("vo.attack", (float) timer.getTimeInSeconds());
             return;
         }
-        var ground = pickGround();
+        var ground = pointer.pickGround();
         if (ground == null) {
             return;
         }
@@ -3195,8 +3005,8 @@ final class DukeRtsApp extends SimpleApplication {
         snapshot = game.getSnapshot();
         // What the pointer is on, so the next snapshot says whether an attack on it would be taken.
         boolean pointing = inPlay();
-        var pointedAt = pointing ? pickUnit() : null;
-        var pointedGround = pointing && pointedAt == null ? pickGround() : null;
+        var pointedAt = pointing ? pointer.pickUnit() : null;
+        var pointedGround = pointing && pointedAt == null ? pointer.pickGround() : null;
         game.setPointedAt(pointedAt == null || pointedAt.view == null ? -1 : pointedAt.view.id(),
                 pointedGround == null ? null : new Coord3D(pointedGround.x, pointedGround.z, pointedGround.y),
                 pointedGround == null || discovery() == null || discovery().everSeen(pointedGround.x, pointedGround.z));
@@ -3289,7 +3099,7 @@ final class DukeRtsApp extends SimpleApplication {
         minimapView.follow();
         minimapView.syncDots();
         minimapView.syncMarks();
-        minimapView.outline(worldRegion, this::groundUnder);
+        minimapView.outline(worldRegion, pointer::groundUnder);
         syncDragRectangle();
         syncOrderMarkers();
         updateHud(tpf);
@@ -3499,7 +3309,7 @@ final class DukeRtsApp extends SimpleApplication {
     private void aimArmedButton() {
         var button = aiming.button();
         if (button.aim() == uz.dukeengine.core.view.CommandButton.Aim.UNIT) {
-            var unit = pickUnit();
+            var unit = pointer.pickUnit();
             if (unit == null) {
                 return; // it had to be a thing, and the click found none
             }
@@ -3510,7 +3320,7 @@ final class DukeRtsApp extends SimpleApplication {
                     unit.view, selectedIds());
             return;
         }
-        var ground = pickGround();
+        var ground = pointer.pickGround();
         var cursor = inputManager.getCursorPosition();
         aiming.placement().press(cursor.x, cursor.y, ground == null ? null : new Coord3D(ground.x, ground.z, 0f));
     }
@@ -3569,7 +3379,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (!aiming.isArmed() || placement == null) {
             return;
         }
-        var ground = pickGround();
+        var ground = pointer.pickGround();
         var cursor = inputManager.getCursorPosition();
         placement.cursor(cursor.x, cursor.y, ground == null ? null : new Coord3D(ground.x, ground.z, 0f));
         var where = placement.where();
@@ -3722,15 +3532,15 @@ final class DukeRtsApp extends SimpleApplication {
         boolean canReach;
         if (aiming) {
             canReach = armed != Hotkeys.Aim.OPEN_GROUND
-                    || isOpenAndSeen(groundUnder(at.x, at.y));
+                    || pointer.isOpenAndSeen(pointer.groundUnder(at.x, at.y));
         } else {
-            canReach = couldStandThere(groundUnder(at.x, at.y));
+            canReach = pointer.couldStandThere(pointer.groundUnder(at.x, at.y));
         }
-        var over = aiming ? null : pickUnit();
+        var over = aiming ? null : pointer.pickUnit();
         // Over a window of the game's own canvas, or off the world's part of the window, is over the panel: the
         // arrow, as the reference shows it over any window of its interface.
         boolean overPanel = onAPanel(at.x, at.y) || minimapView.covers(at)
-                || canvasInputs != null && canvasInputs.pointerTaken() || !pointerOnTheWorld();
+                || canvasInputs != null && canvasInputs.pointerTaken() || !pointer.pointerOnTheWorld();
         var own = selectedOwn();
         return new Cursors.Over(true, armed, canReach, overPanel,
                 over != null, over != null && over.view.playerIndex() == game.getLocalPlayerIndex(),
@@ -3764,7 +3574,7 @@ final class DukeRtsApp extends SimpleApplication {
             unitBars.clear(); // behind a front end: a picture, with nothing of play laid over it
             return;
         }
-        barReading = unitScene.showBars(unitBars, visuals.getUnitBars().plain() == null ? null : pickUnit());
+        barReading = unitScene.showBars(unitBars, visuals.getUnitBars().plain() == null ? null : pointer.pickUnit());
     }
 
     /**

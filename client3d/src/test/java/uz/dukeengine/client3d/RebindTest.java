@@ -68,7 +68,7 @@ class RebindTest {
                 false, false, -1);
         var far = new uz.dukeengine.core.view.UnitView(5, "Skeleton", 1, 120f, 100f, 0f, 50f, 50f, false, true,
                 false, false, -1);
-        assertEquals(4, DukeRtsApp.nearestWithin(List.of(far, near), 100f, 100f, DukeRtsApp.QUICK_CAST_REACH));
-        assertEquals(-1, DukeRtsApp.nearestWithin(List.of(far), 100f, 100f, DukeRtsApp.QUICK_CAST_REACH));
+        assertEquals(4, WorldPointer.nearestWithin(List.of(far, near), 100f, 100f, WorldPointer.QUICK_CAST_REACH));
+        assertEquals(-1, WorldPointer.nearestWithin(List.of(far), 100f, 100f, WorldPointer.QUICK_CAST_REACH));
     }
 }
