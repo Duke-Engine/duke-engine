@@ -1,39 +1,41 @@
 package uz.dukeengine.client3d;
 
-import com.jme3.scene.Node;
+import com.jme3.renderer.ViewPort;
 import com.jme3.scene.Spatial;
-import java.util.IdentityHashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.List;
 
 /**
- * The engine's own interface put away while the game says so — a film's look through an intro (E104): every child of
- * the nodes it is handed culled for the frame but those kept (the game's own canvas), and each given back the next
- * frame as it was, so what sets its own showing — a label shown and hidden each frame — goes on doing so.
+ * The engine's own interface put away while the game says so — a film's look through an intro (E104): the interface's
+ * view drawing only what is kept (the game's own canvas) instead of the whole interface, and the order marks in the
+ * world culled. No piece of the interface has its own showing touched, so a menu hidden or a bar shown meanwhile is as
+ * it was left when the interface comes back (E105).
  */
 final class InterfaceHiding {
 
-    private final Map<Spatial, Spatial.CullHint> hidden = new IdentityHashMap<>();
+    private boolean hiding;
 
-    /** Everything put away last frame, as it was. */
-    void showAgain() {
-        hidden.forEach(Spatial::setCullHint);
-        hidden.clear();
+    /**
+     * Put the interface away, or back, as {@code hide} says: {@code view} drawing {@code kept} alone in place of {@code
+     * interfaceRoot}, and {@code marks} culled, while it is away.
+     */
+    void apply(boolean hide, ViewPort view, Spatial interfaceRoot, List<Spatial> kept, Spatial marks) {
+        if (hide == hiding) {
+            return;
+        }
+        hiding = hide;
+        if (hide) {
+            view.detachScene(interfaceRoot);
+            kept.forEach(view::attachScene);
+        } else {
+            kept.forEach(view::detachScene);
+            view.attachScene(interfaceRoot);
+        }
+        if (marks != null) {
+            marks.setCullHint(hide ? Spatial.CullHint.Always : Spatial.CullHint.Inherit);
+        }
     }
 
-    /** Every child of {@code nodes} but those {@code kept}, culled for this frame. */
-    void hide(Set<Spatial> kept, Node... nodes) {
-        for (var node : nodes) {
-            if (node == null) {
-                continue;
-            }
-            for (var child : node.getChildren()) {
-                if (kept.contains(child) || hidden.containsKey(child)) {
-                    continue;
-                }
-                hidden.put(child, child.getLocalCullHint());
-                child.setCullHint(Spatial.CullHint.Always);
-            }
-        }
+    boolean isHiding() {
+        return hiding;
     }
 }

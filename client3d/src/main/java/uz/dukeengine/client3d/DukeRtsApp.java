@@ -5944,11 +5944,9 @@ final class DukeRtsApp extends SimpleApplication {
 
     @Override
     public void simpleUpdate(float tpf) {
-        interfaceHiding.showAgain(); // what was put away last frame back as it was, before this frame decides
         frameOf(tpf);
-        if (interfaceHidden.getAsBoolean()) {
-            interfaceHiding.hide(java.util.Set.of(canvasDrawing.node(), veil.node()), guiNode, markerNode);
-        }
+        interfaceHiding.apply(interfaceHidden.getAsBoolean(), guiViewPort, guiNode,
+                List.of(veil.node(), canvasDrawing.node()), markerNode);
     }
 
     /** Whether the game has its interface put away now — see {@link Duke3D#interfaceHidden}. */

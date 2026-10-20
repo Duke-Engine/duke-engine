@@ -574,7 +574,8 @@ E16, in parts.
   still and moving, for as long as it is ordered there. One standing in a circle already squeezes out by its middle.
 - **The interface put away** (E104): `Duke3D.interfaceHidden(() -> inIntro)` — read every frame; while true the engine
   draws none of its own interface (the panel and all in it, the minimap, the bars, hints and order marks), the game's
-  own painter still drawn, each piece given back the next frame as it was. None, as ever.
+  own painter still drawn: the interface's view draws the game's canvas alone, and no piece's own showing is touched,
+  so a menu hidden meanwhile stays hidden (E105). None, as ever.
 - **Places open besides the eyes** (E103): `Visuals.alsoSeen(() -> List.of(new Visuals.Seen(x, y, radius)))` — read each
   frame the fog is worked, each circle opened as a unit's sight opens: in sight while listed, remembered after. Where a
   cutscene's camera looks, a capital always open; none by default. The client's own fog, drawing only.
