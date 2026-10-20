@@ -16,10 +16,6 @@ import java.util.Arrays;
  */
 public final class Sectors {
 
-    private static final int[][] NEIGHBOURS = {
-            {1, 0}, {-1, 0}, {0, 1}, {0, -1},
-            {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
-    };
     /** The piece of a cell in none: stone, a cliff. */
     private static final short NO_PIECE = -1;
 
@@ -202,7 +198,7 @@ public final class Sectors {
                     int cell = queue[head++];
                     int cx = cell % width;
                     int cy = cell / width;
-                    for (var step : NEIGHBOURS) {
+                    for (var step : Steps.NEIGHBOURS) {
                         int nx = cx + step[0];
                         int ny = cy + step[1];
                         if (nx < x0 || ny < y0 || nx > x1 || ny > y1 || piece[ny * width + nx] != NO_PIECE
@@ -236,7 +232,7 @@ public final class Sectors {
                 if (mine == NO_PIECE) {
                     continue;
                 }
-                for (var step : NEIGHBOURS) {
+                for (var step : Steps.NEIGHBOURS) {
                     int nx = x + step[0];
                     int ny = y + step[1];
                     if (nx >= x0 && ny >= y0 && nx <= x1 && ny <= y1 || !grid.inBounds(nx, ny)) {

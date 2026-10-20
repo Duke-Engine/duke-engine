@@ -89,12 +89,8 @@ public final class PathGrid {
     private final boolean[] ramp;            // cells that link one level to the next
     private float levelHeight;               // world units per level; 0 = the world is flat
     private HeightMap relief;                // smooth ground over the levels; null = none
-    // Laid on the simulation thread, read by a client's pointer on its own: a list either can walk without the other.
-    private final java.util.List<Deck> decks;
-    /** How high a deck must stand over the ground for the ground under it to stay open: the reference's 10. */
-    private float deckClearance = 10f;
-    /** For each ground cell, how many open decks stand too low over it for it to be walked; null with no deck. */
-    private int[] closedUnder;
+    /** The decks laid over the ground — see {@link #addDeck}. */
+    private final Decks decks;
     /** The ground movers on its cells — see {@link MoverCells}; made the first time it is asked for. */
     private MoverCells movers;
     /**
@@ -110,15 +106,10 @@ public final class PathGrid {
     /** The round still things standing in the way, where they close no cell — see {@link #setObstacleCircle}. */
     private Circles stillCircles = Circles.NONE;
     private final java.util.List<SceneryFootprint> circlesScratch = new java.util.ArrayList<>();
-    /** How many changes to where can be walked the grid has seen — see {@link #changesSince}. */
-    private int changeSerial;
+    /** The changes to where can be walked the grid has seen — see {@link #changesSince}. */
+    private final ChangeLog changes;
     /** What a body fits at, by cell, for each passage and clearance asked — see {@link #fits}. */
-    private final java.util.Map<Long, Fits> fitsByClearance = new java.util.HashMap<>();
-    private Fits lastFits;
-    /** The latest of them, each {serial, minX, minY, maxX, maxY} in cells, oldest first. */
-    private final java.util.ArrayDeque<int[]> changes = new java.util.ArrayDeque<>();
-    /** The last serial no longer kept: a reader behind it works out everything again. */
-    private int forgottenUpTo;
+    private final FitsCache fitsCache;
 
     public PathGrid(int width, int height) {
         this(width, height, DEFAULT_CELL_SIZE);
@@ -144,7 +135,9 @@ public final class PathGrid {
         this.surfaces = 0;
         this.level = new short[width * height];
         this.ramp = new boolean[width * height];
-        this.decks = new java.util.concurrent.CopyOnWriteArrayList<>();
+        this.decks = new Decks();
+        this.changes = new ChangeLog(width, height, cellSize);
+        this.fitsCache = new FitsCache();
     }
 
     /** {@code grid} as a mover that may enter the classes {@code surfaces} sees it: every layer its. */
@@ -169,8 +162,8 @@ public final class PathGrid {
         this.levelHeight = grid.levelHeight;
         this.relief = grid.relief;
         this.decks = grid.decks;
-        this.deckClearance = grid.deckClearance;
-        this.closedUnder = grid.closedUnder;
+        this.changes = grid.changes;
+        this.fitsCache = grid.fitsCache;
         this.coarse = grid.coarse;
         this.perMapCell = grid.perMapCell;
     }
@@ -193,7 +186,7 @@ public final class PathGrid {
         fine.coarse = this;
         fine.perMapCell = k;
         fine.levelHeight = levelHeight;
-        fine.deckClearance = deckClearance;
+        fine.decks.clearance = decks.clearance;
         fine.classNames.addAll(classNames);
         fine.cliffClass = cliffClass;
         for (int cy = 0; cy < height; cy++) {
@@ -210,7 +203,7 @@ public final class PathGrid {
                 }
             }
         }
-        for (var deck : decks) {
+        for (var deck : decks.all()) {
             int floor = fine.addDeck(deck.corner(0), deck.corner(1), deck.corner(2), deck.corner(3));
             fine.setDeckOpen(floor, deck.isOpen());
         }
@@ -241,7 +234,7 @@ public final class PathGrid {
      */
     public void setSceneryFootprints(java.util.List<SceneryFootprint> footprints) {
         root().scenery = Circles.of(footprints == null ? java.util.List.of() : footprints, width, height, cellSize);
-        changedEverywhere();
+        changes.everywhere();
     }
 
     /**
@@ -262,170 +255,17 @@ public final class PathGrid {
     }
 
     /**
-     * What a body of one clearance fits at, cell by cell, for one passage — 0 not yet asked, 1 it fits, 2 it does not —
-     * each cell worked out once and kept until the grid says the ground near it changed ({@link #changesSince}): a
-     * search on a fine grid asks the same cells' circles again and again, and a cell's answer is a byte, not a scan.
-     */
-    static final class Fits {
-        final long key;
-        final float clearance;
-        final byte[] cells;
-        int serial;
-
-        Fits(long key, float clearance, int cells, int serial) {
-            this.key = key;
-            this.clearance = clearance;
-            this.cells = new byte[cells];
-            this.serial = serial;
-        }
-    }
-
-    /**
      * The fits of a body of {@code clearance} on this passage, caught up with what changed since they were last asked;
      * the one asked last kept at hand, as a search asks one clearance cell after cell.
      */
-    Fits fits(float clearance) {
-        var grid = root();
-        long key = (long) surfaces << 32 | (Float.floatToIntBits(clearance) & 0xFFFFFFFFL);
-        var fits = grid.lastFits;
-        if (fits == null || fits.key != key) {
-            fits = grid.fitsByClearance.computeIfAbsent(key,
-                    k -> new Fits(k, clearance, width * height, grid.changeSerial));
-            grid.lastFits = fits;
-        }
-        if (fits.serial != grid.changeSerial) {
-            forgetFits(grid, fits);
-        }
-        return fits;
-    }
-
-    /** What changed since {@code fits} were caught up forgotten, as far round each change as a body's fit could feel it. */
-    private void forgetFits(PathGrid grid, Fits fits) {
-        var changed = changesSince(fits.serial);
-        fits.serial = grid.changeSerial;
-        if (changed == null) {
-            java.util.Arrays.fill(fits.cells, (byte) 0);
-            return;
-        }
-        float widest = Math.max(grid.scenery.widest, grid.stillCircles.widest);
-        int margin = (int) Math.ceil((fits.clearance + widest) / cellSize) + 1;
-        for (var box : changed) {
-            int minX = Math.max(0, box[0] - margin);
-            int maxX = Math.min(width - 1, box[2] + margin);
-            int minY = Math.max(0, box[1] - margin);
-            int maxY = Math.min(height - 1, box[3] + margin);
-            for (int cy = minY; cy <= maxY; cy++) {
-                java.util.Arrays.fill(fits.cells, cy * width + minX, cy * width + maxX + 1, (byte) 0);
-            }
-        }
+    FitsCache.Fits fits(float clearance) {
+        return fitsCache.of(root(), surfaces, clearance);
     }
 
     /** The widest circle standing in the way, scenery or still. */
     float widestCircle() {
         var grid = root();
         return Math.max(grid.scenery.widest, grid.stillCircles.widest);
-    }
-
-    /** Circles on the ground in world units, by the cell of a grid each one's middle stands in. */
-    private static final class Circles {
-
-        static final Circles NONE = new Circles(java.util.List.of(), new SceneryFootprint[0], null, 0f, 1, 1, 1f);
-
-        final java.util.List<SceneryFootprint> list;
-        /** The circles cell by cell, and where each cell's start, one past the last cell's end; null for none. */
-        private final SceneryFootprint[] byCell;
-        private final int[] start;
-        private final float widest;
-        private final int width;
-        private final int height;
-        private final float cellSize;
-
-        private Circles(java.util.List<SceneryFootprint> list, SceneryFootprint[] byCell, int[] start, float widest,
-                        int width, int height, float cellSize) {
-            this.list = list;
-            this.byCell = byCell;
-            this.start = start;
-            this.widest = widest;
-            this.width = width;
-            this.height = height;
-            this.cellSize = cellSize;
-        }
-
-        static Circles of(java.util.List<SceneryFootprint> circles, int width, int height, float cellSize) {
-            if (circles.isEmpty()) {
-                return NONE;
-            }
-            int cells = width * height;
-            int[] start = new int[cells + 1];
-            int[] cellOf = new int[circles.size()];
-            float widest = 0f;
-            for (int i = 0; i < circles.size(); i++) {
-                var circle = circles.get(i);
-                // One just off the map is kept at its edge, where what it reaches of the map is looked for.
-                int cx = Math.clamp((long) Math.floor(circle.x() / cellSize), 0, width - 1);
-                int cy = Math.clamp((long) Math.floor(circle.y() / cellSize), 0, height - 1);
-                cellOf[i] = cy * width + cx;
-                start[cellOf[i] + 1]++;
-                widest = Math.max(widest, circle.radius());
-            }
-            for (int c = 0; c < cells; c++) {
-                start[c + 1] += start[c];
-            }
-            var byCell = new SceneryFootprint[circles.size()];
-            int[] next = java.util.Arrays.copyOf(start, cells);
-            for (int i = 0; i < circles.size(); i++) {
-                byCell[next[cellOf[i]]++] = circles.get(i);
-            }
-            return new Circles(java.util.List.copyOf(circles), byCell, start, widest, width, height, cellSize);
-        }
-
-        /** Whether a body of {@code clearance} radius standing at ({@code x}, {@code y}) is clear of all of them. */
-        boolean clear(float x, float y, float clearance) {
-            if (start == null) {
-                return true;
-            }
-            float far = clearance + widest;
-            int minX = Math.max(0, (int) Math.floor((x - far) / cellSize));
-            int maxX = Math.min(width - 1, (int) Math.floor((x + far) / cellSize));
-            int minY = Math.max(0, (int) Math.floor((y - far) / cellSize));
-            int maxY = Math.min(height - 1, (int) Math.floor((y + far) / cellSize));
-            for (int cy = minY; cy <= maxY; cy++) {
-                for (int cell = cy * width + minX, last = cy * width + maxX; cell <= last; cell++) {
-                    for (int i = start[cell]; i < start[cell + 1]; i++) {
-                        var circle = byCell[i];
-                        float dx = x - circle.x();
-                        float dy = y - circle.y();
-                        float room = circle.radius() + clearance;
-                        if (dx * dx + dy * dy < room * room) {
-                            return false;
-                        }
-                    }
-                }
-            }
-            return true;
-        }
-
-        /** Whether any whose middle stands within {@code reach} plus the widest of them is one {@code test} takes. */
-        boolean any(float x, float y, float reach, java.util.function.Predicate<SceneryFootprint> test) {
-            if (start == null) {
-                return false;
-            }
-            float far = reach + widest;
-            int minX = Math.max(0, (int) Math.floor((x - far) / cellSize));
-            int maxX = Math.min(width - 1, (int) Math.floor((x + far) / cellSize));
-            int minY = Math.max(0, (int) Math.floor((y - far) / cellSize));
-            int maxY = Math.min(height - 1, (int) Math.floor((y + far) / cellSize));
-            for (int cy = minY; cy <= maxY; cy++) {
-                for (int cell = cy * width + minX, last = cy * width + maxX; cell <= last; cell++) {
-                    for (int i = start[cell]; i < start[cell + 1]; i++) {
-                        if (test.test(byCell[i])) {
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
-        }
     }
 
     // ---- classes of ground ----
@@ -490,7 +330,7 @@ public final class PathGrid {
         if (groundClass[cy * width + cx] != c) {
             groundClass[cy * width + cx] = c;
             root().shapeVersion++;
-            changedAround(cx, cy);
+            changes.around(cx, cy);
         }
     }
 
@@ -498,7 +338,7 @@ public final class PathGrid {
     public void setCliffClass(String name) {
         root().cliffClass = classOf(name);
         root().shapeVersion++;
-        changedEverywhere();
+        changes.everywhere();
     }
 
     /**
@@ -510,7 +350,7 @@ public final class PathGrid {
             return null;
         }
         int index = cy * width + cx;
-        int c = laid[index] != 0 ? laid[index] : groundClass[index];
+        int c = classAt(index);
         if (c == 0 && cliffClass != 0 && reliefCliff(cx, cy)) {
             c = cliffClass;
         }
@@ -565,11 +405,16 @@ public final class PathGrid {
             return true;
         }
         int index = cy * width + cx;
-        if (blocked[index] || obstacle[index] || shut[index] > 0 || closedUnder != null && closedUnder[index] > 0) {
+        if (blocked[index] || obstacle[index] || shut[index] > 0 || decks.closes(index)) {
             return true;
         }
-        int c = laid[index] != 0 ? laid[index] : groundClass[index];
+        int c = classAt(index);
         return c != 0 && !mayEnter(c); // ground of a class it may not enter
+    }
+
+    /** The class on cell {@code index}: what a still thing laid over it, else what the map laid; 0 for none. */
+    private int classAt(int index) {
+        return laid[index] != 0 ? laid[index] : groundClass[index];
     }
 
     /** Whether the <em>map</em> forbids this cell, ignoring anything standing on it. */
@@ -637,7 +482,7 @@ public final class PathGrid {
         shutRegions.put(name, region);
         for (int index : region) {
             shut[index]++;
-            changedAround(index % width, index / width);
+            changes.around(index % width, index / width);
         }
         root().shapeVersion++;
     }
@@ -650,7 +495,7 @@ public final class PathGrid {
         }
         for (int index : region) {
             shut[index]--;
-            changedAround(index % width, index / width);
+            changes.around(index % width, index / width);
         }
         root().shapeVersion++;
     }
@@ -664,7 +509,7 @@ public final class PathGrid {
         if (inBounds(cx, cy) && blocked[cy * width + cx] != value) {
             blocked[cy * width + cx] = value;
             shapeVersion++;
-            changedAround(cx, cy);
+            changes.around(cx, cy);
         }
     }
 
@@ -714,13 +559,13 @@ public final class PathGrid {
             return;
         }
         if (!sameCells) {
-            noteChangedCells();
+            changes.cells(i -> obstacle[i] != obstacleScratch[i] || laid[i] != laidScratch[i]);
             System.arraycopy(obstacleScratch, 0, obstacle, 0, obstacle.length);
             System.arraycopy(laidScratch, 0, laid, 0, laid.length);
             shapeVersion++; // what the zones are made of; a circle is none of it
         }
         if (!sameCircles) {
-            noteChangedCircles(stillCircles.list, circlesScratch);
+            changes.circles(stillCircles.list, circlesScratch);
             stillCircles = Circles.of(circlesScratch, width, height, cellSize);
         }
         obstacleVersion++;
@@ -752,7 +597,7 @@ public final class PathGrid {
         if (inBounds(cx, cy) && level[cy * width + cx] != value) {
             level[cy * width + cx] = (short) value;
             shapeVersion++;
-            changedAround(cx, cy);
+            changes.around(cx, cy);
         }
     }
 
@@ -768,7 +613,7 @@ public final class PathGrid {
         if (inBounds(cx, cy)) {
             ramp[cy * width + cx] = value;
             shapeVersion++;
-            changedAround(cx, cy);
+            changes.around(cx, cy);
         }
     }
 
@@ -799,7 +644,7 @@ public final class PathGrid {
 
     public void setRelief(HeightMap relief) {
         shapeVersion++;
-        changedEverywhere();
+        changes.everywhere();
         if (relief != null && (relief.columns() != width + 1 || relief.rows() != height + 1)) {
             throw new IllegalArgumentException("a relief over " + width + "x" + height + " cells is "
                     + (width + 1) + "x" + (height + 1) + " corners, not " + relief.columns() + "x" + relief.rows());
@@ -915,21 +760,6 @@ public final class PathGrid {
     private static final int[][] ORTHOGONAL = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
     /**
-     * Whether something may move from one cell to a neighbouring one.
-     *
-     * <p>The rule the whole of height rests on. Both cells have to be open, as
-     * ever — and then they have to be on the same floor, or joined: one level
-     * apart, straight rather than diagonally, with a ramp at one end of the step.
-     *
-     * <p>Diagonals are not allowed to change level. A body crossing a corner
-     * between two floors is halfway up a wall for the length of that step, and
-     * the geometry of a staircase drawn there never looks like anything a person
-     * could climb.
-     *
-     * <p>On a flat grid the level test is {@code 0 == 0} for every pair, so this
-     * is the passability check that was here before it.
-     */
-    /**
      * Whether the relief makes this cell a cliff, which nothing can step onto — nothing but a mover that may enter the
      * class the game names for cliffs.
      */
@@ -946,6 +776,21 @@ public final class PathGrid {
         return relief != null && relief.isCliff(cx, cy);
     }
 
+    /**
+     * Whether something may move from one cell to a neighbouring one.
+     *
+     * <p>The rule the whole of height rests on. Both cells have to be open, as
+     * ever — and then they have to be on the same floor, or joined: one level
+     * apart, straight rather than diagonally, with a ramp at one end of the step.
+     *
+     * <p>Diagonals are not allowed to change level. A body crossing a corner
+     * between two floors is halfway up a wall for the length of that step, and
+     * the geometry of a staircase drawn there never looks like anything a person
+     * could climb.
+     *
+     * <p>On a flat grid the level test is {@code 0 == 0} for every pair, so this
+     * is the passability check that was here before it.
+     */
     public boolean canStep(int fromX, int fromY, int toX, int toY) {
         if (isBlocked(fromX, fromY) || isBlocked(toX, toY)) {
             return false;
@@ -990,6 +835,11 @@ public final class PathGrid {
         return new Coord3D((cx + 0.5f) * cellSize, (cy + 0.5f) * cellSize, groundHeight(cx, cy));
     }
 
+    /** The world position at the centre of the cell of index {@code cell} ({@code cy * width + cx}). */
+    Coord3D cellCenter(int cell) {
+        return cellCenter(cell % width, cell / width);
+    }
+
     /** Linear index of a cell, used as a deterministic tie-breaker in search. */
     int index(int cx, int cy) {
         return cy * width + cx;
@@ -997,19 +847,12 @@ public final class PathGrid {
 
     // ---- where it changed ----
 
-    /** How many changes are kept for a reader to catch up with; one further behind works out everything again. */
-    private static final int MOST_CHANGES_KEPT = 4096;
-    /** Cells changed in one laying past this many squares of the ground are told as one change everywhere. */
-    private static final int MOST_SQUARES_TOLD = 256;
-    /** The side of a square of the ground the cells a laying changed are told by. */
-    private static final int SQUARE = 16;
-
     /**
      * The serial of the last change to where can be walked — a cell blocked or opened, laid, raised, made a ramp or a
      * class, a circle standing in the way or gone — for {@link #changesSince}.
      */
     public int changeSerial() {
-        return root().changeSerial;
+        return changes.serial();
     }
 
     /**
@@ -1018,76 +861,7 @@ public final class PathGrid {
      * and whatever was worked out from the grid is to be worked out again.
      */
     public java.util.List<int[]> changesSince(int since) {
-        var grid = root();
-        if (since < grid.forgottenUpTo) {
-            return null;
-        }
-        var after = new java.util.ArrayList<int[]>();
-        for (var change : grid.changes) {
-            if (change[0] > since) {
-                after.add(new int[] {change[1], change[2], change[3], change[4]});
-            }
-        }
-        return after;
-    }
-
-    private void changed(int minX, int minY, int maxX, int maxY) {
-        var grid = root();
-        grid.changeSerial++;
-        grid.changes.addLast(new int[] {grid.changeSerial, minX, minY, maxX, maxY});
-        if (grid.changes.size() > MOST_CHANGES_KEPT) {
-            while (grid.changes.size() > MOST_CHANGES_KEPT / 2) {
-                grid.forgottenUpTo = grid.changes.removeFirst()[0];
-            }
-        }
-    }
-
-    /** A cell changed: the steps into it, out of it and past its corner along with it. */
-    private void changedAround(int cx, int cy) {
-        changed(cx - 1, cy - 1, cx + 1, cy + 1);
-    }
-
-    private void changedEverywhere() {
-        changed(-1, -1, width, height);
-    }
-
-    /** The cells the obstacles being committed change, told by the squares of the ground they fall in. */
-    private void noteChangedCells() {
-        int squaresAcross = (width + SQUARE - 1) / SQUARE;
-        var squares = new java.util.BitSet();
-        for (int i = 0; i < obstacle.length; i++) {
-            if (obstacle[i] != obstacleScratch[i] || laid[i] != laidScratch[i]) {
-                squares.set(((i / width) / SQUARE) * squaresAcross + (i % width) / SQUARE);
-            }
-        }
-        if (squares.cardinality() > MOST_SQUARES_TOLD) {
-            changedEverywhere();
-            return;
-        }
-        for (int square = squares.nextSetBit(0); square >= 0; square = squares.nextSetBit(square + 1)) {
-            int x = (square % squaresAcross) * SQUARE;
-            int y = (square / squaresAcross) * SQUARE;
-            changed(x - 1, y - 1, x + SQUARE, y + SQUARE);
-        }
-    }
-
-    /** The circles that came or went, each told by the cells its middle's reach covers. */
-    private void noteChangedCircles(java.util.List<SceneryFootprint> was, java.util.List<SceneryFootprint> now) {
-        var before = new java.util.HashSet<>(was);
-        var after = new java.util.HashSet<>(now);
-        var moved = new java.util.ArrayList<SceneryFootprint>();
-        was.stream().filter(circle -> !after.contains(circle)).forEach(moved::add);
-        now.stream().filter(circle -> !before.contains(circle)).forEach(moved::add);
-        if (moved.size() > MOST_SQUARES_TOLD) {
-            changedEverywhere();
-            return;
-        }
-        for (var circle : moved) {
-            changed((int) Math.floor((circle.x() - circle.radius()) / cellSize) - 1,
-                    (int) Math.floor((circle.y() - circle.radius()) / cellSize) - 1,
-                    (int) Math.floor((circle.x() + circle.radius()) / cellSize) + 1,
-                    (int) Math.floor((circle.y() + circle.radius()) / cellSize) + 1);
-        }
+        return changes.since(since);
     }
 
     // ---- decks ----
@@ -1097,7 +871,7 @@ public final class PathGrid {
      * the other; its floor comes back, 1 for the first. Classified as {@link Deck} says, and open.
      */
     public int addDeck(Coord3D first, Coord3D second, Coord3D third, Coord3D fourth) {
-        var deck = new Deck(decks.size() + 1, new Coord3D[] {first, second, third, fourth}, this);
+        var deck = new Deck(decks.nextFloor(), new Coord3D[] {first, second, third, fourth}, this);
         decks.add(deck);
         decksChanged();
         return deck.floor();
@@ -1114,46 +888,29 @@ public final class PathGrid {
 
     /** How high a deck must stand over the ground for the ground under it to stay open to the ground's walkers. */
     public void setDeckClearance(float clearance) {
-        this.deckClearance = clearance;
+        decks.clearance = clearance;
         decksChanged();
     }
 
     /** The deck on {@code floor}, or null. */
     public Deck deck(int floor) {
-        return floor >= 1 && floor <= decks.size() ? decks.get(floor - 1) : null;
+        return decks.on(floor);
     }
 
     /** Every deck laid, in the order laid: the n-th on floor n. */
     public java.util.List<Deck> decks() {
-        return java.util.Collections.unmodifiableList(decks);
+        return decks.all();
     }
 
     public boolean hasDecks() {
-        return !decks.isEmpty();
+        return decks.any();
     }
 
     /** A deck laid, opened or closed: the ground under the open ones worked out again, and every route planned again. */
     private void decksChanged() {
-        var closed = new int[width * height];
-        for (var deck : decks) {
-            if (!deck.isOpen()) {
-                continue;
-            }
-            for (int cy = deck.minY(); cy <= deck.maxY(); cy++) {
-                for (int cx = deck.minX(); cx <= deck.maxX(); cx++) {
-                    if (!deck.walkable(cx, cy)) {
-                        continue;
-                    }
-                    float over = deck.heightAt((cx + 0.5f) * cellSize, (cy + 0.5f) * cellSize) - groundHeight(cx, cy);
-                    if (over < deckClearance) {
-                        closed[cy * width + cx]++;
-                    }
-                }
-            }
-        }
-        closedUnder = closed;
+        decks.layClosed(this);
         shapeVersion++;
-        changedEverywhere();
+        changes.everywhere();
         obstacleVersion++; // what a route is checked against: every mover plans its way again
     }
 
@@ -1175,21 +932,7 @@ public final class PathGrid {
      * floor to another. A step that is both, a deck high over open ground at its end, is either, as the route says.
      */
     public boolean enters(int floor, int onto, int fromX, int fromY, int toX, int toY) {
-        if (floor == onto || floor != 0 && onto != 0 || !inBounds(fromX, fromY) || !inBounds(toX, toY)) {
-            return false;
-        }
-        var deck = deck(floor == 0 ? onto : floor);
-        if (deck == null || !deck.isOpen() || isBlocked(floor == 0 ? fromX : toX, floor == 0 ? fromY : toY)) {
-            return false;
-        }
-        int ground = floor == 0 ? index(fromX, fromY) : index(toX, toY);
-        int onDeck = floor == 0 ? index(toX, toY) : index(fromX, fromY);
-        for (var entry : deck.entries()) {
-            if (entry[0] == ground && entry[1] == onDeck) {
-                return true;
-            }
-        }
-        return false;
+        return decks.enters(this, floor, onto, fromX, fromY, toX, toY);
     }
 
     /** How high the surface a thing on {@code floor} stands on is under a point: the ground's, or its deck's. */
@@ -1203,18 +946,6 @@ public final class PathGrid {
      * height — the reference's {@code getLayerForDestination}. Where a thing is placed, where a click lands.
      */
     public int floorAt(Coord3D at) {
-        int floor = 0;
-        float nearest = Math.abs(at.z() - groundHeight(at));
-        for (var deck : decks) {
-            if (!deck.isOpen() || !deck.walkable(toCellX(at), toCellY(at))) {
-                continue;
-            }
-            float away = Math.abs(at.z() - deck.heightAt(at.x(), at.y()));
-            if (away < nearest) {
-                nearest = away;
-                floor = deck.floor();
-            }
-        }
-        return floor;
+        return decks.floorAt(this, at);
     }
 }
