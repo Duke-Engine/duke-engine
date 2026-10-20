@@ -2,6 +2,7 @@ package uz.dukeengine.client3d.action;
 
 import java.util.ArrayList;
 import java.util.List;
+import uz.dukeengine.action.ActionOrders;
 import uz.dukeengine.combat.message.CombatOrder;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.message.Command;
@@ -95,7 +96,7 @@ public record MouseScheme(boolean modern, float lockReach, boolean rmbOnGroundWa
                 held = true;
                 sent = ground;
                 sentAt = frame;
-                orders.add(new CombatOrder.AttackToward(player, hero, ground, true));
+                orders.add(ActionOrders.toward(player, hero, ground, true));
             }
             return orders;
         }
@@ -108,7 +109,7 @@ public record MouseScheme(boolean modern, float lockReach, boolean rmbOnGroundWa
             }
             sent = ground;
             sentAt = frame;
-            return List.of(new CombatOrder.AttackToward(player, hero, ground, true));
+            return List.of(ActionOrders.toward(player, hero, ground, true));
         }
 
         /** Let go: the held swing ends after the one under way. */
@@ -117,7 +118,7 @@ public record MouseScheme(boolean modern, float lockReach, boolean rmbOnGroundWa
                 return List.of();
             }
             held = false;
-            return List.of(new CombatOrder.AttackToward(player, hero, sent, false));
+            return List.of(ActionOrders.toward(player, hero, sent, false));
         }
 
         boolean isHeld() {
@@ -148,7 +149,7 @@ public record MouseScheme(boolean modern, float lockReach, boolean rmbOnGroundWa
             sentAt = frame;
             sentAngle = quantized(forward);
             sent = ahead(x, y, forward, reach);
-            return List.of(new CombatOrder.AttackToward(player, hero, sent, true));
+            return List.of(ActionOrders.toward(player, hero, sent, true));
         }
 
         /**
@@ -174,7 +175,7 @@ public record MouseScheme(boolean modern, float lockReach, boolean rmbOnGroundWa
             sentAngle = angle;
             sentAt = frame;
             sent = ahead(x, y, forward, reach);
-            return List.of(new CombatOrder.AttackToward(player, hero, sent, true));
+            return List.of(ActionOrders.toward(player, hero, sent, true));
         }
 
         /** Let go the action way: a swing ahead ends after the one under way; a lock goes on until its enemy falls. */
@@ -182,7 +183,7 @@ public record MouseScheme(boolean modern, float lockReach, boolean rmbOnGroundWa
             boolean swinging = held && locked < 0 && sent != null;
             held = false;
             locked = -1;
-            return swinging ? List.of(new CombatOrder.AttackToward(player, hero, sent, false)) : List.of();
+            return swinging ? List.of(ActionOrders.toward(player, hero, sent, false)) : List.of();
         }
 
         private static int quantized(float radians) {

@@ -53,7 +53,7 @@ public final class ActionControls implements ControlScheme {
      * Walk by held keys: read each frame and turned into a direction on the ground as the camera is turned ({@link
      * DirectionKeys#angleOf}, 256ths of a turn, or {@link DirectionKeys#NONE}), {@code changed} told only when it
      * changes — and {@code NONE} once while a menu, a screen of the game's or another window has the keys. The game
-     * sends it on as {@code CombatOrder.MoveAlong}.
+     * sends it on as {@code ActionOrders.along}.
      */
     public ActionControls walk(DirectionKeys keys, BiConsumer<DukeGame, Integer> changed) {
         this.walkKeys = keys == null ? DirectionKeys.WASD : keys;

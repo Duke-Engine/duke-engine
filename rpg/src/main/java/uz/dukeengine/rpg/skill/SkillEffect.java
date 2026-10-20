@@ -256,12 +256,11 @@ public enum SkillEffect {
     STAGGER(Aim.SELF, true),
 
     /**
-     * A dodge: aimed at a point, he rolls {@code Distance} toward it, whatever its distance, over {@code DurationFrames}
-     * — playing {@code CastAnim} as long — out of harm's way for its first {@code TickFrames}: no blow takes health,
-     * staggers or stuns him. He passes through creatures and never ends inside one, stops at stone, and is refused over
-     * a seal as a dash is, nothing spent; not while held, and it cuts his own weapon's wind-up.
+     * Done by a module of the caster's ({@link SkillCaster}): an effect a library or a game brings without a constant
+     * here — a dodge's roll, say. Aimed at a point, handed the skill, the point and the seal, and refused, nothing
+     * spent, where the caster has no such module or it says no.
      */
-    DODGE(Aim.GROUND),
+    MODULE(Aim.GROUND),
 
     /**
      * A push out from a point: every enemy within {@code Radius} of him — or of the point it is cast at — is moved, not

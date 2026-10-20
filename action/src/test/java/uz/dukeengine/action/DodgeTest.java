@@ -1,4 +1,4 @@
-package uz.dukeengine.rpg.skill;
+package uz.dukeengine.action;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -14,25 +14,25 @@ import uz.dukeengine.core.module.DamageType;
 import uz.dukeengine.core.module.Death;
 import uz.dukeengine.core.module.DeathType;
 import uz.dukeengine.core.pathfind.PathGrid;
+import uz.dukeengine.core.pathfind.TraversalLink;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectStatus;
-import uz.dukeengine.rpg.RpgWorld;
-import uz.dukeengine.rpg.Seal;
+import uz.dukeengine.rpg.skill.Skill;
+import uz.dukeengine.rpg.skill.SkillBook;
+import uz.dukeengine.rpg.skill.SkillEffect;
 
 /** A roll of 16 over 9 frames, out of harm's way for 7, through creatures, short of stone, once in 75 frames (E80). */
 class DodgeTest {
 
     private static Skill dodge() {
-        var d = Skill.DEFAULTS;
-        return new Skill("Hero", ' ', SkillEffect.DODGE, 0f, 0f, 0f, 0f, 16f, 0f, 0, 0, 9, 7, d.slowFrames(), 75,
-                0, d.maxRank(), d.levelPerRank(), 0, 0, 0, "", d.icon(), d.look(), "Roll", d.castSeconds(), d.name(),
-                d.blurb(), 0f, 0f, d.healBelowPercent(), d.summons(), d.maxSummoned(), d.summonExperiencePercent(), 0,
-                d.manaRegen());
+        return new Skill("Hero", ' ', SkillEffect.MODULE, 0f, 0f, 0f, 0f, 16f, 0f, 0, 0, 9, 7, 0, 75,
+                0, 4, 0, 0, 0, 0, "", "", "", "Roll", 0f, "", "", 0f, 0f, 0, Map.of(), 0, 0, 0, 0);
     }
 
-    private static RpgWorld world(boolean wall) {
-        var world = new RpgWorld(Map.of("Hero", List.of(dodge())), Seal.NONE)
-                .template("Hero", new ActiveBody.Data(100f), new SkillBook.Data(), new StatusUpdate.Data())
+    private static ActionWorld world(boolean wall) {
+        var world = new ActionWorld(Map.of("Hero", List.of(dodge())))
+                .template("Hero", new ActiveBody.Data(100f), new SkillBook.Data(), new StatusUpdate.Data(),
+                        new Dodge.Data())
                 .template("Skeleton", new ActiveBody.Data(100f));
         var grid = new PathGrid(30, 30);
         if (wall) {
@@ -87,12 +87,23 @@ class DodgeTest {
     @Test
     void aDodgeAcrossALowWayGoesOverIt() {
         var world = world(true);
-        world.setTraversalLinks(List.of(new uz.dukeengine.core.pathfind.TraversalLink(new Coord3D(105f, 100f, 0f),
+        world.setTraversalLinks(List.of(new TraversalLink(new Coord3D(105f, 100f, 0f),
                 new Coord3D(125f, 100f, 0f), "vault", 12, 6f, "Vault", false, true)));
         var hero = world.put("Hero", world.heroes, 100f, 100f);
         world.run(1);
         assertTrue(hero.findModule(SkillBook.class).cast(' ', 1, null, new Coord3D(200f, 100f, 0f)));
         world.run(10);
         assertEquals(125f, hero.getPosition().x(), 1e-3f, "over the low wall, at its far end");
+    }
+
+    /** One with no module that casts it is refused, nothing spent. */
+    @Test
+    void withoutTheModuleItIsRefused() {
+        var world = new ActionWorld(Map.of("Plain", List.of(dodge())))
+                .template("Plain", new ActiveBody.Data(100f), new SkillBook.Data());
+        var plain = world.put("Plain", world.heroes, 100f, 100f);
+        world.run(1);
+        assertFalse(plain.findModule(SkillBook.class).cast(' ', 1, null, new Coord3D(200f, 100f, 0f)));
+        assertEquals(100f, plain.getPosition().x(), 1e-3f);
     }
 }

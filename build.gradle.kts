@@ -82,6 +82,8 @@ val published = mapOf(
         + "building's rally point and its build menu.",
     "rpg-client-3d" to "The RPG's part of the 3D client: the hero's bar and portrait, the skill cards, the bag "
         + "and what is on a creature, and the hero's card on the status line, both ends of it.",
+    "action" to "A game played from one hero's shoulder, the simulation half: a walk along a held direction, an "
+        + "attack toward a point, a dodge's roll — orders of the game's own and a module, on the engine's seams.",
     "client3d-action" to "Controls for a game played from one hero's shoulder, plugged into the 3D client: walking by "
         + "held keys, a camera kept on him and turned by a held mouse, the left button striking, skills aimed ahead.",
     "kit" to "The starter set a game begins from: an effects library and the particle art it is drawn with. "

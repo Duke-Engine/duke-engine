@@ -9,12 +9,12 @@ public record DirectionKeys(char up, char left, char down, char right) {
     /** W A S D. */
     public static final DirectionKeys WASD = new DirectionKeys('W', 'A', 'S', 'D');
 
-    /** No direction: none held, or they cancel — the {@code CombatOrder.MoveAlong.NONE} it is sent as. */
+    /** No direction: none held, or they cancel — the {@code ActionOrders.NONE} it is sent as. */
     public static final int NONE = -1;
 
     /**
      * The direction those held make on the ground, the camera turned {@code yaw}: in 256ths of a turn, 0 along +x and
-     * counter-clockwise seen from above, as {@code CombatOrder.MoveAlong} takes it; {@link #NONE} for none.
+     * counter-clockwise seen from above, as {@code ActionOrders.along} takes it; {@link #NONE} for none.
      */
     static int angleOf(boolean up, boolean left, boolean down, boolean right, float yaw) {
         float across = (right ? 1f : 0f) - (left ? 1f : 0f);

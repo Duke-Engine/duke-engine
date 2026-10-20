@@ -44,14 +44,4 @@ class CombatOrderCodecTest {
         assertNull(CombatOrderCodec.decode("QUEUE,1,5,Tank"));
         assertEquals(List.of(), CombatOrderCodec.parseIds(""));
     }
-
-    @Test
-    void aHeldDirectionAndNoneRoundTrip() {
-        var along = new CombatOrder.MoveAlong(1, java.util.List.of(new uz.dukeengine.core.thing.ObjectId(7)), 64);
-        assertEquals(along, CombatOrderCodec.decode(CombatOrderCodec.encode(along)));
-        var none = new CombatOrder.MoveAlong(1, java.util.List.of(new uz.dukeengine.core.thing.ObjectId(7)),
-                CombatOrder.MoveAlong.NONE);
-        assertEquals(none, CombatOrderCodec.decode(CombatOrderCodec.encode(none)));
-        assertEquals(1, new CombatOrder.MoveAlong(1, java.util.List.of(), 257).angle(), "any value, a turn round");
-    }
 }

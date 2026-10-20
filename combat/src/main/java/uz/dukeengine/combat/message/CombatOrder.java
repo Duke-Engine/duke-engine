@@ -15,8 +15,7 @@ import uz.dukeengine.core.thing.ObjectId;
  * live reference, because every peer applies the identical orders on the identical frame.
  */
 public sealed interface CombatOrder extends Command
-        permits CombatOrder.MoveTo, CombatOrder.AttackObject, CombatOrder.AttackGround, CombatOrder.StopMoving,
-        CombatOrder.MoveAlong, CombatOrder.AttackToward {
+        permits CombatOrder.MoveTo, CombatOrder.AttackObject, CombatOrder.AttackGround, CombatOrder.StopMoving {
 
     /** The things it is given to. */
     List<ObjectId> units();
@@ -84,32 +83,6 @@ public sealed interface CombatOrder extends Command
      */
     record AttackGround(int playerIndex, List<ObjectId> units, Coord3D place, boolean forced) implements CombatOrder {
         public AttackGround {
-            units = List.copyOf(units);
-        }
-    }
-
-    /**
-     * Walk along a direction until told otherwise — a held W A S D: {@code angle} in 256ths of a turn, 0 along +x and
-     * counter-clockwise seen from above, or {@link #NONE} to stop where it stands. No route: it slides along what
-     * stops it. Replaces the unit's order, as a move does.
-     */
-    record MoveAlong(int playerIndex, List<ObjectId> units, int angle) implements CombatOrder {
-        /** Stop where it stands. */
-        public static final int NONE = -1;
-
-        public MoveAlong {
-            units = List.copyOf(units);
-            angle = angle < 0 ? NONE : angle & 0xFF;
-        }
-    }
-
-    /**
-     * An attack toward a point, no target named — a click on open ground: turned to it, one attack at the weapon's own
-     * timing, the enemy nearest its front within reach and its swing's arc struck, or a projectile loosed along the
-     * line; {@code held}, again each time the weapon is ready toward the latest point, until an order with it false.
-     */
-    record AttackToward(int playerIndex, List<ObjectId> units, Coord3D point, boolean held) implements CombatOrder {
-        public AttackToward {
             units = List.copyOf(units);
         }
     }

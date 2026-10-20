@@ -1086,30 +1086,10 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                             .onLanded(() -> daze(victim, stun));
                 }
             }
-            case DODGE -> {
-                if (owner.hasStatus(ObjectStatus.HELD) || towards == null) {
+            case MODULE -> {
+                if (!castByAModule(owner, skill, towards)) {
                     return false;
                 }
-                var from = owner.getPosition();
-                float facing = owner.getOrientation();
-                Facing.turnToward(owner, towards);
-                var over = lowLinkAcross(owner, world, skill.distance());
-                var end = over != null ? over : rollEnd(owner, world, skill.distance());
-                if (seal.parts(world, from, end)) {
-                    owner.setOrientation(facing);
-                    return false; // over a seal: refused, nothing spent
-                }
-                var weapon = owner.findModule(WeaponUpdate.class);
-                if (weapon != null) {
-                    weapon.holdFire(); // its wind-up cut: no blow of it lands
-                }
-                int frames = Math.max(1, skill.durationFrames());
-                var timers = owner.findModule(StatusUpdate.class);
-                if (timers != null) {
-                    timers.apply(ObjectStatus.INVULNERABLE, skill.tickFrames());
-                }
-                owner.busy(skill.castAnim(), frames);
-                roll = new Roll(from, end, frames);
             }
             case DASH -> {
                 float facing = owner.getOrientation();
@@ -1362,111 +1342,22 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
                         && !seal.parts(world, casterAt, candidate.getPosition()));
     }
 
-    /** A dodge under way: from where, to where, over how many frames, and how many are gone. */
-    private static final class Roll {
-        final Coord3D from;
-        final Coord3D to;
-        final int frames;
-        int gone;
-
-        Roll(Coord3D from, Coord3D to, int frames) {
-            this.from = from;
-            this.to = to;
-            this.frames = frames;
-        }
-    }
-
-    private Roll roll;
-
-    /** A frame of the dodge: a share of the way, on the ground under it. */
-    private void rollOn() {
-        var owner = getOwner();
-        var world = owner.getWorld();
-        roll.gone++;
-        float share = Math.min(1f, roll.gone / (float) roll.frames);
-        var at = new Coord3D(roll.from.x() + (roll.to.x() - roll.from.x()) * share,
-                roll.from.y() + (roll.to.y() - roll.from.y()) * share, 0f);
-        owner.setPosition(new Coord3D(at.x(), at.y(), world == null ? at.z() : world.groundHeight(at)));
-        if (roll.gone >= roll.frames) {
-            roll = null;
-        }
-    }
-
-    /**
-     * Where a dodge of {@code distance} along his facing ends: walked out a step at a time to the last open ground
-     * before stone or anything that stands, then back to where no creature stands, so he passes through them and ends
-     * inside none.
-     */
-    private static Coord3D rollEnd(GameObject owner, World world, float distance) {
-        float facing = owner.getOrientation();
-        float dx = (float) StrictMath.cos(facing);
-        float dy = (float) StrictMath.sin(facing);
-        var from = owner.getPosition();
-        float reach = 0f;
-        for (float gone = ROLL_STEP; gone <= distance + 1e-3f; gone += ROLL_STEP) {
-            var step = new Coord3D(from.x() + dx * gone, from.y() + dy * gone, from.z());
-            if (world.isGroundBlocked(step) || world.findBlocker(owner, step) != null) {
-                break;
-            }
-            reach = gone;
-        }
-        float radius = uz.dukeengine.core.thing.Solid.of(owner.getTemplate()).footprintRadius();
-        for (float gone = reach; gone > 0f; gone -= ROLL_STEP) {
-            var at = new Coord3D(from.x() + dx * gone, from.y() + dy * gone, from.z());
-            var shape = uz.dukeengine.core.thing.Footprint.of(owner, at);
-            boolean clear = world.objectsInRange(at, radius + DODGE_LOOK, other -> other != owner
-                    && other.getLocomotor() != null && !other.isEffectivelyDead()
-                    && shape.overlaps(uz.dukeengine.core.thing.Footprint.of(other))).isEmpty();
-            if (clear) {
-                return new Coord3D(at.x(), at.y(), world.groundHeight(at));
+    /** Whether the first of the caster's modules that casts skills cast {@code skill}; false where none does. */
+    private boolean castByAModule(GameObject owner, Skill skill, Coord3D towards) {
+        for (var module : owner.modulesView()) {
+            if (module instanceof SkillCaster caster) {
+                return caster.cast(skill, towards, seal);
             }
         }
-        return from;
+        return false;
     }
-
-    /**
-     * The far end of a low way across ({@code TraversalLink.low}) whose near end lies on the dodge's line — within its
-     * distance along it and {@link #LOW_LINK_REACH} of it — and whose far end lies the way he rolls: the roll takes him
-     * over it. The first such on the map's list; null for none.
-     */
-    private static Coord3D lowLinkAcross(GameObject owner, World world, float distance) {
-        float facing = owner.getOrientation();
-        float dx = (float) StrictMath.cos(facing);
-        float dy = (float) StrictMath.sin(facing);
-        var from = owner.getPosition();
-        for (var link : world.traversalLinks()) {
-            if (!link.low()) {
-                continue;
-            }
-            for (int way = 0; way < (link.bothWays() ? 2 : 1); way++) {
-                var entry = way == 0 ? link.a() : link.b();
-                var exit = way == 0 ? link.b() : link.a();
-                float ex = entry.x() - from.x();
-                float ey = entry.y() - from.y();
-                float along = ex * dx + ey * dy;
-                float aside = Math.abs(ex * dy - ey * dx);
-                float wx = exit.x() - entry.x();
-                float wy = exit.y() - entry.y();
-                float length = (float) Math.sqrt(wx * wx + wy * wy);
-                if (along >= 0f && along <= distance && aside <= LOW_LINK_REACH && length > 0f
-                        && (wx * dx + wy * dy) / length >= LOW_LINK_HEADING) {
-                    return new Coord3D(exit.x(), exit.y(), world.groundHeight(exit));
-                }
-            }
-        }
-        return null;
-    }
-
-    /** How near a dodge's line a low way's near end must lie, and how nearly the way must head as he rolls. */
-    private static final float LOW_LINK_REACH = 6f;
-    private static final float LOW_LINK_HEADING = 0.7f;
 
     /** Where a push of {@code distance} along ({@code dx}, {@code dy}) leaves {@code victim}: short of stone and seals. */
     private Coord3D pushEnd(GameObject victim, World world, float dx, float dy, float distance,
             java.util.Set<uz.dukeengine.core.thing.ObjectId> thrown, List<GameObject> landed, List<Coord3D> ends) {
         var from = victim.getPosition();
         var end = new Coord3D(from.x(), from.y(), from.z());
-        for (float gone = ROLL_STEP; gone <= distance + 1e-3f; gone += ROLL_STEP) {
+        for (float gone = PUSH_STEP; gone <= distance + 1e-3f; gone += PUSH_STEP) {
             var step = new Coord3D(from.x() + dx * gone, from.y() + dy * gone, from.z());
             if (world.isGroundBlocked(step) || world.findBlocker(victim, step, thing -> thrown.contains(thing.getId()))
                     != null || seal.parts(world, from, step) || onALanding(victim, step, landed, ends)) {
@@ -1498,11 +1389,8 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
         return (float) Math.sqrt(x * x + y * y);
     }
 
-    /** How far past his own size a dodge's end looks for creatures it would stand in. */
-    private static final float DODGE_LOOK = 20f;
-
-    /** How finely a dodge's line is walked: a unit at a time, so a roll ends exactly where it is sent. */
-    private static final float ROLL_STEP = 1f;
+    /** How finely a push's line is walked: a unit at a time, so it ends exactly where it is sent. */
+    private static final float PUSH_STEP = 1f;
 
     /**
      * Where the caster comes down.
@@ -2272,9 +2160,6 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
             driveTheCharge();
         }
         mountOn();
-        if (roll != null) {
-            rollOn();
-        }
         holdTheFloor();
         runTheBlood();
         regenerate();
