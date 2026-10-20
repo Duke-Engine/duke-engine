@@ -115,15 +115,10 @@ final class DukeRtsApp extends SimpleApplication {
     private int laidRegionFor;
     /** What clears the window round a world drawn in part of it: black, under the game's canvas. */
     private com.jme3.renderer.ViewPort surround;
-    /** The movie playing, and where it is shown — see {@link Duke3D#playMovie}. */
-    private MoviePlayer movie;
-    private MovieScreen movieScreen;
+    /** The game's own drawing over everything, and its movies — see {@link GameCanvas}. */
+    private GameCanvas canvas;
     /** The player's camera as the game frames it — see {@link CameraFrame}. */
     private final CameraFrame cameraFrame;
-    private CanvasText canvasText;
-    private CanvasDrawing canvasDrawing;
-    /** The size the painter was last told the screen is. */
-    private int paintedFor;
     /**
      * Keys this game claimed for itself, over and above the standard controls.
      */
@@ -718,10 +713,8 @@ final class DukeRtsApp extends SimpleApplication {
      * the client's own, since the input manager hands a consumed event to nothing after its raw listeners.
      */
     private void buildCanvas() {
-        canvasText = new CanvasText(this::openAsset);
-        canvasDrawing = new CanvasDrawing(assetManager, canvasText, this::portraitOf);
-        guiNode.attachChild(canvasDrawing.node());
-        movieScreen = new MovieScreen(assetManager, guiNode);
+        canvas = new GameCanvas(assetManager, guiNode, cam, painter, parts, canvasWorld, () -> game, () -> snapshot,
+                () -> noises, missing);
         surround = renderManager.createPreView("world-surround", new com.jme3.renderer.Camera(cam.getWidth(),
                 cam.getHeight()));
         surround.setBackgroundColor(ColorRGBA.Black);
@@ -732,25 +725,10 @@ final class DukeRtsApp extends SimpleApplication {
                     backdropEar == null ? percent -> { } : backdropEar);
         }
         // First of all: a title card that takes the input takes it before the game's canvas or any control.
-        inputManager.addRawInputListener(new CardInput(() -> titleCard != null && titleCard.takesInput()
-                || credits != null, () -> {
-                    if (credits != null) {
-                        credits.skip(); // Esc or a click: the rest of the roll is skipped
-                    }
-                }));
+        inputManager.addRawInputListener(new CardInput(canvas::takesInput, canvas::skip));
         if (canvasInput != null) {
             canvasInputs = new CanvasInputs(canvasInput, () -> cam.getHeight());
             inputManager.addRawInputListener(canvasInputs);
-        }
-    }
-
-    /** A file the game named, by its whole path — from the classpath or a folder the game registered — or null. */
-    private java.io.InputStream openAsset(String path) {
-        try {
-            var found = assetManager.locateAsset(new com.jme3.asset.AssetKey<>(path));
-            return found == null ? null : found.openStream();
-        } catch (RuntimeException e) {
-            return null;
         }
     }
 
@@ -1026,36 +1004,12 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** Play a movie — see {@link Duke3D#playMovie}; one playing is stopped first. */
     void playMovie(Movie wanted, Runnable ended) {
-        stopMovie();
-        var frames = new MovieFrames(() -> openAsset(wanted.frames()), MovieFrames.AHEAD);
-        var sound = wanted.sound() == null ? SoundSink.Playing.NONE : noises.sounds().movieSound(wanted.sound());
-        movie = new MoviePlayer(wanted, frames, sound, ended == null ? () -> { } : ended);
+        canvas.playMovie(wanted, ended);
     }
 
     /** Stop the movie playing, and its sound, now. */
     void stopMovie() {
-        if (movie != null) {
-            movie.stop();
-            movie = null;
-            movieScreen.hide();
-        }
-    }
-
-    /** The movie's next picture, if one is due, over whatever is on the screen. */
-    private void runTheMovie(float tpf) {
-        if (movie == null) {
-            return;
-        }
-        var picture = movie.update(tpf);
-        if (picture != null) {
-            movieScreen.show(picture);
-        }
-        if (movie.isOver()) {
-            movie = null;
-            movieScreen.hide();
-            return;
-        }
-        movieScreen.place(movie.movie(), cam.getWidth(), cam.getHeight());
+        canvas.stopMovie();
     }
 
     /** Where the world's points, things' bars and the bottom panel are on the screen, for the game's drawing. */
@@ -1072,13 +1026,7 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public Canvas.Box bottomPanel() {
-            for (var part : parts) {
-                var panel = part.panel();
-                if (panel != null) {
-                    return panel;
-                }
-            }
-            return null;
+            return firstOfTheParts(HudPart::panel);
         }
     };
 
@@ -1112,72 +1060,6 @@ final class DukeRtsApp extends SimpleApplication {
     void samplesNextLaunch(int samples) {
         preferences.set("samples", samples);
         preferences.save();
-    }
-
-    /** The credits rolling, as the client draws them — see {@link DukeGame#creditsRoll}; null for none. */
-    private CreditsRollShow credits;
-
-    /** The title card up, as the client draws it — see {@link DukeGame#titleCard}; null for none. */
-    private TitleCardShow titleCard;
-
-    /** The live portrait of {@code unitId} a part keeps for the canvas, or null — see {@link Canvas#drawPortrait}. */
-    private com.jme3.texture.Texture portraitOf(int unitId) {
-        for (var part : parts) {
-            var texture = part.portraitOf(unitId);
-            if (texture != null) {
-                return texture;
-            }
-        }
-        return null;
-    }
-
-    /** The game's drawing for this frame, over whatever else is on the screen. */
-    private void paintTheCanvas(float tpf) {
-        var wanted = game.titleCardShowing();
-        if (wanted == null) {
-            titleCard = null;
-        } else if (titleCard == null || titleCard.card() != wanted) {
-            titleCard = new TitleCardShow(wanted);
-        }
-        var rolling = game.creditsShowing();
-        if (rolling == null) {
-            credits = null;
-        } else if (credits == null || credits.roll() != rolling) {
-            credits = new CreditsRollShow(rolling);
-        }
-        if (painter == null && titleCard == null && credits == null) {
-            return;
-        }
-        int width = cam.getWidth();
-        int height = cam.getHeight();
-        if (painter != null && paintedFor != width * 100_000 + height) {
-            paintedFor = width * 100_000 + height;
-            painter.resized(width, height);
-        }
-        var frame = new CanvasFrame(width, height, canvasText, canvasDrawing::sizeOf, canvasWorld);
-        try {
-            if (painter != null) {
-                painter.paint(frame);
-            }
-        } catch (RuntimeException e) {
-            missing.warn(String.valueOf(e), "canvas painter failure");
-        }
-        // Over everything the game painted: the card is the story's, and says so above its own screens too.
-        if (titleCard != null && !titleCard.paint(frame, tpf)) {
-            game.titleCardGone(titleCard.card());
-            titleCard = null;
-        }
-        if (credits != null && !credits.paint(frame, tpf)) {
-            game.creditsGone(credits.roll());
-            credits = null;
-        }
-        if (snapshot != null) {
-            var asked = frame.portraitsAsked();
-            for (var part : parts) {
-                part.portraits(asked, snapshot, tpf);
-            }
-        }
-        canvasDrawing.show(frame.triangles(), height);
     }
 
     /** Whether the client's own HUD is up: in play, for a game that does not draw its own. */
@@ -3286,7 +3168,7 @@ final class DukeRtsApp extends SimpleApplication {
     public void simpleUpdate(float tpf) {
         frameOf(tpf);
         interfaceHiding.apply(interfaceHidden.getAsBoolean(), guiViewPort, guiNode,
-                List.of(veil.node(), canvasDrawing.node()), markerNode);
+                List.of(veil.node(), canvas.node()), markerNode);
     }
 
     /** Whether the game has its interface put away now — see {@link Duke3D#interfaceHidden}. */
@@ -3301,9 +3183,7 @@ final class DukeRtsApp extends SimpleApplication {
     private void frameOf(float tpf) {
         noises.sounds().update(tpf);
         frame(tpf);
-        runTheMovie(tpf);
-        // Last, over everything, whatever the screen: the game's front end, its load screen, its HUD in play.
-        paintTheCanvas(tpf);
+        canvas.frame(tpf);
     }
 
     private void frame(float tpf) {
