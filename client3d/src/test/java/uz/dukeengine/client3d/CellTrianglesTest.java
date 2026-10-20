@@ -12,8 +12,8 @@ class CellTrianglesTest {
 
     @Test
     void eachTriangleSharesTheDiagonalTheReliefIsSplitAlong() {
-        var main = TerrainScene.cellTriangles(HeightMap.Diagonal.MAIN);
-        var anti = TerrainScene.cellTriangles(HeightMap.Diagonal.ANTI);
+        var main = PaintedGround.cellTriangles(HeightMap.Diagonal.MAIN);
+        var anti = PaintedGround.cellTriangles(HeightMap.Diagonal.ANTI);
 
         assertArrayEquals(new int[] {0, 3, 2, 0, 2, 1}, main, "as it always was");
         for (int triangle = 0; triangle < 2; triangle++) {

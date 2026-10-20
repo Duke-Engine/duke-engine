@@ -222,7 +222,7 @@ class PaintedBlendTest {
                 float x = p.get(v * 3) + place.x;
                 float z = p.get(v * 3 + 2) + place.z;
                 assertEquals(grid.reliefHeight(new uz.dukeengine.core.math.Coord3D(x, z, 0f)), p.get(v * 3 + 1), 1e-4f);
-                var smooth = TerrainScene.smoothNormal(grid, x, z);
+                var smooth = PaintedGround.smoothNormal(grid, x, z);
                 assertEquals(smooth.y, n.get(v * 3 + 1), 1e-5f, "lit by the relief round it");
                 if (!middleChecked && Math.abs(x % 10f - 5f) < 1e-3f && Math.abs(z % 10f - 5f) < 1e-3f) {
                     int cx = (int) (x / 10f);
