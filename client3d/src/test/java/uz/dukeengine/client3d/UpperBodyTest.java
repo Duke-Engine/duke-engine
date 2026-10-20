@@ -60,9 +60,9 @@ class UpperBodyTest {
     /** A busy clip that begins cuts off a swing under way, its upper-body layer too; one going on does not (E72). */
     @Test
     void aFlinchBegunMidSwingTakesTheBody() {
-        assertTrue(DukeRtsApp.cutsIn(null, "Hurt"), "a stagger begins");
-        assertFalse(DukeRtsApp.cutsIn("Hurt", "Hurt"), "the same one going on");
-        assertFalse(DukeRtsApp.cutsIn("Hurt", null), "none");
+        assertTrue(UnitScene.cutsIn(null, "Hurt"), "a stagger begins");
+        assertFalse(UnitScene.cutsIn("Hurt", "Hurt"), "the same one going on");
+        assertFalse(UnitScene.cutsIn("Hurt", null), "none");
 
         var root = new Joint("root");
         var spine = new Joint("spine");

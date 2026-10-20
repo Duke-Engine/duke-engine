@@ -205,12 +205,6 @@ final class DukeRtsApp extends SimpleApplication {
     /** The particle systems the simulation keeps going on its things until it ends them. */
     private RidingEffects ridingEffects;
     private RallyMarks rallyMarks;
-    /** The pictures laid on the ground under things by their words — see {@link GroundPictures}. */
-    private GroundPictures groundPictures;
-    /** The colours added to things by their words — see {@link WordTints}. */
-    private final WordTints wordTints = new WordTints();
-    /** How a thing kept from some players looks to the rest — see {@link StealthLook}. */
-    private StealthLook stealthLook;
     private OcclusionMarks occlusionMarks;
 
     /** The game's sky, hung behind everything; none where it names none or its pictures will not load. */
@@ -248,7 +242,7 @@ final class DukeRtsApp extends SimpleApplication {
         int local = game.getLocalPlayerIndex();
         var marked = new java.util.HashMap<Spatial, ColorRGBA>();
         for (var view : snapshot.units()) {
-            var node = unitNodes.get(view.id());
+            var node = unitScene.node(view.id());
             if (node == null || view.structure()
                     || view.playerIndex() != local && !visuals.getOcclusionMarked().test(view)) {
                 continue;
@@ -257,17 +251,8 @@ final class DukeRtsApp extends SimpleApplication {
         }
         occlusionMarks.mark(marked);
     }
-    private final SelectionFlash selectionFlash = new SelectionFlash();
-    /** What was selected the frame before: a thing new to the selection flashes. */
-    private java.util.Set<Integer> wasSelected = java.util.Set.of();
     /** What a blow shows, by name — see {@link HurtMoments} and {@link Visuals#hurt}. */
     private HurtMoments hurtMoments;
-    /** Every drawn thing's barrels: where its shots come out, its flashes and its kick — see {@link Barrels}. */
-    private final Barrels barrels = new Barrels();
-    /** Every drawn vehicle's treads and wheels, run as it moves — see {@link RunningGear}. */
-    private final RunningGear runningGear = new RunningGear();
-    private final TurretBones turretBones = new TurretBones();
-    private final DrivenBones drivenBones = new DrivenBones();
     /** The streams things ride, drawn as ribbons, once the game names a look for one — see {@link Visuals#stream}. */
     private Ribbons ribbons;
     private final Map<String, Material> particleMaterials = new HashMap<>();
@@ -275,6 +260,8 @@ final class DukeRtsApp extends SimpleApplication {
      * Whoever of theirs was just hit, going white -- see {@link HitFlash}.
      */
     private HitFlash hitFlash;
+    /** The things of the world as they are drawn, one node each — see {@link UnitScene}. */
+    private UnitScene unitScene;
     /**
      * Shots that ended this frame, waiting for its blows to say whether they struck.
      */
@@ -349,7 +336,6 @@ final class DukeRtsApp extends SimpleApplication {
     private int lastCastFrameDrawn = Integer.MIN_VALUE;
     /** How low and how high this map's ground stands: what the ray under the cursor is walked between. */
     private GroundSpan groundSpan = new GroundSpan(0f, 0f);
-    private final Map<Integer, UnitNode> unitNodes = new HashMap<>();
     /** What is selected, in the order it was selected: the order the game is told it in. */
     private final Set<Integer> selected = new java.util.LinkedHashSet<>();
     private final Map<String, AudioNode> audioCache = new HashMap<>();
@@ -452,104 +438,11 @@ final class DukeRtsApp extends SimpleApplication {
     /** The creatures a critical blow struck this frame, their numbers drawn as critical. */
     private final java.util.Set<Integer> criticalThisFrame = new java.util.HashSet<>();
     private final HitStops hitStops = new HitStops();
-    private final Flinch.Clock flinches = new Flinch.Clock();
 
     /**
      * The bars over everybody's heads. Screen-space and pooled — see UnitBars.
      */
     private UnitBars unitBars;
-
-    /**
-     * Everything the scene keeps per live unit.
-     */
-    private static final class UnitNode {
-        Node root;
-        /** The clip it was busy with last frame, so a new one is seen starting. */
-        String lastBusy;
-        /** Whether its swing began with a wind-up, so the shot that ends it does not swing again. */
-        boolean swungFromWindUp;
-        Geometry ring;
-        /** The disc the ring is laid as, over the ground under it — see {@link #layRing}. */
-        final GroundDisc ringDisc = new GroundDisc(24);
-        /** The particle systems its look puts at its body's bones — see {@link BoneSystems}. */
-        BoneSystems boneSystems;
-        /** The line its body was laid along, for a thing drawn along one; null for the rest. */
-        uz.dukeengine.core.thing.Span laidSpan;
-        /**
-         * How high over its feet its bar floats, measured off the body once.
-         *
-         * <p>Measured rather than assumed, because a creature kit's hero stands
-         * three times taller than its rat — the old constant suited a capsule and
-         * put the bar inside a hero's chest. Measured ONCE, because the answer
-         * cannot change while the model does not, and re-measuring a bounding box
-         * every frame for forty creatures is the sort of cost nobody goes looking
-         * for afterwards.
-         */
-        float barTop;
-        /**
-         * Where and when it was first drawn. A thing that lay where it was put for a
-         * while is a mark; a thing that moved is a shot -- see Landing.
-         */
-        float bornX;
-        float bornZ;
-        float bornAt;
-        Spatial body;      // the shape a click has to hit
-        /** The file the body was loaded from, so a change of condition is noticed. */
-        String modelPath;
-        /** Its pieces as its states have left them — kept for the thing, laid on again on a swapped model. */
-        final Pieces pieces = new Pieces();
-        /** Its clip as the words it holds choose it — see {@link Visuals.UnitVisual#clip}. */
-        final WordClip wordClip = new WordClip();
-        /** How high its model's top stands above the ground it is placed on, for one drawn rising as it is built. */
-        float bodyTop;
-        /** Its other models, each chosen and moved by its words on its own — see {@link Visuals.UnitVisual#layer}. */
-        final java.util.List<ModelLayer> layers = new java.util.ArrayList<>();
-        /** The weapon slots' bones its barrels were found by, as its words chose them. */
-        java.util.Map<Integer, Visuals.WeaponBones> barrelBones;
-        /** Its turrets' bones as its words chose them, or null to find them again. */
-        java.util.Map<Integer, Visuals.TurretLook> turretLooks;
-        /** The body its shadow was last laid on, and whether it casts one: laid again when either changes. */
-        Spatial shadowBody;
-        boolean casting;
-        AnimComposer composer;
-        AnimChannel legacyChannel;
-        String currentAnim = "";
-        /**
-         * Until when a one-shot clip owns the model — a blow, or a flinch.
-         *
-         * <p>What a unit <em>is doing</em> is a loop and what <em>happens to it</em>
-         * is not, and the second has to be able to interrupt the first without the
-         * first taking it straight back. So while this is in the future the state
-         * machine keeps its hands off.
-         */
-        float actionUntil;
-        /**
-         * Until when what it carries is out of its hands, or 0 for never.
-         *
-         * <p>Separate from {@link #actionUntil} although they are usually the same
-         * number: a gesture can own the model without the hands having to be
-         * empty, and every one-shot clip in the game except a two-handed spell
-         * does exactly that.
-         */
-        float carryingAgainAt;
-        /**
-         * Until when a gesture the GAME asked for owns the model, or 0 for never.
-         *
-         * <p>Not the same as {@link #actionUntil}, which any one-shot sets. This
-         * one outranks them: see {@link #playOnce}.
-         */
-        float gestureUntil;
-        /**
-         * The health it had in the last snapshot: a drop is a blow that landed.
-         */
-        float lastHealth = Float.NaN;
-        UnitView view;
-        /** When each mark its words show by its bar began, in the window's seconds, as its strip is played from. */
-        final java.util.Map<Integer, Float> markSince = new java.util.HashMap<>();
-        /** The clip it died with, and the game's frame it died on: what it lies in while the world keeps it dead. */
-        String deathClip;
-        int diedOn;
-    }
 
     DukeRtsApp(DukeGame game, Visuals visuals, Shell shell, Hotkeys hotkeys, Painter painter,
             CanvasInput canvasInput, java.util.function.IntConsumer loadingEar,
@@ -709,11 +602,14 @@ final class DukeRtsApp extends SimpleApplication {
         lasers = new Lasers(assetManager, listNode, visuals::laserNamed, this::floorHeightAt);
         ridingEffects = new RidingEffects(particles, rootNode);
         rallyMarks = new RallyMarks(assetManager, listNode, path -> bodies.asFiled(path, "order mark"));
-        groundPictures = new GroundPictures(assetManager, listNode);
-        stealthLook = new StealthLook(assetManager);
+        var groundPictures = new GroundPictures(assetManager, listNode);
+        var stealthLook = new StealthLook(assetManager);
         layered.drawsListsWith(lists);
         hurtMoments = new HurtMoments(visuals::hurtRule);
         hitFlash = new HitFlash(visuals.getHitFlash());
+        unitScene = new UnitScene(assetManager, visuals, bodies, looks, groundLooks, light, effects, layered, particles,
+                hitFlash, groundPictures, stealthLook, missing, fog, rootNode, unitsNode, cam, timer, () -> game,
+                () -> snapshot, selected, this::floorHeightAt, criticalThisFrame::contains, endedShots::add);
 
         rootNode.attachChild(terrainNode);
         buildTerrain();
@@ -773,7 +669,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
 
         minimapView = new MinimapView(assetManager, visuals, () -> game, () -> snapshot, camera, cam, renderer, parts,
-                this::discovery, groundLooks::groundTexture, this::colourOf, timer);
+                this::discovery, groundLooks::groundTexture, unitScene::colourOf, timer);
         minimapView.build(guiNode);
         readTheNewGrid();
         buildDragRectangle();
@@ -890,7 +786,7 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public float[] drawnAt(int id) {
-            var node = unitNodes.get(id);
+            var node = unitScene.node(id);
             if (node == null) {
                 return null;
             }
@@ -900,7 +796,7 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public float topOf(int id) {
-            var node = unitNodes.get(id);
+            var node = unitScene.node(id);
             return node == null || node.body == null ? 0f : UnitPlacement.topOf(node.body);
         }
 
@@ -1499,16 +1395,7 @@ final class DukeRtsApp extends SimpleApplication {
      * was about to be heard. The ground is laid again from whatever match comes next.
      */
     private void forgetTheWorld() {
-        for (var node : unitNodes.values()) {
-            node.root.removeFromParent();
-        }
-        unitNodes.clear();
-        for (var body : dying) {
-            body.root().removeFromParent();
-        }
-        dying.clear();
-        barrels.clear();
-        runningGear.clear();
+        unitScene.forgetTheWorld();
         selected.clear();
         clearWhatIsBurning();
         noises.forget();
@@ -1636,7 +1523,7 @@ final class DukeRtsApp extends SimpleApplication {
             ribbons.show(snapshot.streams(), cam.getLocation());
         }
         ridingEffects.show(snapshot.effects(), id -> {
-            var node = unitNodes.get(id);
+            var node = unitScene.node(id);
             return node == null ? null : node.root;
         });
         showRallies();
@@ -1672,7 +1559,7 @@ final class DukeRtsApp extends SimpleApplication {
             for (var change : changes) {
                 hitNumbers.add(change, now, look.height(), criticalThisFrame.contains(change.unitId()));
                 if (!change.healed() && !change.his()) {
-                    flash(change.unitId());
+                    unitScene.struck(change.unitId());
                 }
                 if (!change.healed() && change.his()) {
                     controls.alert(change.x(), change.y()); // his, under attack: the place Space goes to
@@ -1687,7 +1574,7 @@ final class DukeRtsApp extends SimpleApplication {
         criticalThisFrame.clear();
         hitNumbers.update(now, cam, this::floorHeightAt);
         hitStops.apply(now, (id, speed) -> {
-            var node = unitNodes.get(id);
+            var node = unitScene.node(id);
             if (node != null && node.composer != null) {
                 node.composer.setGlobalSpeed(speed);
             }
@@ -1720,7 +1607,7 @@ final class DukeRtsApp extends SimpleApplication {
         });
         for (var moment : drawn) {
             var look = visuals.getMoment(moment.name());
-            var node = unitNodes.get(moment.unitId());
+            var node = unitScene.node(moment.unitId());
             if (look == null || node == null || layered == null) {
                 continue;
             }
@@ -1760,21 +1647,6 @@ final class DukeRtsApp extends SimpleApplication {
             }
         }
         endedShots.clear();
-    }
-
-    /**
-     * One of theirs was hit: it goes white for an instant, from its own colour and
-     * back to it. A blow that killed it finds nothing here -- the body was laid out
-     * when the death was read, and a corpse has nothing left to flinch with.
-     */
-    private void flash(int unitId) {
-        var node = unitNodes.get(unitId);
-        if (hitFlash == null || node == null || node.view == null) {
-            return;
-        }
-        var tint = looks.visualFor(node.view).tint;
-        var own = (tint == null ? ColorRGBA.White : Materials.colour(tint)).mult(Bodies.CREATURE_AMBIENT);
-        hitFlash.struck(unitId, node.root, own);
     }
 
     /**
@@ -2925,12 +2797,7 @@ final class DukeRtsApp extends SimpleApplication {
         lookChanged = true;
         // Every creature is drawn again, because some of them are drawn
         // differently now and the ones that are not cost a node each.
-        for (var node : unitNodes.values()) {
-            node.root.removeFromParent();
-        }
-        unitNodes.clear();
-        barrels.clear();
-        runningGear.clear();
+        unitScene.forgetAll();
     }
 
     /** Build (or rebuild) the ground and its dark for the world as it stands now. */
@@ -2998,10 +2865,7 @@ final class DukeRtsApp extends SimpleApplication {
         lasers.clear();
         ridingEffects.clear();
         rallyMarks.clear();
-        groundPictures.clear();
-        wordTints.clear();
-        stealthLook.clear();
-        selectionFlash.clear();
+        unitScene.newWorld();
         hitNumbers.clear();
         hitStops.clear();
         floatingTexts.clear();
@@ -3588,10 +3452,8 @@ final class DukeRtsApp extends SimpleApplication {
                 .subtract(near).normalizeLocal());
         UnitNode nearest = null;
         float closest = Float.MAX_VALUE;
-        for (var node : unitNodes.values()) {
-            // A rider is clicked as what it rides on.
-            var picked = node.view == null ? null : node.view.ridesOn() >= 0 ? unitNodes.get(node.view.ridesOn())
-                    : riderOf.getOrDefault(node.view.id(), node); // a ridden mount is clicked as its rider
+        for (var node : unitScene.nodes()) {
+            var picked = unitScene.pickedAs(node);
             if (picked == null || !picked.view.selectable() || node.body == null) {
                 continue;
             }
@@ -3868,13 +3730,13 @@ final class DukeRtsApp extends SimpleApplication {
     /** The creature nearest {@code ground} within {@link #QUICK_CAST_REACH} of it, the lowest id on a tie; or null. */
     private UnitNode nearTheGround(Vector3f ground) {
         var views = new ArrayList<uz.dukeengine.core.view.UnitView>();
-        for (var node : unitNodes.values()) {
+        for (var node : unitScene.nodes()) {
             if (node.view != null) {
                 views.add(node.view);
             }
         }
         int id = nearestWithin(views, ground.x, ground.z, QUICK_CAST_REACH);
-        return id < 0 ? null : unitNodes.get(id);
+        return id < 0 ? null : unitScene.node(id);
     }
 
     /** The living creature nearest ({@code x}, {@code y}) within {@code reach}, the lowest id on a tie; -1 for none. */
@@ -4246,7 +4108,7 @@ final class DukeRtsApp extends SimpleApplication {
             markOrder(thing.x(), thing.y(), thing.id(), answer.mark());
         }
         if (answer.flash()) {
-            flash(thing.id(), visuals.getSelectionFlash() != null
+            unitScene.flash(thing.id(), visuals.getSelectionFlash() != null
                     ? visuals.getSelectionFlash() : Visuals.SelectionFlashLook.REFERENCE);
         }
         if (answer.voice() != null) {
@@ -4269,7 +4131,7 @@ final class DukeRtsApp extends SimpleApplication {
         int local = game.getLocalPlayerIndex();
         var candidates = new java.util.ArrayList<SelectionBox.Candidate>();
         for (var view : snapshot.units()) {
-            var node = unitNodes.get(view.id());
+            var node = unitScene.node(view.id());
             var screen = cam.getScreenCoordinates(drawnCentre(node == null ? null : node.root.getWorldBound(),
                     view.x(), view.y(), floorHeightAt(view.x(), view.y())));
             candidates.add(new SelectionBox.Candidate(view.id(), screen.x, screen.y,
@@ -4729,9 +4591,9 @@ final class DukeRtsApp extends SimpleApplication {
         }
         keepHisOwnSelected();
         tellTheGameWhatHeIsLookingAt();
-        syncUnits();
-        seatTheRiders();
-        flashTheNewlySelected(tpf);
+        unitScene.sync();
+        unitScene.seatTheRiders();
+        unitScene.flashTheNewlySelected(tpf);
         showUnitBars();
         // After the units, because a burst lit this frame has to reach the stone
         // this frame — the terrain reads its lights off a material parameter, not
@@ -4741,7 +4603,7 @@ final class DukeRtsApp extends SimpleApplication {
         layered.update(tpf, cam);
         particles.step(tpf);
         listShow.update(tpf);
-        barrels.update(tpf);
+        unitScene.update(tpf);
         particleDrawing.draw(cam);
         groundLooks.carryTheLightsToTheStone(effects.allLights());
         groundLooks.hazeRoundTheCamera();
@@ -4751,7 +4613,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         markTheHidden();
         ground.colourTheBorder(viewPort.getBackgroundColor()); // the unexplored colour, whatever the theme makes it
-        reapTheDead();
+        unitScene.reapTheDead();
         minimapView.follow();
         minimapView.syncDots();
         minimapView.syncMarks();
@@ -5337,172 +5199,16 @@ final class DukeRtsApp extends SimpleApplication {
         return screen == Screen.FRONT || backdropShown;
     }
 
-    /**
-     * The bar over each creature that is being drawn.
-     *
-     * <p>Off the nodes rather than off the snapshot, so that whatever is not on
-     * screen has already been left out once: {@code syncUnits} drops anything
-     * behind a wall, and the snapshot itself was built from what the player can
-     * see. What is left is filtered again by the edge of the screen inside
-     * {@link UnitBars}, which is the one of the three that the camera decides.
-     */
+    /** The bars over the things drawn, but behind a front end — see {@link UnitScene#showBars}. */
     private void showUnitBars() {
         if (barsHidden(screen, backdropShown())) {
             unitBars.clear(); // behind a front end: a picture, with nothing of play laid over it
             return;
         }
-        var standing = new ArrayList<UnitBars.Standing>(unitNodes.size());
-        int mine = game.getLocalPlayerIndex();
-        var plain = visuals.getUnitBars().plain();
-        var pointed = plain == null ? null : pickUnit();
-        for (var node : unitNodes.values()) {
-            if (node.view == null || node.view.maxHealth() <= 0f || node.view.remembered()
-                    || riderOf.containsKey(node.view.id())) {
-                continue; // a prop or an arrow, a thing remembered through the fog, or a mount barred as its rider
-            }
-            var template = game.getLogic().getThingFactory().findTemplate(node.view.templateName());
-            var shape = template == null ? null : uz.dukeengine.core.thing.Solid.of(template);
-            float foot = node.root.getWorldTranslation().y;
-            float top = barTop(foot, node.barTop, shape, plain);
-            boolean picked = selected.contains(node.view.id()) || pointed != null && pointed.view.id() == node.view.id();
-            standing.add(new UnitBars.Standing(node.view, top, foot, node.view.playerIndex() == mine,
-                    badgesOf(node), sizeOf(shape), picked));
-        }
-        barReading = UnitBarReading.read(snapshot.status());
-        var eye = cam.getLocation();
-        unitBars.update(cam, standing, barReading, eye.y - floorHeightAt(eye.x, eye.z), visuals.getBarColours());
+        barReading = unitScene.showBars(unitBars, visuals.getUnitBars().plain() == null ? null : pickUnit());
     }
 
     /**
-     * The world height a thing's bar floats at: over its feet where they stand this frame — up a hill, in a jump — by
-     * its model's height, or by its shape's and the plain bar's lift.
-     */
-    static float barTop(float foot, float overFoot, uz.dukeengine.core.thing.Geometry shape, UnitBarLook.Plain plain) {
-        return foot + (plain == null ? overFoot : topOf(shape) + plain.lift());
-    }
-
-    /** How far over its position a thing's geometry reaches: a box's or cylinder's height, a sphere's radius. */
-    static float topOf(uz.dukeengine.core.thing.Geometry shape) {
-        return switch (shape) {
-            case uz.dukeengine.core.thing.Geometry.Box box -> box.height();
-            case uz.dukeengine.core.thing.Geometry.Cylinder cylinder -> cylinder.height();
-            case uz.dukeengine.core.thing.Geometry.Sphere sphere -> sphere.radius();
-            case null -> 0f;
-        };
-    }
-
-    /** A thing's two radii added, as the reference sizes a bar by them: a sphere's or cylinder's radius twice. */
-    static float sizeOf(uz.dukeengine.core.thing.Geometry shape) {
-        return switch (shape) {
-            case uz.dukeengine.core.thing.Geometry.Box box -> box.majorRadius() + box.minorRadius();
-            case uz.dukeengine.core.thing.Geometry.Cylinder cylinder -> 2f * cylinder.radius();
-            case uz.dukeengine.core.thing.Geometry.Sphere sphere -> 2f * sphere.radius();
-            case null -> 0f;
-        };
-    }
-
-    /**
-     * The marks a thing's words put by its bar, each at the picture its strip is on now: played from its first picture
-     * as its words come, or from one drawn at random where the mark says so.
-     */
-    private java.util.List<UnitBars.Badge> badgesOf(UnitNode node) {
-        var view = node.view;
-        var look = looks.visualFor(view);
-        if (look.marks.isEmpty()) {
-            return java.util.List.of();
-        }
-        var shown = look.marksFor(look.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()));
-        node.markSince.keySet().retainAll(shown);
-        float now = timer.getTimeInSeconds();
-        var badges = new java.util.ArrayList<UnitBars.Badge>(shown.size());
-        for (int index : shown) {
-            var mark = look.marks.get(index);
-            float since = node.markSince.computeIfAbsent(index,
-                    key -> now - mark.startSeconds(java.util.concurrent.ThreadLocalRandom.current()));
-            badges.add(new UnitBars.Badge(mark.frameAt(now - since), mark.scale(), mark.place()));
-        }
-        return badges;
-    }
-
-    private void syncUnits() {
-        var seen = new HashSet<Integer>();
-        lyingDead.clear();
-        for (var view : snapshot.units()) {
-            if (outOfSight(view)) {
-                continue; // behind a wall: not drawn, and taken away if it was
-            }
-            var corpse = corpseOf(view.id());
-            if (corpse != null) {
-                // Dead, and kept in the world while its death plays out: drawn where the world says it is — sinking,
-                // if it sinks — and as its words and health say, and nothing of it gets up again.
-                lookDead(corpse.node(), view);
-                lyingDead.add(view.id());
-                continue;
-            }
-            seen.add(view.id());
-            boolean isNew = !unitNodes.containsKey(view.id());
-            var node = unitNodes.computeIfAbsent(view.id(), id -> createUnitNode(view));
-            updateUnitNode(node, view);
-            var look = looks.visualFor(view);
-            if (isNew) {
-                layered.flying(view.id(), look.effect, node.root,
-                        new Vector3f(look.effectForward, look.yOffset, 0f), cam);
-            }
-        }
-        var gone = unitNodes.entrySet().iterator();
-        while (gone.hasNext()) {
-            var entry = gone.next();
-            if (seen.contains(entry.getKey())) {
-                continue;
-            }
-            // Its layers are grounded whether it arrived or merely walked out of the
-            // light -- what it did on the way down is Landing's to say.
-            layered.grounded(entry.getKey());
-            barrels.forget(entry.getKey());
-            runningGear.forget(entry.getKey());
-            turretBones.forget(entry.getKey());
-            drivenBones.forget(entry.getKey());
-            groundPictures.forget(entry.getKey());
-            wordTints.forget(entry.getKey());
-            stealthLook.forget(entry.getKey());
-            selectionFlash.forget(entry.getKey());
-            var node = entry.getValue();
-            var at = node.root.getLocalTranslation();
-            if (Landing.arrived(node.view, game.getLocalPlayerIndex(),
-                    fog.canSee(at.x, at.z))) {
-                // ★ Here, and not on ObjectDied. An arrow, a fireball and the mark a
-                // meteor falls on have no body, and the core removes a thing with no
-                // body without ever posting that it died. Gone is the moment it
-                // ended; whether it ended in a strike is only known once this
-                // frame's blows are read -- see burstWhatStruck.
-                endedShots.add(new Landing.Gone(entry.getKey(),
-                        looks.visualFor(node.view).effect,
-                        node.view.playerIndex() == game.getLocalPlayerIndex(),
-                        node.bornX, node.bornZ, node.bornAt, at.x, at.z,
-                        timer.getTimeInSeconds()));
-            }
-            node.root.removeFromParent();
-            selected.remove(entry.getKey());
-            gone.remove();
-        }
-    }
-
-    /**
-     * React to what happened this frame, as opposed to what merely is.
-     *
-     * <p>A unit leaving the snapshot used to be all the client had to go on, so it
-     * guessed: gone while badly hurt meant dead, gone while healthy meant fog.
-     * That was wrong at both ends. The simulation now says outright what died and
-     * what fired, already filtered through fog of war.
-     * Whether something is standing where the player cannot see it.
-     *
-     * <p>The engine's fog is a circle and does not know about walls, so a monster
-     * in the next room is in the snapshot and would be drawn standing in the dark.
-     * Discovery already knows which cells he can see into; this asks it the same
-     * question about a creature.
-     *
-     * <p>His own things are always drawn — they are his, and an arrow of his own
-     * that vanished mid-flight would be a bug rather than a fog.
      * How high the floor stands at a place on the map.
      *
      * <p>Read off the same grid the simulation walks on rather than sent in the
@@ -5521,14 +5227,6 @@ final class DukeRtsApp extends SimpleApplication {
         return fog == null ? null : fog.discovery();
     }
 
-    private boolean outOfSight(UnitView view) {
-        var discovery = discovery();
-        return discovery != null
-                && view.playerIndex() != game.getLocalPlayerIndex()
-                && !discovery.canSee(view.x(), view.y());
-    }
-
-    /** A strip's picture by its whole path, or null where it will not load — said once. */
     private com.jme3.texture.Texture stripPicture(String path) {
         try {
             return assetManager.loadTexture(path);
@@ -5548,7 +5246,7 @@ final class DukeRtsApp extends SimpleApplication {
      * name, heard there and following the thing it rides. A name the game has none of draws nothing.
      */
     private void played(uz.dukeengine.core.event.EffectPlayed played) {
-        var rider = played.riding() == null ? null : unitNodes.get(played.riding().value());
+        var rider = played.riding() == null ? null : unitScene.node(played.riding().value());
         var riding = rider == null ? null : rider.root;
         var cue = WorldMoments.played(played, riding, this::floorHeightAt);
         int on = rider == null ? LayeredEffects.NOBODY : played.riding().value();
@@ -5604,7 +5302,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (noises == null) {
             return;
         }
-        var rider = sound.riding() == null ? null : unitNodes.get(sound.riding().value());
+        var rider = sound.riding() == null ? null : unitScene.node(sound.riding().value());
         boolean owned = rider == null || rider.view == null || rider.view.playerIndex() == game.getLocalPlayerIndex();
         var at = new Vector3f(sound.where().x(), sound.where().z(), sound.where().y());
         noises.sound(sound, at, owned, timer.getTimeInSeconds());
@@ -5685,7 +5383,7 @@ final class DukeRtsApp extends SimpleApplication {
                     part.died(died.object().value());
                 }
                 var where = new Vector3f(died.position().x(), 0f, died.position().y());
-                var dying = unitNodes.get(died.object().value());
+                var dying = unitScene.node(died.object().value());
                 var look = dying != null ? looks.visualFor(dying.view) : looks.visualFor(died.templateName()); // as it was drawn
                 playSound(look.dieSound, where);
                 // "Destroyed" is what this event means, so it is the arrow landing
@@ -5701,18 +5399,15 @@ final class DukeRtsApp extends SimpleApplication {
                         cam.getLocation());
                 controls.died(died.object().value());
                 hurtMoments.forget(died.object().value());
-                layOut(died.object().value(), died.deathType(), died.frame());
-                barrels.forget(died.object().value());
-                runningGear.forget(died.object().value());
-                turretBones.forget(died.object().value());
-                drivenBones.forget(died.object().value());
+                unitScene.layOut(died.object().value(), died.deathType(), died.frame());
+                unitScene.died(died.object().value());
                 moment(GameSounds.diedMoment(died),
                         WorldMoments.died(died, dying == null ? null : dying.root, this::floorHeightAt),
                         died.object().value());
             } else if (event instanceof WeaponFired fired) {
-                var node = unitNodes.get(fired.shooter().value());
+                var node = unitScene.node(fired.shooter().value());
                 // Its barrel flashes and kicks whether or not the shot was given a look of its own.
-                var bone = node == null ? null : barrels.fire(fired.shooter().value(), fired.slot());
+                var bone = node == null ? null : unitScene.fire(fired.shooter().value(), fired.slot());
                 if (fired.weapon() != null) {
                     // By the shooter's rank first, a veteran's flash: fired.<weapon>.<rank>, falling back by its dots.
                     moment("fired." + fired.weapon() + (fired.rank() > 0 ? "." + fired.rank() : ""),
@@ -5724,15 +5419,15 @@ final class DukeRtsApp extends SimpleApplication {
                             node.root.getLocalTranslation());
                     // The swing, on the frame the weapon let go — unless it began with the wind-up this shot ends.
                     if (!node.swungFromWindUp) {
-                        playOnce(node, looks.visualFor(node.view).attackAnim);
+                        unitScene.playOnce(node, looks.visualFor(node.view).attackAnim);
                     }
                     node.swungFromWindUp = false;
                 }
             } else if (event instanceof uz.dukeengine.combat.event.WeaponWoundUp wound) {
-                var node = unitNodes.get(wound.shooter().value());
+                var node = unitScene.node(wound.shooter().value());
                 if (node != null) {
                     // The whole wind-up drawn: the swing begins now and its blow meets the shot.
-                    playOnce(node, looks.visualFor(node.view).attackAnim);
+                    unitScene.playOnce(node, looks.visualFor(node.view).attackAnim);
                     node.swungFromWindUp = true;
                 }
             } else if (event instanceof uz.dukeengine.core.event.ObjectHurt hurt) {
@@ -5742,7 +5437,7 @@ final class DukeRtsApp extends SimpleApplication {
                 hitStops.heard(hurt, visuals.getHitStop(), visuals.getHitNumbers().bigAt(), timer.getTimeInSeconds());
                 var name = hurtMoments.nameFor(hurt, visuals::namesMoment);
                 if (name != null) {
-                    var victim = unitNodes.get(hurt.object().value());
+                    var victim = unitScene.node(hurt.object().value());
                     var cue = WorldMoments.hurt(hurt, victim == null ? null : victim.root, this::floorHeightAt);
                     moment(name, cue, hurt.object().value());
                     if (noises != null) {
@@ -5761,7 +5456,7 @@ final class DukeRtsApp extends SimpleApplication {
             } else if (event instanceof uz.dukeengine.core.event.EffectPlayed played) {
                 played(played);
             } else if (event instanceof ShotLanded landed && landed.weapon() != null) {
-                var victim = landed.victim() == null ? null : unitNodes.get(landed.victim().value());
+                var victim = landed.victim() == null ? null : unitScene.node(landed.victim().value());
                 moment("landed." + landed.weapon(),
                         WorldMoments.landed(landed, victim == null ? null : victim.root, this::floorHeightAt),
                         landed.victim() == null ? LayeredEffects.NOBODY : landed.victim().value());
@@ -5804,7 +5499,7 @@ final class DukeRtsApp extends SimpleApplication {
             skillEffects.cast(cast.look(), cast.at(), cam.getLocation());
             // And the caster is seen doing it, if the game named a gesture for
             // this recipe. Nothing did until a mage needed both hands.
-            castGesture(unitNodes.get(cast.by()), visuals.getCastAnim(cast.look()));
+            unitScene.castGesture(unitScene.node(cast.by()), visuals.getCastAnim(cast.look()));
         }
         drawLayers(casts);
         return casts.size();
@@ -5839,7 +5534,7 @@ final class DukeRtsApp extends SimpleApplication {
             }
             float facingX = 0f;
             float facingZ = 0f;
-            var caster = unitNodes.get(cast.by());
+            var caster = unitScene.node(cast.by());
             if (caster != null) {
                 var from = caster.root.getLocalTranslation();
                 facingX = spot.x - from.x;
@@ -5867,7 +5562,7 @@ final class DukeRtsApp extends SimpleApplication {
 
             @Override
             public Vector3f whereIs(int unitId) {
-                var node = unitNodes.get(unitId);
+                var node = unitScene.node(unitId);
                 if (node == null) {
                     return null;
                 }
@@ -5900,832 +5595,11 @@ final class DukeRtsApp extends SimpleApplication {
             }
         };
     }
-
-    /**
-     * Every flash eased on by the game's time, and a thing new to the selection flashed as the game names — the
-     * reference's {@code Drawable::onSelected} — with the riders it shows.
-     */
-    private void flashTheNewlySelected(float tpf) {
-        selectionFlash.update(tpf / Particles.FRAME_SECONDS);
-        var look = visuals.getSelectionFlash();
-        if (look != null) {
-            for (int id : selected) {
-                if (!wasSelected.contains(id)) {
-                    flash(id, look);
-                }
-            }
-        }
-        wasSelected = java.util.Set.copyOf(selected);
-    }
-
-    /** A thing flashed as {@code look} says, and what rides on it with it — {@code clientVisibleContainedFlash...}. */
-    private void flash(int id, Visuals.SelectionFlashLook look) {
-        var node = unitNodes.get(id);
-        if (node == null || node.view == null) {
-            return;
-        }
-        selectionFlash.flash(id, node.root, look, Materials.colour(game.getColor(node.view.wears())));
-        for (var rider : unitNodes.values()) {
-            if (rider.view != null && rider.view.ridesOn() == id) {
-                selectionFlash.flash(rider.view.id(), rider.root, look, Materials.colour(game.getColor(rider.view.wears())));
-            }
-        }
-    }
-
     /** A thrown piece's house-colour meshes in the colour the thing it was thrown for wears, dead or alive. */
     private void paintThrown(Spatial piece, Spatial thing) {
         Integer wears = thing.getUserData("wears");
         if (visuals.getHouseColour() != null && wears != null) {
             Bodies.paintOwner(piece, visuals.getHouseColour(), Materials.colour(game.getColor(wears)));
-        }
-    }
-
-    /**
-     * A body playing out its death, and when to take it away.
-     */
-    private record Dying(int id, UnitNode node, float until) {
-
-        Node root() {
-            return node.root;
-        }
-    }
-
-    /** The bodies the world still keeps, dead, this frame: taken away only once it lets them go. */
-    private final java.util.Set<Integer> lyingDead = new java.util.HashSet<>();
-
-    /** The body playing out {@code id}'s death, or null. */
-    private Dying corpseOf(int id) {
-        for (var body : dying) {
-            if (body.id() == id) {
-                return body;
-            }
-        }
-        return null;
-    }
-
-    private final java.util.List<Dying> dying = new java.util.ArrayList<>();
-
-    /**
-     * Let something that has just died fall over before it goes.
-     *
-     * <p>Driven by the death <em>event</em> rather than by a unit leaving the
-     * snapshot, because those are not the same thing: with fog, a monster walking
-     * out of sight leaves the snapshot too, and a corpse dropped every time
-     * something rounded a corner would be worse than none at all.
-     *
-     * <p>The body is taken out of the live units at once — it is no longer part of
-     * the game, cannot be selected, and must not be given a walk animation because
-     * the simulation says it is moving. What is left is a clip and a timer.
-     */
-    private void layOut(int unitId, uz.dukeengine.core.module.DeathType deathType, int frame) {
-        var node = unitNodes.remove(unitId);
-        selected.remove(unitId);
-        if (node == null) {
-            return;
-        }
-        var clipName = looks.visualFor(node.view).dieAnimFor(deathType, unitId, frame);
-        var clip = clipName == null || node.composer == null
-                ? null : node.composer.getAnimClip(clipName);
-        node.diedOn = frame;
-        if (clip == null) {
-            // Nothing to play: it goes — once the world lets it go, if it keeps the thing a while dead.
-            node.ring.removeFromParent();
-            dying.add(new Dying(unitId, node, timer.getTimeInSeconds()));
-            return;
-        }
-        node.deathClip = clipName;
-        // The trappings of something alive. The bar over its head goes without
-        // being told: it is drawn from the snapshot, and a corpse is not in one.
-        node.ring.removeFromParent();
-
-        // Once through, not looping: a corpse that gets up and dies again forever
-        // is worse than one that never fell over.
-        node.composer.setCurrentAction(clipName, AnimComposer.DEFAULT_LAYER, false);
-        node.currentAnim = clipName;
-        dying.add(new Dying(unitId, node,
-                (float) (timer.getTimeInSeconds() + clip.getLength() + CORPSE_LINGER)));
-    }
-
-    /**
-     * How long a body stays after its death animation has played out.
-     */
-    private static final float CORPSE_LINGER = 1.5f;
-
-    private void reapTheDead() {
-        float now = (float) timer.getTimeInSeconds();
-        dying.removeIf(body -> {
-            if (now < body.until() || lyingDead.contains(body.id())) {
-                return false; // still playing, or still kept in the world
-            }
-            body.root().removeFromParent();
-            groundPictures.forget(body.id());
-            wordTints.forget(body.id());
-            return true;
-        });
-    }
-
-    /**
-     * A thing the world keeps dead, drawn by the words it holds and its health as a living thing is — the reference
-     * goes on drawing a dead thing by its condition: a soldier flung by a blast flailing and then landing, a building
-     * that keeps its ruin drawn as its ruin from its death. Its model, its pieces, its layers and the clips between
-     * their looks, its tints as their words go; its clip what its words choose, else its death lain in; and what lay
-     * under it fading out, as the reference's decal does at a death.
-     */
-    private void lookDead(UnitNode node, UnitView view) {
-        node.view = view;
-        var visual = looks.visualFor(view);
-        var world = visuals.getWorldConditions();
-        var holding = visual.holding(view.healthFraction(), world, view.conditions());
-        var wanted = visual.modelFor(view.healthFraction(), world, view.conditions());
-        if (node.body != null && wanted != null && !wanted.equals(node.modelPath)) {
-            swapBody(node, view, visual, wanted);
-        }
-        if (visual.choosesByWords()) {
-            wearTheWords(node, visual, holding);
-        }
-        if (!visual.boneParticles.isEmpty() && node.boneSystems != null) {
-            node.boneSystems.choose(visual.particlesFor(holding), node.body);
-        }
-        node.root.setLocalTranslation(UnitPlacement.where(view, this::floorHeightAt));
-        node.root.setLocalRotation(UnitPlacement.turn(view));
-        float frames = timer.getTimePerFrame() / Particles.FRAME_SECONDS;
-        if (!visual.groundPictures.isEmpty()) {
-            groundPictures.see(view.id(), visual, null, new Coord3D(view.x(), view.y(), 0f), view.orientation(),
-                    frames, this::floorHeightAt);
-        }
-        if (!visual.wordTints.isEmpty()) {
-            wordTints.see(view.id(), node.root, visual, holding, frames);
-        }
-        for (var layer : node.layers) {
-            layer.wear(node.root, view, world, snapshot.frame(), body -> paintHouseColour(body, view),
-                    clip -> missing.warn(view.templateName() + "/" + clip, "animation"),
-                    bone -> boneOf(node, layer, bone));
-        }
-        if (node.composer != null) {
-            node.currentAnim = WordClip.playDead(node.composer, node.wordClip, node.currentAnim, visual, holding,
-                    snapshot.frame(), view.id(), node.deathClip, node.diedOn,
-                    clip -> missing.warn(view.templateName() + "/" + clip, "animation"));
-        }
-    }
-
-    private UnitNode createUnitNode(UnitView view) {
-        var visual = looks.visualFor(view);
-        var node = new UnitNode();
-        node.root = new Node("unit-" + view.id());
-        node.bornX = view.x();
-        node.bornZ = view.y();
-        node.bornAt = timer.getTimeInSeconds();
-        node.root.setUserData("unitId", view.id());
-        node.root.setUserData("wears", view.wears()); // for what it throws once it is gone from the snapshot
-
-        node.modelPath = visual.modelFor(view.healthFraction(), visuals.getWorldConditions(), view.conditions());
-        Spatial body = visual.shapeless ? new Node("no-shape") : bodies.buildBody(visual, java.util.List.of(), node.modelPath);
-        if (body != null && visual.line != null && view.span() != null) {
-            body = layAlong(body, view, visual, node);
-        }
-        if (body != null) {
-            paintHouseColour(body, view);
-            takeUpBody(node, body, visual);
-        }
-        if (body == null) {
-            // A fireball has no model and should not be given the capsule-with-a-
-            // gun-barrel every other modelless thing gets. Its effect is its body.
-            // It comes back already standing where its own fire burns from, and
-            // at the width the recipe asked for: the scale on this visual is for
-            // the plain shape a modelless thing falls back to, and an orb is
-            // given its size in world units.
-            body = effects.bodyFor(visual);
-        }
-        if (body == null) {
-            body = buildPrimitive(view);
-            // Size applies to a shape as much as to a model. Without this a game
-            // could say how big a thing is only by shipping art for it, and
-            // anything small — a dart, a spark, a rat — came out unit-sized.
-            body.setLocalScale(visual.scale);
-            body.setLocalTranslation(0, visual.yOffset, 0);
-        }
-        node.body = body;
-        node.root.attachChild(body);
-
-        node.boneSystems = new BoneSystems(particles, rootNode);
-        for (var look : visual.layers.values()) {
-            node.layers.add(new ModelLayer(look, path -> bodies.buildBody(look, java.util.List.of(), path),
-                    new BoneSystems(particles, rootNode)));
-        }
-        node.ring = buildSelectionRing(view);
-        node.root.attachChild(node.ring);
-        node.barTop = heightOf(body, view) + visuals.getUnitBars().lift();
-
-        unitsNode.attachChild(node.root);
-        return node;
-    }
-
-    /** Whatever a node has to know about the body it is drawn with: how it is animated, and how tall it is. */
-    private void takeUpBody(UnitNode node, Spatial body, Visuals.UnitVisual visual) {
-        node.composer = Bodies.findControl(body, AnimComposer.class);
-        node.legacyChannel = null;
-        var legacy = Bodies.findControl(body, AnimControl.class);
-        if (node.composer == null && legacy != null) {
-            node.legacyChannel = legacy.createChannel();
-        }
-        snap(node.composer, visual.attackAnim);
-        snap(node.composer, visual.hurtAnim);
-        node.bodyTop = visual.risesAsBuilt ? UnitPlacement.riseOf(visual, body) : 0f;
-        // Its barrels are the model's, so a new model is found again: a wreck may have none.
-        Integer id = node.root.getUserData("unitId");
-        if (id != null) {
-            barrels.dress(id, body, node.barrelBones != null ? node.barrelBones : visual.weaponBones, visual.recoil);
-            node.pieces.applyTo(body, barrels.flashes(id));
-            runningGear.dress(id, body, visual);
-            node.turretLooks = null; // a new model: its turrets found on it again
-        }
-    }
-
-    /**
-     * Its barrels and its pieces as the words it holds choose them: the best-fitting set's fire bones, flashes and
-     * recoil bones, found on the model again when the choice changes, and its pieces hidden and shown as its states
-     * leave them — see {@link Visuals.UnitVisual#pieces}. A barrel's flash is left to the barrel.
-     */
-    private void wearTheWords(UnitNode node, Visuals.UnitVisual visual, java.util.Set<String> holding) {
-        Integer id = node.root.getUserData("unitId");
-        if (id == null || node.body == null) {
-            return;
-        }
-        var bones = visual.weaponBonesFor(holding);
-        boolean redressed = bones != node.barrelBones;
-        if (redressed) {
-            node.barrelBones = bones;
-            barrels.dress(id, node.body, bones, visual.recoil);
-        }
-        if (node.pieces.choose(visual.pieceStateFor(holding), visual.pieceStates) || redressed) {
-            node.pieces.applyTo(node.body, barrels.flashes(id));
-        }
-        var turrets = visual.turretsFor(holding);
-        if (turrets != node.turretLooks) {
-            node.turretLooks = turrets;
-            turretBones.dress(id, node.body, turrets);
-        }
-    }
-
-    /**
-     * Draw a thing with a different model than the one it has been wearing, without it moving.
-     *
-     * <p>A building crossing a health threshold stops being whole and starts being wrecked, and the thing
-     * on screen has to become the other model where it stands. What holds its place is its own node — the
-     * translation and the rotation live there and the body hangs under it — so the swap is a child
-     * exchanged, and where it stands and which way it faces are never touched.
-     *
-     * <p>Everything measured off the body is measured again, because the new one is a different shape: the
-     * height its bar floats at, and whatever animation controls the new file happens to carry. A swapped
-     * model is usually a different skeleton, so the clip that was playing carries over <b>by name</b> where
-     * the new one has a clip of that name; where it has not, the state machine is let choose again next
-     * frame, which is a thing standing rather than a thing frozen.
-     *
-     * <p>A file that will not load leaves it wearing what it had. Half a wrecked building is better than
-     * none of one.
-     */
-    private void swapBody(UnitNode node, UnitView view, Visuals.UnitVisual visual, String wanted) {
-        stealthLook.forget(view.id()); // what it laid over the old body goes with it
-        var body = bodies.buildBody(visual, java.util.List.of(), wanted);
-        if (body != null && visual.line != null && view.span() != null) {
-            body = layAlong(body, view, visual, node);
-        }
-        if (body == null) {
-            node.modelPath = wanted; // it will not load; do not try again every frame
-            return;
-        }
-        paintHouseColour(body, view); // a wrecked barracks is still his
-        var playing = node.currentAnim;
-        if (node.body != null) {
-            node.body.removeFromParent();
-        }
-        node.modelPath = wanted;
-        node.body = body;
-        node.root.attachChild(body);
-        takeUpBody(node, body, visual);
-        node.barTop = heightOf(body, view) + visuals.getUnitBars().lift();
-        // Cleared first either way: what it says it is playing has to be true of the model it is on.
-        node.currentAnim = "";
-        node.actionUntil = 0f;
-        if (playing != null && !playing.isEmpty() && node.composer != null
-                && node.composer.getAnimClip(playing) != null) {
-            play(node, view.looksAs(), playing, true);
-        }
-    }
-
-    /**
-     * A model laid along its thing's line as its look says ({@link LinePieces}), in place of the model at its place,
-     * and fogged as the ground under it is, since it lies where the ground does.
-     */
-    private Spatial layAlong(Spatial model, UnitView view, Visuals.UnitVisual visual, UnitNode node) {
-        var laid = LinePieces.lay(model, visual.line, view.span().from(), view.span().to());
-        if (groundLooks.fogs()) {
-            laid.depthFirstTraversal(spatial -> {
-                if (spatial instanceof Geometry geometry) {
-                    geometry.setMaterial(groundLooks.plainFogged(visual.tint == null ? ColorRGBA.White
-                            : Materials.colour(visual.tint), Bodies.skinOf(geometry.getMaterial())));
-                }
-            });
-        }
-        node.laidSpan = view.span();
-        return laid;
-    }
-
-    /**
-     * Paint the parts of a body its art marked for its owner in its owner's colour.
-     *
-     * <p>Laid over what is there, never instead of it: the material's own colour and its own picture are
-     * multiplied by the owner's, so the shading painted into a house-colour mesh — which is grey for
-     * exactly this reason — comes through. The shadowed side too, or a red army goes grey in the shade.
-     *
-     * <p>After the body is built rather than inside {@link #buildBody}, because a body does not know whose
-     * it is — the same file serves both sides, and the portrait builds one that belongs to nobody. So it is
-     * done where the owner is known: when a unit arrives, and again when its model is swapped for a
-     * condition, because a wrecked barracks is still his.
-     */
-    private void paintHouseColour(Spatial body, UnitView view) {
-        var prefix = visuals.getHouseColour();
-        if (prefix == null || body == null) {
-            return; // a game that names none is drawn as it always was
-        }
-        Bodies.paintOwner(body, prefix, Materials.colour(game.getColor(view.wears()))); // a disguise's to those it fools
-    }
-
-    /**
-     * How long the old clip is faded out under a new one, on the legacy path.
-     */
-    private static final float BLEND_SECONDS = 0.2f;
-
-    /**
-     * How long a <em>blow</em> is allowed to fade in over what came before.
-     *
-     * <p>jME cross-fades into every clip and gives it four tenths of a second to
-     * do it, which is right for settling from a walk into a stand and quite wrong
-     * for a punch: the clip is one second long, so nearly half of it was spent
-     * arriving, and the strike had no snap in it at all. A blow is a moment and
-     * has to start on the frame it starts.
-     */
-    private static final float SNAP_SECONDS = 0.08f;
-
-    /**
-     * Let this clip start at once rather than easing in over the default fade.
-     */
-    private static void snap(AnimComposer composer, String clipName) {
-        if (composer == null || clipName == null || composer.getAnimClip(clipName) == null) {
-            return;
-        }
-        if (composer.action(clipName) instanceof BlendableAction blendable) {
-            blendable.setTransitionLength(SNAP_SECONDS);
-        }
-    }
-
-    /**
-     * What colour to draw this unit: the type's own if the game gave it one,
-     * otherwise its player's.
-     *
-     * <p>Player colour says whose it is, which is all an RTS usually needs. A
-     * game fielding several kinds of thing per side needs to say what it is too,
-     * and with no models yet there is nothing else to say it with.
-     */
-    private ColorRGBA colourOf(UnitView view) {
-        var own = looks.visualFor(view).colour;
-        return Materials.colour(own != null ? own : game.getColor(view.wears()));
-    }
-
-    /**
-     * A clean placeholder in the player's colour when no model is assigned.
-     */
-    private Spatial buildPrimitive(UnitView view) {
-        var color = colourOf(view);
-        var group = new Node("primitive");
-        if (view.structure()) {
-            var box = new Geometry("b", new Box(2.6f, 1.8f, 2.6f));
-            box.setMaterial(Materials.lit(assetManager, color));
-            box.setLocalTranslation(0, 1.8f, 0);
-            group.attachChild(box);
-        } else {
-            var hull = new Geometry("h", new Cylinder(2, 16, 1.1f, 2.4f, true));
-            hull.setMaterial(Materials.lit(assetManager, color));
-            hull.rotate(FastMath.HALF_PI, 0, 0);
-            hull.setLocalTranslation(0, 1.2f, 0);
-            group.attachChild(hull);
-            var barrel = new Geometry("barrel", new Box(1.1f, 0.18f, 0.18f));
-            barrel.setMaterial(Materials.lit(assetManager, color.mult(1.4f)));
-            barrel.setLocalTranslation(1.2f, 1.4f, 0);
-            group.attachChild(barrel);
-        }
-        return group;
-    }
-
-    /**
-     * The ring under a selected unit — green for his own, red for anything else.
-     *
-     * <p>Not decoration. Something that is not his can be selected, because that
-     * is how its health and its damage are read off the bar, and it cannot be
-     * ordered. A green ring under a skeleton would promise a command that the
-     * next right-click is not going to give.
-     */
-    private Geometry buildSelectionRing(UnitView view) {
-        var ring = new Geometry("ring", new com.jme3.scene.Mesh());
-        ring.setMaterial(Materials.unshaded(assetManager, view.playerIndex() == game.getLocalPlayerIndex()
-                ? new ColorRGBA(0.4f, 1f, 0.4f, 1f) : new ColorRGBA(1f, 0.36f, 0.3f, 1f)));
-        ring.setCullHint(Spatial.CullHint.Always);
-        return ring;
-    }
-
-    /** How far over the ground the ring under a selected thing lies. */
-    private static final float RING_LIFT = 0.06f;
-
-    /**
-     * The ring under a selected thing laid over the ground under it, where a flat disc under its feet put the half on
-     * a slope that climbs under the hill: turned back against its thing's own turn, pitch and sway, so it lies as the
-     * ground does however the thing stands, and on the ground under a thing in the air.
-     */
-    private void layRing(UnitNode node, UnitView view) {
-        var root = node.root.getLocalTranslation();
-        node.ring.setLocalRotation(node.root.getLocalRotation().inverse());
-        node.ringDisc.lay(node.ring.getMesh(), new Coord3D(root.x, root.z, 0f), view.structure() ? 4.2f : 2.2f,
-                root.y - RING_LIFT, this::floorHeightAt);
-        node.ring.updateModelBound();
-    }
-
-    /**
-     * A colour that is drawn over the scene rather than into it.
-     */
-    private Material overlay(ColorRGBA colour) {
-        var material = Materials.unshaded(assetManager, colour);
-        material.getAdditionalRenderState().setDepthTest(false);
-        return material;
-    }
-
-    /**
-     * How tall this unit stands, measured rather than assumed.
-     *
-     * <p>A model's height depends on the kit it came from and the scale the game
-     * gave it, neither of which the client can guess. The fallback is the old
-     * constant, for the primitives that have no bounds worth measuring.
-     */
-    private static float heightOf(Spatial body, UnitView view) {
-        float fallback = view.structure() ? 6.5f : 4.5f;
-        if (body == null) {
-            return fallback;
-        }
-        body.updateModelBound();
-        body.updateGeometricState();
-        return body.getWorldBound() instanceof com.jme3.bounding.BoundingBox box
-                ? Math.max(fallback, box.getYExtent() * 2f) : fallback;
-    }
-
-    private void updateUnitNode(UnitNode node, UnitView view) {
-        boolean handedOver = node.view != null && node.view.playerIndex() != view.playerIndex();
-        boolean recoloured = node.view != null && node.view.wears() != view.wears();
-        node.view = view;
-        if (handedOver || recoloured) {
-            // Its owner changed, however it did, or the colours it wears to this viewer: drawn in the new ones.
-            node.root.setUserData("wears", view.wears());
-            paintHouseColour(node.body, view);
-            node.layers.forEach(layer -> paintHouseColour(layer.body(), view));
-        }
-        if (handedOver) {
-            selected.remove(view.id()); // out of the old owner's hands
-        }
-        if (!view.selectable()) {
-            selected.remove(view.id()); // made unselectable, or sold: out of the selection the frame it is
-        }
-        // What it looks like can change while it stands there: a building past a health threshold is a
-        // wrecked building, and the wreck is a different file. Asked every frame because the answer is a
-        // lookup against a map that is empty for every template that named no second model.
-        var visual = looks.visualFor(view);
-        // Its own words too — an upgrade's weapon set, a rank — for a look that chooses anything by them.
-        var holding = visual.choosesByWords()
-                ? visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()) : null;
-        var wanted = visual.modelFor(view.healthFraction(), visuals.getWorldConditions(), view.conditions());
-        if (node.body != null && wanted != null && !wanted.equals(node.modelPath)) {
-            swapBody(node, view, visual, wanted);
-        } else if (visual.line != null && view.span() != null && !view.span().equals(node.laidSpan)) {
-            swapBody(node, view, visual, node.modelPath); // its line moved: laid again along the new one
-        }
-        if (holding != null) {
-            wearTheWords(node, visual, holding);
-        }
-        if (!visual.boneParticles.isEmpty() && node.boneSystems != null) {
-            node.boneSystems.choose(visual.particlesFor(holding != null ? holding
-                    : visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions())),
-                    node.body);
-        }
-        node.root.setLocalTranslation(UnitPlacement.where(view, this::floorHeightAt));
-        node.root.setLocalRotation(UnitPlacement.turn(view));
-        if (visual.sway != null && view.pitch() == 0f && view.roll() == 0f) {
-            node.root.setLocalRotation(visual.sway.tiltAt(view.id(), snapshot.gameTimeSeconds())
-                    .mult(node.root.getLocalRotation()));
-        }
-        if (node.laidSpan != null && node.body != null) {
-            // The line is the world's: where it starts and which way it runs, taken into the thing's own frame.
-            var start = new Vector3f(node.laidSpan.from().x(), node.laidSpan.from().z(), node.laidSpan.from().y());
-            var end = new Vector3f(node.laidSpan.to().x(), node.laidSpan.to().z(), node.laidSpan.to().y());
-            var back = node.root.getLocalRotation().inverse();
-            node.body.setLocalTranslation(back.mult(start.subtract(node.root.getLocalTranslation())));
-            node.body.setLocalRotation(back.mult(LinePieces.along(end.subtract(start))));
-        }
-        if (!visual.groundPictures.isEmpty()) {
-            groundPictures.see(view.id(), visual,
-                    visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()),
-                    view.hostile(), node.body, new Coord3D(view.x(), view.y(), 0f), view.orientation(),
-                    timer.getTimePerFrame() / Particles.FRAME_SECONDS, this::floorHeightAt);
-        }
-        if (visuals.getSeeThroughWord() != null || visuals.getGlowWord() != null || visuals.getOwnGlowWord() != null
-                || view.opacity() < 1f || stealthLook.looking(view.id())) {
-            stealthLook.see(view, node.body, visuals, visual, timer.getTimePerFrame() / Particles.FRAME_SECONDS,
-                    view.playerIndex() == game.getLocalPlayerIndex());
-        }
-        if (!visual.wordTints.isEmpty()) {
-            wordTints.see(view.id(), node.root, visual,
-                    visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()),
-                    timer.getTimePerFrame() / Particles.FRAME_SECONDS);
-        }
-        if (visual.risesAsBuilt && node.body != null) {
-            node.body.setLocalTranslation(0f, visual.yOffset - UnitPlacement.sunk(view.built(), node.bodyTop), 0f);
-        }
-        for (var layer : node.layers) {
-            layer.wear(node.root, view, visuals.getWorldConditions(), snapshot.frame(),
-                    body -> paintHouseColour(body, view),
-                    clip -> missing.warn(view.templateName() + "/" + clip, "animation"),
-                    bone -> boneOf(node, layer, bone));
-        }
-        runningGear.see(view.id(), view, snapshot.frame());
-        turretBones.turn(view.id(), view.turrets());
-        drivenBones.drive(view.id(), node.body, visual.drivenBones, view, timer.getTimeInSeconds());
-        // Its shadow, from its opaque pieces as drawn — none while it is drawn see-through or faded.
-        boolean casts = visual.castsShadow && !stealthLook.looking(view.id());
-        if (light.shadows() != null && node.body != null && (casts != node.casting || node.body != node.shadowBody)) {
-            light.shadows().cast(node.body, casts, visual.leastSunHeight);
-            node.casting = casts;
-            node.shadowBody = node.body;
-        }
-
-        boolean ringed = visuals.drawsSelectionRings() && selected.contains(view.id());
-        node.ring.setCullHint(ringed ? Spatial.CullHint.Never : Spatial.CullHint.Always);
-        if (ringed) {
-            layRing(node, view);
-        }
-
-        flinch(node, view);
-        animate(node, view);
-    }
-
-    /** A bone of a thing's drawn models by name: its body's, else another of its layers' than {@code asking}. */
-    private static Spatial boneOf(UnitNode node, ModelLayer asking, String name) {
-        var bone = Bones.named(node.body, name);
-        for (var layer : node.layers) {
-            if (bone != null) {
-                break;
-            }
-            if (layer != asking) {
-                bone = Bones.named(layer.body(), name);
-            }
-        }
-        return bone;
-    }
-
-    /**
-     * A short flinch when something has taken health off it.
-     *
-     * <p>Read off the health in the snapshot rather than off whatever fired,
-     * which is not the same moment and sometimes not the same thing at all: an
-     * arrow is loosed a third of a second before it arrives, and splash, a spell
-     * or a floor's own trap have no shot to listen for. A drop between two
-     * snapshots is not a guess about what happened — it is the thing that
-     * happened, and it is already in hand.
-     *
-     * <p>Without it a monster absorbs a blow with no sign that it landed, and a
-     * fight reads as two things standing near each other.
-     */
-    private void flinch(UnitNode node, UnitView view) {
-        float before = node.lastHealth;
-        node.lastHealth = view.health();
-        // Nothing on the first sight of a unit, and nothing on the blow that
-        // killed it: that one has a death to play and this would talk over it.
-        if (!Float.isNaN(before) && view.health() < before && view.health() > 0f) {
-            float now = timer.getTimeInSeconds();
-            // Never over a swing, a cast or its work: a hero in a crowd fights rather than trembles.
-            boolean busy = now < node.actionUntil || now < node.gestureUntil || view.busyClip() != null
-                    || view.attacking();
-            if (flinches.flinches(visuals.getFlinch(), view.id(), now, busy, before - view.health(),
-                    criticalThisFrame.contains(view.id()), visuals.getHitNumbers().bigAt())) {
-                playOnce(node, looks.visualFor(view).hurtAnim);
-            }
-        }
-    }
-
-    /** Whether a busy clip has just begun: one now, and not the one it had. */
-    static boolean cutsIn(String wasBusy, String isBusy) {
-        return isBusy != null && !isBusy.equals(wasBusy);
-    }
-
-    /**
-     * Choose the clip that matches what the unit is doing.
-     *
-     * <p>What a unit is <em>doing</em> is only ever moving or standing. Attacking
-     * used to be here as a third state and it was never a state: a snapshot's
-     * {@code attacking} means the unit <em>has a target</em>, which stays true for
-     * the whole engagement — the walk in, the reload, the standing about between
-     * blows. A clip chosen from it therefore ran on a loop at its own tempo, so a
-     * monster threw punches continuously and none of them was the blow. Worse, the
-     * loop's rate is the clip's: the heavy one that strikes every 1.6 seconds threw
-     * a one-second punch, so it punched half again as often as it hit.
-     *
-     * <p>The swing is a moment and is played as one, on the shot — see
-     * {@link #playOnce}. Between blows a unit that has run out of things to do is
-     * standing, which is what it looks like.
-     */
-    private void animate(UnitNode node, UnitView view) {
-        if (riderOf.containsKey(view.id())) {
-            return; // a ridden mount walks as its rider does — see paceTheMount
-        }
-        if (node.carryingAgainAt > 0f && timer.getTimeInSeconds() >= node.carryingAgainAt) {
-            carrying(node, true);
-            node.carryingAgainAt = 0f;
-        }
-        if (cutsIn(node.lastBusy, view.busyClip())) {
-            // A stagger landing mid-swing: the swing's blows will not land, so its clip gives way to the flinch.
-            node.actionUntil = 0f;
-            UpperBody.end(node.composer);
-        }
-        node.lastBusy = view.busyClip();
-        if (timer.getTimeInSeconds() < node.actionUntil) {
-            return; // a blow or a flinch has the model; it will hand it back
-        }
-        var visual = looks.visualFor(view);
-        if (playByWords(node, visual, view)) {
-            return;
-        }
-        var busy = view.busyClip();
-        if (busy != null) {
-            if (!busy.equals(node.currentAnim)) {
-                play(node, view.looksAs(), busy, true); // its work, looped; a clip it has not is played as nothing
-            }
-            return;
-        }
-        boolean walking = view.moving() && visual.walkAnim != null;
-        if (!walking && visual.isIdle(node.currentAnim)) {
-            return; // standing with the idle it drew as it began to
-        }
-        String wanted = walking ? visual.walkAnim : visual.idleFor(view.id(), snapshot.frame());
-        if (wanted != null && !wanted.equals(node.currentAnim)) {
-            play(node, view.looksAs(), wanted, true);
-        }
-        if (walking && visual.walkDistance > 0f && node.composer != null) {
-            // Paced to its speed, the simulation's: a soldier slowed on a slope steps slower instead of sliding.
-            var action = node.composer.getCurrentAction();
-            var clip = node.composer.getAnimClip(visual.walkAnim);
-            if (action != null && clip != null) {
-                action.setSpeed(Visuals.paced(clip.getLength(), visual.walkDistance, view.speed(), 1.0));
-            }
-        }
-    }
-
-    /**
-     * The clip the words it holds choose, where they choose one: set on the model when the choice changes, held still
-     * — its time set from the game's frame, never advanced by the window's — and false where they choose none, so
-     * its roles play. Leaving a chosen clip clears what it was playing, so its role starts afresh even where it is
-     * the same clip.
-     */
-    private boolean playByWords(UnitNode node, Visuals.UnitVisual visual, UnitView view) {
-        if (visual.clipStates.isEmpty() || node.composer == null) {
-            return false;
-        }
-        var holding = visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions());
-        boolean had = node.wordClip.chosen();
-        var chosen = WordClip.playOn(node.composer, node.wordClip, node.currentAnim, visual, holding, snapshot.frame(),
-                view.id(), view.speed(), clip -> missing.warn(view.templateName() + "/" + clip, "animation"));
-        if (chosen == null) {
-            if (had) {
-                node.currentAnim = "";
-            }
-            return false;
-        }
-        node.currentAnim = chosen;
-        return true;
-    }
-
-    /**
-     * Play a clip once, over whatever the unit was doing, and give the model back
-     * when it has finished.
-     *
-     * <p>For the things that <em>happen</em> — a blow struck, a blow taken. They
-     * are moments, and a moment played on a loop is not the same thing slower: it
-     * is a different thing entirely, and it is what made a monster in a fight look
-     * like a monster shadow-boxing.
-     *
-     * <p><b>A gesture the game named outranks this.</b> A skill with a wind-up
-     * fires the weapon too — a meteor is a shot that lands late — so the same
-     * frame that starts the two-handed cast also carries a {@code WeaponFired},
-     * and the ordinary swing was landing on top of the cast and winning. What the
-     * player saw was a mage reaching out one hand, which is the shooting clip, and
-     * no sign of the animation that had just been asked for.
-     *
-     * <p>The cost is that a flinch is swallowed for as long as a gesture runs. It
-     * is the right way round: the gesture is a thing the game asked for by name
-     * and the flinch is one the client supplies, and losing the whole of the first
-     * to half a second of the second is the worse trade.
-     */
-    private void playOnce(UnitNode node, String clipName) {
-        if (clipName == null || node.composer == null) {
-            return;
-        }
-        if (timer.getTimeInSeconds() < node.gestureUntil) {
-            return; // a cast the game named is already being made
-        }
-        var clip = node.composer.getAnimClip(clipName);
-        if (clip == null) {
-            return;
-        }
-        var joint = node.view.moving() ? looks.visualFor(node.view).upperBody : null;
-        var skin = joint == null ? null
-                : AnimationLibrary.findControl(node.body, com.jme3.anim.SkinningControl.class);
-        if (skin != null && UpperBody.play(node.composer, skin.getArmature(), joint, clipName)) {
-            return; // on the move: the blow above, the walk going on below
-        }
-        play(node, node.view.looksAs(), clipName, false);
-        node.actionUntil = (float) (timer.getTimeInSeconds() + clip.getLength());
-    }
-
-    /**
-     * The gesture a spell is cast with, on the creature that cast it.
-     *
-     * <p>Timed rather than simply played. A spell with a wind-up on it -- a
-     * meteor takes a second and a half to arrive -- wants a gesture that ENDS as
-     * it lands: the same clip at its own speed either finishes early and leaves
-     * him standing there waiting, or runs on past the impact and reads as
-     * somebody waving at a hole in the ground. How long it should take is the
-     * game's to say, since the game is the one that knows about the wind-up.
-     *
-     * <p>And his hands come empty. This one is two-handed, and a mage casting it
-     * with a staff in one fist and a book in the other is a mage doing two things
-     * at once -- see {@link #carrying}.
-     */
-    private void castGesture(UnitNode node, Visuals.CastAnim gesture) {
-        if (node == null || node.composer == null || gesture == null) {
-            return;
-        }
-        var clip = node.composer.getAnimClip(gesture.clip());
-        if (clip == null) {
-            missing.warn(node.view.templateName() + "/" + gesture.clip(), "cast animation");
-            return;
-        }
-        float length = (float) clip.getLength();
-        float seconds = gesture.seconds() > 0f ? gesture.seconds() : length;
-        play(node, node.view.looksAs(), gesture.clip(), false);
-        var action = node.composer.getCurrentAction();
-        if (action != null && seconds > 0f) {
-            action.setSpeed(length / seconds);
-        }
-        node.actionUntil = (float) (timer.getTimeInSeconds() + seconds);
-        node.gestureUntil = node.actionUntil;
-        carrying(node, false);
-        node.carryingAgainAt = node.actionUntil;
-    }
-
-    /**
-     * Put what a creature carries into its hands, or take it out of them.
-     *
-     * <p>Culled rather than detached and rebuilt: a weapon hangs on the bone's own
-     * attachments node, so hiding it is one flag and getting it back is the same
-     * flag -- where taking it off and hanging it again would reload the model and
-     * lose the tint and the turn that were measured onto it.
-     */
-    private void carrying(UnitNode node, boolean shown) {
-        var skin = node.body == null ? null
-                : AnimationLibrary.findControl(node.body, com.jme3.anim.SkinningControl.class);
-        if (skin == null) {
-            return;
-        }
-        var visual = looks.visualFor(node.view);
-        for (var one : visual.carried) {
-            if (one.bone == null || skin.getArmature().getJoint(one.bone) == null) {
-                continue;
-            }
-            skin.getAttachmentsNode(one.bone).setCullHint(
-                    shown ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
-        }
-    }
-
-    private void play(UnitNode node, String templateName, String clipName, boolean loop) {
-        try {
-            if (node.composer != null) {
-                // At its own speed: a clip its words held still, or a cast timed to its wind-up, left its action slowed.
-                node.composer.setCurrentAction(clipName, AnimComposer.DEFAULT_LAYER, loop).setSpeed(1);
-            } else if (node.legacyChannel != null) {
-                node.legacyChannel.setAnim(clipName, BLEND_SECONDS);
-                node.legacyChannel.setLoopMode(loop
-                        ? com.jme3.animation.LoopMode.Loop : com.jme3.animation.LoopMode.DontLoop);
-            } else {
-                return;
-            }
-            node.currentAnim = clipName;
-        } catch (IllegalArgumentException e) {
-            missing.warn(templateName + "/" + clipName, "animation");
-            node.currentAnim = clipName; // don't retry every frame
         }
     }
 
@@ -6857,54 +5731,6 @@ final class DukeRtsApp extends SimpleApplication {
         root.updateLogicalState(0f);
         root.updateGeometricState();
     }
-
-    /** Each ridden mount's rider, by the mount's id — see {@code GameObject.rideOn}; filled each frame. */
-    private final Map<Integer, UnitNode> riderOf = new HashMap<>();
-
-    /**
-     * Every rider hung on its mount's bone, the mount drawn where the rider stands and walking as he walks; one that
-     * got off put back among the units where it stands.
-     */
-    private void seatTheRiders() {
-        riderOf.clear();
-        for (var node : unitNodes.values()) {
-            var riding = node.view == null ? null : node.view.riding();
-            var mount = riding == null ? null : unitNodes.get(riding.mount());
-            if (mount == null || mount.view == null) {
-                if (node.root.getParent() != unitsNode) {
-                    unitsNode.attachChild(node.root); // got off: its own place again, set next frame by its view
-                }
-                continue;
-            }
-            mount.root.setLocalTranslation(UnitPlacement.where(node.view, this::floorHeightAt));
-            mount.root.setLocalRotation(UnitPlacement.turn(node.view));
-            if (Riders.seat(node.root, mount.body, riding.bone(), new Vector3f(riding.x(), riding.z(), riding.y()))) {
-                riderOf.put(mount.view.id(), node);
-                paceTheMount(mount, node.view);
-            }
-        }
-    }
-
-    /** A ridden mount walking as its rider walks, at his speed — the rider is what moves — else standing. */
-    private void paceTheMount(UnitNode mount, UnitView rider) {
-        var visual = looks.visualFor(mount.view);
-        if (mount.composer == null) {
-            return;
-        }
-        String wanted = rider.moving() && visual.walkAnim != null ? visual.walkAnim
-                : visual.idleFor(mount.view.id(), snapshot.frame());
-        if (wanted != null && !wanted.equals(mount.currentAnim)) {
-            play(mount, mount.view.looksAs(), wanted, true);
-        }
-        if (rider.moving() && visual.walkDistance > 0f) {
-            var action = mount.composer.getCurrentAction();
-            var clip = mount.composer.getAnimClip(visual.walkAnim);
-            if (action != null && clip != null) {
-                action.setSpeed(Visuals.paced(clip.getLength(), visual.walkDistance, rider.speed(), 1.0));
-            }
-        }
-    }
-
     /** The mouse held by the window, as the scheme asks — see {@link ControlScheme.Context#holdMouse}. */
     private final MouseCapture capture = new MouseCapture();
     /** How far the held mouse moved this frame, in pixels; and where the platform's pointer stood last. */
