@@ -64,13 +64,13 @@ class PlayerSettingsTest {
 
     @Test
     void shakeOffGivesNoKnock() {
-        assertEquals(1f, DukeRtsApp.playerShake(0));
-        assertEquals(0.5f, DukeRtsApp.playerShake(1));
-        assertEquals(0f, DukeRtsApp.playerShake(2));
+        assertEquals(1f, PlayerChoices.playerShake(0));
+        assertEquals(0.5f, PlayerChoices.playerShake(1));
+        assertEquals(0f, PlayerChoices.playerShake(2));
 
         var show = new ListShow(null, new Node(), null, (cue, at) -> { }, () -> Vector3f.ZERO, (x, z) -> 0f,
                 (model, piece) -> new Node("piece"), (name, at) -> { }, null, null);
-        show.shakeScale(1f * DukeRtsApp.playerShake(2));
+        show.shakeScale(1f * PlayerChoices.playerShake(2));
         var strengths = EffectList.Shake.Strength.values();
         show.shake(Vector3f.ZERO, strengths[strengths.length - 1]);
         assertSame(Vector3f.ZERO, show.shakeNow());

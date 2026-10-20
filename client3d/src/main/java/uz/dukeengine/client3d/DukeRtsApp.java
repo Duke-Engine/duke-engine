@@ -71,11 +71,6 @@ final class DukeRtsApp extends SimpleApplication {
     private static final Logger LOG = Logger.getLogger(DukeRtsApp.class.getName());
 
     /**
-     * Prefix of the input mapping for a key the game claimed.
-     */
-    private static final String HOTKEY = "Hotkey";
-
-    /**
      * Whether a modifier is down, so the letter under it can mean something else.
      *
      * <p>An array because the listener is a lambda and a lambda may not write to a
@@ -344,6 +339,13 @@ final class DukeRtsApp extends SimpleApplication {
      * What the player set, kept in a file beside him — see { GameSettings}.
      */
     private final GameSettings preferences = new GameSettings();
+    /** The window itself, asked and moved where jME keeps no answer — see {@link WindowDisplay}. */
+    private final WindowDisplay windowDisplay = new WindowDisplay(this::getContext, () -> settings, preferences,
+            missing);
+    /** What the player chose on the settings screen, put into effect — see {@link PlayerChoices}. */
+    private PlayerChoices choices;
+    /** The controls bound, and the keys the player put them on — see {@link KeyBindings}. */
+    private KeyBindings keyBindings;
     /**
      * The line of controls along the bottom, which belongs to play and not to a menu.
      */
@@ -503,6 +505,7 @@ final class DukeRtsApp extends SimpleApplication {
     @Override
     public void simpleInitApp() {
         flyCam.setEnabled(false);
+        choices = new PlayerChoices(preferences, visuals, listener, () -> noises, () -> listShow);
         anisotropy(anisotropy); // slanted ground and roofs kept sharp: the camera sees all of them at a slant
         // The whole picture, the interface over it too, drawn through the game's gamma: last of all.
         gammaPass = new GammaPass(assetManager);
@@ -573,7 +576,7 @@ final class DukeRtsApp extends SimpleApplication {
             }
         }, () -> new Vector3f(camera.targetX(), 0f, camera.targetZ()), this::floorHeightAt, bodies::debrisPiece,
                 (name, at) -> lists.play(name, EffectLists.Cue.at(at)), this::paintThrown, ground.scorches());
-        applyShake();
+        choices.applyShake();
         rootNode.attachChild(listNode);
         lists = new EffectLists(visuals::effectListNamed, particles, listShow, new java.util.Random().nextLong());
         lasers = new Lasers(assetManager, listNode, visuals::laserNamed, this::floorHeightAt);
@@ -659,7 +662,7 @@ final class DukeRtsApp extends SimpleApplication {
                 cam, timer, () -> game, () -> snapshot, () -> barReading, this::floorHeightAt);
         buildCanvas();
         showMainMenu();
-        applyVolume();
+        choices.applyVolume();
     }
 
     /**
@@ -753,10 +756,8 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public boolean playing() {
-            long window = windowHandle();
             return screen == Screen.PLAYING && !menu.isVisible() && !(canvasInput != null && canvasInput.holdsKeys())
-                    && window != 0L
-                    && org.lwjgl.glfw.GLFW.glfwGetWindowAttrib(window, org.lwjgl.glfw.GLFW.GLFW_FOCUSED) != 0;
+                    && windowDisplay.focused();
         }
 
         @Override
@@ -800,12 +801,12 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public boolean keyHeld(char key) {
-            return DukeRtsApp.keyHeld(windowHandle(), key);
+            return windowDisplay.keyHeld(key);
         }
 
         @Override
         public boolean leftHeld() {
-            return buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
+            return windowDisplay.buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
         }
 
         @Override
@@ -948,25 +949,6 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    /** The window's own handle, to ask it what jME does not keep; 0 where there is none. */
-    private long windowHandle() {
-        return getContext() instanceof com.jme3.system.lwjgl.LwjglWindow display ? display.getWindowHandle() : 0L;
-    }
-
-    /** Whether the pointer is in the window at all: the window says so, where jME keeps only where it was last seen. */
-    private boolean pointerInTheWindow() {
-        long window = windowHandle();
-        return window == 0L || org.lwjgl.glfw.GLFW.glfwGetWindowAttrib(window, org.lwjgl.glfw.GLFW.GLFW_HOVERED)
-                == org.lwjgl.glfw.GLFW.GLFW_TRUE;
-    }
-
-    /** Whether a mouse button is held, as the window says: true where there is no window to ask. */
-    private boolean buttonHeld(int glfwButton) {
-        long window = windowHandle();
-        return window == 0L
-                || org.lwjgl.glfw.GLFW.glfwGetMouseButton(window, glfwButton) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
-    }
-
     /** Draw the world in this part of the window from the next frame — see {@link Duke3D#worldView}. */
     void worldView(WorldRegion region) {
         this.worldRegion = region;
@@ -1075,6 +1057,11 @@ final class DukeRtsApp extends SimpleApplication {
             level *= 2;
         }
         return cardMost == null || cardMost < 1 ? level : Math.min(level, cardMost);
+    }
+
+    /** The window made so, where the monitor shows it, and kept as the player's choice — see {@link Duke3D#display}. */
+    void display(int width, int height, boolean fullscreen, java.util.function.Consumer<Boolean> told) {
+        windowDisplay.display(width, height, fullscreen, told);
     }
 
     /** The window's sample count for the next window made: kept with the player's settings. */
@@ -1232,7 +1219,7 @@ final class DukeRtsApp extends SimpleApplication {
         listenForChat(match);
         menu.hide();
         if (!shell.isDrawnByTheGame() && !musicByGame) {
-            playChosenMusic();
+            choices.playChosenMusic();
         }
         screen = Screen.PLAYING;
         var told = backdropAdopted;
@@ -1419,7 +1406,7 @@ final class DukeRtsApp extends SimpleApplication {
                 stateManager.detach(atTheEye); // the game places the listener: see placeTheListener
             }
         }
-        applyVolume();
+        choices.applyVolume();
     }
 
     /** A cue the game plays itself, flat — see {@link Duke3D#sound}. */
@@ -1864,7 +1851,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (!shell.isDrawnByTheGame() && !musicByGame) {
             // Underneath everything from here on, until he goes back to the menu. A game that draws its own
             // screens, or chooses its own music, plays its own.
-            playChosenMusic();
+            choices.playChosenMusic();
         }
         screen = Screen.PLAYING;
     }
@@ -2024,61 +2011,6 @@ final class DukeRtsApp extends SimpleApplication {
         return built;
     }
 
-    /**
-     * What each line of the keys page puts elsewhere, line for line with {@link #keyLines}: a game binding by its letter,
-     * the four walking keys as {@code 1} to {@code 4}, nothing ({@code null}) for a letter the game only describes, and
-     * each control of the client's own.
-     */
-    static List<Object> rebindable(Hotkeys hotkeys) {
-        var actions = new ArrayList<Object>(new java.util.TreeSet<>(hotkeys.claimedKeys()));
-        for (char letter : new java.util.TreeSet<Character>(hotkeys.describedKeys())) {
-            if (!hotkeys.claimedKeys().contains(letter)) {
-                actions.add(null);
-            }
-        }
-        for (var control : KeyMap.Control.values()) {
-            if (!hotkeys.keyMap().keysOf(control).isEmpty()) {
-                actions.add(control);
-            }
-        }
-        return actions;
-    }
-
-    /**
-     * The lines of the Settings screen's list of keys: each letter the game claimed or said something of, with its
-     * word; then each control of the client's own on its keys, called by its English name said the game's way.
-     */
-    static List<String> keyLines(Hotkeys hotkeys, java.util.function.UnaryOperator<String> say) {
-        var lines = new ArrayList<String>();
-        for (char letter : new java.util.TreeSet<Character>(hotkeys.claimedKeys())) {
-            var word = hotkeys.wordOf(letter);
-            var key = Hotkeys.nameOf(hotkeys.codeFor(letter));
-            lines.add(word.isEmpty() ? key : key + "   " + word);
-        }
-        for (char letter : new java.util.TreeSet<Character>(hotkeys.describedKeys())) {
-            if (!hotkeys.claimedKeys().contains(letter)) {
-                var word = hotkeys.wordOf(letter);
-                lines.add(word.isEmpty() ? String.valueOf(letter) : letter + "   " + word);
-            }
-        }
-        var keyMap = hotkeys.keyMap();
-        for (var control : KeyMap.Control.values()) {
-            var on = keyMap.keysOf(control);
-            if (on.isEmpty()) {
-                continue;
-            }
-            var named = new ArrayList<String>();
-            for (var key : on) {
-                named.add((key.ctrl() ? "Ctrl+" : "") + (key.shift() ? "Shift+" : "") + (key.alt() ? "Alt+" : "")
-                        + Hotkeys.nameOf(key.code()));
-            }
-            var english = control.name().charAt(0) + control.name().substring(1).toLowerCase(java.util.Locale.ROOT)
-                    .replace('_', ' ');
-            lines.add(String.join(", ", named) + "   " + say.apply(english));
-        }
-        return lines;
-    }
-
     /** One of the client's fixed words, as the game says it — see {@link Shell#word}. */
     private String say(String english) {
         return shell.wordFor(english);
@@ -2115,19 +2047,20 @@ final class DukeRtsApp extends SimpleApplication {
                 () -> preferences.flag("fullscreen", false) ? 1 : 0,
                 to -> {
                     preferences.set("fullscreen", to == 1);
-                    fillTheScreen(to == 1); // seen at once, like a volume is heard
+                    windowDisplay.fillTheScreen(to == 1); // seen at once, like a volume is heard
                 }));
         // The real ones, from the card, rather than three the client invented —
         // a player who picks a size his monitor cannot show gets a black screen.
-        var sizes = screenSizes();
+        var sizes = windowDisplay.screenSizes();
         rows.add(new StoneMenu.Opens(say("Size"),
                 sizes.stream().map(size -> size.shown().replace("MONITOR", say("MONITOR"))).toList(),
-                () -> indexOfSize(sizes, preferences.number("width", 0),
+                () -> WindowDisplay.indexOfSize(sizes, preferences.number("width", 0),
                         preferences.number("height", 0)),
                 to -> {
                     preferences.set("width", sizes.get(to).width());
                     preferences.set("height", sizes.get(to).height());
-                    applyDisplaySettings();
+                    windowDisplay.applyDisplaySettings();
+                    menu.refresh(); // the row says what it now is
                 }));
         // Taken by the window only as it is made, so it is kept for the next launch and said so below.
         rows.add(new StoneMenu.Choice(say("Anti-aliasing"), java.util.List.of(say("OFF"), "2×", "4×"),
@@ -2142,10 +2075,10 @@ final class DukeRtsApp extends SimpleApplication {
                     }));
         }
         rows.add(new StoneMenu.Choice(say("Camera shake"), java.util.List.of(say("Full"), say("Half"), say("Off")),
-                () -> Math.clamp(preferences.number("shake", 0), 0, SHAKES.length - 1),
+                () -> Math.clamp(preferences.number("shake", 0), 0, PlayerChoices.SHAKES.length - 1),
                 to -> {
                     preferences.set("shake", to);
-                    applyShake();
+                    choices.applyShake();
                 }));
         rows.add(volumeRow(say("Volume"), "volume", 100));
         // Only offered by a game that has any: this client draws three others and
@@ -2165,18 +2098,18 @@ final class DukeRtsApp extends SimpleApplication {
                         () -> Math.clamp(preferences.number("musicTrack", 0), 0, tracks.size() - 1),
                         to -> {
                             preferences.set("musicTrack", to);
-                            playChosenMusic();
+                            choices.playChosenMusic();
                         }));
             }
         }
         // Every key the game uses and every control of the client's own, each in the game's words; one taken, the
         // next key pressed is its key.
-        var keys = keyLines(hotkeys, this::say);
+        var keys = KeyBindings.keyLines(hotkeys, this::say);
         if (!keys.isEmpty()) {
-            var actions = rebindable(hotkeys);
+            var actions = KeyBindings.rebindable(hotkeys);
             rows.add(new StoneMenu.Opens(say("Keys"), keys, () -> 0, to -> {
                 if (to < actions.size()) {
-                    capturing = actions.get(to);
+                    keyBindings.await(actions.get(to));
                 }
             }));
         }
@@ -2203,7 +2136,7 @@ final class DukeRtsApp extends SimpleApplication {
         return new StoneMenu.Level(word, () -> preferences.number(key, fallback),
                 to -> {
                     preferences.set(key, to);
-                    applyVolume();
+                    choices.applyVolume();
                 }, 5);
     }
 
@@ -2223,78 +2156,18 @@ final class DukeRtsApp extends SimpleApplication {
             }
         }
         if (pending.contains("fullscreen")) {
-            fillTheScreen(preferences.flag("fullscreen", false));
+            windowDisplay.fillTheScreen(preferences.flag("fullscreen", false));
         }
         if (pending.contains("width") || pending.contains("height")) {
-            applyDisplaySettings();
+            windowDisplay.applyDisplaySettings();
+            menu.refresh(); // the row says what it now is
         }
-        applyVolume();
-        applyShake();
+        choices.applyVolume();
+        choices.applyShake();
         if (pending.contains("musicTrack")) {
-            playChosenMusic();
+            choices.playChosenMusic();
         }
         leaveSettings();
-    }
-
-    /**
-     * One size a monitor will actually show.
-     */
-    private record Size(int width, int height, boolean native_) {
-        String shown() {
-            return width + " × " + height + (native_ ? "   MONITOR" : "");
-        }
-    }
-
-    /**
-     * The sizes this machine can really show, largest first.
-     *
-     * <p>Asked of the graphics device rather than written down here, because a
-     * list written down is a list that offers somebody a resolution his monitor
-     * refuses — and what that looks like is a black screen and a game that has to
-     * be killed. Deduplicated by shape, since a mode exists per refresh rate and
-     * a player is not choosing a refresh rate.
-     */
-    private java.util.List<Size> screenSizes() {
-        var found = new java.util.LinkedHashSet<Size>();
-        try {
-            var device = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment()
-                    .getDefaultScreenDevice();
-            var current = device.getDisplayMode();
-            var modes = new java.util.ArrayList<>(java.util.List.of(device.getDisplayModes()));
-            modes.sort(java.util.Comparator
-                    .comparingInt(java.awt.DisplayMode::getWidth)
-                    .thenComparingInt(java.awt.DisplayMode::getHeight).reversed());
-            for (var mode : modes) {
-                if (mode.getWidth() >= 1024 && mode.getHeight() >= 576) {
-                    found.add(new Size(mode.getWidth(), mode.getHeight(),
-                            mode.getWidth() == current.getWidth()
-                                    && mode.getHeight() == current.getHeight()));
-                }
-            }
-        } catch (RuntimeException e) {
-            missing.warn("display modes", "screen");
-        }
-        if (found.isEmpty()) {
-            found.add(new Size(1280, 720, false));
-        }
-        return java.util.List.copyOf(found);
-    }
-
-    /**
-     * Which of them is set, or the one nearest the monitor's own.
-     */
-    private int indexOfSize(java.util.List<Size> sizes, int width, int height) {
-        for (int i = 0; i < sizes.size(); i++) {
-            if (sizes.get(i).width() == width && sizes.get(i).height() == height) {
-                return i;
-            }
-        }
-        for (int i = 0; i < sizes.size(); i++) {
-            if (sizes.get(i).native_()) {
-                return i;
-            }
-        }
-        return 0;
     }
 
     private void leaveSettings() {
@@ -2303,239 +2176,6 @@ final class DukeRtsApp extends SimpleApplication {
         } else {
             showMainMenu();
         }
-    }
-
-    /**
-     * In and out of fullscreen, from anywhere, without going through the menu.
-     *
-     * <p>The same switch the settings menu throws, so the two cannot disagree and
-     * the choice is remembered for the next launch either way. Everything that is
-     * sized to the window — the hero's bar, the minimap in it, the menus — is laid
-     * out again when the new size arrives.
-     */
-    private void toggleFullscreen() {
-        boolean wanted = !preferences.flag("fullscreen", false);
-        if (fillTheScreen(wanted)) {
-            preferences.set("fullscreen", wanted);
-            preferences.save(); // F11 is not a settings screen; there is no Save to press
-            settings.setFullscreen(wanted);
-        }
-    }
-
-    /**
-     * Where the window was before it filled the screen: x, y, width, height.
-     */
-    private int[] windowedBounds;
-
-    /**
-     * Move the window between filling the screen and sitting in it — without
-     * rebuilding anything.
-     *
-     * <p>The obvious way is {@code restart()}, and it does not work here: it tears
-     * the display context down and stands another one up, and what comes back is a
-     * window that renders a frozen picture of a game that has stopped. It is also
-     * more than was asked for — the pictures, the meshes and the shaders are all
-     * still perfectly good, and the only thing that needs to change is which
-     * monitor the window belongs to.
-     *
-     * <p>So it is said to the window directly. GLFW moves it to the monitor and
-     * back, keeps the GL context, and reports the new size the way it reports any
-     * other resize — which the HUD already follows.
-     *
-     * <p><b>At the size it already is</b>, which is the part that took finding
-     * out. Filling the screen at the monitor's own resolution looks like the right
-     * answer and half works: the world is drawn at full sharpness, and the HUD
-     * disappears. Everything on it is in the scene, in the right place and
-     * unculled — the engine's GUI simply does not survive its window changing size
-     * underneath it, and rebuilding every piece of it does not help either. The
-     * same game <em>started</em> fullscreen is perfect, because then nothing
-     * changed size.
-     *
-     * <p>So nothing changes size here either. The window keeps the framebuffer it
-     * has and only moves onto the monitor, which switches the screen to that mode
-     * for as long as the game is up — the ordinary bargain of an exclusive
-     * fullscreen game, and exactly what starting fullscreen already did.
-     *
-     * @return whether there was a window to say it to
-     */
-    private boolean fillTheScreen(boolean fullscreen) {
-        if (!(getContext() instanceof com.jme3.system.lwjgl.LwjglWindow display)) {
-            return false;
-        }
-        long window = display.getWindowHandle();
-        if (window == 0L) {
-            return false;
-        }
-        if (fullscreen) {
-            windowedBounds = boundsOf(window);
-            long monitor = org.lwjgl.glfw.GLFW.glfwGetPrimaryMonitor();
-            if (monitor == 0L) {
-                return false;
-            }
-            org.lwjgl.glfw.GLFW.glfwSetWindowMonitor(window, monitor, 0, 0,
-                    windowedBounds[2], windowedBounds[3],
-                    org.lwjgl.glfw.GLFW.GLFW_DONT_CARE);
-            return true;
-        }
-        var back = windowedBounds != null ? windowedBounds : startingBounds();
-        org.lwjgl.glfw.GLFW.glfwSetWindowMonitor(window, 0L, back[0], back[1], back[2], back[3],
-                org.lwjgl.glfw.GLFW.GLFW_DONT_CARE);
-        return true;
-    }
-
-    /** The window made so, where the monitor shows it, and kept as the player's choice — see {@link Duke3D#display}. */
-    void display(int width, int height, boolean fullscreen, java.util.function.Consumer<Boolean> told) {
-        boolean taken = resizeTheWindow(width, height, fullscreen);
-        if (taken) {
-            preferences.set("width", width);
-            preferences.set("height", height);
-            preferences.set("fullscreen", fullscreen);
-            preferences.save();
-            settings.setResolution(width, height);
-            settings.setFullscreen(fullscreen);
-        }
-        if (told != null) {
-            told.accept(taken);
-        }
-    }
-
-    /** The window at a new size, filling the screen or not — or left as it was where the monitor does not show it. */
-    private boolean resizeTheWindow(int width, int height, boolean fullscreen) {
-        if (!(getContext() instanceof com.jme3.system.lwjgl.LwjglWindow display) || display.getWindowHandle() == 0L) {
-            return false;
-        }
-        long window = display.getWindowHandle();
-        long monitor = org.lwjgl.glfw.GLFW.glfwGetPrimaryMonitor();
-        if (monitor == 0L) {
-            return false;
-        }
-        var modes = new java.util.ArrayList<int[]>();
-        var shown = org.lwjgl.glfw.GLFW.glfwGetVideoModes(monitor);
-        if (shown != null) {
-            for (int at = 0; at < shown.limit(); at++) {
-                modes.add(new int[] {shown.get(at).width(), shown.get(at).height()});
-            }
-        }
-        var now = org.lwjgl.glfw.GLFW.glfwGetVideoMode(monitor);
-        int[] desktop = now == null ? null : new int[] {now.width(), now.height()};
-        if (!DisplayModes.shows(width, height, fullscreen, modes, desktop)) {
-            return false;
-        }
-        boolean filling = org.lwjgl.glfw.GLFW.glfwGetWindowMonitor(window) != 0L;
-        if (fullscreen) {
-            if (!filling) {
-                windowedBounds = boundsOf(window);
-            }
-            org.lwjgl.glfw.GLFW.glfwSetWindowMonitor(window, monitor, 0, 0, width, height,
-                    org.lwjgl.glfw.GLFW.GLFW_DONT_CARE);
-        } else {
-            var at = filling && windowedBounds != null ? windowedBounds : boundsOf(window);
-            org.lwjgl.glfw.GLFW.glfwSetWindowMonitor(window, 0L, at[0], at[1], width, height,
-                    org.lwjgl.glfw.GLFW.GLFW_DONT_CARE);
-        }
-        return true;
-    }
-
-    private static int[] boundsOf(long window) {
-        var x = new int[1];
-        var y = new int[1];
-        var width = new int[1];
-        var height = new int[1];
-        org.lwjgl.glfw.GLFW.glfwGetWindowPos(window, x, y);
-        org.lwjgl.glfw.GLFW.glfwGetWindowSize(window, width, height);
-        return new int[]{x[0], y[0], width[0], height[0]};
-    }
-
-    /**
-     * Where a window that has never been anywhere else should go back to.
-     */
-    private int[] startingBounds() {
-        return new int[]{60, 60, preferences.number("width", 1280),
-                preferences.number("height", 720)};
-    }
-
-    /**
-     * The chosen resolution, applied to the window as it is chosen and kept for the next launch.
-     *
-     * <p>It was once kept for the next launch alone, because a window that changed size took the HUD with it —
-     * see {@link #fillTheScreen} — and a player whose saved size was far smaller than his monitor saw a blurred
-     * picture until he restarted. Now the window takes it at once, by the same move {@link Duke3D#display} makes, and
-     * everything sized to the window is laid out again when the new size arrives ({@link #followTheWindowSize}). A size
-     * the monitor does not show leaves the window as it is.
-     */
-    private void applyDisplaySettings() {
-        int width = preferences.number("width", settings.getWidth());
-        int height = preferences.number("height", settings.getHeight());
-        boolean fullscreen = preferences.flag("fullscreen", settings.isFullscreen());
-        settings.setResolution(width, height);
-        settings.setFullscreen(fullscreen);
-        resizeTheWindow(width, height, fullscreen);
-        menu.refresh(); // the row says what it now is
-    }
-
-    /**
-     * Put every knob where the player last left it.
-     *
-     * <p>Four of them, because one is not enough for the same person: keeping the
-     * music low while still hearing what is behind you is an ordinary thing to
-     * want, and so is silencing a hero who will not stop talking. The screen's own
-     * sounds follow the effects knob rather than getting a fifth — a menu click is
-     * an effect that happens to be on a menu.
-     */
-    private void applyVolume() {
-        listener.setVolume(1f); // the knobs are per channel now; the listener is not
-        if (noises == null) {
-            return;
-        }
-        var sounds = noises.sounds();
-        sounds.masterVolume(preferences.number("volume", 100) / 100f);
-        float effects = preferences.number("volEffects", 100) / 100f;
-        sounds.volume(SoundBank.Channel.EFFECTS, effects);
-        sounds.volume(SoundBank.Channel.UI, effects);
-        sounds.volume(SoundBank.Channel.VOICE, preferences.number("volVoice", 100) / 100f);
-        sounds.volume(SoundBank.Channel.MUSIC, preferences.number("volMusic", 60) / 100f);
-        sounds.volume(SoundBank.Channel.AMBIENCE, preferences.number("volAmbience", 70) / 100f);
-    }
-
-    /** The player's camera shake — full, half or none — over the game's own. */
-    private static final float[] SHAKES = {1f, 0.5f, 0f};
-    /** The game's shake scale as it was given, before the player's choice was put over it. */
-    private float gameShake = Float.NaN;
-
-    /** The share of the game's shake the player's choice keeps: 0 full, 1 half, 2 none. */
-    static float playerShake(int choice) {
-        return SHAKES[Math.clamp(choice, 0, SHAKES.length - 1)];
-    }
-
-    private void applyShake() {
-        if (Float.isNaN(gameShake)) {
-            gameShake = visuals.getShakeScale();
-        }
-        visuals.shakeScale(gameShake * playerShake(preferences.number("shake", 0)));
-        if (listShow != null) {
-            listShow.shakeScale(visuals.getShakeScale());
-        }
-    }
-
-    /**
-     * The track the player chose, or the first the game listed.
-     *
-     * <p>Music is the one channel where the choice is his rather than the
-     * moment's: an effect belongs to whatever just happened, and what plays
-     * underneath a dungeon for an hour is taste.
-     */
-    private SoundBank.Cue chosenTrack() {
-        var tracks = visuals.getSounds().musicCues();
-        if (tracks.isEmpty()) {
-            return null;
-        }
-        return tracks.get(Math.clamp(preferences.number("musicTrack", 0), 0,
-                tracks.size() - 1));
-    }
-
-    private void playChosenMusic() {
-        var track = chosenTrack();
-        noises.sounds().music(track == null ? null : track.name());
     }
 
     private static int indexOf(int[] values, int value) {
@@ -2755,35 +2395,11 @@ final class DukeRtsApp extends SimpleApplication {
 
     // ---- input ----
 
-    /**
-     * Every control this client has bound, so that one thing can be listened to.
-     *
-     * <p>★ Kept because forgetting is invisible. A mapping added and left out of
-     * the listener's list is a key that is bound, reaches nothing and says
-     * nothing about it: Ctrl shipped that way and simply did not exist, and there
-     * is no error, no warning and nothing on screen to notice. The list is now
-     * built by the binding rather than typed out beside it, so the two cannot
-     * come apart.
-     */
-    private final List<String> bound = new ArrayList<>();
-
     private void installInput() {
-        bound.clear();
-        hotkeyListener = null; // heard by the listener made below, once
-        map("Select", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
-        map("Order", new MouseButtonTrigger(MouseInput.BUTTON_RIGHT));
-        map("Turn", new MouseButtonTrigger(MouseInput.BUTTON_MIDDLE));
-        map("ZoomIn", new MouseAxisTrigger(MouseInput.AXIS_WHEEL, false));
-        map("ZoomOut", new MouseAxisTrigger(MouseInput.AXIS_WHEEL, true));
-        // Every key anything is on, one mapping each: what it does is worked out in one place, pressKey, and
-        // never by two listeners racing to it.
-        takeTheRebindings(); // before the keys are counted: a control put on a key of his own is listened for
-        for (int code : listenedKeys()) {
-            map(KEY + code, new KeyTrigger(code));
-        }
-
+        keyBindings = new KeyBindings(inputManager, hotkeys, controls, preferences);
+        // What each key does is worked out in one place, pressKey.
         ActionListener actions = (name, pressed, tpf) -> {
-            if (sceneLocked() && pressed && !name.startsWith(KEY) && screen == Screen.PLAYING && !menu.isVisible()) {
+            if (sceneLocked() && pressed && !name.startsWith(KeyBindings.KEY) && screen == Screen.PLAYING && !menu.isVisible()) {
                 return; // a scene the game plays: no picking, selecting or ordering until it lets go
             }
             switch (name) {
@@ -2859,8 +2475,8 @@ final class DukeRtsApp extends SimpleApplication {
                     }
                 }
                 default -> {
-                    if (name.startsWith(KEY)) {
-                        pressKey(Integer.parseInt(name.substring(KEY.length())), pressed);
+                    if (name.startsWith(KeyBindings.KEY)) {
+                        pressKey(Integer.parseInt(name.substring(KeyBindings.KEY.length())), pressed);
                         return;
                     }
                     if (screen != Screen.PLAYING) {
@@ -2869,8 +2485,8 @@ final class DukeRtsApp extends SimpleApplication {
                     if (!pressed) {
                         // Letting go of a skill that was drawn while it was held.
                         // See SkillRange.castOnRelease.
-                        if (name.startsWith(HOTKEY) && arming != null
-                                && arming == name.charAt(HOTKEY.length())) {
+                        if (name.startsWith(KeyBindings.HOTKEY) && arming != null
+                                && arming == name.charAt(KeyBindings.HOTKEY.length())) {
                             if (scheme.aiming() && scheme.castsOnRelease()) {
                                 aimArmedKey(); // aimed from him, cast as the key is let go
                                 return;
@@ -2879,8 +2495,8 @@ final class DukeRtsApp extends SimpleApplication {
                         }
                         return;
                     }
-                    if (name.startsWith(HOTKEY)) {
-                        char letter = name.charAt(HOTKEY.length());
+                    if (name.startsWith(KeyBindings.HOTKEY)) {
+                        char letter = name.charAt(KeyBindings.HOTKEY.length());
                         if (ctrlHeld[0]) {
                             // ★ Ctrl and the letter spends a level on that skill,
                             // which is Warcraft's arrangement and is worth copying
@@ -2897,11 +2513,7 @@ final class DukeRtsApp extends SimpleApplication {
                 }
             }
         };
-        mapTheHotkeys();
-        // Everything that was bound, in one call. Not a list typed out here: see
-        // the note on `bound`.
-        inputManager.addListener(actions, bound.toArray(new String[0]));
-        hotkeyListener = actions; // a binding put on another key later is heard by it too
+        keyBindings.install(actions);
 
         AnalogListener zoom = (name, value, tpf) -> {
             if (screen == Screen.PLAYING && snapshot.camera() == null && !sceneLocked()) {
@@ -2909,56 +2521,6 @@ final class DukeRtsApp extends SimpleApplication {
             }
         };
         inputManager.addListener(zoom, "ZoomIn", "ZoomOut");
-    }
-
-    /** What hears the game's keys, for a binding moved to another key. */
-    private ActionListener hotkeyListener;
-
-    /** Each of the game's bindings on its key — its own letter's, or the one the player put it on. */
-    private void mapTheHotkeys() {
-        var names = new ArrayList<String>();
-        for (var key : hotkeys.all().keySet()) {
-            int code = hotkeys.codeFor(key);
-            String mapping = HOTKEY + key;
-            if (inputManager.hasMapping(mapping)) {
-                inputManager.deleteMapping(mapping);
-            }
-            if (code < 0) {
-                continue;
-            }
-            inputManager.addMapping(mapping, new KeyTrigger(code));
-            names.add(mapping);
-            if (!bound.contains(mapping)) {
-                bound.add(mapping);
-            }
-        }
-        if (hotkeyListener != null && !names.isEmpty()) {
-            inputManager.addListener(hotkeyListener, names.toArray(new String[0])); // a mapping deleted lost its ear
-        }
-    }
-
-    /** What a key's mapping is called: this and its code. */
-    private static final String KEY = "Key";
-
-    /**
-     * Every key the client listens to: every one its controls, groups and bookmarks are on; the modifiers, which
-     * change what the others mean; the keys a menu is walked with; every letter, for the command bar's buttons;
-     * and — while nothing else has them — the digits, which build.
-     */
-    private java.util.Set<Integer> listenedKeys() {
-        var codes = new java.util.LinkedHashSet<Integer>(controls.map().codes());
-        codes.addAll(List.of(KeyInput.KEY_LSHIFT, KeyInput.KEY_RSHIFT, KeyInput.KEY_LCONTROL,
-                KeyInput.KEY_RCONTROL, KeyInput.KEY_LMENU, KeyInput.KEY_RMENU, KeyInput.KEY_ESCAPE,
-                KeyInput.KEY_RETURN, KeyInput.KEY_NUMPADENTER, KeyInput.KEY_SPACE, KeyInput.KEY_UP,
-                KeyInput.KEY_DOWN, KeyInput.KEY_LEFT, KeyInput.KEY_RIGHT));
-        for (char letter = 'A'; letter <= 'Z'; letter++) {
-            codes.add(Hotkeys.codeOf(letter));
-        }
-        if (!controls.map().takesDigits()) {
-            codes.addAll(List.of(KeyInput.KEY_1, KeyInput.KEY_2, KeyInput.KEY_3, KeyInput.KEY_4, KeyInput.KEY_5,
-                    KeyInput.KEY_6, KeyInput.KEY_7, KeyInput.KEY_8, KeyInput.KEY_9));
-        }
-        return codes;
     }
 
     /**
@@ -2994,7 +2556,7 @@ final class DukeRtsApp extends SimpleApplication {
             }
             return;
         }
-        char letter = letterOf(code);
+        char letter = KeyBindings.letterOf(code);
         if (hotkeys.claims(code)) {
             return; // the game's own key, answered by its own mapping
         }
@@ -3014,117 +2576,17 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    /** What waits for the next key pressed to be its own — a game key, a walking key, a control — or null. */
-    private Object capturing;
-
-    /** The next key pressed made the waiting key's own, kept, and the keys page shown again with it. */
-    private void capture(KeyMap.Key pressed) {
-        var waiting = capturing;
-        capturing = null;
-        int code = pressed.code();
-        if (code == KeyInput.KEY_ESCAPE) {
-            return; // asked and let go
-        }
-        if (waiting instanceof KeyMap.Control control) {
-            rebindControl(control, pressed);
-            showSettingsMenu(settingsReturn);
-            return;
-        }
-        char action = (Character) waiting;
-        hotkeys.rebind(action, code);
-        for (var bound : hotkeys.all().keySet()) {
-            preferences.set("key." + (int) bound, hotkeys.codeFor(bound));
-        }
-        mapTheHotkeys();
-        showSettingsMenu(settingsReturn);
-    }
-
-    /**
-     * A control of the client's own put on {@code pressed} alone, kept as {@code ctl.<CONTROL>}; a control already on it
-     * takes the moved control's old key, so the two change places.
-     */
-    private void rebindControl(KeyMap.Control control, KeyMap.Key pressed) {
-        for (var touched : putOn(controls.map(), control, pressed)) {
-            var keys = controls.map().keysOf(touched);
-            preferences.set("ctl." + touched.name(), packed(keys.isEmpty() ? null : keys.getFirst()));
-        }
-        listenFor(pressed.code());
-    }
-
-    /**
-     * {@code control} put on {@code pressed} alone; a control already on it given the moved one's old key in its place.
-     *
-     * @return the controls whose keys changed, the moved one first
-     */
-    static List<KeyMap.Control> putOn(KeyMap map, KeyMap.Control control, KeyMap.Key pressed) {
-        var touched = new ArrayList<KeyMap.Control>(List.of(control));
-        var was = map.keysOf(control);
-        for (var other : KeyMap.Control.values()) {
-            if (other != control && map.keysOf(other).contains(pressed)) {
-                var theirs = new ArrayList<>(map.keysOf(other));
-                theirs.remove(pressed);
-                if (!was.isEmpty()) {
-                    theirs.add(was.getFirst());
-                }
-                map.bind(other, theirs.toArray(new KeyMap.Key[0]));
-                touched.add(other);
-            }
-        }
-        map.bind(control, pressed);
-        return touched;
-    }
-
-    /** A key with its modifiers in one number, as the settings file keeps it: -1 for none. */
-    static int packed(KeyMap.Key key) {
-        return key == null ? -1 : key.code() | (key.ctrl() ? 1 << 16 : 0) | (key.shift() ? 1 << 17 : 0)
-                | (key.alt() ? 1 << 18 : 0);
-    }
-
-    /** The key a number kept by {@link #packed} names, or null for none. */
-    static KeyMap.Key unpacked(int packed) {
-        return packed < 0 ? null : new KeyMap.Key(packed & 0xFFFF, (packed & 1 << 16) != 0, (packed & 1 << 17) != 0,
-                (packed & 1 << 18) != 0);
-    }
-
-    /** A key heard from now on, where nothing listened for it yet. */
-    private void listenFor(int code) {
-        String mapping = KEY + code;
-        if (inputManager.hasMapping(mapping)) {
-            return;
-        }
-        inputManager.addMapping(mapping, new KeyTrigger(code));
-        bound.add(mapping);
-        if (hotkeyListener != null) {
-            inputManager.addListener(hotkeyListener, mapping);
-        }
-    }
-
-    /** The keys he put the game's bindings and walking on, as he kept them last. */
-    private void takeTheRebindings() {
-        for (var control : KeyMap.Control.values()) {
-            int kept = preferences.number("ctl." + control.name(), Integer.MIN_VALUE);
-            if (kept != Integer.MIN_VALUE) {
-                var key = unpacked(kept);
-                controls.map().bind(control, key == null ? new KeyMap.Key[0] : new KeyMap.Key[] {key});
-            }
-        }
-        for (var bound : java.util.List.copyOf(hotkeys.all().keySet())) {
-            int code = preferences.number("key." + (int) bound, -1);
-            if (code >= 0) {
-                hotkeys.rebind(bound, code);
-            }
-        }
-    }
-
     /** A key on a menu: the pan keys and the arrows walk it, Enter and Space take, Escape goes back. */
     private void menuKey(int code, KeyMap.Key key) {
-        if (capturing != null) {
-            capture(key);
+        if (keyBindings.capturing()) {
+            if (keyBindings.capture(key)) {
+                showSettingsMenu(settingsReturn); // the keys page again, with the key on it
+            }
             return;
         }
         var control = controls.controlOn(key);
         if (control == KeyMap.Control.FULLSCREEN) {
-            toggleFullscreen();
+            windowDisplay.toggleFullscreen();
             return;
         }
         if (menu.isVisible()) {
@@ -3187,20 +2649,10 @@ final class DukeRtsApp extends SimpleApplication {
             // Set here rather than queued for the simulation: a paused engine does not step, so a task asking it
             // to resume would never be reached and the pause could not be lifted.
             case PAUSE -> setSimulationPaused(!game.getLogic().isGamePaused());
-            case FULLSCREEN -> toggleFullscreen();
+            case FULLSCREEN -> windowDisplay.toggleFullscreen();
             default -> {
             }
         }
-    }
-
-    /** The letter a key is, or 0 for one that is not a letter. */
-    private static char letterOf(int code) {
-        for (char letter = 'A'; letter <= 'Z'; letter++) {
-            if (Hotkeys.codeOf(letter) == code) {
-                return letter;
-            }
-        }
-        return 0;
     }
 
     /** What the client's controls are handed: the world as this client draws it. */
@@ -3271,14 +2723,6 @@ final class DukeRtsApp extends SimpleApplication {
         if (view != null) {
             noises.selected(view, game.getLocalPlayerIndex(), timer.getTimeInSeconds());
         }
-    }
-
-    /**
-     * Bind a control, and remember that it is one the listener has to hear.
-     */
-    private void map(String mapping, com.jme3.input.controls.Trigger... triggers) {
-        inputManager.addMapping(mapping, triggers);
-        bound.add(mapping);
     }
 
     /**
@@ -4964,10 +4408,10 @@ final class DukeRtsApp extends SimpleApplication {
         int tall = cam.getHeight();
         // No edge while a menu is up: the pointer is being used for something else, and a view that drifted out from
         // under a choice would be its own kind of bug.
-        boolean atTheEdges = screen == Screen.PLAYING && !menu.isVisible() && pointerInTheWindow()
+        boolean atTheEdges = screen == Screen.PLAYING && !menu.isVisible() && windowDisplay.pointerInTheWindow()
                 && !capture.captured(); // a held mouse scrolls nothing at the edges
-        steering.stillHeld(buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_RIGHT),
-                buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_MIDDLE));
+        steering.stillHeld(windowDisplay.buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_RIGHT),
+                windowDisplay.buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_MIDDLE));
         var hands = new Steering.Hands(held(KeyMap.Control.PAN_LEFT), held(KeyMap.Control.PAN_RIGHT),
                 held(KeyMap.Control.PAN_UP), held(KeyMap.Control.PAN_DOWN), at.x, tall - at.y, atTheEdges,
                 cam.getWidth(), tall);
@@ -5317,12 +4761,11 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** The mouse held or let go as the screen asks, and how far it moved this frame read while it is held. */
     private void holdTheMouse() {
-        long window = windowHandle();
+        long window = windowDisplay.windowHandle();
         boolean was = capture.captured();
         boolean freed = screen != Screen.PLAYING || menu.isVisible()
                 || canvasInput != null && canvasInput.holdsKeys() || snapshot == null || snapshot.camera() != null
-                || controls.isHeld(KeyMap.Control.FREE_POINTER) || window == 0L
-                || org.lwjgl.glfw.GLFW.glfwGetWindowAttrib(window, org.lwjgl.glfw.GLFW.GLFW_FOCUSED) == 0;
+                || controls.isHeld(KeyMap.Control.FREE_POINTER) || !windowDisplay.focused();
         boolean held = capture.update(freed);
         if (held != was && window != 0L) {
             org.lwjgl.glfw.GLFW.glfwSetInputMode(window, org.lwjgl.glfw.GLFW.GLFW_CURSOR,
@@ -5344,12 +4787,6 @@ final class DukeRtsApp extends SimpleApplication {
         var moved = capture.motion(dx, dy);
         heldDx = moved[0];
         heldDy = moved[1];
-    }
-
-    /** Whether the letter or digit {@code key} is down now: its GLFW code is the character itself. */
-    private static boolean keyHeld(long window, char key) {
-        return window != 0L && org.lwjgl.glfw.GLFW.glfwGetKey(window, Character.toUpperCase(key))
-                == org.lwjgl.glfw.GLFW.GLFW_PRESS;
     }
 
     /** The pictures laid over all the ground shown or put away — see {@link Duke3D#groundShades}. */
