@@ -251,8 +251,6 @@ final class DukeRtsApp extends SimpleApplication {
         }
         occlusionMarks.mark(marked);
     }
-    /** What a blow shows, by name — see {@link HurtMoments} and {@link Visuals#hurt}. */
-    private HurtMoments hurtMoments;
     /** The streams things ride, drawn as ribbons, once the game names a look for one — see {@link Visuals#stream}. */
     private Ribbons ribbons;
     private final Map<String, Material> particleMaterials = new HashMap<>();
@@ -262,12 +260,10 @@ final class DukeRtsApp extends SimpleApplication {
     private HitFlash hitFlash;
     /** The things of the world as they are drawn, one node each — see {@link UnitScene}. */
     private UnitScene unitScene;
-    /**
-     * Shots that ended this frame, waiting for its blows to say whether they struck.
-     */
-    private final List<Landing.Gone> endedShots = new ArrayList<>();
-    /** A level, the boss down, a new floor -- see RunMoments. */
-    private final RunMoments runMoments = new RunMoments();
+    /** What happened in the world this frame, drawn and heard — see {@link WorldEvents}. */
+    private WorldEvents events;
+    /** The sounds a look names by file, each read once — see {@link SoundNodes}. */
+    private SoundNodes soundNodes;
 
     /** Each kind of game's part of the window on the classpath — see {@link HudPart}. */
     private final List<HudPart> parts = HudPart.found();
@@ -330,15 +326,10 @@ final class DukeRtsApp extends SimpleApplication {
     /** The floor's half of this frame's status line, read once for the bars and the moments. */
     private UnitBarReading barReading = UnitBarReading.NOTHING;
 
-    /**
-     * The frame of the last cast this client drew, so one cast is drawn once.
-     */
-    private int lastCastFrameDrawn = Integer.MIN_VALUE;
     /** How low and how high this map's ground stands: what the ray under the cursor is walked between. */
     private GroundSpan groundSpan = new GroundSpan(0f, 0f);
     /** What is selected, in the order it was selected: the order the game is told it in. */
     private final Set<Integer> selected = new java.util.LinkedHashSet<>();
-    private final Map<String, AudioNode> audioCache = new HashMap<>();
     /** The files the game named that would not load, each said once. */
     private final MissingAssets missing = new MissingAssets();
     /** Things' bodies as the game's looks make them — built once there is an asset manager. */
@@ -368,7 +359,6 @@ final class DukeRtsApp extends SimpleApplication {
     private boolean artIsReady;
 
     private WorldSnapshot snapshot = WorldSnapshot.EMPTY;
-    private WorldSnapshot lastEventedSnapshot = WorldSnapshot.EMPTY;
     private final CameraFocus camera = new CameraFocus();
     /**
      * How high the camera is looking, eased toward the ground under its target.
@@ -424,20 +414,6 @@ final class DukeRtsApp extends SimpleApplication {
     /** Texts floated up from points of the world — see {@link FloatingTexts}. */
     private FloatingTexts floatingTexts;
     private PictureStrips pictureStrips;
-    private final HealthWatch healthWatch = new HealthWatch();
-
-    /**
-     * Who was killed this frame, gathered as the events are read.
-     *
-     * <p>The one thing the snapshot cannot say. A creature that dies is taken out
-     * of the world on the frame the blow lands, so the finishing blow never shows
-     * up as health going down -- the creature is simply not there any more, which
-     * from the outside looks exactly like one that walked into the dark.
-     */
-    private final List<HealthWatch.Death> killedThisFrame = new ArrayList<>();
-    /** The creatures a critical blow struck this frame, their numbers drawn as critical. */
-    private final java.util.Set<Integer> criticalThisFrame = new java.util.HashSet<>();
-    private final HitStops hitStops = new HitStops();
 
     /**
      * The bars over everybody's heads. Screen-space and pooled — see UnitBars.
@@ -578,6 +554,7 @@ final class DukeRtsApp extends SimpleApplication {
         var budget = visuals.getEffectBudget();
         effects = new ProjectileEffects(assetManager, rootNode, visuals, budget.lights());
         bodies = new Bodies(assetManager, missing, effects);
+        soundNodes = new SoundNodes(assetManager, rootNode, missing);
         skillEffects = new SkillEffects(visuals, budget.distance());
         layered = new LayeredEffects(assetManager, rootNode, visuals, effects.lights(),
                 surroundings(), visuals.getParticleBudget(), budget.distance());
@@ -605,11 +582,11 @@ final class DukeRtsApp extends SimpleApplication {
         var groundPictures = new GroundPictures(assetManager, listNode);
         var stealthLook = new StealthLook(assetManager);
         layered.drawsListsWith(lists);
-        hurtMoments = new HurtMoments(visuals::hurtRule);
         hitFlash = new HitFlash(visuals.getHitFlash());
         unitScene = new UnitScene(assetManager, visuals, bodies, looks, groundLooks, light, effects, layered, particles,
                 hitFlash, groundPictures, stealthLook, missing, fog, rootNode, unitsNode, cam, timer, () -> game,
-                () -> snapshot, selected, this::floorHeightAt, criticalThisFrame::contains, endedShots::add);
+                () -> snapshot, selected, this::floorHeightAt, id -> events.criticalThisFrame(id),
+                shot -> events.shotEnded(shot));
 
         rootNode.attachChild(terrainNode);
         buildTerrain();
@@ -632,8 +609,8 @@ final class DukeRtsApp extends SimpleApplication {
         rangeRings = new RangeRings(assetManager, markerNode, visuals.getRangeLook());
         veil = new SceneVeil(assetManager);
         guiNode.attachChild(veil.node());
-        artStore = new ArtLoad.Store(assetManager, renderManager, bodies, rootNode, terrainNode, this::soundNode,
-                missing);
+        artStore = new ArtLoad.Store(assetManager, renderManager, bodies, rootNode, terrainNode,
+                soundNodes::soundNode, missing);
 
         centerCameraOnMap();
         installInput();
@@ -677,6 +654,9 @@ final class DukeRtsApp extends SimpleApplication {
         loading = new LoadingOverlay(guiFont, assetManager, guiNode,
                 cam.getWidth(), cam.getHeight());
         buildSounds();
+        events = new WorldEvents(visuals, unitScene, looks, layered, lists, skillEffects, controls, parts, noises,
+                soundNodes, ground, fog, hitNumbers, floatingTexts, pictureStrips, new HurtMoments(visuals::hurtRule),
+                cam, timer, () -> game, () -> snapshot, () -> barReading, this::floorHeightAt);
         buildCanvas();
         showMainMenu();
         applyVolume();
@@ -1400,7 +1380,7 @@ final class DukeRtsApp extends SimpleApplication {
         clearWhatIsBurning();
         noises.forget();
         snapshot = WorldSnapshot.EMPTY;
-        lastEventedSnapshot = WorldSnapshot.EMPTY;
+        events.forgetTheWorld();
         lookChanged = true; // the next match's ground is laid on its first frame, whatever it is
         if (commandBar != null) {
             commandBar.hide();
@@ -1534,119 +1514,7 @@ final class DukeRtsApp extends SimpleApplication {
         chevrons.show(look.model() == null ? orderMarkers.markers() : java.util.List.of(), now, this::floorHeightAt);
         attackFlash.show(orderMarkers.markers(), now, this::whereThatUnitIsNow, this::floorHeightAt);
         syncSkillRange(now);
-        syncHitNumbers(now);
-        // Where the player's view of the point is clear, and nowhere else — the reference's fog test for its texts.
-        floatingTexts.update(snapshot.frame(), cam, (x, y) -> fog.canSee(x, y));
-        pictureStrips.update(snapshot.frame(), cam, (x, y) -> fog.canSee(x, y));
-    }
-
-    /**
-     * Throw a number off anything whose health has moved, and keep the ones
-     * already in the air moving.
-     *
-     * <p>Off the snapshot rather than off an event -- see {@link HealthWatch} for
-     * why that is the complete answer rather than the lazy one.
-     */
-    private void syncHitNumbers(float now) {
-        var look = visuals.getHitNumbers();
-        List<HealthWatch.Change> changes = List.of();
-        if (screen == Screen.PLAYING) {
-            changes = healthWatch.since(snapshot.units(), game.getLocalPlayerIndex(),
-                    look.leastWorth(), killedThisFrame);
-            if (game.alertsAreTheGames()) {
-                controls.gamesAlert(game.latestAlert());
-            }
-            for (var change : changes) {
-                hitNumbers.add(change, now, look.height(), criticalThisFrame.contains(change.unitId()));
-                if (!change.healed() && !change.his()) {
-                    unitScene.struck(change.unitId());
-                }
-                if (!change.healed() && change.his()) {
-                    controls.alert(change.x(), change.y()); // his, under attack: the place Space goes to
-                }
-            }
-            playTheRunsMoments(now);
-        }
-        burstWhatStruck(changes);
-        // Read once. handleEvents runs earlier in the frame and fills this; a
-        // second reading would throw the finishing blow twice.
-        killedThisFrame.clear();
-        criticalThisFrame.clear();
-        hitNumbers.update(now, cam, this::floorHeightAt);
-        hitStops.apply(now, (id, speed) -> {
-            var node = unitScene.node(id);
-            if (node != null && node.composer != null) {
-                node.composer.setGlobalSpeed(speed);
-            }
-        });
-    }
-
-    /**
-     * A level gained, the boss down, a new floor: each played on him in the look the
-     * game gave it, and a level heard as well.
-     *
-     * <p>Off the line's own field for the hero rather than off the panel's card,
-     * which is whoever happens to be selected -- see {@link RunMoments}. One look on
-     * him at a time, the biggest: the blow that fells a boss is usually the one that
-     * gives him his level too.
-     */
-    private void playTheRunsMoments(float now) {
-        var died = new ArrayList<Integer>(killedThisFrame.size());
-        for (var death : killedThisFrame) {
-            died.add(death.unitId());
-        }
-        var moments = runMoments.since(barReading, died);
-        for (var moment : moments) {
-            if (Visuals.LEVEL_UP.equals(moment.name())) {
-                noises.levelledUp(now);
-            }
-        }
-        var drawn = RunMoments.biggestOnEach(moments, name -> {
-            var look = visuals.getMoment(name);
-            return look == null ? 0.0 : look.scale();
-        });
-        for (var moment : drawn) {
-            var look = visuals.getMoment(moment.name());
-            var node = unitScene.node(moment.unitId());
-            if (look == null || node == null || layered == null) {
-                continue;
-            }
-            var at = node.root.getLocalTranslation();
-            var foot = new Vector3f(at.x, floorHeightAt(at.x, at.z), at.z);
-            layered.cast(look.effect(), new LayeredEffects.Moment(foot, null, null, 0f, 1f, 0f,
-                    moment.unitId(), moment.unitId()), cam, look.scale());
-        }
-    }
-
-    /**
-     * The bursts of the shots that ended this frame, for the ones that struck.
-     *
-     * <p>The simulation's blast hurts only when a shot reaches a body, and round that
-     * body; a shot that meets a wall or runs out of flight hurts nobody, and bursts
-     * nowhere. The blows are this frame's, deaths included -- a finishing blow on
-     * something with less left than a number is worth is still a blow.
-     */
-    private void burstWhatStruck(List<HealthWatch.Change> changes) {
-        if (endedShots.isEmpty()) {
-            return;
-        }
-        var blows = new ArrayList<Landing.Blow>();
-        for (var change : changes) {
-            if (!change.healed()) {
-                blows.add(new Landing.Blow(change.x(), change.y(), change.his()));
-            }
-        }
-        for (var death : killedThisFrame) {
-            blows.add(new Landing.Blow(death.x(), death.y(),
-                    death.playerIndex() == game.getLocalPlayerIndex()));
-        }
-        for (var shot : endedShots) {
-            var at = Landing.burstAt(shot, blows, visuals.getStrikeWithin());
-            if (at != null && layered != null) {
-                layered.landed(shot.id(), shot.effect(), at, cam);
-            }
-        }
-        endedShots.clear();
+        events.drawTheBlows(now, screen == Screen.PLAYING);
     }
 
     /**
@@ -2849,7 +2717,7 @@ final class DukeRtsApp extends SimpleApplication {
         // arrived: even a hero whose id and floor match the last run's, and even when
         // the floor's look catches up with the floor a moment late -- which rebuilds
         // it again, and puts out the light he arrived in.
-        runMoments.forget();
+        events.newWorld();
         parts.forEach(HudPart::newWorld);
         lookChanged = false;
         buildTerrain();
@@ -2866,12 +2734,7 @@ final class DukeRtsApp extends SimpleApplication {
         ridingEffects.clear();
         rallyMarks.clear();
         unitScene.newWorld();
-        hitNumbers.clear();
-        hitStops.clear();
-        floatingTexts.clear();
-        pictureStrips.clear();
         unitBars.clear();
-        healthWatch.forget(); // new creatures, new ids; nobody here was just hit
         camera.requestOwnUnit(); // his units are somewhere else entirely now
         // And the hero he had selected is not this floor's hero. See
         // keepHisOwnSelected: his skills need him picked out.
@@ -4575,7 +4438,7 @@ final class DukeRtsApp extends SimpleApplication {
         // Before the units, not after: a death has to take the body out of the
         // live list before anything decides it merely vanished. It also means a
         // shot lights its muzzle on the frame it was fired rather than the next.
-        handleEvents();
+        events.read();
         ground.layWhatTheGameLaid();
         // What this frame is worth hearing. Reads the same snapshot everything
         // else does and writes nothing back -- see GameSounds.
@@ -4586,7 +4449,7 @@ final class DukeRtsApp extends SimpleApplication {
         for (var event : snapshot.unseenEvents()) {
             if (event instanceof uz.dukeengine.core.event.SoundPlayed sound
                     && noises.sounds().throughFog(sound.cue())) {
-                heard(sound); // where he does not see: heard, as fog does not hide it, and nothing shown
+                events.heard(sound); // where he does not see: heard, as fog does not hide it, and nothing shown
             }
         }
         keepHisOwnSelected();
@@ -5239,43 +5102,6 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private final java.util.Set<String> missingStripPictures = new java.util.HashSet<>();
-
-    /**
-     * An effect the simulation played: the moment of that name, or else the game's effect list, effect or particle
-     * system of that name — riding the thing it names where it names one it can draw — or else its sound cue of that
-     * name, heard there and following the thing it rides. A name the game has none of draws nothing.
-     */
-    private void played(uz.dukeengine.core.event.EffectPlayed played) {
-        var rider = played.riding() == null ? null : unitScene.node(played.riding().value());
-        var riding = rider == null ? null : rider.root;
-        var cue = WorldMoments.played(played, riding, this::floorHeightAt);
-        int on = rider == null ? LayeredEffects.NOBODY : played.riding().value();
-        if (visuals.getMoment(played.name()) != null) {
-            moment(played.name(), cue, on);
-            return;
-        }
-        if (lists != null && lists.play(played.name(), cue)) {
-            return;
-        }
-        if (visuals.effectNamed(played.name()) == null && visuals.particleSystemNamed(played.name()) == null) {
-            if (noises != null && cue != null) {
-                boolean owned = rider == null || rider.view == null
-                        || rider.view.playerIndex() == game.getLocalPlayerIndex();
-                noises.played(played.name(), cue.at(), rider == null ? -1 : played.riding().value(), owned,
-                        timer.getTimeInSeconds());
-            }
-            return;
-        }
-        if (layered != null && !layered.rides(played.name(), riding)) {
-            var moment = new LayeredEffects.Moment(cue.at(), null, null, 0f, 1f, 0f, on, on);
-            if (played.toward() == null) {
-                layered.cast(played.name(), moment, cam);
-            } else {
-                layered.cast(played.name(), moment, cam, played.toward().value());
-            }
-        }
-    }
-
     /**
      * Where the sounds are heard from this frame: where the game places the listener — on the line from the ground
      * point the view looks at to the eye, facing as the view faces, with no speed ({@code AudioManager::update}) —
@@ -5295,36 +5121,6 @@ final class DukeRtsApp extends SimpleApplication {
         listener.setRotation(cam.getRotation());
         listener.setVelocity(Vector3f.ZERO); // the view moving bends no sound's pitch
         noises.sounds().hear(at, eye.distance(at));
-    }
-
-    /** A sound cue the simulation played, heard where it is and following the thing it rides. */
-    private void heard(uz.dukeengine.core.event.SoundPlayed sound) {
-        if (noises == null) {
-            return;
-        }
-        var rider = sound.riding() == null ? null : unitScene.node(sound.riding().value());
-        boolean owned = rider == null || rider.view == null || rider.view.playerIndex() == game.getLocalPlayerIndex();
-        var at = new Vector3f(sound.where().x(), sound.where().z(), sound.where().y());
-        noises.sound(sound, at, owned, timer.getTimeInSeconds());
-    }
-
-    /**
-     * A moment of the world's that the game gave a look to by name — {@code died.<template>.<type>},
-     * {@code fired.<weapon>}, {@code landed.<weapon>} — played where {@link WorldMoments} says it happened: an
-     * effect list, an effect, or a particle system of that name.
-     */
-    private void moment(String name, EffectLists.Cue cue, int on) {
-        var look = visuals.getMoment(name);
-        if (look == null || cue == null) {
-            return;
-        }
-        if (lists != null && lists.play(look.effect(), cue)) {
-            return;
-        }
-        if (layered != null) {
-            layered.cast(look.effect(), new LayeredEffects.Moment(cue.at(), null, null, 0f, 1f, cue.radius(), on,
-                    on), cam, look.scale());
-        }
     }
 
     /**
@@ -5363,186 +5159,6 @@ final class DukeRtsApp extends SimpleApplication {
             }
             return material;
         });
-    }
-
-    private void handleEvents() {
-        if (snapshot == lastEventedSnapshot) {
-            return; // the sim has not produced a new frame; do not replay this one
-        }
-        lastEventedSnapshot = snapshot;
-        killedThisFrame.clear();
-        skillsCastThisFrame(snapshot);
-        for (var event : snapshot.events()) {
-            if (event instanceof ObjectDied died) {
-                killedThisFrame.add(new HealthWatch.Death(died.object().value(),
-                        died.position().x(), died.position().y(), died.playerIndex()));
-                // Told outright, and it has to be: a dead creature is gone from
-                // the next snapshot, so by the time the frame could notice there
-                // would be nothing left to play a death on.
-                for (var part : parts) {
-                    part.died(died.object().value());
-                }
-                var where = new Vector3f(died.position().x(), 0f, died.position().y());
-                var dying = unitScene.node(died.object().value());
-                var look = dying != null ? looks.visualFor(dying.view) : looks.visualFor(died.templateName()); // as it was drawn
-                playSound(look.dieSound, where);
-                // "Destroyed" is what this event means, so it is the arrow landing
-                // as much as the monster falling. What it draws where it struck is
-                // its layers' -- see Landing; what is left here is the knock, if the
-                // thing that just stopped existing asked for one. Nothing does but a
-                // meteor arriving, so the biggest thump in the game belongs to the
-                // thing that ARRIVED rather than to the man who called for it a
-                // second and a half ago and may well be dead.
-                skillEffects.cast(look.effect,
-                        new uz.dukeengine.core.math.Coord3D(died.position().x(),
-                                died.position().y(), 0f),
-                        cam.getLocation());
-                controls.died(died.object().value());
-                hurtMoments.forget(died.object().value());
-                unitScene.layOut(died.object().value(), died.deathType(), died.frame());
-                unitScene.died(died.object().value());
-                moment(GameSounds.diedMoment(died),
-                        WorldMoments.died(died, dying == null ? null : dying.root, this::floorHeightAt),
-                        died.object().value());
-            } else if (event instanceof WeaponFired fired) {
-                var node = unitScene.node(fired.shooter().value());
-                // Its barrel flashes and kicks whether or not the shot was given a look of its own.
-                var bone = node == null ? null : unitScene.fire(fired.shooter().value(), fired.slot());
-                if (fired.weapon() != null) {
-                    // By the shooter's rank first, a veteran's flash: fired.<weapon>.<rank>, falling back by its dots.
-                    moment("fired." + fired.weapon() + (fired.rank() > 0 ? "." + fired.rank() : ""),
-                            WorldMoments.fired(fired, bone, node == null ? null : node.root, this::floorHeightAt),
-                            fired.shooter().value());
-                }
-                if (node != null) {
-                    playSound(looks.visualFor(node.view).fireSound,
-                            node.root.getLocalTranslation());
-                    // The swing, on the frame the weapon let go — unless it began with the wind-up this shot ends.
-                    if (!node.swungFromWindUp) {
-                        unitScene.playOnce(node, looks.visualFor(node.view).attackAnim);
-                    }
-                    node.swungFromWindUp = false;
-                }
-            } else if (event instanceof uz.dukeengine.combat.event.WeaponWoundUp wound) {
-                var node = unitScene.node(wound.shooter().value());
-                if (node != null) {
-                    // The whole wind-up drawn: the swing begins now and its blow meets the shot.
-                    unitScene.playOnce(node, looks.visualFor(node.view).attackAnim);
-                    node.swungFromWindUp = true;
-                }
-            } else if (event instanceof uz.dukeengine.core.event.ObjectHurt hurt) {
-                if (hurt.critical()) {
-                    criticalThisFrame.add(hurt.object().value());
-                }
-                hitStops.heard(hurt, visuals.getHitStop(), visuals.getHitNumbers().bigAt(), timer.getTimeInSeconds());
-                var name = hurtMoments.nameFor(hurt, visuals::namesMoment);
-                if (name != null) {
-                    var victim = unitScene.node(hurt.object().value());
-                    var cue = WorldMoments.hurt(hurt, victim == null ? null : victim.root, this::floorHeightAt);
-                    moment(name, cue, hurt.object().value());
-                    if (noises != null) {
-                        noises.sounds().play(name, cue.at(), timer.getTimeInSeconds(),
-                                hurt.playerIndex() == game.getLocalPlayerIndex());
-                    }
-                }
-            } else if (event instanceof uz.dukeengine.core.event.SceneryChanged changed) {
-                ground.showScenery(changed.index(), !changed.removed());
-            } else if (event instanceof uz.dukeengine.core.event.TextFloated text) {
-                floatingTexts.add(text, text.frame());
-            } else if (event instanceof uz.dukeengine.core.event.StripPlayed strip) {
-                pictureStrips.add(strip, strip.frame());
-            } else if (event instanceof uz.dukeengine.core.event.SoundPlayed sound) {
-                heard(sound);
-            } else if (event instanceof uz.dukeengine.core.event.EffectPlayed played) {
-                played(played);
-            } else if (event instanceof ShotLanded landed && landed.weapon() != null) {
-                var victim = landed.victim() == null ? null : unitScene.node(landed.victim().value());
-                moment("landed." + landed.weapon(),
-                        WorldMoments.landed(landed, victim == null ? null : victim.root, this::floorHeightAt),
-                        landed.victim() == null ? LayeredEffects.NOBODY : landed.victim().value());
-            }
-        }
-    }
-
-    /**
-     * What was cast this frame, out of the status line.
-     *
-     * <p><b>Why the status line and not an event.</b> The engine's event channel
-     * carries {@code WeaponFired}, and every cast already posts one -- but it says
-     * only WHO fired and where, which is all a muzzle flash needs and not nearly
-     * enough to tell a nova from a blink. The event lives in {@code rts}, which is
-     * shared with games that have never heard of a skill, so widening it there to
-     * carry a key would be the dungeon's idea put somewhere it does not belong.
-     *
-     * <p>The status line is the game talking to its own client and is exactly the
-     * seam for this: a string the engine carries and never reads. It already
-     * carries the things a dungeon has that an RTS does not -- the note, which
-     * stone the floor is built from -- and this is one more.
-     *
-     * <p>Read from the snapshot rather than from the panel, because the panel is
-     * about what is SELECTED: the moment the player clicks a skeleton his own
-     * card is gone and so would his effects be. The frame number is what keeps
-     * one cast drawn once, since the same line is sent again until something
-     * changes.
-     *
-     * <p>Format is {@code cast=<recipe>,<frame>,<x>,<y>,<radius>,<whose>}. A line
-     * that does not parse is dropped in silence: a missing ring is the cheapest
-     * possible failure, and an effect that threw would take the frame with it.
-     */
-    int skillsCastThisFrame(WorldSnapshot snapshot) {
-        if (skillEffects == null || !snapshot.hasStatus()) {
-            return 0;
-        }
-        var casts = SkillEffects.castsIn(snapshot.status(), lastCastFrameDrawn);
-        for (var cast : casts) {
-            lastCastFrameDrawn = Math.max(lastCastFrameDrawn, cast.frame());
-            skillEffects.cast(cast.look(), cast.at(), cam.getLocation());
-            // And the caster is seen doing it, if the game named a gesture for
-            // this recipe. Nothing did until a mage needed both hands.
-            unitScene.castGesture(unitScene.node(cast.by()), visuals.getCastAnim(cast.look()));
-        }
-        drawLayers(casts);
-        return casts.size();
-    }
-
-    /**
-     * The layered half of this frame's casts.
-     *
-     * <p>A run and a blink arrive as two marks of one look in one frame -- the spot
-     * he left, which belongs to the floor, and the spot he arrived at, which is his
-     * -- and a layer laid along the run or flashed at both ends needs them as ONE
-     * moment with two ends. Everything else is one mark and one moment, facing the
-     * way from whoever cast it to where it went off.
-     */
-    private void drawLayers(List<SkillEffects.Cast> casts) {
-        if (layered == null) {
-            return;
-        }
-        for (int i = 0; i < casts.size(); i++) {
-            var cast = casts.get(i);
-            var next = i + 1 < casts.size() ? casts.get(i + 1) : null;
-            var spot = new Vector3f(cast.at().x(), 0f, cast.at().y());
-            boolean run = next != null && next.look().equals(cast.look())
-                    && next.frame() == cast.frame() && cast.on() == SkillEffects.NOBODY
-                    && next.on() != SkillEffects.NOBODY;
-            if (run) {
-                var to = new Vector3f(next.at().x(), 0f, next.at().y());
-                layered.cast(cast.look(), new LayeredEffects.Moment(to, spot, to,
-                        to.x - spot.x, to.z - spot.z, next.radius(), next.on(), next.by()), cam);
-                i++;
-                continue;
-            }
-            float facingX = 0f;
-            float facingZ = 0f;
-            var caster = unitScene.node(cast.by());
-            if (caster != null) {
-                var from = caster.root.getLocalTranslation();
-                facingX = spot.x - from.x;
-                facingZ = spot.z - from.z;
-            }
-            layered.cast(cast.look(), new LayeredEffects.Moment(spot, null, null, facingX,
-                    facingZ, cast.radius(), cast.on(), cast.by()), cam);
-        }
     }
 
     /**
@@ -5652,45 +5268,6 @@ final class DukeRtsApp extends SimpleApplication {
                 cam.getWidth(), cam.getHeight());
     }
 
-    // ---- assets & helpers ----
-
-    private void playSound(String assetPath, Vector3f position) {
-        var audio = soundNode(assetPath);
-        if (audio == null) {
-            return;
-        }
-        audio.setLocalTranslation(position);
-        audio.playInstance();
-    }
-
-    /**
-     * This sound, ready to play, or {@code null} if it is not there.
-     *
-     * <p>Kept rather than built per shot, and built ahead of the first shot by
-     * {@link ArtLoad}: decoding a sound is not much work, but it is work in the
-     * frame the arrow leaves the bow, which is the frame that can least afford it.
-     */
-    private AudioNode soundNode(String assetPath) {
-        if (assetPath == null || missing.contains(assetPath)) {
-            return null;
-        }
-        var audio = audioCache.computeIfAbsent(assetPath, path -> {
-            try {
-                var node = new AudioNode(assetManager, path, AudioData.DataType.Buffer);
-                node.setPositional(true);
-                node.setRefDistance(40f);
-                rootNode.attachChild(node);
-                return node;
-            } catch (RuntimeException e) {
-                missing.warn(path, "sound");
-                return null;
-            }
-        });
-        if (audio == null) {
-            missing.firstTime(assetPath);
-        }
-        return audio;
-    }
     void hazeColour(int rgb, float seconds) {
         fog.hazeColour(rgb, seconds);
     }
