@@ -37,11 +37,11 @@ public final class RpgWorld extends GameLogic implements ArmedWorld {
     /** @param skills each template's skills, as a game reads them out of its blocks */
     public RpgWorld(Map<String, List<Skill>> skills, Seal seal) {
         super(new ThingFactory(CombatModules.withDefaults()
-                .register(SkillBook.Data.class, (owner, data) -> new SkillBook(owner,
+                .register(SkillBook.Data.class, (owner, _) -> new SkillBook(owner,
                         skills.getOrDefault(owner.getTemplate().name(), List.of()), RULES, seal))
                 .register(uz.dukeengine.rpg.fight.ArrowUpdate.Data.class,
-                        (owner, data) -> new uz.dukeengine.rpg.fight.ArrowUpdate(owner, "", seal))
-                .register(GroundItem.Data.class, (owner, data) -> new GroundItem(owner))
+                        (owner, _) -> new uz.dukeengine.rpg.fight.ArrowUpdate(owner, "", seal))
+                .register(GroundItem.Data.class, (owner, _) -> new GroundItem(owner))
                 .register(GateUpdate.Data.class, GateUpdate::new)));
         init();
         var players = getPlayerList();

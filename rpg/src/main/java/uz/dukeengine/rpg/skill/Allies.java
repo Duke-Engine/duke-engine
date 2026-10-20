@@ -174,7 +174,7 @@ final class Allies {
         if (towards != null) {
             Facing.turnToward(owner, towards);
         }
-        Blows.fired(owner, spots.get(0));
+        Blows.fired(owner, spots.getFirst());
         return true;
     }
 }

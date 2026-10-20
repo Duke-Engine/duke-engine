@@ -35,7 +35,7 @@ final class ActionWorld extends GameLogic implements ArmedWorld {
     /** @param skills each template's skills */
     ActionWorld(Map<String, List<Skill>> skills) {
         super(new ThingFactory(CombatModules.withDefaults()
-                .register(SkillBook.Data.class, (owner, data) -> new SkillBook(owner,
+                .register(SkillBook.Data.class, (owner, _) -> new SkillBook(owner,
                         skills.getOrDefault(owner.getTemplate().name(), List.of()), RULES, Seal.NONE))
                 .register(Dodge.Data.class, Dodge::new)));
         init();
