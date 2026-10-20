@@ -1532,7 +1532,7 @@ public final class Visuals {
             String keepGroup, float slowest, float fastest, java.util.List<Pick> picks, boolean idles, float distance) {
         public ClipState {
             words = java.util.Collections.unmodifiableSortedSet(new java.util.TreeSet<>(words));
-            mode = mode == null ? ClipMode.LOOP : mode;
+            mode = Objects.requireNonNullElse(mode, ClipMode.LOOP);
             slowest = slowest > 0f ? slowest : 1f;
             fastest = Math.max(slowest, fastest > 0f ? fastest : slowest);
             picks = picks == null || picks.isEmpty() ? (clip == null ? java.util.List.of() : java.util.List.of(
@@ -2060,7 +2060,7 @@ public final class Visuals {
         public EffectVisual glow(java.util.List<String> parts, java.awt.Color colour) {
             glowParts.clear();
             glowParts.addAll(parts);
-            glowColour = colour == null ? java.awt.Color.WHITE : colour;
+            glowColour = Objects.requireNonNullElse(colour, java.awt.Color.WHITE);
             return this;
         }
 
@@ -3130,7 +3130,7 @@ public final class Visuals {
     public record MarkPlace(float along, float pixels, boolean centred, MarkRow row, float gapShare, float gapPixels) {
 
         public MarkPlace {
-            row = row == null ? MarkRow.UNDER : row;
+            row = Objects.requireNonNullElse(row, MarkRow.UNDER);
         }
 
         /** Its middle {@code along} the bar and its top against the bar's bottom, as every mark stood before. */
