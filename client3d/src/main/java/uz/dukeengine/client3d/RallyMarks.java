@@ -129,7 +129,7 @@ final class RallyMarks {
             }
         }
         if (housePrefix != null) {
-            DukeRtsApp.paintOwner(flag, housePrefix, owner);
+            Bodies.paintOwner(flag, housePrefix, owner);
         }
         flag.setLocalTranslation(at(flagged.rallyPoint(), floor));
         flag.setLocalRotation(new Quaternion().fromAngles(0f, -look.flagFacing(), 0f));

@@ -14,7 +14,7 @@ class KeysPageTest {
         var hotkeys = Hotkeys.create().on('c', "Qahramon", game -> { }).describe('J', "Vazifalar")
                 .controls(KeyMap.empty().bind(KeyMap.Control.PAUSE, KeyMap.Key.of(KeyInput.KEY_P)));
 
-        var lines = DukeRtsApp.keyLines(hotkeys, english -> english.equals("Pause") ? "Pauza" : english);
+        var lines = KeyBindings.keyLines(hotkeys, english -> english.equals("Pause") ? "Pauza" : english);
 
         assertTrue(lines.contains("C   Qahramon"), lines.toString());
         assertTrue(lines.contains("J   Vazifalar"), "a letter the game only takes on its own canvas, too: " + lines);

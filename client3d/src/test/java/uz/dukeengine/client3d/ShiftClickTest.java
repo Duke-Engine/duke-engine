@@ -13,13 +13,13 @@ class ShiftClickTest {
 
     @Test
     void aWordNamedForHisOwnTransportAClickOrdersAndAShiftClickChooses() {
-        assertTrue(DukeRtsApp.leftClickOrders(Mouse.LEFT_COMMANDS, true, true, false, true),
+        assertTrue(Orders.leftClickOrders(Mouse.LEFT_COMMANDS, true, true, false, true),
                 "a click posts the game's order");
-        assertFalse(DukeRtsApp.leftClickOrders(Mouse.LEFT_COMMANDS, true, true, true, true),
+        assertFalse(Orders.leftClickOrders(Mouse.LEFT_COMMANDS, true, true, true, true),
                 "a shift-click posts nothing, and adds the transport to the selection");
-        assertFalse(DukeRtsApp.leftClickOrders(Mouse.LEFT_COMMANDS, true, false, false, true),
+        assertFalse(Orders.leftClickOrders(Mouse.LEFT_COMMANDS, true, false, false, true),
                 "no word: a click chooses, as always");
-        assertTrue(DukeRtsApp.leftClickOrders(Mouse.LEFT_COMMANDS, false, false, true, true),
+        assertTrue(Orders.leftClickOrders(Mouse.LEFT_COMMANDS, false, false, true, true),
                 "off his own things a click commands, shift or not");
     }
 }

@@ -38,15 +38,15 @@ class MenuWordsTest {
      */
     @Test
     void theBackdropIsKeptGoingBehindTheClientsFrontMenuToo() {
-        assertEquals(true, DukeRtsApp.onTheFrontEnd(DukeRtsApp.Screen.MENU, false, null), "the stone front menu");
-        assertEquals(true, DukeRtsApp.onTheFrontEnd(DukeRtsApp.Screen.SETTINGS, false, DukeRtsApp.Screen.MENU),
+        assertEquals(true, DukeRtsApp.onTheFrontEnd(Screen.MENU, false, null), "the stone front menu");
+        assertEquals(true, DukeRtsApp.onTheFrontEnd(Screen.SETTINGS, false, Screen.MENU),
                 "settings opened from it");
-        assertEquals(false, DukeRtsApp.onTheFrontEnd(DukeRtsApp.Screen.SETTINGS, false, DukeRtsApp.Screen.PAUSED),
+        assertEquals(false, DukeRtsApp.onTheFrontEnd(Screen.SETTINGS, false, Screen.PAUSED),
                 "settings opened from the pause menu");
-        assertEquals(false, DukeRtsApp.onTheFrontEnd(DukeRtsApp.Screen.PAUSED, false, null));
-        assertEquals(false, DukeRtsApp.onTheFrontEnd(DukeRtsApp.Screen.PLAYING, false, null));
-        assertEquals(true, DukeRtsApp.onTheFrontEnd(DukeRtsApp.Screen.FRONT, true, null), "the game's own, as ever");
-        assertEquals(false, DukeRtsApp.onTheFrontEnd(DukeRtsApp.Screen.MENU, true, null));
+        assertEquals(false, DukeRtsApp.onTheFrontEnd(Screen.PAUSED, false, null));
+        assertEquals(false, DukeRtsApp.onTheFrontEnd(Screen.PLAYING, false, null));
+        assertEquals(true, DukeRtsApp.onTheFrontEnd(Screen.FRONT, true, null), "the game's own, as ever");
+        assertEquals(false, DukeRtsApp.onTheFrontEnd(Screen.MENU, true, null));
     }
 
     @Test

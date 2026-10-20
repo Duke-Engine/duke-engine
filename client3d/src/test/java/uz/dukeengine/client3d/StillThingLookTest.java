@@ -27,20 +27,20 @@ class StillThingLookTest {
 
     @Test
     void aStillThingIsDrawnAsTheLookOfItsCellDrawsIt() {
-        assertEquals("models/props/stalagmite.glb", DukeRtsApp.lookOf(visuals, wood, cave, pillar(true)).modelPath);
+        assertEquals("models/props/stalagmite.glb", Looks.lookOf(visuals, wood, cave, pillar(true)).modelPath);
     }
 
     @Test
     void aLookThatDoesNotDrawItLeavesItAsTheGameDrewItAndNotAsTheFloorsLook() {
         var crypt = visuals.getTheme("crypt");
 
-        assertEquals("models/props/pillar.glb", DukeRtsApp.lookOf(visuals, wood, crypt, pillar(true)).modelPath);
+        assertEquals("models/props/pillar.glb", Looks.lookOf(visuals, wood, crypt, pillar(true)).modelPath);
     }
 
     @Test
     void onACellOfTheMapsOwnLookAndForAnythingThatMovesTheFloorsLookDrawsIt() {
-        assertEquals("models/props/bare_tree.glb", DukeRtsApp.lookOf(visuals, wood, null, pillar(true)).modelPath);
-        assertEquals("models/props/bare_tree.glb", DukeRtsApp.lookOf(visuals, wood, cave, pillar(false)).modelPath);
-        assertEquals("models/props/pillar.glb", DukeRtsApp.lookOf(visuals, null, null, pillar(true)).modelPath);
+        assertEquals("models/props/bare_tree.glb", Looks.lookOf(visuals, wood, null, pillar(true)).modelPath);
+        assertEquals("models/props/bare_tree.glb", Looks.lookOf(visuals, wood, cave, pillar(false)).modelPath);
+        assertEquals("models/props/pillar.glb", Looks.lookOf(visuals, null, null, pillar(true)).modelPath);
     }
 }

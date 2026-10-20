@@ -53,12 +53,12 @@ class RebindTest {
         var map = KeyMap.standard();
         var up = map.keysOf(KeyMap.Control.PAN_UP).getFirst();
         var left = map.keysOf(KeyMap.Control.PAN_LEFT).getFirst();
-        DukeRtsApp.putOn(map, KeyMap.Control.PAN_UP, left);
+        KeyBindings.putOn(map, KeyMap.Control.PAN_UP, left);
         assertEquals(List.of(left), map.keysOf(KeyMap.Control.PAN_UP), "up on left's key");
         assertTrue(map.keysOf(KeyMap.Control.PAN_LEFT).contains(up), "and left on up's old one");
-        assertEquals(left, DukeRtsApp.unpacked(DukeRtsApp.packed(left)), "kept and read back");
+        assertEquals(left, KeyBindings.unpacked(KeyBindings.packed(left)), "kept and read back");
         var withCtrl = new KeyMap.Key(com.jme3.input.KeyInput.KEY_K, true, false, true);
-        assertEquals(withCtrl, DukeRtsApp.unpacked(DukeRtsApp.packed(withCtrl)), "its modifiers too");
+        assertEquals(withCtrl, KeyBindings.unpacked(KeyBindings.packed(withCtrl)), "its modifiers too");
     }
 
     /** A quick cast takes the creature nearest the pointer within six of it (E78). */
@@ -68,7 +68,7 @@ class RebindTest {
                 false, false, -1);
         var far = new uz.dukeengine.core.view.UnitView(5, "Skeleton", 1, 120f, 100f, 0f, 50f, 50f, false, true,
                 false, false, -1);
-        assertEquals(4, DukeRtsApp.nearestWithin(List.of(far, near), 100f, 100f, DukeRtsApp.QUICK_CAST_REACH));
-        assertEquals(-1, DukeRtsApp.nearestWithin(List.of(far), 100f, 100f, DukeRtsApp.QUICK_CAST_REACH));
+        assertEquals(4, WorldPointer.nearestWithin(List.of(far, near), 100f, 100f, WorldPointer.QUICK_CAST_REACH));
+        assertEquals(-1, WorldPointer.nearestWithin(List.of(far), 100f, 100f, WorldPointer.QUICK_CAST_REACH));
     }
 }

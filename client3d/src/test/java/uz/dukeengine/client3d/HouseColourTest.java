@@ -33,9 +33,9 @@ class HouseColourTest {
         body.attachChild(stripe);
         body.attachChild(turret);
 
-        assertTrue(DukeRtsApp.isHouseColoured(stripe, body, "HOUSECOLOR"));
-        assertTrue(DukeRtsApp.isHouseColoured(turret, body, "HOUSECOLOR"), "letter case says nothing");
-        assertFalse(DukeRtsApp.isHouseColoured(hull, body, "HOUSECOLOR"), "the rest of it is left alone");
+        assertTrue(Bodies.isHouseColoured(stripe, body, "HOUSECOLOR"));
+        assertTrue(Bodies.isHouseColoured(turret, body, "HOUSECOLOR"), "letter case says nothing");
+        assertFalse(Bodies.isHouseColoured(hull, body, "HOUSECOLOR"), "the rest of it is left alone");
     }
 
     /** A loader may keep the artist's name on the node and give the geometry under it another. */
@@ -47,7 +47,7 @@ class HouseColourTest {
         marked.attachChild(inside);
         body.attachChild(marked);
 
-        assertTrue(DukeRtsApp.isHouseColoured(inside, body, "HOUSECOLOR"));
+        assertTrue(Bodies.isHouseColoured(inside, body, "HOUSECOLOR"));
     }
 
     /** Only inside the body: whatever the body hangs under is not part of the model. */
@@ -59,7 +59,7 @@ class HouseColourTest {
         body.attachChild(hull);
         world.attachChild(body);
 
-        assertFalse(DukeRtsApp.isHouseColoured(hull, body, "HOUSECOLOR"));
+        assertFalse(Bodies.isHouseColoured(hull, body, "HOUSECOLOR"));
     }
 
     /** The prefix is the game's; the engine names none, and a game that gives none paints nothing. */
@@ -82,8 +82,8 @@ class HouseColourTest {
         var body = new Node("tank");
         body.attachChild(stripe);
 
-        DukeRtsApp.paintOwner(body, "HOUSECOLOR", com.jme3.math.ColorRGBA.Red);
-        DukeRtsApp.paintOwner(body, "HOUSECOLOR", com.jme3.math.ColorRGBA.Blue);
+        Bodies.paintOwner(body, "HOUSECOLOR", com.jme3.math.ColorRGBA.Red);
+        Bodies.paintOwner(body, "HOUSECOLOR", com.jme3.math.ColorRGBA.Blue);
         assertEquals(new com.jme3.math.ColorRGBA(0f, 0f, 0.5f, 1f), material.getParamValue("Diffuse"),
                 "grey times blue: the red is gone");
     }

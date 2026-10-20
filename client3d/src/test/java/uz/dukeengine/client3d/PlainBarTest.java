@@ -123,7 +123,7 @@ class PlainBarTest {
      */
     @Test
     void aBarFloatsOverTheFeetWhereverTheyStand() {
-        assertEquals(42f, DukeRtsApp.barTop(30f, 12f, null, null), 1e-4f);
-        assertEquals(12f, DukeRtsApp.barTop(0f, 12f, null, null), 1e-4f, "on the flat, as it always was");
+        assertEquals(42f, UnitScene.barTop(30f, 12f, null, null), 1e-4f);
+        assertEquals(12f, UnitScene.barTop(0f, 12f, null, null), 1e-4f, "on the flat, as it always was");
     }
 }

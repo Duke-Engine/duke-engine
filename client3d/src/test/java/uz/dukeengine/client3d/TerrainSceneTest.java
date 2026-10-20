@@ -1164,10 +1164,10 @@ class TerrainSceneTest {
     /** The front end builds its ground before there is a world: nothing taken away, and no failure (E86). */
     @Test
     void groundBuiltWithNoWorldYetHidesNothing() {
-        assertTrue(DukeRtsApp.removedScenery(null).isEmpty());
+        assertTrue(WorldGround.removedScenery(null).isEmpty());
         var root = new Node("terrain");
         var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles());
-        terrain.hideScenery(DukeRtsApp.removedScenery(null));
+        terrain.hideScenery(WorldGround.removedScenery(null));
         terrain.rebuild(twoStoreys(), kit(), null, null, null,
                 java.util.List.of(new Scenery("tree", 2.5f, 1.5f, 0f, 1f, 0xFFFFFF, 0.4f)));
         assertEquals(1, pieces(root, "tree").size());

@@ -1,40 +1,18 @@
 package uz.dukeengine.client3d;
 
-import com.jme3.anim.AnimComposer;
-import com.jme3.anim.tween.action.BlendableAction;
-import com.jme3.animation.AnimChannel;
-import com.jme3.animation.AnimControl;
 import com.jme3.app.SimpleApplication;
-import com.jme3.audio.AudioData;
-import com.jme3.audio.AudioNode;
-import com.jme3.collision.CollisionResults;
 import com.jme3.font.BitmapText;
 import com.jme3.input.KeyInput;
-import com.jme3.input.MouseInput;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.AnalogListener;
-import com.jme3.input.controls.KeyTrigger;
-import com.jme3.input.controls.MouseAxisTrigger;
-import com.jme3.input.controls.MouseButtonTrigger;
-import com.jme3.light.AmbientLight;
-import com.jme3.light.DirectionalLight;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
-import com.jme3.math.FastMath;
-import com.jme3.math.Quaternion;
-import com.jme3.math.Ray;
-import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
-import com.jme3.scene.control.BillboardControl;
-import com.jme3.scene.shape.Box;
-import com.jme3.scene.shape.Cylinder;
-import com.jme3.scene.shape.Quad;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -43,14 +21,11 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Logger;
 
-import uz.dukeengine.core.event.ObjectDied;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.game.DukeGame;
 import uz.dukeengine.core.view.UnitView;
 import uz.dukeengine.core.view.WorldSnapshot;
-import uz.dukeengine.combat.event.ShotLanded;
-import uz.dukeengine.combat.event.WeaponFired;
 import uz.dukeengine.combat.message.CombatOrder;
 
 /**
@@ -71,11 +46,6 @@ final class DukeRtsApp extends SimpleApplication {
     private static final Logger LOG = Logger.getLogger(DukeRtsApp.class.getName());
 
     /**
-     * Prefix of the input mapping for a key the game claimed.
-     */
-    private static final String HOTKEY = "Hotkey";
-
-    /**
      * Whether a modifier is down, so the letter under it can mean something else.
      *
      * <p>An array because the listener is a lambda and a lambda may not write to a
@@ -85,18 +55,10 @@ final class DukeRtsApp extends SimpleApplication {
     private final boolean[] ctrlHeld = {false};
 
     /**
-     * What is on the screen. {@code FRONT} is a game's own front end, drawn on its canvas — see
-     * {@link Shell#drawnByTheGame} — with no match behind it.
-     */
-    enum Screen {MENU, FRONT, LOADING, PLAYING, PAUSED, SETTINGS}
-
-    /**
      * Persisted display/audio settings, shared by every duke-engine game.
      */
     static final java.util.prefs.Preferences PREFS =
             java.util.prefs.Preferences.userRoot().node("duke-engine/game");
-    private static final int[][] RESOLUTIONS = {{1280, 720}, {1600, 900}, {1920, 1080}};
-    private static final int[] VOLUMES = {100, 75, 50, 25, 0};
 
     /** The match being drawn: the one the window opened with, or the last the game started. */
     private DukeGame game;
@@ -126,32 +88,18 @@ final class DukeRtsApp extends SimpleApplication {
     private int laidRegionFor;
     /** What clears the window round a world drawn in part of it: black, under the game's canvas. */
     private com.jme3.renderer.ViewPort surround;
-    /** The movie playing, and where it is shown — see {@link Duke3D#playMovie}. */
-    private MoviePlayer movie;
-    private MovieScreen movieScreen;
-    /** How steeply the camera looks down, in radians: the game's camera's where it set one, else the player's. */
-    private float cameraPitch = CameraFocus.DEFAULT_PITCH;
+    /** The game's own drawing over everything, and its movies — see {@link GameCanvas}. */
+    private GameCanvas canvas;
     /** The player's camera as the game frames it — see {@link CameraFrame}. */
     private final CameraFrame cameraFrame;
-    /** The player's mouse on the camera: a middle drag turning it — see {@link Steering}. */
-    private final Steering steering = new Steering();
-    private CanvasText canvasText;
-    private CanvasDrawing canvasDrawing;
-    /** The size the painter was last told the screen is. */
-    private int paintedFor;
     /**
      * Keys this game claimed for itself, over and above the standard controls.
      */
     private final Hotkeys hotkeys;
     private final CountDownLatch stopped = new CountDownLatch(1);
 
-    private Screen screen = Screen.MENU;
-    private Screen settingsReturn = Screen.MENU;
-    private StoneMenu menu;
-    /**
-     * The lettering the game asked its menus to be set in.
-     */
-    private StoneCraft craft;
+    /** What is on the screen, and the client's own menus — see {@link Screens}. */
+    private Screens screens;
     private Thread simThread; // started when the player presses Play
 
     private final Node unitsNode = new Node("units");
@@ -162,21 +110,16 @@ final class DukeRtsApp extends SimpleApplication {
      * run) kept the old one on screen while everything else moved on.
      */
     private final Node terrainNode = new Node("terrain");
-    /**
-     * Built at init rather than construction: a modular kit needs the asset manager.
-     */
-    private TerrainScene terrain;
-    /**
-     * The dark, as a picture of the map that the terrain's material reads by world
-     * position — see {@link FogMap}. {@code null} for a game that never asked to be
-     * discovered, and then the terrain is drawn plainly.
-     */
-    private FogMap fogMap;
-    /**
-     * Every material that samples the fog. Kept because the one thing in them that
-     * changes with the world is its size, and a new floor is a different size.
-     */
-    private final List<Material> fogged = new ArrayList<>();
+    /** The world's ground as it is drawn, and what lies on it — see {@link WorldGround}. */
+    private WorldGround ground;
+    /** The looks in force, the floor's and its cells' — see {@link Looks}. */
+    private final Looks looks;
+    /** What the player has seen, and the dark over the rest — see {@link FogOfWar}. */
+    private FogOfWar fog;
+    /** How the ground and what lies on it are drawn, and every material that reads the fog — see {@link GroundMaterials}. */
+    private GroundMaterials groundLooks;
+    /** The sun, the ambient and the sun's shadows the scene is lit by — see {@link SceneLight}. */
+    private final SceneLight light;
     /**
      * What the things in flight look like. Built once; see {@link ProjectileEffects}.
      */
@@ -188,7 +131,7 @@ final class DukeRtsApp extends SimpleApplication {
      * <p>Beside the projectiles' effects rather than inside them, because they
      * answer different questions. That one is asked "this thing is flying / this
      * thing landed"; this one is asked "the player pressed W", which arrives from
-     * somewhere else entirely -- see {@link #skillsCastThisFrame}.
+     * somewhere else entirely -- see {@link WorldEvents}.
      */
     private SkillEffects skillEffects;
     /**
@@ -210,102 +153,7 @@ final class DukeRtsApp extends SimpleApplication {
     /** The particle systems the simulation keeps going on its things until it ends them. */
     private RidingEffects ridingEffects;
     private RallyMarks rallyMarks;
-    /** The pictures laid on the ground under things by their words — see {@link GroundPictures}. */
-    private GroundPictures groundPictures;
-    /** The colours added to things by their words — see {@link WordTints}. */
-    private final WordTints wordTints = new WordTints();
-    /** How a thing kept from some players looks to the rest — see {@link StealthLook}. */
-    private StealthLook stealthLook;
-    private Scorches scorches;
-    private Strips strips;
-    private Water water;
-    private TrackMarks trackMarks;
     private OcclusionMarks occlusionMarks;
-    private BorderRing border;
-
-    /** The game's sky, hung behind everything; none where it names none or its pictures will not load. */
-    private void hangTheSky() {
-        var pictures = visuals.getSkybox();
-        if (pictures.isEmpty()) {
-            return;
-        }
-        try {
-            var sky = pictures.size() == 1
-                    ? com.jme3.util.SkyFactory.createSky(assetManager, pictures.getFirst(),
-                            com.jme3.util.SkyFactory.EnvMapType.CubeMap)
-                    : com.jme3.util.SkyFactory.createSky(assetManager, assetManager.loadTexture(pictures.get(0)),
-                            assetManager.loadTexture(pictures.get(1)), assetManager.loadTexture(pictures.get(2)),
-                            assetManager.loadTexture(pictures.get(3)), assetManager.loadTexture(pictures.get(4)),
-                            assetManager.loadTexture(pictures.get(5)));
-            rootNode.attachChild(sky);
-        } catch (RuntimeException notThere) {
-            LOG.warning(() -> "the sky names pictures that will not load: " + pictures);
-        }
-    }
-
-    /** The things shown behind what stands in front this frame — see {@link Visuals#occlusionMarks}. */
-    private void markTheHidden() {
-        if (!visuals.getOcclusionMarks() || snapshot == null) {
-            if (occlusionMarks != null) {
-                occlusionMarks.mark(Map.of());
-            }
-            return;
-        }
-        if (occlusionMarks == null) {
-            occlusionMarks = new OcclusionMarks(assetManager);
-            viewPort.getProcessors().add(0, occlusionMarks); // before a filter takes the picture and its depth
-        }
-        int local = game.getLocalPlayerIndex();
-        var marked = new java.util.HashMap<Spatial, ColorRGBA>();
-        for (var view : snapshot.units()) {
-            var node = unitNodes.get(view.id());
-            if (node == null || view.structure()
-                    || view.playerIndex() != local && !visuals.getOcclusionMarked().test(view)) {
-                continue;
-            }
-            marked.put(node.root, toColor(game.getColor(view.playerIndex())));
-        }
-        occlusionMarks.mark(marked);
-    }
-    private ShoreWaves shoreWaves;
-
-    /** A picture drawn flat in the world by the game's look: an unshaded material, or null where it will not load. */
-    private Material flatPicture(String path) {
-        var picture = path == null ? null : groundTexture(path);
-        if (picture == null) {
-            return null;
-        }
-        var material = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        material.setTexture("ColorMap", picture);
-        return material;
-    }
-
-    /** The water's height over a point, else the ground's. */
-    private float waterOrGround(float worldX, float worldY) {
-        float surface = water == null ? Float.NaN : water.surfaceAt(worldX, worldY);
-        return Float.isNaN(surface) ? floorHeightAt(worldX, worldY) : surface;
-    }
-    /** How many of the game's pieces laid along the ground are laid, and for which game. */
-    private int stripsLaid;
-    private DukeGame stripsOf;
-    /** The paint the ground was last built with, for what is laid over it as it is drawn. */
-    private GroundPaint builtPaint;
-    /** How many of the game's own marks on the ground are laid, and for which game. */
-    private int marksLaid;
-    private DukeGame marksOf;
-    private final java.util.Map<String, Material> scorchLooks = new java.util.HashMap<>();
-    private final java.util.Set<String> missingScorches = new java.util.HashSet<>();
-    private final SelectionFlash selectionFlash = new SelectionFlash();
-    /** What was selected the frame before: a thing new to the selection flashes. */
-    private java.util.Set<Integer> wasSelected = java.util.Set.of();
-    /** What a blow shows, by name — see {@link HurtMoments} and {@link Visuals#hurt}. */
-    private HurtMoments hurtMoments;
-    /** Every drawn thing's barrels: where its shots come out, its flashes and its kick — see {@link Barrels}. */
-    private final Barrels barrels = new Barrels();
-    /** Every drawn vehicle's treads and wheels, run as it moves — see {@link RunningGear}. */
-    private final RunningGear runningGear = new RunningGear();
-    private final TurretBones turretBones = new TurretBones();
-    private final DrivenBones drivenBones = new DrivenBones();
     /** The streams things ride, drawn as ribbons, once the game names a look for one — see {@link Visuals#stream}. */
     private Ribbons ribbons;
     private final Map<String, Material> particleMaterials = new HashMap<>();
@@ -313,12 +161,20 @@ final class DukeRtsApp extends SimpleApplication {
      * Whoever of theirs was just hit, going white -- see {@link HitFlash}.
      */
     private HitFlash hitFlash;
-    /**
-     * Shots that ended this frame, waiting for its blows to say whether they struck.
-     */
-    private final List<Landing.Gone> endedShots = new ArrayList<>();
-    /** A level, the boss down, a new floor -- see RunMoments. */
-    private final RunMoments runMoments = new RunMoments();
+    /** The things of the world as they are drawn, one node each — see {@link UnitScene}. */
+    private UnitScene unitScene;
+    /** What the pointer is on in the world — see {@link WorldPointer}. */
+    private WorldPointer pointer;
+    /** What the player has selected and what he orders it to do — see {@link Orders}. */
+    private Orders orders;
+    /** The game's own keys, pressed, armed, held and cast — see {@link SkillKeys}. */
+    private SkillKeys skillKeys;
+    /** The game's command buttons, on the bar and armed to aim — see {@link CommandButtons}. */
+    private CommandButtons buttons;
+    /** What happened in the world this frame, drawn and heard — see {@link WorldEvents}. */
+    private WorldEvents events;
+    /** The sounds a look names by file, each read once — see {@link SoundNodes}. */
+    private SoundNodes soundNodes;
 
     /** Each kind of game's part of the window on the classpath — see {@link HudPart}. */
     private final List<HudPart> parts = HudPart.found();
@@ -362,7 +218,7 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public Spatial body(Visuals.UnitVisual visual, java.util.Collection<String> alsoWanted) {
-            return buildBody(visual, alsoWanted);
+            return bodies.buildBody(visual, alsoWanted);
         }
 
         @Override
@@ -381,45 +237,29 @@ final class DukeRtsApp extends SimpleApplication {
     /** The floor's half of this frame's status line, read once for the bars and the moments. */
     private UnitBarReading barReading = UnitBarReading.NOTHING;
 
-    /**
-     * The frame of the last cast this client drew, so one cast is drawn once.
-     */
-    private int lastCastFrameDrawn = Integer.MIN_VALUE;
-    /**
-     * The grid the terrain was built from — a different instance means a new world.
-     */
-    private uz.dukeengine.core.pathfind.PathGrid builtFrom;
-
-    /**
-     * What the player has seen, when the game asked to be discovered rather than
-     * shown. {@code null} for every other game, and then nothing below runs.
-     */
-    private Discovery discovery;
-    /**
-     * The discovering template's {@code VisionRange}, resolved once the game is up.
-     */
-    private float discoveryRadius = -1f;
-    /**
-     * Whose sight the radius above was read from — see syncDiscovery.
-     */
-    private String discoveryEyes;
-    /** The minimap's ground: one picture, a texel a cell, repainted where the player's knowledge changed. */
-    private final MinimapPicture minimapPicture = new MinimapPicture();
-    /** How low and how high this map's ground stands: what the ray under the cursor is walked between. */
-    private GroundSpan groundSpan = new GroundSpan(0f, 0f);
-    private final Map<Integer, UnitNode> unitNodes = new HashMap<>();
     /** What is selected, in the order it was selected: the order the game is told it in. */
     private final Set<Integer> selected = new java.util.LinkedHashSet<>();
-    private final Map<String, AudioNode> audioCache = new HashMap<>();
-    private final Set<String> missingAssets = new HashSet<>();
+    /** The files the game named that would not load, each said once. */
+    private final MissingAssets missing = new MissingAssets();
+    /** Things' bodies as the game's looks make them — built once there is an asset manager. */
+    private Bodies bodies;
+    /** Where the art read ahead of a match is kept — see {@link ArtLoad}. */
+    private ArtLoad.Store artStore;
     /**
      * Every noise the game makes, and what it makes them for.
      */
     private GameSounds noises;
     /**
-     * What the player set, kept in a file beside him — see { GameSettings}.
+     * What the player set, kept in a file beside him — see {@link GameSettings}.
      */
     private final GameSettings preferences = new GameSettings();
+    /** The window itself, asked and moved where jME keeps no answer — see {@link WindowDisplay}. */
+    private final WindowDisplay windowDisplay = new WindowDisplay(this::getContext, () -> settings, preferences,
+            missing);
+    /** What the player chose on the settings screen, put into effect — see {@link PlayerChoices}. */
+    private PlayerChoices choices;
+    /** The controls bound, and the keys the player put them on — see {@link KeyBindings}. */
+    private KeyBindings keyBindings;
     /**
      * The line of controls along the bottom, which belongs to play and not to a menu.
      */
@@ -435,22 +275,75 @@ final class DukeRtsApp extends SimpleApplication {
     private boolean artIsReady;
 
     private WorldSnapshot snapshot = WorldSnapshot.EMPTY;
-    private WorldSnapshot lastEventedSnapshot = WorldSnapshot.EMPTY;
     private final CameraFocus camera = new CameraFocus();
-    /**
-     * How high the camera is looking, eased toward the ground under its target.
-     */
-    private float cameraHeight;
+    /** The player's eye, steered and placed — see {@link CameraRig}. */
+    private CameraRig cameraRig;
     /** The client's own controls on the game's keys — see {@link KeyMap} and {@link Controls}. */
     private Controls controls;
     /** Shift and Alt down, beside Ctrl: a key means one thing with them and another without. */
     private boolean shiftDown;
     private boolean altDown;
-    /** Whether the player has put the command bar away. */
-    private boolean commandBarHidden;
     private com.jme3.app.state.ScreenshotAppState screenshots;
     private BitmapText hud;
     private SceneVeil veil;
+
+    /** Whether a match is what is going on: played, with no menu over it. */
+    private boolean inPlay() {
+        return screens.now() == Screen.PLAYING && !screens.menu().isVisible();
+    }
+
+    /** What the menus ask of this window — see {@link Screens.Host}. */
+    private final Screens.Host menusHost = new Screens.Host() {
+        @Override
+        public DukeGame game() {
+            return game;
+        }
+
+        @Override
+        public DukeGame frontGame() {
+            return DukeRtsApp.this.frontGame();
+        }
+
+        @Override
+        public WorldSnapshot snapshot() {
+            return snapshot;
+        }
+
+        @Override
+        public void startGame() {
+            DukeRtsApp.this.startGame();
+        }
+
+        @Override
+        public void quitToTheMainMenu() {
+            DukeRtsApp.this.quitToTheMainMenu();
+        }
+
+        @Override
+        public void quitToTheDesktop() {
+            stop();
+        }
+
+        @Override
+        public void takeTheFrontMatchBack() {
+            DukeRtsApp.this.takeTheFrontMatchBack();
+        }
+
+        @Override
+        public void paused(boolean paused) {
+            setSimulationPaused(paused);
+        }
+
+        @Override
+        public void later(Runnable task) {
+            enqueue(task);
+        }
+
+        @Override
+        public boolean musicByGame() {
+            return musicByGame;
+        }
+    };
 
     /** Whether a scene the game plays keeps the player's hands off the world — see {@code GameCamera.lockInput}. */
     private boolean sceneLocked() {
@@ -458,31 +351,8 @@ final class DukeRtsApp extends SimpleApplication {
     }
     private BitmapText buildMenu;
     private BannerPanel banner;
-
-    // minimap: fixed-size overlay in the bottom-right corner
-    private static final float MINIMAP_SIZE = 190f;
-    private final Node minimapNode = new Node("minimap");
-    /**
-     * Backdrop and rock cells — replaced as a unit when the world changes.
-     */
-    private final Node minimapTerrainNode = new Node("minimap-terrain");
-    private final Map<Integer, Geometry> minimapDots = new HashMap<>();
-    private MinimapProjection minimap = new MinimapProjection(700f, 450f, MINIMAP_SIZE);
-    private float minimapX;       // screen position of the minimap's origin
-    private float minimapY;
-    /**
-     * How much the minimap is shrunk to fit the hero bar's socket, or 1 when it
-     * is drawn in the corner as an RTS draws it.
-     *
-     * <p>Scaled rather than rebuilt at the socket's size: the projection and the
-     * cells are laid out once per world, and a window resize must not mean
-     * rebuilding a few thousand quads.
-     */
-    private float minimapScale = 1f;
-    /**
-     * The camera's footprint, drawn as an outline over the minimap.
-     */
-    private Geometry viewportOutline;
+    /** The minimap, in the corner or in a part's socket — see {@link MinimapView}. */
+    private MinimapView minimapView;
 
     /**
      * The box the player is dragging, drawn over the world while the button is down.
@@ -514,118 +384,11 @@ final class DukeRtsApp extends SimpleApplication {
     /** Texts floated up from points of the world — see {@link FloatingTexts}. */
     private FloatingTexts floatingTexts;
     private PictureStrips pictureStrips;
-    private final HealthWatch healthWatch = new HealthWatch();
-
-    /**
-     * Who was killed this frame, gathered as the events are read.
-     *
-     * <p>The one thing the snapshot cannot say. A creature that dies is taken out
-     * of the world on the frame the blow lands, so the finishing blow never shows
-     * up as health going down -- the creature is simply not there any more, which
-     * from the outside looks exactly like one that walked into the dark.
-     */
-    private final List<HealthWatch.Death> killedThisFrame = new ArrayList<>();
-    /** The creatures a critical blow struck this frame, their numbers drawn as critical. */
-    private final java.util.Set<Integer> criticalThisFrame = new java.util.HashSet<>();
-    private final HitStops hitStops = new HitStops();
-    private final Flinch.Clock flinches = new Flinch.Clock();
 
     /**
      * The bars over everybody's heads. Screen-space and pooled — see UnitBars.
      */
     private UnitBars unitBars;
-
-    /**
-     * Everything the scene keeps per live unit.
-     */
-    private static final class UnitNode {
-        Node root;
-        /** The clip it was busy with last frame, so a new one is seen starting. */
-        String lastBusy;
-        /** Whether its swing began with a wind-up, so the shot that ends it does not swing again. */
-        boolean swungFromWindUp;
-        Geometry ring;
-        /** The disc the ring is laid as, over the ground under it — see {@link #layRing}. */
-        final GroundDisc ringDisc = new GroundDisc(24);
-        /** The particle systems its look puts at its body's bones — see {@link BoneSystems}. */
-        BoneSystems boneSystems;
-        /** The line its body was laid along, for a thing drawn along one; null for the rest. */
-        uz.dukeengine.core.thing.Span laidSpan;
-        /**
-         * How high over its feet its bar floats, measured off the body once.
-         *
-         * <p>Measured rather than assumed, because a creature kit's hero stands
-         * three times taller than its rat — the old constant suited a capsule and
-         * put the bar inside a hero's chest. Measured ONCE, because the answer
-         * cannot change while the model does not, and re-measuring a bounding box
-         * every frame for forty creatures is the sort of cost nobody goes looking
-         * for afterwards.
-         */
-        float barTop;
-        /**
-         * Where and when it was first drawn. A thing that lay where it was put for a
-         * while is a mark; a thing that moved is a shot -- see Landing.
-         */
-        float bornX;
-        float bornZ;
-        float bornAt;
-        Spatial body;      // the shape a click has to hit
-        /** The file the body was loaded from, so a change of condition is noticed. */
-        String modelPath;
-        /** Its pieces as its states have left them — kept for the thing, laid on again on a swapped model. */
-        final Pieces pieces = new Pieces();
-        /** Its clip as the words it holds choose it — see {@link Visuals.UnitVisual#clip}. */
-        final WordClip wordClip = new WordClip();
-        /** How high its model's top stands above the ground it is placed on, for one drawn rising as it is built. */
-        float bodyTop;
-        /** Its other models, each chosen and moved by its words on its own — see {@link Visuals.UnitVisual#layer}. */
-        final java.util.List<ModelLayer> layers = new java.util.ArrayList<>();
-        /** The weapon slots' bones its barrels were found by, as its words chose them. */
-        java.util.Map<Integer, Visuals.WeaponBones> barrelBones;
-        /** Its turrets' bones as its words chose them, or null to find them again. */
-        java.util.Map<Integer, Visuals.TurretLook> turretLooks;
-        /** The body its shadow was last laid on, and whether it casts one: laid again when either changes. */
-        Spatial shadowBody;
-        boolean casting;
-        AnimComposer composer;
-        AnimChannel legacyChannel;
-        String currentAnim = "";
-        /**
-         * Until when a one-shot clip owns the model — a blow, or a flinch.
-         *
-         * <p>What a unit <em>is doing</em> is a loop and what <em>happens to it</em>
-         * is not, and the second has to be able to interrupt the first without the
-         * first taking it straight back. So while this is in the future the state
-         * machine keeps its hands off.
-         */
-        float actionUntil;
-        /**
-         * Until when what it carries is out of its hands, or 0 for never.
-         *
-         * <p>Separate from {@link #actionUntil} although they are usually the same
-         * number: a gesture can own the model without the hands having to be
-         * empty, and every one-shot clip in the game except a two-handed spell
-         * does exactly that.
-         */
-        float carryingAgainAt;
-        /**
-         * Until when a gesture the GAME asked for owns the model, or 0 for never.
-         *
-         * <p>Not the same as {@link #actionUntil}, which any one-shot sets. This
-         * one outranks them: see {@link #playOnce}.
-         */
-        float gestureUntil;
-        /**
-         * The health it had in the last snapshot: a drop is a blow that landed.
-         */
-        float lastHealth = Float.NaN;
-        UnitView view;
-        /** When each mark its words show by its bar began, in the window's seconds, as its strip is played from. */
-        final java.util.Map<Integer, Float> markSince = new java.util.HashMap<>();
-        /** The clip it died with, and the game's frame it died on: what it lies in while the world keeps it dead. */
-        String deathClip;
-        int diedOn;
-    }
 
     DukeRtsApp(DukeGame game, Visuals visuals, Shell shell, Hotkeys hotkeys, Painter painter,
             CanvasInput canvasInput, java.util.function.IntConsumer loadingEar,
@@ -645,47 +408,13 @@ final class DukeRtsApp extends SimpleApplication {
         this.controls = new Controls(this.hotkeys.keyMap());
         this.cameraFrame = visuals == null ? CameraFrame.NONE : visuals.getCameraFrame();
         camera.frame(cameraFrame);
-        var light = visuals == null ? Sunlight.DEFAULT : visuals.getSunlight();
-        this.litBy = light;
-        this.sunDirection = light.direction();
-        this.sunColour = light.sunColour();
-        this.ambientColour = light.ambientColour();
+        this.light = new SceneLight(sunlightOfTheGame(), rootNode);
+        this.looks = new Looks(visuals, missing);
     }
 
-    /**
-     * Take up whatever sun the game says the world now being built is lit by.
-     *
-     * <p>A map is a place and a time. It used to be read once, when the application was made — before
-     * any map was chosen — so every match was lit by one sun, and a night map was drawn at noon. Read here
-     * instead, where the world is built, which is the moment the game knows which world it is: the same
-     * moment {@code Visuals.world(...)} is said, for the same reason.
-     *
-     * <p>Everything lit is built after this — the ground, the tiles, every unit that arrives — and reads
-     * the fields as they now stand, so what is relit here is only the two scene lights themselves. A world
-     * that asks for the sun it already has changes nothing, which is every game that sets its sun once.
-     *
-     * <p>Light is drawing. Nothing in the simulation reads it.
-     */
-    private void adoptTheSun() {
-        var light = visuals == null ? Sunlight.DEFAULT : visuals.getSunlight();
-        if (light.equals(litBy)) {
-            return;
-        }
-        litBy = light;
-        sunDirection = light.direction();
-        sunColour = light.sunColour();
-        ambientColour = light.ambientColour();
-        if (sun != null) {
-            sun.setDirection(sunDirection);
-            sun.setColor(sunColour);
-        }
-        if (sunShadows != null) {
-            sunShadows.sun(sunDirection);
-        }
-        if (ambient != null) {
-            ambient.setColor(ambientColour);
-        }
-        lightTheHour(); // a world built anew keeps the game's hour over its own sun
+    /** The sun the game lights its world by now — see {@link SceneLight#adopt}. */
+    private Sunlight sunlightOfTheGame() {
+        return visuals == null ? Sunlight.DEFAULT : visuals.getSunlight();
     }
 
     /**
@@ -744,6 +473,7 @@ final class DukeRtsApp extends SimpleApplication {
     @Override
     public void simpleInitApp() {
         flyCam.setEnabled(false);
+        choices = new PlayerChoices(preferences, visuals, listener, () -> noises, () -> listShow);
         anisotropy(anisotropy); // slanted ground and roofs kept sharp: the camera sees all of them at a slant
         // The whole picture, the interface over it too, drawn through the game's gamma: last of all.
         gammaPass = new GammaPass(assetManager);
@@ -776,31 +506,26 @@ final class DukeRtsApp extends SimpleApplication {
         }
 
         // Before the terrain, which builds materials that read it.
-        if (visuals.drawsFog()) {
-            fogMap = new FogMap(visuals.getFog());
-        }
+        // The dark, as a picture of the map that the ground's materials read by world position; none for a game that
+        // never asked to be discovered, and then the ground is drawn plainly.
+        var fogMap = visuals.drawsFog() ? new FogMap(visuals.getFog()) : null;
+        groundLooks = new GroundMaterials(assetManager, visuals, light, fogMap, camera, () -> game,
+                () -> ground == null ? null : ground.builtFrom(), () -> snapshot);
+        fog = new FogOfWar(visuals, fogMap, groundLooks, looks, camera, viewPort, renderer, () -> game,
+                () -> snapshot);
         // Needs the locators above, so it cannot be built with the app itself.
-        terrain = new TerrainScene(terrainNode,
-                groundSurfaces,
-                visuals.drawsFog(), visuals.getTiles(), new KitTiles(), true);
+        ground = new WorldGround(assetManager, terrainNode, listNode, visuals, groundLooks, looks,
+                new KitTiles(assetManager, missing, groundLooks, light, looks::activeKit), () -> game, () -> noises,
+                this::floorHeightAt);
 
-        sun = new DirectionalLight(sunDirection, sunColour);
-        ambient = new AmbientLight(ambientColour);
-        // Everything drawn takes the sun's shadows; what casts them its look says.
-        rootNode.setShadowMode(com.jme3.renderer.queue.RenderQueue.ShadowMode.Receive);
-        sunShadows = new SunShadows(assetManager, viewPort, sunDirection);
-        sunShadows.on(shadowsOn);
-        sunShadows.colour(shadowColour);
-        rootNode.addLight(sun);
-        rootNode.addLight(ambient);
-        for (var more : visuals.getThingSuns()) {
-            rootNode.addLight(new DirectionalLight(more.direction(), more.light())); // the things', not the ground's
-        }
+        light.install(assetManager, viewPort, visuals.getThingSuns());
 
         // Before the terrain, because rebuilding a world clears what is burning in
         // it and there has to be something there to clear.
         var budget = visuals.getEffectBudget();
         effects = new ProjectileEffects(assetManager, rootNode, visuals, budget.lights());
+        bodies = new Bodies(assetManager, missing, effects);
+        soundNodes = new SoundNodes(assetManager, rootNode, missing);
         skillEffects = new SkillEffects(visuals, budget.distance());
         layered = new LayeredEffects(assetManager, rootNode, visuals, effects.lights(),
                 surroundings(), visuals.getParticleBudget(), budget.distance());
@@ -812,30 +537,29 @@ final class DukeRtsApp extends SimpleApplication {
         particleDrawing = new ParticleDrawing(particles, this::particleMaterial);
         rootNode.attachChild(particleDrawing.node());
         layered.drawsSystemsWith(particles);
-        scorches = new Scorches(listNode, this::drawnGround, this::scorchLook);
-        strips = new Strips(listNode, this::drawnGround, this::stripLook, visuals::getGroundLight);
-        water = new Water(listNode, this::waterLook);
-        trackMarks = new TrackMarks(listNode, this::flatPicture);
-        border = new BorderRing(listNode, assetManager);
         hangTheSky();
-        shoreWaves = new ShoreWaves(listNode, this::flatPicture);
         listShow = new ListShow(assetManager, listNode, effects.lights(), (cue, at) -> {
             if (noises != null) {
                 noises.sounds().play(cue, at, timer.getTimeInSeconds());
             }
-        }, () -> new Vector3f(camera.targetX(), 0f, camera.targetZ()), this::floorHeightAt, this::debrisPiece,
-                (name, at) -> lists.play(name, EffectLists.Cue.at(at)), this::paintThrown, scorches);
-        applyShake();
+        }, () -> new Vector3f(camera.targetX(), 0f, camera.targetZ()), this::floorHeightAt, bodies::debrisPiece,
+                (name, at) -> lists.play(name, EffectLists.Cue.at(at)), this::paintThrown, ground.scorches());
+        choices.applyShake();
         rootNode.attachChild(listNode);
         lists = new EffectLists(visuals::effectListNamed, particles, listShow, new java.util.Random().nextLong());
         lasers = new Lasers(assetManager, listNode, visuals::laserNamed, this::floorHeightAt);
         ridingEffects = new RidingEffects(particles, rootNode);
-        rallyMarks = new RallyMarks(assetManager, listNode, this::loadMarkModel);
-        groundPictures = new GroundPictures(assetManager, listNode);
-        stealthLook = new StealthLook(assetManager);
+        rallyMarks = new RallyMarks(assetManager, listNode, path -> bodies.asFiled(path, "order mark"));
+        var groundPictures = new GroundPictures(assetManager, listNode);
+        var stealthLook = new StealthLook(assetManager);
         layered.drawsListsWith(lists);
-        hurtMoments = new HurtMoments(visuals::hurtRule);
         hitFlash = new HitFlash(visuals.getHitFlash());
+        unitScene = new UnitScene(assetManager, visuals, bodies, looks, groundLooks, light, effects, layered, particles,
+                hitFlash, groundPictures, stealthLook, missing, fog, rootNode, unitsNode, cam, timer, () -> game,
+                () -> snapshot, selected, this::floorHeightAt, id -> events.criticalThisFrame(id),
+                shot -> events.shotEnded(shot));
+        pointer = new WorldPointer(cam, inputManager, unitScene, () -> game, () -> scheme, () -> worldRegion,
+                this::discovery, this::floorHeightAt);
 
         rootNode.attachChild(terrainNode);
         buildTerrain();
@@ -843,14 +567,11 @@ final class DukeRtsApp extends SimpleApplication {
         rootNode.attachChild(markerNode);
         chevrons = new Chevrons(assetManager, markerNode, visuals.getOrderMark());
         attackFlash = new AttackFlash(assetManager, markerNode, visuals.getOrderMark());
-        modelMarks = new ModelMarks(markerNode, this::loadMarkModel);
+        modelMarks = new ModelMarks(markerNode, path -> bodies.asFiled(path, "order mark"));
         hitNumbers = new FloatingNumbers(guiFont, guiNode, visuals.getHitNumbers());
         floatingTexts = new FloatingTexts(guiFont, guiNode, visuals.getFloatingText());
-        pictureStrips = new PictureStrips(guiNode, this::stripPicture, visuals::stripNamed, picture -> {
-            var look = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-            look.setTexture("ColorMap", picture);
-            return look;
-        });
+        pictureStrips = new PictureStrips(guiNode, this::stripPicture, visuals::stripNamed,
+                picture -> Materials.picture(assetManager, picture));
         // The display face a boss's name is set in is the one the game already
         // named for its menus. A second field naming the same file would be a
         // second thing to keep in step with it, for no second decision.
@@ -858,13 +579,18 @@ final class DukeRtsApp extends SimpleApplication {
                 fontOrDefault(visuals.getMenuStyle().rowFont()));
         unitBars.look(visuals.getUnitBars());
         guiNode.attachChild(unitBars.node());
-        rangeRings = new RangeRings(assetManager, markerNode, visuals.getRangeLook());
+        var rangeRings = new RangeRings(assetManager, markerNode, visuals.getRangeLook());
         veil = new SceneVeil(assetManager);
         guiNode.attachChild(veil.node());
-        warmNode.setCullHint(Spatial.CullHint.Always);
-        rootNode.attachChild(warmNode);
+        artStore = new ArtLoad.Store(assetManager, renderManager, bodies, rootNode, terrainNode,
+                soundNodes::soundNode, missing);
 
-        centerCameraOnMap();
+        cameraRig = new CameraRig(cam, camera, cameraFrame, visuals, inputManager, windowDisplay, veil, skillEffects,
+                listShow, timer, () -> game, () -> snapshot, () -> scheme, this::inPlay, this::held,
+                this::sceneLocked,
+                () -> canvasInput != null && canvasInput.holdsKeys() || controls.isHeld(KeyMap.Control.FREE_POINTER),
+                this::floorHeightAt);
+        cameraRig.centreOnTheMap();
         installInput();
 
         hud = new BitmapText(guiFont);
@@ -897,15 +623,76 @@ final class DukeRtsApp extends SimpleApplication {
             part.open(window, cam.getWidth(), cam.getHeight());
         }
 
-        buildMinimap();
+        minimapView = new MinimapView(assetManager, visuals, () -> game, () -> snapshot, camera, cam, renderer, parts,
+                this::discovery, groundLooks::groundTexture, unitScene::colourOf, timer);
+        minimapView.build(guiNode);
+        readTheNewGrid();
         buildDragRectangle();
-        menu = buildMenu(cam.getWidth(), cam.getHeight());
+        orders = new Orders(() -> game, () -> snapshot, selected, visuals, hotkeys, controls, parts, () -> noises,
+                () -> mouse, pointer, unitScene, minimapView::click, orderMarkers, modelMarks, rallyMarks,
+                dragRectangle, cam, inputManager, timer, () -> screens.now(), this::floorHeightAt);
+        skillKeys = new SkillKeys(hotkeys, visuals, parts, orders, pointer, () -> scheme, rangeRings, () -> noises,
+                () -> game, () -> snapshot, () -> screens.now(), inputManager, timer, this::floorHeightAt);
+        screens = new Screens(menusHost, shell, visuals, hotkeys, preferences, choices, windowDisplay, keyBindings,
+                controls, () -> noises, parts, () -> settings, assetManager, guiNode, guiFont, this::fontOrDefault, timer,
+                cam.getWidth(), cam.getHeight());
+        buttons = new CommandButtons(assetManager, guiNode, markerNode, visuals, looks, bodies, screens,
+                this::fontOrDefault, cam, inputManager, orders, pointer, skillKeys, () -> game, () -> snapshot,
+                this::clientHud, this::floorHeightAt);
         loading = new LoadingOverlay(guiFont, assetManager, guiNode,
                 cam.getWidth(), cam.getHeight());
         buildSounds();
+        events = new WorldEvents(visuals, unitScene, looks, layered, lists, skillEffects, controls, parts, noises,
+                soundNodes, ground, fog, hitNumbers, floatingTexts, pictureStrips, new HurtMoments(visuals::hurtRule),
+                cam, timer, () -> game, () -> snapshot, () -> barReading, this::floorHeightAt);
         buildCanvas();
-        showMainMenu();
-        applyVolume();
+        screens.showMainMenu();
+        choices.applyVolume();
+    }
+
+    /** The game's sky, hung behind everything; none where it names none or its pictures will not load. */
+    private void hangTheSky() {
+        var pictures = visuals.getSkybox();
+        if (pictures.isEmpty()) {
+            return;
+        }
+        try {
+            var sky = pictures.size() == 1
+                    ? com.jme3.util.SkyFactory.createSky(assetManager, pictures.getFirst(),
+                            com.jme3.util.SkyFactory.EnvMapType.CubeMap)
+                    : com.jme3.util.SkyFactory.createSky(assetManager, assetManager.loadTexture(pictures.get(0)),
+                            assetManager.loadTexture(pictures.get(1)), assetManager.loadTexture(pictures.get(2)),
+                            assetManager.loadTexture(pictures.get(3)), assetManager.loadTexture(pictures.get(4)),
+                            assetManager.loadTexture(pictures.get(5)));
+            rootNode.attachChild(sky);
+        } catch (RuntimeException notThere) {
+            LOG.warning(() -> "the sky names pictures that will not load: " + pictures);
+        }
+    }
+
+    /** The things shown behind what stands in front this frame — see {@link Visuals#occlusionMarks}. */
+    private void markTheHidden() {
+        if (!visuals.getOcclusionMarks() || snapshot == null) {
+            if (occlusionMarks != null) {
+                occlusionMarks.mark(Map.of());
+            }
+            return;
+        }
+        if (occlusionMarks == null) {
+            occlusionMarks = new OcclusionMarks(assetManager);
+            viewPort.getProcessors().add(0, occlusionMarks); // before a filter takes the picture and its depth
+        }
+        int local = game.getLocalPlayerIndex();
+        var marked = new java.util.HashMap<Spatial, ColorRGBA>();
+        for (var view : snapshot.units()) {
+            var node = unitScene.node(view.id());
+            if (node == null || view.structure()
+                    || view.playerIndex() != local && !visuals.getOcclusionMarked().test(view)) {
+                continue;
+            }
+            marked.put(node.root, Materials.colour(game.getColor(view.playerIndex())));
+        }
+        occlusionMarks.mark(marked);
     }
 
     /**
@@ -913,39 +700,21 @@ final class DukeRtsApp extends SimpleApplication {
      * the client's own, since the input manager hands a consumed event to nothing after its raw listeners.
      */
     private void buildCanvas() {
-        canvasText = new CanvasText(this::openAsset);
-        canvasDrawing = new CanvasDrawing(assetManager, canvasText, this::portraitOf);
-        guiNode.attachChild(canvasDrawing.node());
-        movieScreen = new MovieScreen(assetManager, guiNode);
+        canvas = new GameCanvas(assetManager, guiNode, cam, painter, parts, canvasWorld, () -> game, () -> snapshot,
+                () -> noises, missing);
         surround = renderManager.createPreView("world-surround", new com.jme3.renderer.Camera(cam.getWidth(),
                 cam.getHeight()));
         surround.setBackgroundColor(ColorRGBA.Black);
         surround.setClearFlags(true, true, true);
         surround.setEnabled(false);
         if (backdropRecipe != null) {
-            backdrop = new Backdrop(backdropRecipe, built -> new ArtLoad(built.templatesThisMatchCanDraw()),
-                    backdropEar == null ? percent -> { } : backdropEar);
+            backdrop = new Backdrop(backdropRecipe, this::artLoadFor, backdropEar == null ? percent -> { } : backdropEar);
         }
         // First of all: a title card that takes the input takes it before the game's canvas or any control.
-        inputManager.addRawInputListener(new CardInput(() -> titleCard != null && titleCard.takesInput()
-                || credits != null, () -> {
-                    if (credits != null) {
-                        credits.skip(); // Esc or a click: the rest of the roll is skipped
-                    }
-                }));
+        inputManager.addRawInputListener(new CardInput(canvas::takesInput, canvas::skip));
         if (canvasInput != null) {
             canvasInputs = new CanvasInputs(canvasInput, () -> cam.getHeight());
             inputManager.addRawInputListener(canvasInputs);
-        }
-    }
-
-    /** A file the game named, by its whole path — from the classpath or a folder the game registered — or null. */
-    private java.io.InputStream openAsset(String path) {
-        try {
-            var found = assetManager.locateAsset(new com.jme3.asset.AssetKey<>(path));
-            return found == null ? null : found.openStream();
-        } catch (RuntimeException e) {
-            return null;
         }
     }
 
@@ -953,17 +722,9 @@ final class DukeRtsApp extends SimpleApplication {
     private Mouse mouse = Mouse.RIGHT_COMMANDS;
     /** The game's first look at the input, where it asked for one — see {@link CanvasInputs}. */
     private CanvasInputs canvasInputs;
-    /** The player's own scroll speed, a share of the framed pan speed — see {@link Duke3D#scrollSpeed}. */
-    private float scrollSpeed = 1f;
     /** The gamma the whole picture is drawn through — see {@link Duke3D#gamma}. */
     private float gamma = 1f;
     private GammaPass gammaPass;
-    /** The sun's shadows — see {@link Duke3D#shadows} — and whether they are drawn, and in what colour. */
-    private SunShadows sunShadows;
-    private boolean shadowsOn = true;
-    private ColorRGBA shadowColour = SunShadows.DEFAULT_COLOUR;
-    /** Which way the player's view scrolled last frame — {@code N}, {@code NE} … — or null: what the pointer shows. */
-    private String scrolling;
 
     void mouse(Mouse chosen) {
         this.mouse = chosen == null ? Mouse.RIGHT_COMMANDS : chosen;
@@ -974,71 +735,8 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** What grows on the ground round the camera — see {@link Duke3D#groundCover}. */
     void groundCover(GroundCover cover) {
-        terrain.onMadeMaterial(this::adoptFogged);
-        terrain.cover(cover);
+        ground.cover(cover);
     }
-
-    /** Each painted surface's colour, by its palette value: a picture's mean, or the palette's own colour. */
-    private final Map<String, ColorRGBA> surfaceColours = new HashMap<>();
-
-    /**
-     * The ground's own colour at a cell of {@code grid} — the painted surface of the map's cell it lies in — or null
-     * where the map is not painted.
-     */
-    private java.util.function.BiFunction<Integer, Integer, ColorRGBA> groundColours(uz.dukeengine.core.pathfind.PathGrid grid) {
-        var paint = GroundPaint.of(game.getMapRecord());
-        if (grid == null || paint == null) {
-            return (cx, cy) -> null;
-        }
-        int k = Math.max(1, grid.cellsPerMapCell());
-        return (cx, cy) -> {
-            var value = paint.pictureAt(cx / k, cy / k);
-            return value == null || value.isBlank() ? null : surfaceColours.computeIfAbsent(value, this::colourOfSurface);
-        };
-    }
-
-    /** A surface's colour: {@code #RRGGBB} as written, a picture by the mean of its texels, null for one not loaded. */
-    private ColorRGBA colourOfSurface(String value) {
-        if (value.startsWith("#")) {
-            return GroundPaint.colourOf(value);
-        }
-        var texture = groundTexture(value);
-        return texture == null || texture.getImage() == null ? null : meanOf(texture.getImage());
-    }
-
-    /** The mean colour of a picture, read a texel in every few so a large one costs little. */
-    static ColorRGBA meanOf(com.jme3.texture.Image image) {
-        var raster = com.jme3.texture.image.ImageRaster.create(image);
-        int step = Math.max(1, Math.max(image.getWidth(), image.getHeight()) / 64);
-        float r = 0f;
-        float g = 0f;
-        float b = 0f;
-        int n = 0;
-        var texel = new ColorRGBA();
-        for (int y = 0; y < image.getHeight(); y += step) {
-            for (int x = 0; x < image.getWidth(); x += step) {
-                raster.getPixel(x, y, texel);
-                r += texel.r;
-                g += texel.g;
-                b += texel.b;
-                n++;
-            }
-        }
-        return n == 0 ? null : new ColorRGBA(r / n, g / n, b / n, 1f);
-    }
-
-    /** A material made elsewhere of a fogged one kept up with the fog as the client's own are. */
-    private void adoptFogged(Material material) {
-        var def = material.getMaterialDef().getAssetName();
-        if (def != null && def.endsWith("FoggedTerrain.j3md") && !fogged.contains(material)) {
-            fogged.add(material);
-            tellWhereTheFogHolds(material);
-            if (fogMap != null) {
-                material.setVector2("FogSize", fogMap.worldSize());
-            }
-        }
-    }
-
     void controls(ControlScheme controls) {
         this.scheme = controls == null ? ControlScheme.CLASSIC : controls;
         scheme.attach(schemeContext);
@@ -1066,20 +764,18 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public boolean playing() {
-            long window = windowHandle();
-            return screen == Screen.PLAYING && !menu.isVisible() && !(canvasInput != null && canvasInput.holdsKeys())
-                    && window != 0L
-                    && org.lwjgl.glfw.GLFW.glfwGetWindowAttrib(window, org.lwjgl.glfw.GLFW.GLFW_FOCUSED) != 0;
+            return inPlay() && !(canvasInput != null && canvasInput.holdsKeys())
+                    && windowDisplay.focused();
         }
 
         @Override
         public List<uz.dukeengine.core.thing.ObjectId> selected() {
-            return selectedIds();
+            return orders.selectedIds();
         }
 
         @Override
         public float[] drawnAt(int id) {
-            var node = unitNodes.get(id);
+            var node = unitScene.node(id);
             if (node == null) {
                 return null;
             }
@@ -1089,20 +785,20 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public float topOf(int id) {
-            var node = unitNodes.get(id);
+            var node = unitScene.node(id);
             return node == null || node.body == null ? 0f : UnitPlacement.topOf(node.body);
         }
 
         @Override
         public uz.dukeengine.core.view.UnitView pointedUnit() {
-            var unit = pickUnit();
+            var unit = pointer.pickUnit();
             return unit == null ? null : unit.view;
         }
 
         @Override
         public float[] pointedGround() {
             var click = inputManager.getCursorPosition();
-            var ground = groundUnder(click.x, click.y);
+            var ground = pointer.groundUnder(click.x, click.y);
             return ground == null ? null : new float[] {ground.x, ground.z, ground.y};
         }
 
@@ -1113,12 +809,12 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public boolean keyHeld(char key) {
-            return DukeRtsApp.keyHeld(windowHandle(), key);
+            return windowDisplay.keyHeld(key);
         }
 
         @Override
         public boolean leftHeld() {
-            return buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
+            return windowDisplay.buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
         }
 
         @Override
@@ -1158,17 +854,17 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public void holdMouse(boolean held) {
-            capture.want(held);
+            cameraRig.holdMouse(held);
         }
 
         @Override
         public boolean mouseHeld() {
-            return capture.captured();
+            return cameraRig.mouseHeld();
         }
 
         @Override
         public float[] mouseMoved() {
-            return new float[] {heldDx, heldDy};
+            return cameraRig.mouseMoved();
         }
 
         @Override
@@ -1188,7 +884,7 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public void castArmed() {
-            aimArmedKey();
+            skillKeys.aimArmedKey();
         }
 
         @Override
@@ -1199,7 +895,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** The player's own scroll speed — see {@link Duke3D#scrollSpeed}. */
     void scrollSpeed(float share) {
-        this.scrollSpeed = Math.max(0f, share);
+        cameraRig.scrollSpeed(share);
     }
 
     /**
@@ -1247,18 +943,11 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     void shadows(boolean on) {
-        this.shadowsOn = on;
-        if (sunShadows != null) {
-            sunShadows.on(on);
-        }
+        light.shadows(on);
     }
 
     void shadowColour(java.awt.Color colour) {
-        this.shadowColour = colour == null ? SunShadows.DEFAULT_COLOUR
-                : new ColorRGBA(colour.getRed() / 255f, colour.getGreen() / 255f, colour.getBlue() / 255f, 1f);
-        if (sunShadows != null) {
-            sunShadows.colour(shadowColour);
-        }
+        light.shadowColour(colour);
     }
 
     void gamma(float gamma) {
@@ -1266,25 +955,6 @@ final class DukeRtsApp extends SimpleApplication {
         if (gammaPass != null) {
             gammaPass.setGamma(gamma);
         }
-    }
-
-    /** The window's own handle, to ask it what jME does not keep; 0 where there is none. */
-    private long windowHandle() {
-        return getContext() instanceof com.jme3.system.lwjgl.LwjglWindow display ? display.getWindowHandle() : 0L;
-    }
-
-    /** Whether the pointer is in the window at all: the window says so, where jME keeps only where it was last seen. */
-    private boolean pointerInTheWindow() {
-        long window = windowHandle();
-        return window == 0L || org.lwjgl.glfw.GLFW.glfwGetWindowAttrib(window, org.lwjgl.glfw.GLFW.GLFW_HOVERED)
-                == org.lwjgl.glfw.GLFW.GLFW_TRUE;
-    }
-
-    /** Whether a mouse button is held, as the window says: true where there is no window to ask. */
-    private boolean buttonHeld(int glfwButton) {
-        long window = windowHandle();
-        return window == 0L
-                || org.lwjgl.glfw.GLFW.glfwGetMouseButton(window, glfwButton) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
     }
 
     /** Draw the world in this part of the window from the next frame — see {@link Duke3D#worldView}. */
@@ -1312,44 +982,14 @@ final class DukeRtsApp extends SimpleApplication {
                 worldRegion.topPixel(cam.getHeight()));
     }
 
-    /** Whether the pointer is over the world: in the part of the window it is drawn in. */
-    private boolean pointerOnTheWorld() {
-        var at = inputManager.getCursorPosition();
-        return worldRegion.contains(at.x, at.y, cam.getWidth(), cam.getHeight());
-    }
-
     /** Play a movie — see {@link Duke3D#playMovie}; one playing is stopped first. */
     void playMovie(Movie wanted, Runnable ended) {
-        stopMovie();
-        var frames = new MovieFrames(() -> openAsset(wanted.frames()), MovieFrames.AHEAD);
-        var sound = wanted.sound() == null ? SoundSink.Playing.NONE : noises.sounds().movieSound(wanted.sound());
-        movie = new MoviePlayer(wanted, frames, sound, ended == null ? () -> { } : ended);
+        canvas.playMovie(wanted, ended);
     }
 
     /** Stop the movie playing, and its sound, now. */
     void stopMovie() {
-        if (movie != null) {
-            movie.stop();
-            movie = null;
-            movieScreen.hide();
-        }
-    }
-
-    /** The movie's next picture, if one is due, over whatever is on the screen. */
-    private void runTheMovie(float tpf) {
-        if (movie == null) {
-            return;
-        }
-        var picture = movie.update(tpf);
-        if (picture != null) {
-            movieScreen.show(picture);
-        }
-        if (movie.isOver()) {
-            movie = null;
-            movieScreen.hide();
-            return;
-        }
-        movieScreen.place(movie.movie(), cam.getWidth(), cam.getHeight());
+        canvas.stopMovie();
     }
 
     /** Where the world's points, things' bars and the bottom panel are on the screen, for the game's drawing. */
@@ -1366,13 +1006,7 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public Canvas.Box bottomPanel() {
-            for (var part : parts) {
-                var panel = part.panel();
-                if (panel != null) {
-                    return panel;
-                }
-            }
-            return null;
+            return firstOfTheParts(HudPart::panel);
         }
     };
 
@@ -1397,81 +1031,20 @@ final class DukeRtsApp extends SimpleApplication {
         return cardMost == null || cardMost < 1 ? level : Math.min(level, cardMost);
     }
 
+    /** The window made so, where the monitor shows it, and kept as the player's choice — see {@link Duke3D#display}. */
+    void display(int width, int height, boolean fullscreen, java.util.function.Consumer<Boolean> told) {
+        windowDisplay.display(width, height, fullscreen, told);
+    }
+
     /** The window's sample count for the next window made: kept with the player's settings. */
     void samplesNextLaunch(int samples) {
         preferences.set("samples", samples);
         preferences.save();
     }
 
-    /** The credits rolling, as the client draws them — see {@link DukeGame#creditsRoll}; null for none. */
-    private CreditsRollShow credits;
-
-    /** The title card up, as the client draws it — see {@link DukeGame#titleCard}; null for none. */
-    private TitleCardShow titleCard;
-
-    /** The live portrait of {@code unitId} a part keeps for the canvas, or null — see {@link Canvas#drawPortrait}. */
-    private com.jme3.texture.Texture portraitOf(int unitId) {
-        for (var part : parts) {
-            var texture = part.portraitOf(unitId);
-            if (texture != null) {
-                return texture;
-            }
-        }
-        return null;
-    }
-
-    /** The game's drawing for this frame, over whatever else is on the screen. */
-    private void paintTheCanvas(float tpf) {
-        var wanted = game.titleCardShowing();
-        if (wanted == null) {
-            titleCard = null;
-        } else if (titleCard == null || titleCard.card() != wanted) {
-            titleCard = new TitleCardShow(wanted);
-        }
-        var rolling = game.creditsShowing();
-        if (rolling == null) {
-            credits = null;
-        } else if (credits == null || credits.roll() != rolling) {
-            credits = new CreditsRollShow(rolling);
-        }
-        if (painter == null && titleCard == null && credits == null) {
-            return;
-        }
-        int width = cam.getWidth();
-        int height = cam.getHeight();
-        if (painter != null && paintedFor != width * 100_000 + height) {
-            paintedFor = width * 100_000 + height;
-            painter.resized(width, height);
-        }
-        var frame = new CanvasFrame(width, height, canvasText, canvasDrawing::sizeOf, canvasWorld);
-        try {
-            if (painter != null) {
-                painter.paint(frame);
-            }
-        } catch (RuntimeException e) {
-            warnOnce(String.valueOf(e), "canvas painter failure");
-        }
-        // Over everything the game painted: the card is the story's, and says so above its own screens too.
-        if (titleCard != null && !titleCard.paint(frame, tpf)) {
-            game.titleCardGone(titleCard.card());
-            titleCard = null;
-        }
-        if (credits != null && !credits.paint(frame, tpf)) {
-            game.creditsGone(credits.roll());
-            credits = null;
-        }
-        if (snapshot != null) {
-            var asked = frame.portraitsAsked();
-            for (var part : parts) {
-                part.portraits(asked, snapshot, tpf);
-            }
-        }
-        canvasDrawing.show(frame.triangles(), height);
-    }
-
     /** Whether the client's own HUD is up: in play, for a game that does not draw its own. */
     private boolean clientHud() {
-        return screen == Screen.PLAYING && !shell.isDrawnByTheGame();
+        return screens.now() == Screen.PLAYING && !shell.isDrawnByTheGame();
     }
 
     /**
@@ -1480,7 +1053,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private boolean worldShown() {
         return backdropShown()
-                || !shell.isDrawnByTheGame() || (screen != Screen.FRONT && screen != Screen.LOADING);
+                || !shell.isDrawnByTheGame() || (screens.now() != Screen.FRONT && screens.now() != Screen.LOADING);
     }
 
     /** Whether the match behind the front end is what is drawn. */
@@ -1493,7 +1066,7 @@ final class DukeRtsApp extends SimpleApplication {
      * keeps the client's menus — its front menu, the questions it opens and the settings opened from it.
      */
     private boolean onTheFrontEnd() {
-        return onTheFrontEnd(screen, shell.isDrawnByTheGame(), settingsReturn);
+        return onTheFrontEnd(screens.now(), shell.isDrawnByTheGame(), screens.settingsReturn());
     }
 
     static boolean onTheFrontEnd(Screen screen, boolean drawnByTheGame, Screen settingsFrom) {
@@ -1525,7 +1098,7 @@ final class DukeRtsApp extends SimpleApplication {
         camera.resetView();
         game = frontMatch;
         frontMatch = null;
-        menu.liveBehind(false);
+        screens.menu().liveBehind(false);
     }
 
     /** What the game does as its backdrop becomes the played match — see {@link Duke3D#onBackdropAdopted}. */
@@ -1544,17 +1117,17 @@ final class DukeRtsApp extends SimpleApplication {
         var match = backdrop.running();
         simThread = backdrop.release();
         frontMatch = null;
-        menu.liveBehind(false);
+        screens.menu().liveBehind(false);
         game = match;
         played = match;
         artIsReady = true; // its art was read as it was made
         left = false;
         listenForChat(match);
-        menu.hide();
+        screens.menu().hide();
         if (!shell.isDrawnByTheGame() && !musicByGame) {
-            playChosenMusic();
+            choices.playChosenMusic();
         }
-        screen = Screen.PLAYING;
+        screens.set(Screen.PLAYING);
         var told = backdropAdopted;
         if (told != null) {
             match.runOnSimThread(() -> told.accept(match));
@@ -1578,10 +1151,10 @@ final class DukeRtsApp extends SimpleApplication {
             if (!shell.isDrawnByTheGame() && frontMatch == null) {
                 frontMatch = game; // what the client's front menu plays, kept for when it does
             }
-            forgetKeepingTheMenu(menu::isVisible, this::forgetTheWorld, menu::reveal);
+            forgetKeepingTheMenu(screens.menu()::isVisible, this::forgetTheWorld, screens.menu()::reveal);
             game = behind;
         }
-        menu.liveBehind(backdropShown());
+        screens.menu().liveBehind(backdropShown());
     }
 
     /**
@@ -1652,7 +1225,7 @@ final class DukeRtsApp extends SimpleApplication {
             backdrop.stop(); // torn down when a real match starts, made fresh when the front end comes back
         }
         frontMatch = null;
-        menu.liveBehind(false);
+        screens.menu().liveBehind(false);
         endTheMatch();
         forgetTheWorld();
         camera.resetView(); // unturned and at its start, whatever the last match or the backdrop left it at
@@ -1666,7 +1239,7 @@ final class DukeRtsApp extends SimpleApplication {
     void backToFrontEnd() {
         endTheMatch();
         forgetTheWorld();
-        showMainMenu();
+        screens.showMainMenu();
     }
 
     /**
@@ -1695,27 +1268,16 @@ final class DukeRtsApp extends SimpleApplication {
      * was about to be heard. The ground is laid again from whatever match comes next.
      */
     private void forgetTheWorld() {
-        for (var node : unitNodes.values()) {
-            node.root.removeFromParent();
-        }
-        unitNodes.clear();
-        for (var body : dying) {
-            body.root().removeFromParent();
-        }
-        dying.clear();
-        barrels.clear();
-        runningGear.clear();
+        unitScene.forgetTheWorld();
         selected.clear();
         clearWhatIsBurning();
         noises.forget();
         snapshot = WorldSnapshot.EMPTY;
-        lastEventedSnapshot = WorldSnapshot.EMPTY;
+        events.forgetTheWorld();
         lookChanged = true; // the next match's ground is laid on its first frame, whatever it is
-        if (commandBar != null) {
-            commandBar.hide();
-        }
+        buttons.hide();
         setSimulationPaused(false);
-        menu.hide();
+        screens.menu().hide();
     }
 
     /**
@@ -1739,7 +1301,7 @@ final class DukeRtsApp extends SimpleApplication {
                         : grid.getCellSize(),
                 // A thing sounds hurt where it starts to look hurt: its look's own words and shares.
                 template -> visuals.of(template).whenHurt, visuals.getVoicedWhen());
-        hearTheGround();
+        ground.hear();
         // What happens where he does not see, for the sounds fog does not hide.
         game.hearThroughFog(visuals.getSounds().hearsThroughFog());
         if (visuals.getSounds().hearing().placesTheListener()) {
@@ -1748,7 +1310,7 @@ final class DukeRtsApp extends SimpleApplication {
                 stateManager.detach(atTheEye); // the game places the listener: see placeTheListener
             }
         }
-        applyVolume();
+        choices.applyVolume();
     }
 
     /** A cue the game plays itself, flat — see {@link Duke3D#sound}. */
@@ -1771,84 +1333,6 @@ final class DukeRtsApp extends SimpleApplication {
         noises.sounds().gameVolume(channel, zeroToOne);
     }
 
-    /**
-     * Assemble the minimap once: its terrain layer, then the viewport outline over it.
-     */
-    private void buildMinimap() {
-        minimapY = 34f; // above the hint line, until a hero bar claims it
-        minimapNode.attachChild(minimapTerrainNode);
-        rebuildMinimapTerrain();
-        buildViewportOutline();
-        guiNode.attachChild(minimapNode);
-    }
-
-    /**
-     * The minimap's static layer — map bounds and blocked terrain — for the world
-     * as it stands now. Like the 3D terrain it empties its node first, so a new
-     * world replaces the old picture instead of being drawn over it.
-     */
-    private void rebuildMinimapTerrain() {
-        minimapTerrainNode.detachAllChildren();
-        var grid = game.getTerrain();
-        float worldW = grid == null ? 700f : grid.getWidth() * grid.getCellSize();
-        float worldH = grid == null ? 450f : grid.getHeight() * grid.getCellSize();
-        // The ground and its stone as one picture on one quad, the cells unwalked where there is discovery: an
-        // undiscovered floor is as black as undiscovered stone. Of the ground round the camera, on a wide world.
-        minimapPicture.ground(visuals.getMinimapUnseenShows(), groundColours(grid));
-        minimapPicture.rebuild(grid, visuals.drawsFog(), visuals.getFog().tintColour(), visuals.getMinimapSpan());
-        minimap = minimapPicture.isWindowed() ? minimapRoundTheCamera(grid)
-                : new MinimapProjection(worldW, worldH, MINIMAP_SIZE);
-        groundSpan = grid == null ? new GroundSpan(0f, 0f) : GroundSpan.of(grid);
-        // The camera may look at exactly what the minimap draws, and no further.
-        // Until there is a map there is nothing to fence it into: the sizes above
-        // are only something to draw an empty minimap at.
-        camera.keepInside(grid == null ? 0f : worldW, grid == null ? 0f : worldH);
-        minimapX = cam.getWidth() - minimap.widthPixels() - 12f;
-
-        var ground = new Geometry("mm-ground", new Quad(minimap.widthPixels(), minimap.heightPixels()));
-        var look = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        look.setTexture("ColorMap", minimapPicture.texture());
-        ground.setMaterial(look);
-        minimapTerrainNode.attachChild(ground);
-        minimapGround = ground;
-        followWithTheMinimap();
-        placeMinimap();
-        makeTheWorldPicture(grid);
-    }
-
-    /** The quad the minimap's ground is drawn on, whose picture slides under it on a wide world. */
-    private Geometry minimapGround;
-
-    /** The minimap's projection of the {@link Visuals#minimapSpan} of ground round where the camera looks now. */
-    private MinimapProjection minimapRoundTheCamera(uz.dukeengine.core.pathfind.PathGrid grid) {
-        float cell = grid.getCellSize();
-        float span = minimapPicture.span() * cell;
-        return new MinimapProjection(camera.targetX() - span / 2f, camera.targetZ() - span / 2f, span, span,
-                MINIMAP_SIZE);
-    }
-
-    /**
-     * On a wide world, the minimap kept on the ground round where the camera looks: the cells coming into its window
-     * painted, its picture slid under its quad by a fraction of a cell as the camera moves, and its projection — the
-     * things on it, the view's outline, a click on it — moved with it. Nothing where it shows the whole map.
-     */
-    private void followWithTheMinimap() {
-        var grid = game.getTerrain();
-        if (!minimapPicture.isWindowed() || grid == null || minimapGround == null) {
-            return;
-        }
-        float cell = grid.getCellSize();
-        minimapPicture.follow(camera.targetX(), camera.targetZ(), discovery, renderer);
-        minimap = minimapRoundTheCamera(grid);
-        float span = minimapPicture.span();
-        var corners = minimapPicture.corners(camera.targetX() / cell - span / 2f, camera.targetZ() / cell - span / 2f);
-        var mesh = minimapGround.getMesh();
-        var coordinates = mesh.getFloatBuffer(com.jme3.scene.VertexBuffer.Type.TexCoord);
-        coordinates.clear();
-        coordinates.put(corners).flip();
-        mesh.getBuffer(com.jme3.scene.VertexBuffer.Type.TexCoord).setUpdateNeeded();
-    }
-
     /** The whole world's picture the game asked for, at most how many texels a side, and whom it is handed to. */
     private int worldPictureMost;
     private java.util.function.Consumer<Picture> worldPictureHanded;
@@ -1864,6 +1348,18 @@ final class DukeRtsApp extends SimpleApplication {
         makeTheWorldPicture(game.getTerrain());
     }
 
+    /** What else is read off a new world's grid with its minimap: the span the pointer's ray walks, and its picture. */
+    private void readTheNewGrid() {
+        var grid = game.getTerrain();
+        pointer.readGrid(grid);
+        makeTheWorldPicture(grid);
+    }
+
+    /** The game's marks on the minimap — see {@link Duke3D#minimapMarks}. */
+    void minimapMarks(java.util.function.Supplier<java.util.List<MinimapMark>> marks) {
+        minimapView.marks(marks);
+    }
+
     /** The whole world's picture for the world laid now, where the game asked for one, painted and handed over. */
     private void makeTheWorldPicture(uz.dukeengine.core.pathfind.PathGrid grid) {
         if (worldPictureHanded == null || grid == null || !worldPictureFor.test(game.getMapRecord())) {
@@ -1871,133 +1367,15 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         worldPicture = new WorldPicture(grid, worldPictureMost, visuals.drawsFog(), visuals.getFog().tintColour());
-        worldPicture.paint(discovery);
+        worldPicture.paint(discovery());
         worldPictureHanded.accept(worldPicture.picture());
     }
-
-    /**
-     * Put the minimap where the hero bar says, or back in the corner when there
-     * is no bar.
-     *
-     * <p>The bar owns the socket because it owns the arrangement; the minimap owns
-     * the picture. Neither has to know the other's arithmetic — one hands over a
-     * rectangle in window pixels and the other fits itself to it.
-     */
-    private void placeMinimap() {
-        float[] socket = null;
-        float panelHeight = 0f;
-        for (var part : parts) {
-            socket = socket != null ? socket : part.minimapSocket();
-            panelHeight = Math.max(panelHeight, part.panelHeight());
-        }
-        if (socket != null) {
-            minimapScale = socket[2] / Math.max(1f, Math.max(minimap.widthPixels(),
-                    minimap.heightPixels()));
-            // Centred in its socket: a map that is not square leaves a margin, and
-            // the margin belongs on both sides rather than all on one.
-            minimapX = socket[0] + (socket[2] - minimap.widthPixels() * minimapScale) / 2f;
-            minimapY = socket[1] + (socket[2] - minimap.heightPixels() * minimapScale) / 2f;
-        } else {
-            // In the corner, over a bar that is showing without a socket for it.
-            minimapScale = 1f;
-            minimapX = cam.getWidth() - minimap.widthPixels() - 12f;
-            minimapY = 34f + panelHeight;
-        }
-        minimapNode.setLocalScale(minimapScale);
-        // Over the hole cut for it, at the depth the bar says: the GUI bucket is drawn in order of depth, and a map
-        // behind the hole looks exactly like a minimap that stopped working. The bar's depths grow with its scale, so
-        // a depth of the map's own was under the hole once the bar was drawn larger than the design.
-        minimapNode.setLocalTranslation(minimapX, minimapY, socket != null ? socket[3] : 0f);
-    }
-
-    /**
-     * Paint the minimap with what the player knows: black where they have not
-     * been, dim where they have, bright where they are looking — the cells whose state changed, on its one picture.
-     *
-     * <p>The unit dots need no help — the snapshot only ever carries what the
-     * engine's own fog lets through, so a monster in a room the player walked out
-     * of is already gone from it. That is the whole "where did it go?" of the
-     * thing, and it comes free.
-     */
-    private void applyMinimapDiscovery() {
-        minimapPicture.paint(discovery, renderer);
-    }
-
-    /** How low and how high a map's ground stands anywhere, in world units. */
-    record GroundSpan(float lowest, float highest) {
-
-        /** Its storeys, a stair up from the highest of them, and its relief's lowest and highest corners. */
-        static GroundSpan of(uz.dukeengine.core.pathfind.PathGrid grid) {
-            int lowestLevel = 0;
-            int highestLevel = 0;
-            for (int cy = 0; cy < grid.getHeight(); cy++) {
-                for (int cx = 0; cx < grid.getWidth(); cx++) {
-                    lowestLevel = Math.min(lowestLevel, grid.level(cx, cy));
-                    highestLevel = Math.max(highestLevel, grid.level(cx, cy));
-                }
-            }
-            float lowest = lowestLevel * grid.getLevelHeight();
-            float highest = (highestLevel + 1) * grid.getLevelHeight();
-            var relief = grid.getRelief();
-            if (relief == null) {
-                return new GroundSpan(lowest, highest);
-            }
-            int least = Integer.MAX_VALUE;
-            int most = Integer.MIN_VALUE;
-            for (int row = 0; row < relief.rows(); row++) {
-                for (int column = 0; column < relief.columns(); column++) {
-                    least = Math.min(least, relief.at(column, row));
-                    most = Math.max(most, relief.at(column, row));
-                }
-            }
-            var fixed = uz.dukeengine.core.pathfind.HeightMap.SUBCELL;
-            return new GroundSpan(
-                    lowest + uz.dukeengine.core.pathfind.HeightMap.lengthOf(least * fixed, grid.getCellSize()),
-                    highest + uz.dukeengine.core.pathfind.HeightMap.lengthOf(most * fixed, grid.getCellSize()));
-        }
-    }
-
-    /**
-     * If the cursor is over the minimap, move the camera there. Returns true if handled.
-     */
-    private boolean minimapClick() {
-        var cursor = inputManager.getCursorPosition();
-        float localX = (cursor.x - minimapX) / minimapScale;
-        float localY = (cursor.y - minimapY) / minimapScale;
-        if (!minimap.contains(localX, localY)) {
-            return false;
-        }
-        camera.lookAt(minimap.toWorldX(localX), minimap.toWorldY(localY));
-        return true;
-    }
-
-    /**
-     * The outline showing what the camera can see, drawn as an empty loop.
-     *
-     * <p>An outline rather than a filled box on purpose: the minimap's whole job is
-     * showing where the rooms and the fighting are, and a translucent rectangle
-     * over a third of it would dim exactly the part the player is looking at.
-     */
-    private void buildViewportOutline() {
-        var mesh = new com.jme3.scene.Mesh();
-        mesh.setMode(com.jme3.scene.Mesh.Mode.LineLoop);
-        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Position, 3, new float[VIEWPORT_CORNERS * 3]);
-        mesh.setDynamic();
-        mesh.updateBound();
-
-        viewportOutline = new Geometry("mm-viewport", mesh);
-        viewportOutline.setMaterial(unshaded(new ColorRGBA(1f, 1f, 1f, 0.85f)));
-        viewportOutline.setLocalTranslation(0, 0, 2); // above the dots
-        minimapNode.attachChild(viewportOutline);
-    }
-
-    private static final int VIEWPORT_CORNERS = 4;
 
     /**
      * The selection box: an outline, so it never hides what is being selected.
      */
     private void buildDragRectangle() {
-        dragRectangle = new DragBox(visuals.getDragBox(), unshaded(ColorRGBA.White));
+        dragRectangle = new DragBox(visuals.getDragBox(), Materials.unshaded(assetManager, ColorRGBA.White));
         guiNode.attachChild(dragRectangle.geometry());
     }
 
@@ -2016,179 +1394,18 @@ final class DukeRtsApp extends SimpleApplication {
             ribbons.show(snapshot.streams(), cam.getLocation());
         }
         ridingEffects.show(snapshot.effects(), id -> {
-            var node = unitNodes.get(id);
+            var node = unitScene.node(id);
             return node == null ? null : node.root;
         });
-        showRallies();
+        orders.showRallies();
         var look = visuals.getOrderMark();
         orderMarkers.prune(now, look.seconds());
         modelMarks.update(now, look);
         // A move the game answers with its own model has no arrowheads; an attack it answers with nothing, no ring.
         chevrons.show(look.model() == null ? orderMarkers.markers() : java.util.List.of(), now, this::floorHeightAt);
         attackFlash.show(orderMarkers.markers(), now, this::whereThatUnitIsNow, this::floorHeightAt);
-        syncSkillRange(now);
-        syncHitNumbers(now);
-        // Where the player's view of the point is clear, and nowhere else — the reference's fog test for its texts.
-        floatingTexts.update(snapshot.frame(), cam, (x, y) -> discovery == null || discovery.canSee(x, y));
-        pictureStrips.update(snapshot.frame(), cam, (x, y) -> discovery == null || discovery.canSee(x, y));
-    }
-
-    /**
-     * Throw a number off anything whose health has moved, and keep the ones
-     * already in the air moving.
-     *
-     * <p>Off the snapshot rather than off an event -- see {@link HealthWatch} for
-     * why that is the complete answer rather than the lazy one.
-     */
-    private void syncHitNumbers(float now) {
-        var look = visuals.getHitNumbers();
-        List<HealthWatch.Change> changes = List.of();
-        if (screen == Screen.PLAYING) {
-            changes = healthWatch.since(snapshot.units(), game.getLocalPlayerIndex(),
-                    look.leastWorth(), killedThisFrame);
-            if (game.alertsAreTheGames()) {
-                controls.gamesAlert(game.latestAlert());
-            }
-            for (var change : changes) {
-                hitNumbers.add(change, now, look.height(), criticalThisFrame.contains(change.unitId()));
-                if (!change.healed() && !change.his()) {
-                    flash(change.unitId());
-                }
-                if (!change.healed() && change.his()) {
-                    controls.alert(change.x(), change.y()); // his, under attack: the place Space goes to
-                }
-            }
-            playTheRunsMoments(now);
-        }
-        burstWhatStruck(changes);
-        // Read once. handleEvents runs earlier in the frame and fills this; a
-        // second reading would throw the finishing blow twice.
-        killedThisFrame.clear();
-        criticalThisFrame.clear();
-        hitNumbers.update(now, cam, this::floorHeightAt);
-        hitStops.apply(now, (id, speed) -> {
-            var node = unitNodes.get(id);
-            if (node != null && node.composer != null) {
-                node.composer.setGlobalSpeed(speed);
-            }
-        });
-    }
-
-    /**
-     * A level gained, the boss down, a new floor: each played on him in the look the
-     * game gave it, and a level heard as well.
-     *
-     * <p>Off the line's own field for the hero rather than off the panel's card,
-     * which is whoever happens to be selected -- see {@link RunMoments}. One look on
-     * him at a time, the biggest: the blow that fells a boss is usually the one that
-     * gives him his level too.
-     */
-    private void playTheRunsMoments(float now) {
-        var died = new ArrayList<Integer>(killedThisFrame.size());
-        for (var death : killedThisFrame) {
-            died.add(death.unitId());
-        }
-        var moments = runMoments.since(barReading, died);
-        for (var moment : moments) {
-            if (Visuals.LEVEL_UP.equals(moment.name())) {
-                noises.levelledUp(now);
-            }
-        }
-        var drawn = RunMoments.biggestOnEach(moments, name -> {
-            var look = visuals.getMoment(name);
-            return look == null ? 0.0 : look.scale();
-        });
-        for (var moment : drawn) {
-            var look = visuals.getMoment(moment.name());
-            var node = unitNodes.get(moment.unitId());
-            if (look == null || node == null || layered == null) {
-                continue;
-            }
-            var at = node.root.getLocalTranslation();
-            var foot = new Vector3f(at.x, floorHeightAt(at.x, at.z), at.z);
-            layered.cast(look.effect(), new LayeredEffects.Moment(foot, null, null, 0f, 1f, 0f,
-                    moment.unitId(), moment.unitId()), cam, look.scale());
-        }
-    }
-
-    /**
-     * The bursts of the shots that ended this frame, for the ones that struck.
-     *
-     * <p>The simulation's blast hurts only when a shot reaches a body, and round that
-     * body; a shot that meets a wall or runs out of flight hurts nobody, and bursts
-     * nowhere. The blows are this frame's, deaths included -- a finishing blow on
-     * something with less left than a number is worth is still a blow.
-     */
-    private void burstWhatStruck(List<HealthWatch.Change> changes) {
-        if (endedShots.isEmpty()) {
-            return;
-        }
-        var blows = new ArrayList<Landing.Blow>();
-        for (var change : changes) {
-            if (!change.healed()) {
-                blows.add(new Landing.Blow(change.x(), change.y(), change.his()));
-            }
-        }
-        for (var death : killedThisFrame) {
-            blows.add(new Landing.Blow(death.x(), death.y(),
-                    death.playerIndex() == game.getLocalPlayerIndex()));
-        }
-        for (var shot : endedShots) {
-            var at = Landing.burstAt(shot, blows, visuals.getStrikeWithin());
-            if (at != null && layered != null) {
-                layered.landed(shot.id(), shot.effect(), at, cam);
-            }
-        }
-        endedShots.clear();
-    }
-
-    /**
-     * One of theirs was hit: it goes white for an instant, from its own colour and
-     * back to it. A blow that killed it finds nothing here -- the body was laid out
-     * when the death was read, and a corpse has nothing left to flinch with.
-     */
-    private void flash(int unitId) {
-        var node = unitNodes.get(unitId);
-        if (hitFlash == null || node == null || node.view == null) {
-            return;
-        }
-        var tint = visualFor(node.view).tint;
-        var own = (tint == null ? ColorRGBA.White : toColor(tint)).mult(CREATURE_AMBIENT);
-        hitFlash.struck(unitId, node.root, own);
-    }
-
-    /**
-     * Draw how far the armed skill reaches, and whether the click as it stands
-     * would be obeyed.
-     *
-     * <p>Round the hero rather than round the selection: a skill is cast by the
-     * man who has it whether or not the player has him clicked, so a ring drawn at
-     * the selection would be in the wrong place exactly when he had picked a
-     * monster out to look at.
-     */
-    private void syncSkillRange(float now) {
-        var range = arming == null ? null : visuals.getSkillRange(arming);
-        if (range == null || screen != Screen.PLAYING) {
-            rangeRings.hide();
-            return;
-        }
-        var hero = whereHisHeroIs();
-        if (hero == null) {
-            rangeRings.hide();
-            return;
-        }
-        Coord3D pointer = null;
-        boolean allowed = true;
-        if (range.needsAiming()) {
-            var at = inputManager.getCursorPosition();
-            var ground = groundUnder(at.x, at.y);
-            pointer = new Coord3D(ground.x, ground.z, 0f);
-            // Out of reach is not a refusal -- the click is pulled back to the
-            // edge, and the ring is what says so. What refuses is ground he
-            // cannot aim at: stone, or somewhere he has never been.
-            allowed = isOpenAndSeen(ground);
-        }
-        rangeRings.show(range, hero, pointer, allowed, now, this::floorHeightAt);
+        skillKeys.syncSkillRange(now);
+        events.drawTheBlows(now, screens.now() == Screen.PLAYING);
     }
 
     /**
@@ -2205,454 +1422,6 @@ final class DukeRtsApp extends SimpleApplication {
             }
         }
         return null;
-    }
-
-    /**
-     * Where the player's own unit is standing, or null before there is one.
-     */
-    private Coord3D whereHisHeroIs() {
-        int local = game.getLocalPlayerIndex();
-        for (var view : snapshot.units()) {
-            if (view.playerIndex() == local && view.selectable()) {
-                return new Coord3D(view.x(), view.y(), 0f);
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Redraw the viewport outline from where the camera is now — it moves and
-     * resizes as the player pans and zooms.
-     *
-     * <p>The camera looks at the ground from an angle, so what it sees is a
-     * trapezium rather than a rectangle: the far edge of the screen covers more
-     * ground than the near one. Rather than approximate that with a box, each
-     * screen corner is cast onto the ground and the true quadrilateral is drawn.
-     */
-    private void syncViewportOutline() {
-        // The corners of the world's part of the window, in turn round it so the loop does not cross.
-        float[][] corners = worldRegion.corners(cam.getWidth(), cam.getHeight());
-        var worldXs = new float[VIEWPORT_CORNERS];
-        var worldYs = new float[VIEWPORT_CORNERS];
-        for (int i = 0; i < VIEWPORT_CORNERS; i++) {
-            var ground = groundUnder(corners[i][0], corners[i][1]);
-            // World y is the ground plane's z: the map lies in x/z, y is height.
-            worldXs[i] = ground.x;
-            worldYs[i] = ground.z;
-        }
-
-        var outline = minimap.viewportOutline(worldXs, worldYs);
-        var vertices = new float[VIEWPORT_CORNERS * 3];
-        for (int i = 0; i < outline.length; i++) {
-            vertices[i * 3] = outline[i].x();
-            vertices[i * 3 + 1] = outline[i].y();
-        }
-        var mesh = viewportOutline.getMesh();
-        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Position, 3, vertices);
-        mesh.updateBound();
-    }
-
-    /**
-     * Where the ray through a screen point meets the ground.
-     *
-     * <p>A corner above the horizon never meets it, so the ray is followed a long
-     * way instead and the projection clamps the result to the map — which is what
-     * the player sees anyway: the view running off the edge of the world.
-     */
-    private Vector3f groundUnder(float screenX, float screenY) {
-        var near = cam.getWorldCoordinates(new Vector2f(screenX, screenY), 0f);
-        var dir = cam.getWorldCoordinates(new Vector2f(screenX, screenY), 1f)
-                .subtract(near).normalizeLocal();
-        var terrain = game.getTerrain();
-        var ground = groundHit(near, dir, groundSpan, terrain == null ? 5f : terrain.getCellSize() / 2f,
-                this::floorHeightAt);
-        return terrain == null || !terrain.hasDecks() ? ground : deckHit(near, dir, ground, terrain.decks());
-    }
-
-    /**
-     * The ray's meeting with an open deck, where it meets one before it meets the ground: a click on a bridge lands on
-     * the bridge, at its height, so the order sent is one the simulation reads as on it ({@code PathGrid.floorAt}).
-     */
-    static Vector3f deckHit(Vector3f near, Vector3f dir, Vector3f ground,
-                            java.util.List<uz.dukeengine.core.pathfind.Deck> decks) {
-        var best = ground;
-        float bestT = ground.subtract(near).dot(dir);
-        for (var deck : decks) {
-            if (!deck.isOpen()) {
-                continue;
-            }
-            // Its plane, y = a·x + b·z + c in the scene's axes: the map's y is the scene's z.
-            float c = deck.heightAt(0f, 0f);
-            float a = deck.heightAt(1f, 0f) - c;
-            float b = deck.heightAt(0f, 1f) - c;
-            float facing = dir.y - a * dir.x - b * dir.z;
-            if (Math.abs(facing) < 1e-6f) {
-                continue;
-            }
-            float t = (a * near.x + b * near.z + c - near.y) / facing;
-            var hit = near.add(dir.mult(t));
-            if (t > 0f && t < bestT && deck.covers(hit.x, hit.z)) {
-                best = hit;
-                bestT = t;
-            }
-        }
-        return best;
-    }
-
-    /**
-     * Where the ray under the cursor first meets the ground: the surface the player sees, a hill's near face and not
-     * the ground behind it.
-     *
-     * <p>The ray is walked from where it comes down to the highest ground, {@code step} across the map at a time, to
-     * the first point at or under the ground, and the meeting is halved down between that point and the one before.
-     * A plane met first and the hit settled onto the ground from there — what was here before — lands behind a hill:
-     * the plane at zero lies past a rise the ray has already struck, and on a steep face the settling never settles.
-     * Storeys and stairs are ground like any other, so a raised room is met on its floor and not behind it.
-     *
-     * @param step    how far across the map the ray is walked at a time: half a cell, so no rise is stepped over
-     * @param floorAt how high the floor is at a point on the map, a stair's between its two storeys
-     */
-    static Vector3f groundHit(Vector3f near, Vector3f dir, GroundSpan span, float step,
-                              java.util.function.BiFunction<Float, Float, Float> floorAt) {
-        if (dir.y > -1e-6f) {
-            return meetsAt(near, dir, 0f); // it never comes down
-        }
-        float from = Math.max(0f, (span.highest() - near.y) / dir.y);
-        float to = Math.max(from, (span.lowest() - near.y) / dir.y);
-        float across = (float) Math.sqrt(dir.x * dir.x + dir.z * dir.z);
-        float stride = across < 1e-6f ? to - from : step / across;
-        float above = from;
-        for (float t = from; ; t = Math.min(t + stride, to)) {
-            var at = near.add(dir.mult(t));
-            if (at.y <= floorAt.apply(at.x, at.z)) {
-                return onTheGround(near, dir, above, t, floorAt);
-            }
-            if (t >= to) {
-                return new Vector3f(at.x, floorAt.apply(at.x, at.z), at.z); // off the map, under all of it
-            }
-            above = t;
-        }
-    }
-
-    /** The meeting between a point of the ray over the ground and a later one at or under it, halved down onto it. */
-    private static Vector3f onTheGround(Vector3f near, Vector3f dir, float above, float under,
-                                        java.util.function.BiFunction<Float, Float, Float> floorAt) {
-        for (int halving = 0; halving < 12; halving++) {
-            float middle = (above + under) / 2f;
-            var at = near.add(dir.mult(middle));
-            if (at.y <= floorAt.apply(at.x, at.z)) {
-                under = middle;
-            } else {
-                above = middle;
-            }
-        }
-        var at = near.add(dir.mult(under));
-        return new Vector3f(at.x, floorAt.apply(at.x, at.z), at.z);
-    }
-
-    /**
-     * Where a ray meets a level plane at {@code height}.
-     *
-     * <p>A ray above the horizon never meets it, so it is followed a long way
-     * instead and the projection clamps the result to the map — which is what the
-     * player sees anyway: the view running off the edge of the world.
-     */
-    private static Vector3f meetsAt(Vector3f near, Vector3f dir, float height) {
-        float t = Math.abs(dir.y) < 1e-6f ? -1f : (height - near.y) / dir.y;
-        return near.add(dir.mult(t < 0 ? 10_000f : t));
-    }
-
-    /** A see-through thing's blip on its own side's radar, blinking once a second; every other blip whole. */
-    private void blink(Geometry dot, UnitView view) {
-        var word = visuals.getSeeThroughWord();
-        boolean blinking = word != null && view.allied() && view.conditions().contains(word);
-        var colour = (ColorRGBA) dot.getMaterial().getParamValue("Color");
-        float alpha = blinking ? StealthLook.radarAlpha(snapshot.frame()) : 1f;
-        if (colour != null && colour.a != alpha) {
-            dot.getMaterial().setColor("Color", new ColorRGBA(colour.r, colour.g, colour.b, alpha));
-            dot.getMaterial().getAdditionalRenderState().setBlendMode(
-                    alpha < 1f ? com.jme3.material.RenderState.BlendMode.Alpha : com.jme3.material.RenderState.BlendMode.Off);
-        }
-    }
-
-    /**
-     * Live unit dots, coloured by player, sized up for structures.
-     */
-    private void syncMinimap() {
-        var seen = new HashSet<Integer>();
-        for (var view : snapshot.units()) {
-            seen.add(view.id());
-            var dot = minimapDots.computeIfAbsent(view.id(), id -> {
-                float size = view.structure() ? 6f : 3.5f;
-                var geometry = new Geometry("mm-dot", new Quad(size, size));
-                geometry.setMaterial(unshaded(colourOf(view)));
-                minimapNode.attachChild(geometry);
-                return geometry;
-            });
-            var wanted = colourOf(view);
-            var now = (ColorRGBA) dot.getMaterial().getParamValue("Color");
-            if (now == null || now.r != wanted.r || now.g != wanted.g || now.b != wanted.b) {
-                // A blip wears the colours the thing does to this viewer: a disguise's, as the reference's radar does.
-                float alpha = now == null ? 1f : now.a;
-                dot.getMaterial().setColor("Color", new ColorRGBA(wanted.r, wanted.g, wanted.b, alpha));
-            }
-            var point = minimap.toMinimap(view.x(), view.y());
-            dot.setLocalTranslation(point.x() - 2f, point.y() - 2f, 1);
-            if (minimapPicture.isWindowed()) {
-                // The ground round the camera: a thing past it has no place on the minimap.
-                dot.setCullHint(minimap.contains(point.x(), point.y()) ? Spatial.CullHint.Inherit
-                        : Spatial.CullHint.Always);
-            }
-            blink(dot, view);
-        }
-        var gone = minimapDots.entrySet().iterator();
-        while (gone.hasNext()) {
-            var entry = gone.next();
-            if (!seen.contains(entry.getKey())) {
-                entry.getValue().removeFromParent();
-                gone.remove();
-            }
-        }
-    }
-
-    // ---- menus ----
-
-    // skirmish choice (null = the game's defaults)
-    private String chosenMap;
-    private final java.util.List<String> chosenFactions = new java.util.ArrayList<>();
-
-    /**
-     * Show the front menu the game asked for.
-     *
-     * <p>Which entries exist is the game's call ({@link Shell}); whether one of
-     * them would mean anything is still the client's. Offering a LAN game to a
-     * game that seats one player, or a map choice to one with a single map, would
-     * be a dead button.
-     */
-    private void showMainMenu() {
-        if (shell.isDrawnByTheGame()) {
-            screen = Screen.FRONT; // the game's own front end, on its canvas
-            menu.hide();
-            return;
-        }
-        if (shell.startsImmediately()) {
-            startGame(); // this game has no front menu; nothing to come back to
-            return;
-        }
-        screen = Screen.MENU;
-        if (noises != null && !musicByGame) {
-            noises.sounds().music(null); // the dungeon is behind him for now
-        }
-        screen = Screen.MENU;
-        var items = new java.util.ArrayList<StoneMenu.Row>();
-        for (var row : shell.frontRows()) {
-            items.add(new StoneMenu.Action(row.label(), () -> takeFrontRow(row), false, row.picture()));
-        }
-        for (var chosen : shell.entries()) {
-            var action = actionFor(chosen.getKey());
-            if (action != null) {
-                items.add(new StoneMenu.Action(chosen.getValue(), action));
-            }
-        }
-        menu.show(frontGame().getTitle(), frontGame().getSubtitle(), items,
-                say("UP DOWN choose    ENTER take"), version(), false);
-    }
-
-    /** A game's row on the front menu taken: its own work, then its question if it has one, else the menu again. */
-    private void takeFrontRow(Shell.Option row) {
-        if (row.taken() != null) {
-            row.taken().run();
-        }
-        if (row.next() != null) {
-            screen = Screen.MENU;
-            showQuestion(row.next(), this::showMainMenu, this::startGame);
-        } else if (screen == Screen.MENU) {
-            showMainMenu();
-        }
-    }
-
-    /**
-     * What an entry does, or {@code null} when it would do nothing worth offering.
-     */
-    private Runnable actionFor(Shell.Entry entry) {
-        return switch (entry) {
-            // Play does not necessarily play. A game with something to ask first
-            // asks it here — see showQuestion — and starts when it is answered.
-            case PLAY -> shell.question() == null ? this::startGame : this::showQuestion;
-            case SKIRMISH -> !frontGame().getMapChoices().isEmpty() && !frontGame().isMultiplayer()
-                    ? this::showSkirmishMenu : null;
-            case HOST_LAN -> frontGame().supportsMultiplayer() && !frontGame().isMultiplayer()
-                    ? this::hostFlow : null;
-            case JOIN_LAN -> frontGame().supportsMultiplayer() && !frontGame().isMultiplayer()
-                    ? this::joinFlow : null;
-            case SETTINGS -> () -> showSettingsMenu(Screen.MENU);
-            case QUIT -> this::stop;
-        };
-    }
-
-    /**
-     * The one thing the game wants settled before it will start.
-     *
-     * <p>Built from the same stone as every other menu, and answered the same way:
-     * a column of words, one of which is taken. What it is <em>about</em> is the
-     * game's — this client has never heard of a hero, a difficulty or a side.
-     *
-     * <p>There is no entry that skips it. That is the whole point of asking: a
-     * question with a way past it is a setting, and the player would press Play,
-     * get whatever a file happened to say, and never find out he had a choice.
-     * Back returns to the front menu, which is a way out of the game rather than
-     * a way into it without answering.
-     *
-     * <p>The answer is taken <em>before</em> the world runs a frame — the
-     * simulation thread does not exist until {@link #startGame} — so what it does
-     * needs no hopping between threads and cannot race the first frame.
-     */
-    private void showQuestion() {
-        var question = shell.question();
-        if (question == null) {
-            startGame();
-            return;
-        }
-        showQuestion(question, this::showMainMenu);
-    }
-
-    /**
-     * One question of the path, and the way back out of it.
-     *
-     * <p>{@code back} is the screen before this one rather than the front menu,
-     * so a path three deep is walked backwards a step at a time. Handed in rather
-     * than remembered because that is exactly what it is: each screen already
-     * knows what opened it, and a stack would be a second copy of the path that
-     * could disagree with the first.
-     */
-    private void showQuestion(Shell.Question question, Runnable back) {
-        screen = Screen.MENU;
-        showQuestion(question, back, this::startGame);
-    }
-
-    /**
-     * The same, ending in {@code done} once the last of its answers is taken, on whatever screen it is asked from —
-     * so a question asked from the pause menu is still the pause menu's if the window is resized under it.
-     */
-    private void showQuestion(Shell.Question question, Runnable back, Runnable done) {
-        var items = new java.util.ArrayList<StoneMenu.Row>();
-        for (var option : question.options()) {
-            items.add(new StoneMenu.Action(option.label(), () -> {
-                if (option.taken() != null) {
-                    option.taken().run();
-                }
-                // Either it narrows the choice further or it was the last of them.
-                if (option.next() != null) {
-                    showQuestion(option.next(), () -> showQuestion(question, back, done), done);
-                } else {
-                    done.run();
-                }
-            }, false, option.picture()));
-            if (!option.blurb().isBlank()) {
-                // Under the name rather than beside it: what he is choosing is the
-                // word above, and the line below says what taking it means.
-                items.add(new StoneMenu.Words("", option.blurb()));
-            }
-        }
-        items.add(new StoneMenu.Action(say("Back"), back));
-        menu.show(frontGame().getTitle(), question.title(), items,
-                question.hint(), version(), false);
-    }
-
-    /**
-     * Choose the map and cycle each player's faction before playing.
-     */
-    private void showSkirmishMenu() {
-        var front = frontGame();
-        var maps = front.getMapChoices();
-        var factions = front.getFactionChoices();
-        if (chosenMap == null && !maps.isEmpty()) {
-            chosenMap = maps.get(0);
-        }
-        while (chosenFactions.size() < 2 && !factions.isEmpty()) {
-            chosenFactions.add(factions.get(chosenFactions.size() % factions.size()));
-        }
-
-        var items = new java.util.ArrayList<StoneMenu.Row>();
-        // The map's own preview beside the row while it is lit: what a map looks like is most of what a
-        // player is choosing between, and a column of names says none of it. A game that names no picture
-        // gets the row it always got.
-        items.add(new StoneMenu.Action("Map: " + chosenMap, () -> {
-            chosenMap = maps.get((maps.indexOf(chosenMap) + 1) % maps.size());
-            showSkirmishMenu();
-        }, false, front.getMapPicture(chosenMap)));
-        for (int p = 0; p < chosenFactions.size(); p++) {
-            final int player = p;
-            items.add(new StoneMenu.Action("Player " + (p + 1) + ": " + chosenFactions.get(p), () -> {
-                int next = (factions.indexOf(chosenFactions.get(player)) + 1) % factions.size();
-                chosenFactions.set(player, factions.get(next));
-                showSkirmishMenu();
-            }));
-        }
-        items.add(new StoneMenu.Action("Start match", () -> {
-            front.selectSkirmish(chosenMap, chosenFactions);
-            startGame();
-        }));
-        items.add(new StoneMenu.Action(say("Back"), this::showMainMenu));
-        menu.show(front.getTitle(), "skirmish setup", items,
-                "UP DOWN choose    ENTER take    ESC back", version(), false);
-    }
-
-    // ---- multiplayer flows (menu thread-hops: network blocks, jME must not) ----
-
-    private void hostFlow() {
-        takeTheFrontMatchBack();
-        int port = uz.dukeengine.game.MultiplayerSession.DEFAULT_PORT;
-        int wanted = game.getMaxNetworkPlayers();
-        showLobby(port, 0, wanted);
-        new Thread(() -> {
-            try {
-                // The count comes back as each guest arrives, so the host can see
-                // who is still missing instead of staring at "waiting…".
-                game.hostMultiplayer(port, wanted, joined -> enqueue(() -> showLobby(port, joined, wanted)));
-                enqueue(this::startGame);
-            } catch (Exception e) {
-                enqueue(this::showMainMenu); // cancelled or failed — back to the menu
-            }
-        }, "duke-host").start();
-    }
-
-    private void showLobby(int port, int joined, int wanted) {
-        menu.show(game.getTitle(),
-                "hosting on port " + port + " — " + (joined + 1) + " of " + wanted + " players in",
-                java.util.List.of(new StoneMenu.Action("Cancel", () -> {
-                    game.cancelHosting();
-                    showMainMenu();
-                })), "", version(), false);
-    }
-
-    private void joinFlow() {
-        takeTheFrontMatchBack();
-        menu.show(game.getTitle(), "joining…", java.util.List.of(), "", version(), false);
-        new Thread(() -> {
-            var ip = askText("Host IP address:", "127.0.0.1");
-            if (ip == null || ip.isBlank()) {
-                enqueue(this::showMainMenu);
-                return;
-            }
-            try {
-                game.joinMultiplayer(ip.trim(), uz.dukeengine.game.MultiplayerSession.DEFAULT_PORT);
-                enqueue(this::startGame);
-            } catch (Exception e) {
-                enqueue(this::showMainMenu);
-            }
-        }, "duke-join").start();
-    }
-
-    private static String askText(String prompt, String initial) {
-        var result = new String[1];
-        try {
-            javax.swing.SwingUtilities.invokeAndWait(() ->
-                    result[0] = javax.swing.JOptionPane.showInputDialog(null, prompt, initial));
-        } catch (Exception e) {
-            return null;
-        }
-        return result[0];
     }
 
     private void startGame() {
@@ -2677,13 +1446,13 @@ final class DukeRtsApp extends SimpleApplication {
         // Open on the player's own units rather than the middle of the map, which
         // left him hunting the map for whatever he is supposed to be controlling.
         camera.requestOwnUnit();
-        menu.hide();
+        screens.menu().hide();
         if (!shell.isDrawnByTheGame() && !musicByGame) {
             // Underneath everything from here on, until he goes back to the menu. A game that draws its own
             // screens, or chooses its own music, plays its own.
-            playChosenMusic();
+            choices.playChosenMusic();
         }
-        screen = Screen.PLAYING;
+        screens.set(Screen.PLAYING);
     }
 
     // ---- reading the art before it is wanted ----
@@ -2705,17 +1474,22 @@ final class DukeRtsApp extends SimpleApplication {
      * {@link Visuals}, which has known since before the window opened.
      */
     private void beginLoading() {
-        matchLoad = new MatchLoad(game, built -> artLoad = new ArtLoad(built.templatesThisMatchCanDraw()),
+        matchLoad = new MatchLoad(game, built -> artLoad = artLoadFor(built),
                 percent -> {
                     if (loadingEar != null) {
                         loadingEar.accept(percent);
                     }
                 }, holdStart);
-        menu.hide();
+        screens.menu().hide();
         if (!shell.isDrawnByTheGame()) {
             loading.show(game.getTitle()); // a game that draws its own screens draws its own load screen
         }
-        screen = Screen.LOADING;
+        screens.set(Screen.LOADING);
+    }
+
+    /** The art a match built can draw, read ahead of its first frame — see {@link ArtLoad}. */
+    private ArtLoad artLoadFor(DukeGame built) {
+        return new ArtLoad(built.templatesThisMatchCanDraw(), visuals, artStore);
     }
 
     private void advanceLoadingArt() {
@@ -2726,7 +1500,7 @@ final class DukeRtsApp extends SimpleApplication {
             matchLoad = null;
             artLoad = null;
             loading.hide();
-            showMainMenu();
+            screens.showMainMenu();
             return;
         }
         loading.progress(matchLoad.percent() / 100f, artLoad == null ? "" : artLoad.what());
@@ -2752,393 +1526,10 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    /**
-     * One pass over every file the game named, in two halves.
-     *
-     * <p>The reading half runs on a thread of its own, because that is the slow
-     * part and doing it here would freeze the very screen that exists to show it
-     * happening. jME's asset manager is built for this: a loader off the render
-     * thread parses into the shared cache, and nothing touches the scene graph.
-     *
-     * <p>The second half cannot be moved and does not need to be. Handing a mesh
-     * or a texture to the card, and compiling the shader that will draw it, is
-     * work only the render thread may do — so it is done here a piece at a time,
-     * between frames, while the bar keeps moving. It is the half that matters:
-     * a file read but never handed over stalls on first sight exactly as before.
-     *
-     * <p>Both halves keep what they load, and that is not tidiness. jME's asset
-     * cache holds what it has parsed through a <em>weak</em> reference: an asset
-     * nobody is holding is collected, and the next request for it reads the file
-     * again. Load twenty megabytes, drop it on the floor, and the collector is
-     * free to undo the entire exercise before the first monster walks in — with
-     * no error, no warning, and a stall in exactly the frame this exists to spare.
-     * So one instance of each is kept for the life of the window.
-     */
-    private final class ArtLoad implements MatchLoad.Art {
-
-        /**
-         * How long one frame may spend handing things to the card.
-         *
-         * <p>A share of a frame rather than a count of pieces. It was one piece a frame, which made the
-         * wait a count of frames: 876 models were 876 frames, a quarter of a minute at sixty, however
-         * fast the card was. Half of a sixty-a-second frame keeps the bar moving and lets a quick machine
-         * be quick.
-         */
-        private static final long WARM_BUDGET_NANOS = 8_000_000L;
-
-        /** One model to show the card, and the look that says how it is dressed. */
-        private record Warm(Visuals.UnitVisual look, String path) {
-        }
-
-        /** The templates this match can draw, or null to read everything the game registered. */
-        private final java.util.Set<String> only;
-        private final List<Preload.Job> files;
-        /**
-         * One entry per model file, not one per creature: six kinds cut from one kit
-         * share a file, and showing the card the same mesh six times teaches it
-         * nothing it did not know after the first. A look's models for its
-         * conditions are here too — a building first drawn wrecked is a stall.
-         */
-        private final List<Warm> looks;
-        /**
-         * Every sound, from both places a game may name one.
-         *
-         * <p>A unit's fire and death sounds are named on the unit; everything else
-         * is in the bank. The music is left out on purpose — it is streamed from
-         * disc as it plays rather than held, so reading it here would be reading a
-         * megabyte to throw it away.
-         */
-        private final List<String> sounds;
-        private final java.util.concurrent.atomic.AtomicInteger read =
-                new java.util.concurrent.atomic.AtomicInteger();
-        private volatile String reading = "";
-        private int warmed;
-
-        ArtLoad(java.util.Set<String> only) {
-            this.only = only;
-            this.files = Preload.plan(visuals, only);
-            this.looks = warmList();
-            this.sounds = soundList();
-            var reader = new Thread(this::readEverything, "duke-art");
-            reader.setDaemon(true); // a window closed mid-load must still close
-            reader.start();
-        }
-
-        private List<Warm> warmList() {
-            var byPath = new java.util.LinkedHashMap<String, Warm>();
-            for (var look : only == null ? visuals.allLooks() : visuals.looksNamed(only)) {
-                if (look.modelPath != null) {
-                    byPath.putIfAbsent(look.modelPath, new Warm(look, look.modelPath));
-                }
-                for (var path : look.conditionalModels.values()) {
-                    byPath.putIfAbsent(path, new Warm(look, path));
-                }
-            }
-            return List.copyOf(byPath.values());
-        }
-
-        private List<String> soundList() {
-            var everyTemplate = visuals.lookNames();
-            return java.util.stream.Stream.concat(
-                            files.stream().filter(job -> job.kind() == Preload.Kind.SOUND)
-                                    .map(Preload.Job::assetPath),
-                            visuals.getSounds().all().stream()
-                                    .filter(cue -> cue.channel() != SoundBank.Channel.MUSIC)
-                                    .filter(cue -> belongsToThisMatch(cue.name(), everyTemplate))
-                                    .flatMap(cue -> cue.files().stream()))
-                    .distinct().toList();
-        }
-
-        /**
-         * Whether a cue can be heard in this match.
-         *
-         * <p>A cue made for one template ends with its name — {@code died.Rifleman}, which the client plays
-         * when a rifleman dies — and is this match's only if that template is. Everything else, a click, a
-         * voice line, {@code died} on its own, is anybody's and stays. Only what is provably another
-         * template's is left out, so a game that names its cues some other way loses nothing.
-         */
-        private boolean belongsToThisMatch(String cue, java.util.Set<String> everyTemplate) {
-            if (only == null) {
-                return true;
-            }
-            int dot = cue.lastIndexOf('.');
-            var whose = dot < 0 ? null : cue.substring(dot + 1);
-            return whose == null || !everyTemplate.contains(whose) || only.contains(whose);
-        }
-
-        private void readEverything() {
-            for (var job : files) {
-                reading = job.assetPath();
-                try {
-                    switch (job.kind()) {
-                        case MODEL, TILE -> keep(assetManager.loadModel(job.assetPath()));
-                        case ANIMATIONS -> animationLibraries.computeIfAbsent(job.assetPath(),
-                                assetManager::loadModel);
-                        case TEXTURE -> keep(assetManager.loadTexture(job.assetPath()));
-                        // Sound is the render thread's: an audio node goes into the
-                        // scene, and the scene is not this thread's to touch.
-                        case SOUND -> {
-                        }
-                    }
-                } catch (RuntimeException | LinkageError e) {
-                    warnOnce(job.assetPath(), job.kind().name().toLowerCase(
-                            java.util.Locale.ROOT));
-                } finally {
-                    // In a finally, because a thread that dies holding the count
-                    // leaves the loading screen up for ever, and a game that will
-                    // not start is worse than a game missing one texture.
-                    read.incrementAndGet();
-                }
-            }
-            reading = "";
-        }
-
-        /**
-         * How far along, counting both halves as one.
-         */
-        @Override
-        public float done() {
-            return (read.get() + warmed) / (float) Math.max(1, total());
-        }
-
-        String what() {
-            return reading;
-        }
-
-        private int total() {
-            return files.size() + looks.size() + sounds.size() + 1;
-        }
-
-        /**
-         * Do this frame's share of the work; {@code true} once there is none left.
-         */
-        @Override
-        public boolean step() {
-            if (read.get() < files.size()) {
-                return false; // still reading; the bar is the only thing to do
-            }
-            int all = looks.size() + sounds.size() + 1;
-            // At least one a frame, however slow the one; then as many more as fit in the budget.
-            long until = System.nanoTime() + WARM_BUDGET_NANOS;
-            do {
-                if (warmed >= all) {
-                    break;
-                }
-                warmOne();
-                warmed++;
-            } while (System.nanoTime() < until);
-            return warmed >= all;
-        }
-
-        private void warmOne() {
-            if (warmed < looks.size()) {
-                warmLook(looks.get(warmed));
-            } else if (warmed < looks.size() + sounds.size()) {
-                soundNode(sounds.get(warmed - looks.size()));
-            } else {
-                // The floor is already standing, and its several hundred tiles are
-                // three meshes and one material the card has still never seen.
-                renderManager.preloadScene(terrainNode);
-            }
-        }
-
-        /**
-         * Build one of this creature exactly as the game will, show it to the card,
-         * and throw it away.
-         *
-         * <p>Thrown away and still worth doing, because what is kept is not the
-         * model: it is the parsed file in the asset cache, the texture in graphics
-         * memory, and the compiled shader for the one material every creature of
-         * this kit shares. The next one built is the cheap one.
-         */
-        private void warmLook(Warm one) {
-            var look = one.look();
-            reading = one.path();
-            try {
-                var body = assetManager.loadModel(one.path());
-                if (look.modelPart != null) {
-                    body = partOf(body, look.modelPart, one.path());
-                }
-                dressModel(body, look, one.path());
-                // Left in the scene, culled, for as long as the window lasts. A
-                // clone is what holds a parsed model in jME's cache; drop it and
-                // the file is read again the first time a creature needs it.
-                warmNode.attachChild(body);
-                rootNode.updateGeometricState();
-                renderManager.preloadScene(body);
-            } catch (RuntimeException e) {
-                warnOnce(one.path(), "model");
-            }
-        }
-    }
-
-    /**
-     * Where one of each creature stands, culled, for the life of the window.
-     *
-     * <p>In the scene rather than off to the side of it, because a spatial with no
-     * parent has no world transform and jME says so with an assertion. Never
-     * drawn — the node is culled outright — and never emptied, because these
-     * are the references that hold the parsed models in the asset cache.
-     */
-    private final Node warmNode = new Node("warm");
-
-    /**
-     * Textures and pieces with nothing else holding them. See {@link ArtLoad}.
-     */
-    private final List<Object> artKeptAlive =
-            java.util.Collections.synchronizedList(new ArrayList<>());
-
-    private void keep(Object asset) {
-        artKeptAlive.add(asset);
-    }
-
-    private void showPauseMenu() {
-        screen = Screen.PAUSED;
-        // Set here rather than queued for the simulation thread, and it has to be:
-        // a paused engine does not step, so the task that would unpause it never
-        // runs and the game never starts again. The flag takes no part in the
-        // checksum -- pausing changes when frames happen, not what is in them.
-        setSimulationPaused(true);
-        var rows = new java.util.ArrayList<StoneMenu.Row>();
-        // What he stopped in the middle of. Read off the game's own status line
-        // rather than counted here, so a game that says nothing shows nothing —
-        // and parsed from the snapshot rather than taken from the panel, which
-        // has been put away by the time a menu is up.
-        for (var part : snapshot == null ? List.<HudPart>of() : parts) {
-            for (var fact : part.pauseFacts(snapshot)) {
-                rows.add(new StoneMenu.Words(fact[0], fact[1]));
-            }
-        }
-        rows.add(new StoneMenu.Action(say("Resume"), this::resumeGame));
-        rows.add(new StoneMenu.Action(say("Settings"), () -> showSettingsMenu(Screen.PAUSED)));
-        for (var row : shell.pauseRows()) {
-            rows.add(new StoneMenu.Action(row.label(), () -> takePauseRow(row), false, row.picture()));
-        }
-        // Marked, and asked about. They are the things on any of these screens
-        // that cost him something he cannot get back.
-        rows.add(new StoneMenu.Action(say("Quit to the main menu"),
-                () -> confirmQuit("QUIT TO THE MAIN MENU?", this::quitToTheMainMenu), true));
-        rows.add(new StoneMenu.Action(say("Quit to the desktop"),
-                () -> confirmQuit("QUIT TO THE DESKTOP?", this::stop), true));
-        menu.show(say("PAUSED"), "", rows, say("ESC resume"), "", true);
-    }
-
-    /** A game's row on the pause menu taken: its own work, then its question if it has one, then back. */
-    private void takePauseRow(Shell.Option row) {
-        if (row.taken() != null) {
-            row.taken().run();
-        }
-        if (row.next() != null) {
-            showQuestion(row.next(), this::showPauseMenu, this::showPauseMenu);
-        } else {
-            showPauseMenu();
-        }
-    }
-
-    /**
-     * Ask before throwing a run away.
-     *
-     * <p>A second screen rather than a dialog over the first: this client has no
-     * dialogs, and a menu that replaces a menu is the same mechanism doing the
-     * same job. The safe answer is the one already lit.
-     */
-    private void confirmQuit(String question, Runnable quit) {
-        menu.show(say(question), say("everything on this floor is lost"), java.util.List.of(
-                        new StoneMenu.Action(say("Keep playing"), this::showPauseMenu),
-                        new StoneMenu.Action(say("Quit"), quit, true)),
-                say("ESC keep playing"), "", true);
-    }
-
     /** The match let go, the game told first, and the front end shown. */
     private void quitToTheMainMenu() {
         leave();
         backToFrontEnd();
-    }
-
-    /**
-     * What the client calls itself, for the corner of the front menu.
-     */
-    private String version() {
-        var version = getClass().getPackage().getImplementationVersion();
-        return version == null ? "" : "v" + version;
-    }
-
-    /**
-     * The menu, built with whatever lettering the game asked for.
-     *
-     * <p>Rebuilt rather than resized when the window changes, because everything
-     * in it is laid out from the screen it was built against — see
-     * {@link #followTheWindowSize}.
-     */
-    private StoneMenu buildMenu(float width, float height) {
-        if (craft == null) {
-            craft = new StoneCraft(assetManager, guiFont, visuals.getMenuStyle());
-        }
-        var style = visuals.getMenuStyle();
-        var built = new StoneMenu(craft, fontOrDefault(style.titleFont()),
-                fontOrDefault(style.rowFont()), guiNode, width, height);
-        built.placeAt(shell.menuSide(), shell.menuMargin());
-        return built;
-    }
-
-    /**
-     * What each line of the keys page puts elsewhere, line for line with {@link #keyLines}: a game binding by its letter,
-     * the four walking keys as {@code 1} to {@code 4}, nothing ({@code null}) for a letter the game only describes, and
-     * each control of the client's own.
-     */
-    static List<Object> rebindable(Hotkeys hotkeys) {
-        var actions = new ArrayList<Object>(new java.util.TreeSet<>(hotkeys.claimedKeys()));
-        for (char letter : new java.util.TreeSet<Character>(hotkeys.describedKeys())) {
-            if (!hotkeys.claimedKeys().contains(letter)) {
-                actions.add(null);
-            }
-        }
-        for (var control : KeyMap.Control.values()) {
-            if (!hotkeys.keyMap().keysOf(control).isEmpty()) {
-                actions.add(control);
-            }
-        }
-        return actions;
-    }
-
-    /**
-     * The lines of the Settings screen's list of keys: each letter the game claimed or said something of, with its
-     * word; then each control of the client's own on its keys, called by its English name said the game's way.
-     */
-    static List<String> keyLines(Hotkeys hotkeys, java.util.function.UnaryOperator<String> say) {
-        var lines = new ArrayList<String>();
-        for (char letter : new java.util.TreeSet<Character>(hotkeys.claimedKeys())) {
-            var word = hotkeys.wordOf(letter);
-            var key = Hotkeys.nameOf(hotkeys.codeFor(letter));
-            lines.add(word.isEmpty() ? key : key + "   " + word);
-        }
-        for (char letter : new java.util.TreeSet<Character>(hotkeys.describedKeys())) {
-            if (!hotkeys.claimedKeys().contains(letter)) {
-                var word = hotkeys.wordOf(letter);
-                lines.add(word.isEmpty() ? String.valueOf(letter) : letter + "   " + word);
-            }
-        }
-        var keyMap = hotkeys.keyMap();
-        for (var control : KeyMap.Control.values()) {
-            var on = keyMap.keysOf(control);
-            if (on.isEmpty()) {
-                continue;
-            }
-            var named = new ArrayList<String>();
-            for (var key : on) {
-                named.add((key.ctrl() ? "Ctrl+" : "") + (key.shift() ? "Shift+" : "") + (key.alt() ? "Alt+" : "")
-                        + Hotkeys.nameOf(key.code()));
-            }
-            var english = control.name().charAt(0) + control.name().substring(1).toLowerCase(java.util.Locale.ROOT)
-                    .replace('_', ' ');
-            lines.add(String.join(", ", named) + "   " + say.apply(english));
-        }
-        return lines;
-    }
-
-    /** One of the client's fixed words, as the game says it — see {@link Shell#word}. */
-    private String say(String english) {
-        return shell.wordFor(english);
     }
 
     private com.jme3.font.BitmapFont fontOrDefault(String assetPath) {
@@ -3148,460 +1539,9 @@ final class DukeRtsApp extends SimpleApplication {
         try {
             return assetManager.loadFont(assetPath);
         } catch (RuntimeException e) {
-            warnOnce(assetPath, "font");
+            missing.warn(assetPath, "font");
             return guiFont;
         }
-    }
-
-    private void resumeGame() {
-        setSimulationPaused(false);
-        menu.hide();
-        screen = Screen.PLAYING;
-    }
-
-    // ---- settings ----
-
-    /** The anti-aliasing a player may choose: none, or that many samples a pixel. */
-    private static final int[] SAMPLES = {0, 2, 4};
-
-    private void showSettingsMenu(Screen returnTo) {
-        settingsReturn = returnTo;
-        screen = Screen.SETTINGS;
-        var rows = new java.util.ArrayList<StoneMenu.Row>();
-        rows.add(new StoneMenu.Choice(say("Fullscreen"), java.util.List.of(say("NO"), say("YES")),
-                () -> preferences.flag("fullscreen", false) ? 1 : 0,
-                to -> {
-                    preferences.set("fullscreen", to == 1);
-                    fillTheScreen(to == 1); // seen at once, like a volume is heard
-                }));
-        // The real ones, from the card, rather than three the client invented —
-        // a player who picks a size his monitor cannot show gets a black screen.
-        var sizes = screenSizes();
-        rows.add(new StoneMenu.Opens(say("Size"),
-                sizes.stream().map(size -> size.shown().replace("MONITOR", say("MONITOR"))).toList(),
-                () -> indexOfSize(sizes, preferences.number("width", 0),
-                        preferences.number("height", 0)),
-                to -> {
-                    preferences.set("width", sizes.get(to).width());
-                    preferences.set("height", sizes.get(to).height());
-                    applyDisplaySettings();
-                }));
-        // Taken by the window only as it is made, so it is kept for the next launch and said so below.
-        rows.add(new StoneMenu.Choice(say("Anti-aliasing"), java.util.List.of(say("OFF"), "2×", "4×"),
-                () -> indexOf(SAMPLES, preferences.number("samples", 0)),
-                to -> preferences.set("samples", SAMPLES[to])));
-        for (var row : shell.settingsRows()) {
-            rows.add(new StoneMenu.Choice(row.word(), row.choices(),
-                    () -> Math.clamp(preferences.number(row.key(), row.fallback()), 0, row.choices().size() - 1),
-                    to -> {
-                        preferences.set(row.key(), to);
-                        row.chosen().accept(to);
-                    }));
-        }
-        rows.add(new StoneMenu.Choice(say("Camera shake"), java.util.List.of(say("Full"), say("Half"), say("Off")),
-                () -> Math.clamp(preferences.number("shake", 0), 0, SHAKES.length - 1),
-                to -> {
-                    preferences.set("shake", to);
-                    applyShake();
-                }));
-        rows.add(volumeRow(say("Volume"), "volume", 100));
-        // Only offered by a game that has any: this client draws three others and
-        // a knob for a channel with nothing on it is a dead button.
-        if (!visuals.getSounds().isEmpty()) {
-            rows.add(volumeRow(say("Effects"), "volEffects", 100));
-            rows.add(volumeRow(say("Ambience"), "volAmbience", 70));
-            rows.add(volumeRow(say("Voice"), "volVoice", 100));
-            rows.add(volumeRow(say("Music"), "volMusic", 60));
-            var tracks = visuals.getSounds().musicCues();
-            if (tracks.size() > 1 && !musicByGame) {
-                // A list that drops open, not cells side by side: a track is
-                // called "The Sentinel", and three of those across one row is
-                // three names too small to read.
-                rows.add(new StoneMenu.Opens(say("Track"),
-                        tracks.stream().map(SoundBank.Cue::shown).toList(),
-                        () -> Math.clamp(preferences.number("musicTrack", 0), 0, tracks.size() - 1),
-                        to -> {
-                            preferences.set("musicTrack", to);
-                            playChosenMusic();
-                        }));
-            }
-        }
-        // Every key the game uses and every control of the client's own, each in the game's words; one taken, the
-        // next key pressed is its key.
-        var keys = keyLines(hotkeys, this::say);
-        if (!keys.isEmpty()) {
-            var actions = rebindable(hotkeys);
-            rows.add(new StoneMenu.Opens(say("Keys"), keys, () -> 0, to -> {
-                if (to < actions.size()) {
-                    capturing = actions.get(to);
-                }
-            }));
-        }
-        // The two buttons, in sockets rather than as two more rows: they are not
-        // settings, they are what happens to the settings.
-        rows.add(new StoneMenu.Buttons("", say("Save"), () -> {
-            preferences.save();
-            menu.refresh();
-        }, say("Cancel"), this::undoSettings,
-                preferences.number("samples", 0) != settings.getSamples() ? say("anti-aliasing from the next launch")
-                        : preferences.dirty() ? say("unsaved changes") : ""));
-        menu.show(say("SETTINGS"), "", rows,
-                say("UP DOWN choose    LEFT RIGHT change    ESC back"), "",
-                settingsReturn == Screen.PAUSED);
-    }
-
-    /**
-     * One knob, worded and wired the same way as the rest.
-     *
-     * <p>Applied as it moves, because a volume has to be heard to be chosen, and
-     * put back by Cancel — which is the promise the two buttons underneath make.
-     */
-    private StoneMenu.Row volumeRow(String word, String key, int fallback) {
-        return new StoneMenu.Level(word, () -> preferences.number(key, fallback),
-                to -> {
-                    preferences.set(key, to);
-                    applyVolume();
-                }, 5);
-    }
-
-    /**
-     * Throw away what has not been saved, and put back what was already applied.
-     *
-     * <p>Everything on this screen takes effect while it is being chosen, so
-     * cancelling is not only forgetting: the volume has to come back down and the
-     * window has to go back to the shape it was.
-     */
-    private void undoSettings() {
-        var pending = preferences.pending();
-        preferences.cancel();
-        for (var row : shell.settingsRows()) {
-            if (pending.contains(row.key())) {
-                row.chosen().accept(preferences.number(row.key(), row.fallback())); // the game told its old choice
-            }
-        }
-        if (pending.contains("fullscreen")) {
-            fillTheScreen(preferences.flag("fullscreen", false));
-        }
-        if (pending.contains("width") || pending.contains("height")) {
-            applyDisplaySettings();
-        }
-        applyVolume();
-        applyShake();
-        if (pending.contains("musicTrack")) {
-            playChosenMusic();
-        }
-        leaveSettings();
-    }
-
-    /**
-     * One size a monitor will actually show.
-     */
-    private record Size(int width, int height, boolean native_) {
-        String shown() {
-            return width + " × " + height + (native_ ? "   MONITOR" : "");
-        }
-    }
-
-    /**
-     * The sizes this machine can really show, largest first.
-     *
-     * <p>Asked of the graphics device rather than written down here, because a
-     * list written down is a list that offers somebody a resolution his monitor
-     * refuses — and what that looks like is a black screen and a game that has to
-     * be killed. Deduplicated by shape, since a mode exists per refresh rate and
-     * a player is not choosing a refresh rate.
-     */
-    private java.util.List<Size> screenSizes() {
-        var found = new java.util.LinkedHashSet<Size>();
-        try {
-            var device = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment()
-                    .getDefaultScreenDevice();
-            var current = device.getDisplayMode();
-            var modes = new java.util.ArrayList<>(java.util.List.of(device.getDisplayModes()));
-            modes.sort(java.util.Comparator
-                    .comparingInt(java.awt.DisplayMode::getWidth)
-                    .thenComparingInt(java.awt.DisplayMode::getHeight).reversed());
-            for (var mode : modes) {
-                if (mode.getWidth() >= 1024 && mode.getHeight() >= 576) {
-                    found.add(new Size(mode.getWidth(), mode.getHeight(),
-                            mode.getWidth() == current.getWidth()
-                                    && mode.getHeight() == current.getHeight()));
-                }
-            }
-        } catch (RuntimeException e) {
-            warnOnce("display modes", "screen");
-        }
-        if (found.isEmpty()) {
-            found.add(new Size(1280, 720, false));
-        }
-        return java.util.List.copyOf(found);
-    }
-
-    /**
-     * Which of them is set, or the one nearest the monitor's own.
-     */
-    private int indexOfSize(java.util.List<Size> sizes, int width, int height) {
-        for (int i = 0; i < sizes.size(); i++) {
-            if (sizes.get(i).width() == width && sizes.get(i).height() == height) {
-                return i;
-            }
-        }
-        for (int i = 0; i < sizes.size(); i++) {
-            if (sizes.get(i).native_()) {
-                return i;
-            }
-        }
-        return 0;
-    }
-
-    private void leaveSettings() {
-        if (settingsReturn == Screen.PAUSED) {
-            showPauseMenu();
-        } else {
-            showMainMenu();
-        }
-    }
-
-    /**
-     * In and out of fullscreen, from anywhere, without going through the menu.
-     *
-     * <p>The same switch the settings menu throws, so the two cannot disagree and
-     * the choice is remembered for the next launch either way. Everything that is
-     * sized to the window — the hero's bar, the minimap in it, the menus — is laid
-     * out again when the new size arrives.
-     */
-    private void toggleFullscreen() {
-        boolean wanted = !preferences.flag("fullscreen", false);
-        if (fillTheScreen(wanted)) {
-            preferences.set("fullscreen", wanted);
-            preferences.save(); // F11 is not a settings screen; there is no Save to press
-            settings.setFullscreen(wanted);
-        }
-    }
-
-    /**
-     * Where the window was before it filled the screen: x, y, width, height.
-     */
-    private int[] windowedBounds;
-
-    /**
-     * Move the window between filling the screen and sitting in it — without
-     * rebuilding anything.
-     *
-     * <p>The obvious way is {@code restart()}, and it does not work here: it tears
-     * the display context down and stands another one up, and what comes back is a
-     * window that renders a frozen picture of a game that has stopped. It is also
-     * more than was asked for — the pictures, the meshes and the shaders are all
-     * still perfectly good, and the only thing that needs to change is which
-     * monitor the window belongs to.
-     *
-     * <p>So it is said to the window directly. GLFW moves it to the monitor and
-     * back, keeps the GL context, and reports the new size the way it reports any
-     * other resize — which the HUD already follows.
-     *
-     * <p><b>At the size it already is</b>, which is the part that took finding
-     * out. Filling the screen at the monitor's own resolution looks like the right
-     * answer and half works: the world is drawn at full sharpness, and the HUD
-     * disappears. Everything on it is in the scene, in the right place and
-     * unculled — the engine's GUI simply does not survive its window changing size
-     * underneath it, and rebuilding every piece of it does not help either. The
-     * same game <em>started</em> fullscreen is perfect, because then nothing
-     * changed size.
-     *
-     * <p>So nothing changes size here either. The window keeps the framebuffer it
-     * has and only moves onto the monitor, which switches the screen to that mode
-     * for as long as the game is up — the ordinary bargain of an exclusive
-     * fullscreen game, and exactly what starting fullscreen already did.
-     *
-     * @return whether there was a window to say it to
-     */
-    private boolean fillTheScreen(boolean fullscreen) {
-        if (!(getContext() instanceof com.jme3.system.lwjgl.LwjglWindow display)) {
-            return false;
-        }
-        long window = display.getWindowHandle();
-        if (window == 0L) {
-            return false;
-        }
-        if (fullscreen) {
-            windowedBounds = boundsOf(window);
-            long monitor = org.lwjgl.glfw.GLFW.glfwGetPrimaryMonitor();
-            if (monitor == 0L) {
-                return false;
-            }
-            org.lwjgl.glfw.GLFW.glfwSetWindowMonitor(window, monitor, 0, 0,
-                    windowedBounds[2], windowedBounds[3],
-                    org.lwjgl.glfw.GLFW.GLFW_DONT_CARE);
-            return true;
-        }
-        var back = windowedBounds != null ? windowedBounds : startingBounds();
-        org.lwjgl.glfw.GLFW.glfwSetWindowMonitor(window, 0L, back[0], back[1], back[2], back[3],
-                org.lwjgl.glfw.GLFW.GLFW_DONT_CARE);
-        return true;
-    }
-
-    /** The window made so, where the monitor shows it, and kept as the player's choice — see {@link Duke3D#display}. */
-    void display(int width, int height, boolean fullscreen, java.util.function.Consumer<Boolean> told) {
-        boolean taken = resizeTheWindow(width, height, fullscreen);
-        if (taken) {
-            preferences.set("width", width);
-            preferences.set("height", height);
-            preferences.set("fullscreen", fullscreen);
-            preferences.save();
-            settings.setResolution(width, height);
-            settings.setFullscreen(fullscreen);
-        }
-        if (told != null) {
-            told.accept(taken);
-        }
-    }
-
-    /** The window at a new size, filling the screen or not — or left as it was where the monitor does not show it. */
-    private boolean resizeTheWindow(int width, int height, boolean fullscreen) {
-        if (!(getContext() instanceof com.jme3.system.lwjgl.LwjglWindow display) || display.getWindowHandle() == 0L) {
-            return false;
-        }
-        long window = display.getWindowHandle();
-        long monitor = org.lwjgl.glfw.GLFW.glfwGetPrimaryMonitor();
-        if (monitor == 0L) {
-            return false;
-        }
-        var modes = new java.util.ArrayList<int[]>();
-        var shown = org.lwjgl.glfw.GLFW.glfwGetVideoModes(monitor);
-        if (shown != null) {
-            for (int at = 0; at < shown.limit(); at++) {
-                modes.add(new int[] {shown.get(at).width(), shown.get(at).height()});
-            }
-        }
-        var now = org.lwjgl.glfw.GLFW.glfwGetVideoMode(monitor);
-        int[] desktop = now == null ? null : new int[] {now.width(), now.height()};
-        if (!DisplayModes.shows(width, height, fullscreen, modes, desktop)) {
-            return false;
-        }
-        boolean filling = org.lwjgl.glfw.GLFW.glfwGetWindowMonitor(window) != 0L;
-        if (fullscreen) {
-            if (!filling) {
-                windowedBounds = boundsOf(window);
-            }
-            org.lwjgl.glfw.GLFW.glfwSetWindowMonitor(window, monitor, 0, 0, width, height,
-                    org.lwjgl.glfw.GLFW.GLFW_DONT_CARE);
-        } else {
-            var at = filling && windowedBounds != null ? windowedBounds : boundsOf(window);
-            org.lwjgl.glfw.GLFW.glfwSetWindowMonitor(window, 0L, at[0], at[1], width, height,
-                    org.lwjgl.glfw.GLFW.GLFW_DONT_CARE);
-        }
-        return true;
-    }
-
-    private static int[] boundsOf(long window) {
-        var x = new int[1];
-        var y = new int[1];
-        var width = new int[1];
-        var height = new int[1];
-        org.lwjgl.glfw.GLFW.glfwGetWindowPos(window, x, y);
-        org.lwjgl.glfw.GLFW.glfwGetWindowSize(window, width, height);
-        return new int[]{x[0], y[0], width[0], height[0]};
-    }
-
-    /**
-     * Where a window that has never been anywhere else should go back to.
-     */
-    private int[] startingBounds() {
-        return new int[]{60, 60, preferences.number("width", 1280),
-                preferences.number("height", 720)};
-    }
-
-    /**
-     * The chosen resolution, applied to the window as it is chosen and kept for the next launch.
-     *
-     * <p>It was once kept for the next launch alone, because a window that changed size took the HUD with it —
-     * see {@link #fillTheScreen} — and a player whose saved size was far smaller than his monitor saw a blurred
-     * picture until he restarted. Now the window takes it at once, by the same move {@link Duke3D#display} makes, and
-     * everything sized to the window is laid out again when the new size arrives ({@link #followTheWindowSize}). A size
-     * the monitor does not show leaves the window as it is.
-     */
-    private void applyDisplaySettings() {
-        int width = preferences.number("width", settings.getWidth());
-        int height = preferences.number("height", settings.getHeight());
-        boolean fullscreen = preferences.flag("fullscreen", settings.isFullscreen());
-        settings.setResolution(width, height);
-        settings.setFullscreen(fullscreen);
-        resizeTheWindow(width, height, fullscreen);
-        menu.refresh(); // the row says what it now is
-    }
-
-    /**
-     * Put every knob where the player last left it.
-     *
-     * <p>Four of them, because one is not enough for the same person: keeping the
-     * music low while still hearing what is behind you is an ordinary thing to
-     * want, and so is silencing a hero who will not stop talking. The screen's own
-     * sounds follow the effects knob rather than getting a fifth — a menu click is
-     * an effect that happens to be on a menu.
-     */
-    private void applyVolume() {
-        listener.setVolume(1f); // the knobs are per channel now; the listener is not
-        if (noises == null) {
-            return;
-        }
-        var sounds = noises.sounds();
-        sounds.masterVolume(preferences.number("volume", 100) / 100f);
-        float effects = preferences.number("volEffects", 100) / 100f;
-        sounds.volume(SoundBank.Channel.EFFECTS, effects);
-        sounds.volume(SoundBank.Channel.UI, effects);
-        sounds.volume(SoundBank.Channel.VOICE, preferences.number("volVoice", 100) / 100f);
-        sounds.volume(SoundBank.Channel.MUSIC, preferences.number("volMusic", 60) / 100f);
-        sounds.volume(SoundBank.Channel.AMBIENCE, preferences.number("volAmbience", 70) / 100f);
-    }
-
-    /** The player's camera shake — full, half or none — over the game's own. */
-    private static final float[] SHAKES = {1f, 0.5f, 0f};
-    /** The game's shake scale as it was given, before the player's choice was put over it. */
-    private float gameShake = Float.NaN;
-
-    /** The share of the game's shake the player's choice keeps: 0 full, 1 half, 2 none. */
-    static float playerShake(int choice) {
-        return SHAKES[Math.clamp(choice, 0, SHAKES.length - 1)];
-    }
-
-    private void applyShake() {
-        if (Float.isNaN(gameShake)) {
-            gameShake = visuals.getShakeScale();
-        }
-        visuals.shakeScale(gameShake * playerShake(preferences.number("shake", 0)));
-        if (listShow != null) {
-            listShow.shakeScale(visuals.getShakeScale());
-        }
-    }
-
-    /**
-     * The track the player chose, or the first the game listed.
-     *
-     * <p>Music is the one channel where the choice is his rather than the
-     * moment's: an effect belongs to whatever just happened, and what plays
-     * underneath a dungeon for an hour is taste.
-     */
-    private SoundBank.Cue chosenTrack() {
-        var tracks = visuals.getSounds().musicCues();
-        if (tracks.isEmpty()) {
-            return null;
-        }
-        return tracks.get(Math.clamp(preferences.number("musicTrack", 0), 0,
-                tracks.size() - 1));
-    }
-
-    private void playChosenMusic() {
-        var track = chosenTrack();
-        noises.sounds().music(track == null ? null : track.name());
-    }
-
-    private static int indexOf(int[] values, int value) {
-        for (int i = 0; i < values.length; i++) {
-            if (values[i] == value) {
-                return i;
-            }
-        }
-        return 0;
     }
 
     /**
@@ -3658,15 +1598,8 @@ final class DukeRtsApp extends SimpleApplication {
         for (var part : parts) {
             part.resized(width, height);
         }
-        placeMinimap();
-        menu.destroy();
-        menu = buildMenu(width, height);
-        switch (screen) {
-            case MENU, FRONT -> showMainMenu();
-            case PAUSED -> showPauseMenu();
-            case SETTINGS -> showSettingsMenu(settingsReturn);
-            case PLAYING -> menu.hide();
-        }
+        minimapView.place();
+        screens.rebuild(width, height);
     }
 
     /**
@@ -3700,15 +1633,6 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    // ---- themes ----
-
-    /**
-     * The look the game last named, as it wrote it: a theme and a variation.
-     */
-    private String currentLook;
-    private Visuals.Theme currentTheme;
-    private Tileset currentKit;
-
     /**
      * Whether the look has moved since the world was last built.
      *
@@ -3719,453 +1643,28 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private boolean lookChanged;
 
-    /**
-     * Take up the look the game says this floor wears.
-     *
-     * <p>The game names one of the themes it registered at launch, in the status
-     * channel, and that is the whole of the conversation: the client holds every
-     * look it was given and is told which of them is current. A game with no
-     * themes never gets here, and one whose look has not changed does nothing.
-     *
-     * <p>Everything a theme changes is presentation — the kit the floor is built
-     * from, the colour of the dark, and what some creatures are drawn as. None of
-     * it reaches the simulation, which is what lets a floor's look be decided from
-     * a seed without the world noticing.
-     */
+    /** Take up the look the game says this floor wears — see {@link Looks#adopt} — and its dark. */
     private void adoptTheLookTheGameNames() {
-        if (!visuals.hasThemes()) {
+        if (!looks.adopt(snapshot)) {
             return;
         }
-        var named = lookNamedInStatus();
-        if (java.util.Objects.equals(named, currentLook)) {
-            return;
-        }
-        currentLook = named;
-        // Whatever the game wrote is the name of a theme it registered. The
-        // client does not take the name apart: a look is one thing to it, and
-        // whether the game builds that name out of a theme and a variation is
-        // the game's own arrangement.
-        currentTheme = visuals.getTheme(named);
-        currentKit = currentTheme == null ? null : currentTheme.getTiles();
-        if (currentTheme != null && currentTheme.getFogTint() != null && fogMap != null) {
-            // The tint lives in the fog picture's own texels rather than in a
-            // material, so a new colour is the next repaint — which the new floor
-            // is about to ask for anyway.
-            var tint = new ColorRGBA(
-                    ((currentTheme.getFogTint() >> 16) & 0xFF) / 255f,
-                    ((currentTheme.getFogTint() >> 8) & 0xFF) / 255f,
-                    (currentTheme.getFogTint() & 0xFF) / 255f, 1f);
-            fogMap.tint(tint);
-            viewPort.setBackgroundColor(tint);
+        var tint = looks.floorFogTint();
+        if (tint != null) {
+            fog.tint(tint);
         }
         lookChanged = true;
         // Every creature is drawn again, because some of them are drawn
         // differently now and the ones that are not cost a node each.
-        for (var node : unitNodes.values()) {
-            node.root.removeFromParent();
-        }
-        unitNodes.clear();
-        barrels.clear();
-        runningGear.clear();
+        unitScene.forgetAll();
     }
 
-    /**
-     * The {@code look=} field of the status line, or {@code null}.
-     */
-    private String lookNamedInStatus() {
-        if (snapshot == null || !snapshot.hasStatus()) {
-            return null;
-        }
-        var status = snapshot.status();
-        int at = status.indexOf("|look=");
-        if (at < 0) {
-            return null;
-        }
-        var field = status.substring(at + "|look=".length());
-        int end = field.indexOf('|');
-        return end < 0 ? field : field.substring(0, end);
-    }
-
-    /** The kit in force: the theme's, or the one the game started with. */
-    private Tileset activeKit() {
-        return currentKit != null ? currentKit : visuals.getTiles();
-    }
-
-    /** How a creature is drawn: what the current theme says, or what the game said about it outside any theme. */
-    private Visuals.UnitVisual visualFor(String templateName) {
-        var themed = currentTheme == null ? null : currentTheme.of(templateName);
-        return themed != null ? themed : visuals.of(templateName);
-    }
-
-    /** How a thing is drawn, by the look of the cell it stands on where it is still — see {@link #lookOf}. */
-    private Visuals.UnitVisual visualFor(UnitView view) {
-        return lookOf(visuals, currentTheme, lookUnder(view.x(), view.y()), view);
-    }
-
-    /**
-     * How a thing is drawn, of the looks in force: a still thing on a cell that wears a look of its own ({@code
-     * Looked}) as that look draws it, or as the game drew it outside any look; anything else as the floor's look draws
-     * it, or as the game did. A pillar in the wood is the wood's though the floor's look is the cave's, and a creature
-     * walking from one into the other stays what it was.
-     */
-    static Visuals.UnitVisual lookOf(Visuals visuals, Visuals.Theme floor, Visuals.Theme cell, UnitView view) {
-        var theme = view.mobile() || cell == null ? floor : cell;
-        var themed = theme == null ? null : theme.of(view.looksAs());
-        return themed != null ? themed : visuals.of(view.looksAs());
-    }
-
-    /**
-     * Hand the burning things to the terrain shader.
-     *
-     * <p>The terrain is the one surface in the scene that does not read jME's
-     * light list — it carries its own sun and its own ambient, because for most of
-     * its life those were the only lights there were and a shader that spoke the
-     * whole lighting protocol would have been a copy of it for a scene with one
-     * light in it. That was a good trade until something burning flew down a
-     * corridor: creatures lit up, drawn as they are with the engine's lighting,
-     * and the floor under them did not.
-     *
-     * <p>So the lights go across as four pairs of vectors, every frame, to every
-     * material built from that shader. An unused slot goes across black, which
-     * costs the arithmetic and contributes nothing — cheaper than a branch, and
-     * the same cost every frame, which is the property worth having.
-     */
-    private void carryTheLightsToTheStone() {
-        if (fogged.isEmpty()) {
-            return;
-        }
-        var lights = effects.allLights();
-        for (int i = 0; i < TERRAIN_LIGHTS; i++) {
-            var light = i < lights.size() ? lights.get(i) : null;
-            var colour = light == null ? ColorRGBA.BlackNoAlpha : light.getColor();
-            var at = light == null ? Vector3f.ZERO : light.getPosition();
-            float radius = light == null ? 0f : light.getRadius();
-            // Written into the slots the materials already hold rather than
-            // replaced, so a material made before this frame is looking at the
-            // same two arrays as one made after it.
-            terrainLightColours[i].set(colour.r, colour.g, colour.b, 1f);
-            terrainLightPlaces[i].set(at.x, at.y, at.z, radius <= 0f ? 0f : 1f / radius);
-        }
-        for (var material : fogged) {
-            material.setParam("PointLightColours",
-                    com.jme3.shader.VarType.Vector4Array, terrainLightColours);
-            material.setParam("PointLightPositions",
-                    com.jme3.shader.VarType.Vector4Array, terrainLightPlaces);
-        }
-    }
-
-    /**
-     * As many as the terrain shader declares; see {@code FoggedTerrain.frag}.
-     */
-    private static final int TERRAIN_LIGHTS = 8;
-    /**
-     * The two arrays handed to every terrain material, filled with darkness to
-     * begin with.
-     *
-     * <p>Filled rather than empty, and set on a material the moment it is made:
-     * an array uniform the shader reads and nothing ever wrote is a different
-     * thing on every driver, and the one frame it would go wrong on is the first.
-     */
-    private final com.jme3.math.Vector4f[] terrainLightColours = darkness();
-    private final com.jme3.math.Vector4f[] terrainLightPlaces = darkness();
-
-    private static com.jme3.math.Vector4f[] darkness() {
-        var slots = new com.jme3.math.Vector4f[TERRAIN_LIGHTS];
-        java.util.Arrays.setAll(slots, i -> new com.jme3.math.Vector4f());
-        return slots;
-    }
-
-    /**
-     * Build (or rebuild) the ground and rocks for the world as it stands now.
-     */
-    /** Footsteps told the ground under them, by the paint of the world now laid — see {@code GameSounds.surfaces}. */
-    private void hearTheGround() {
-        if (noises == null) {
-            return; // the sounds are made after the first world's ground, and hear it then
-        }
-        var paint = builtPaint;
-        var grid = builtFrom;
-        noises.surfaces(paint == null || grid == null ? null : (x, y) -> paint.surfaceNameAt(
-                (int) Math.floor(x / grid.mapCellSize()), (int) Math.floor(y / grid.mapCellSize())));
-    }
-
-    /** The scenery a world has taken away, by index — none where there is no world yet, as behind a splash. */
-    static java.util.List<Integer> removedScenery(uz.dukeengine.core.GameLogic logic) {
-        return logic == null ? java.util.List.of() : logic.getRemovedScenery();
-    }
-
-    /** The ground and its scenery laid again, as the world's terrain stands. */
-    private void layTheGround() {
-        terrain.rebuildLooked(builtFrom, currentKit, builtPaint, visuals.getGroundLight(), kitsOfTheCells(builtFrom),
-                game.getMapRecord() instanceof uz.dukeengine.core.map.Dressed dressed ? dressed.scenery()
-                        : java.util.List.of());
-    }
-
+    /** Build (or rebuild) the ground and its dark for the world as it stands now. */
     private void buildTerrain() {
         // First: every material built from here on reads the sun, and this is the world it is for.
-        adoptTheSun();
-        builtFrom = game.getTerrain();
+        light.adopt(sunlightOfTheGame());
         clearWhatIsBurning();
-        builtPaint = GroundPaint.of(game.getMapRecord());
-        hearTheGround();
-        scorchLooks.clear(); // each made for the fog of the world it was laid in
-        if (strips != null) {
-            strips.clear(); // a new world lays its own
-        }
-        terrain.streamWithin(visuals.streamGroundFor(game.getMapRecord()));
-        terrain.blendWith(visuals.getPaintBlend());
-        terrain.quarterWith(visuals.isPaintInQuarters());
-        terrain.hideScenery(removedScenery(game.getLogic())); // what a save carried felled
-        layTheGround();
-        fogTintNow = null; // a new world's dark starts in the colour of whatever the camera looks at
-        if (water != null) {
-            waterLooks.clear(); // the new world's water makes its own
-            water.rebuild(game.getMapRecord() instanceof uz.dukeengine.core.map.Zoned zoned ? zoned.areas()
-                    : java.util.List.of(), drawnGround(), visuals.getWater());
-        }
-        if (border != null) {
-            border.lay(drawnGround(), visuals.getBorderCells());
-        }
-        if (trackMarks != null) {
-            trackMarks.clear();
-            shoreWaves.lay(visuals.getShoreWaves());
-        }
-        if (!visuals.drawsFog()) {
-            return;
-        }
-        // A new floor is a floor nobody has walked: memory belongs to one world,
-        // and carrying it over would open rooms in a dungeon nobody has entered.
-        if (discovery == null) {
-            discovery = new Discovery(builtFrom, visuals.getFog());
-        } else {
-            discovery.reset(builtFrom);
-        }
-        if (visuals.fogStartsExploredFor(game.getMapRecord())) {
-            discovery.startExplored(); // a world whose lie he knows: remembered, not seen
-        }
-        // On a world whose ground is built round the camera, its dark is kept round the camera too.
-        discovery.window(fogWindowCells());
-        discovery.follow(camera.targetX(), camera.targetZ());
-        fogMap.resize(builtFrom, discovery);
-        // The one thing in a fogged material that a new world changes: how much ground its picture holds, and where.
-        // The water's too, made above before the picture took this world's size.
-        for (var material : fogged) {
-            material.setVector2("FogSize", fogMap.worldSize());
-        }
-        for (var material : waterLooks) {
-            material.setVector2("FogSize", fogMap.worldSize());
-        }
-        fogWindowTold = fogMap.windowVersion();
-        tellEveryFogReaderWhereTheFogHolds();
-    }
-
-    /**
-     * How many cells a side the dark is kept for round the camera: as far as the ground is built from where the camera
-     * looks — the chunks within {@link Visuals#streamGround}, and the ring kept a while past them — each way, and a cell
-     * over, since a texel reads the cells round it; 0, the whole map, where the ground is built whole.
-     */
-    private int fogWindowCells() {
-        int stream = visuals.streamGroundFor(game.getMapRecord());
-        if (stream <= 0) {
-            return 0;
-        }
-        int reach = Math.ceilDiv(stream, TerrainScene.CHUNK_CELLS) + 2;
-        return 2 * reach * TerrainScene.CHUNK_CELLS + 2;
-    }
-
-    /** The fog's window as last told to the materials that read it. */
-    private int fogWindowTold;
-
-    /** The water's materials for the world drawn now, which read the fog as the ground's do. */
-    private final List<Material> waterLooks = new ArrayList<>();
-
-    /** Every material that reads the fog told where its picture holds now: the ground's, the scorches' and the water's. */
-    private void tellEveryFogReaderWhereTheFogHolds() {
-        forEveryFogReader(this::tellWhereTheFogHolds);
-    }
-
-    /** Each material that reads the fog: the ground's, the scorches' and the water's. */
-    private void forEveryFogReader(java.util.function.Consumer<Material> told) {
-        for (var material : fogged) {
-            told.accept(material);
-        }
-        for (var material : scorchLooks.values()) {
-            if (material != null) {
-                told.accept(material);
-            }
-        }
-        for (var material : waterLooks) {
-            told.accept(material);
-        }
-    }
-
-    /**
-     * Where the fog's picture holds, told to one material that reads it where the picture is of a window round the
-     * camera — past it, the shader draws never seen — and nothing where it is of the whole map, as it always was; and
-     * the haze, where the game keeps one.
-     */
-    private void tellWhereTheFogHolds(Material material) {
-        if (fogMap != null && fogMap.isWindowed()) {
-            material.setVector4("FogWindow", fogMap.window());
-        } else if (material.getParam("FogWindow") != null) {
-            material.clearParam("FogWindow");
-        }
-        tellTheHaze(material);
-    }
-
-    /** Where the camera looks, as the haze round it was last told to the ground. */
-    private float hazeToldX = Float.NaN;
-    private float hazeToldZ = Float.NaN;
-
-    /** The haze round where the camera looks told to one material that reads the fog, where the game keeps a haze. */
-    private void tellTheHaze(Material material) {
-        if (!visuals.hazes(game.getMapRecord()) || builtFrom == null) {
-            // A material kept from a hazy map drawn on one without.
-            if (material.getParam("Haze") != null) {
-                material.clearParam("Haze");
-            }
-            return;
-        }
-        float cell = builtFrom.getCellSize();
-        material.setVector4("Haze", new com.jme3.math.Vector4f(camera.targetX(), camera.targetZ(),
-                visuals.getHazeFrom() * cell, visuals.getHazeTo() * cell));
-    }
-
-    /** The haze kept round where the camera looks, told to the ground each time the camera moves. */
-    private void hazeRoundTheCamera() {
-        if (!visuals.hazes(game.getMapRecord()) || fogMap == null || builtFrom == null) {
-            return;
-        }
-        if (camera.targetX() == hazeToldX && camera.targetZ() == hazeToldZ) {
-            return;
-        }
-        hazeToldX = camera.targetX();
-        hazeToldZ = camera.targetZ();
-        forEveryFogReader(this::tellTheHaze);
-    }
-
-    /** The look each cell of the world wears, by the cell's index, where its map names looks of its own; null for none. */
-    private java.util.function.IntFunction<Visuals.Theme> cellLooks;
-
-    /**
-     * The kit each cell wears where the world's map names looks of its own ({@link uz.dukeengine.core.map.Looked}),
-     * each a theme the game registered; null where it names none, so a map of one look is laid as it always was. A name
-     * the game never registered is said once and the cell wears the map's own. On a world built round the camera
-     * ({@link Visuals#streamGround}) each cell's look is asked of the map as its ground is built, and as the camera
-     * stands over it, never the whole world's at once.
-     */
-    private java.util.function.IntFunction<Tileset> kitsOfTheCells(uz.dukeengine.core.pathfind.PathGrid grid) {
-        cellLooks = null;
-        if (grid == null || !visuals.hasThemes()
-                || !(game.getMapRecord() instanceof uz.dukeengine.core.map.Looked looked)) {
-            return null;
-        }
-        int width = grid.getWidth();
-        if (visuals.streamGroundFor(game.getMapRecord()) > 0) {
-            java.util.function.IntFunction<Visuals.Theme> look = cell -> themeNamed(looked.lookAt(cell % width,
-                    cell / width));
-            cellLooks = look;
-            return cell -> {
-                var theme = look.apply(cell);
-                return theme == null ? null : theme.getTiles();
-            };
-        }
-        var looks = new Visuals.Theme[width * grid.getHeight()];
-        var kits = new Tileset[looks.length];
-        boolean any = false;
-        for (int cell = 0; cell < looks.length; cell++) {
-            var name = looked.lookAt(cell % width, cell / width);
-            if (name == null) {
-                continue;
-            }
-            var theme = visuals.getTheme(name);
-            if (theme == null) {
-                warnOnce(name, "look");
-                continue;
-            }
-            looks[cell] = theme;
-            kits[cell] = theme.getTiles();
-            any = true;
-        }
-        if (!any) {
-            return null;
-        }
-        cellLooks = cell -> looks[cell];
-        return cell -> kits[cell];
-    }
-
-    /** The theme a map's look names; null for none, and for one the game never registered, said once. */
-    private Visuals.Theme themeNamed(String name) {
-        if (name == null) {
-            return null;
-        }
-        var theme = visuals.getTheme(name);
-        if (theme == null) {
-            warnOnce(name, "look");
-        }
-        return theme;
-    }
-
-    /** The fog's colour as drawn now, eased toward the colour of the look the camera looks at; null to start afresh. */
-    private ColorRGBA fogTintNow;
-
-    /** How fast the fog's colour turns to a new look's: most of the way in a second. */
-    private static final float FOG_TINT_TURN = 4f;
-
-    /**
-     * On a map whose cells wear looks of their own, the dark turns to the colour of the look under the point the camera
-     * looks at, over about a second — walking from a wood into a cave, the wood's dark gives way to the cave's. The
-     * picture is sent again only as the colour moves by a step it can hold.
-     */
-    private void followTheLookUnderTheCamera(float tpf) {
-        if (hour != null && hour.step(tpf)) {
-            lightTheHour(); // the hour's sun easing on, on the frames it moves
-        }
-        if (hazeWanted != null) {
-            easeTheHaze(tpf); // the game's haze over the look's
-            return;
-        }
-        if (cellLooks == null || fogMap == null || builtFrom == null) {
-            return;
-        }
-        var view = camera.view();
-        var wanted = fogTintOf(lookUnder(view.x(), view.z()));
-        var eased = fogTintNow == null ? wanted
-                : fogTintNow.clone().interpolateLocal(wanted, 1f - (float) Math.exp(-tpf * FOG_TINT_TURN));
-        if (fogTintNow == null || packedRgb(eased) != packedRgb(fogTintNow)) {
-            fogMap.recolour(eased);
-            viewPort.setBackgroundColor(eased);
-        }
-        fogTintNow = eased;
-    }
-
-    /** The look of the cell under a point of the world, where the world's map names one there; null for none. */
-    private Visuals.Theme lookUnder(float x, float y) {
-        if (cellLooks == null || builtFrom == null) {
-            return null;
-        }
-        float cell = builtFrom.getCellSize();
-        int cx = Math.clamp((int) Math.floor(x / cell), 0, builtFrom.getWidth() - 1);
-        int cy = Math.clamp((int) Math.floor(y / cell), 0, builtFrom.getHeight() - 1);
-        return cellLooks.apply(cy * builtFrom.getWidth() + cx);
-    }
-
-    /** The dark a look wears: its own, or the map's look's, or the game's fog's. */
-    private ColorRGBA fogTintOf(Visuals.Theme look) {
-        for (var theme : new Visuals.Theme[] {look, currentTheme}) {
-            if (theme != null && theme.getFogTint() != null) {
-                int tint = theme.getFogTint();
-                return new ColorRGBA(((tint >> 16) & 0xFF) / 255f, ((tint >> 8) & 0xFF) / 255f,
-                        (tint & 0xFF) / 255f, 1f);
-            }
-        }
-        return visuals.getFog().tintColour();
-    }
-
-    private static int packedRgb(ColorRGBA colour) {
-        return Math.round(Math.clamp(colour.r, 0f, 1f) * 255f) << 16
-                | Math.round(Math.clamp(colour.g, 0f, 1f) * 255f) << 8
-                | Math.round(Math.clamp(colour.b, 0f, 1f) * 255f);
+        ground.build();
+        fog.newWorld(ground.builtFrom(), game.getMapRecord());
     }
 
     /** A new world is a world with nothing burning in it yet. */
@@ -4190,87 +1689,6 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * Open the map around the player's own units and redraw what that changes.
-     *
-     * <p>Entirely a matter of what is drawn. It reads the snapshot the client is
-     * already given and writes nothing back, so the simulation runs the same
-     * whether anyone is looking at it or not — which is the only way fog can be
-     * added to a deterministic game without becoming part of it.
-     */
-    private void syncDiscovery(float tpf) {
-        if (discovery == null) {
-            return;
-        }
-        if (snapshot.revealed()) {
-            discovery.openEverything(); // the map revealed to this player, or a watcher's seat
-            drawWhatIsOpen(tpf);
-            return;
-        }
-        if (visuals.isFogBySight()) {
-            discovery.fromSight(snapshot.sight()); // the simulation's cells of what this player has seen
-            drawWhatIsOpen(tpf);
-            return;
-        }
-        // Re-read when the eyes change, not only the first time. A game may say
-        // late — or differently — whose sight opens the map: the dungeon lets the
-        // player choose who he is, and a knight sees a shorter way than an archer.
-        // Cached once, the second hero would walk about inside the first one's
-        // circle, which looks like the fog being wrong rather than stale.
-        var eyes = visuals.getDiscoveryTemplate();
-        if (discoveryRadius < 0f || !eyes.equals(discoveryEyes)) {
-            var template = game.getLogic() == null ? null : game.getLogic().findTemplate(eyes);
-            if (template == null) {
-                return; // the game has not finished booting; the map stays black
-            }
-            discoveryRadius = uz.dukeengine.core.thing.Sighted.of(template);
-            discoveryEyes = eyes;
-        }
-        discovery.blockSight(whatBlocksSight());
-        discovery.reveal(snapshot.units(), game.getLocalPlayerIndex(), discoveryRadius,
-                visuals.getDiscoveryTemplate(), visuals.getAlsoSeen());
-        drawWhatIsOpen(tpf);
-    }
-
-    /**
-     * The footprints of what stands in this frame's snapshot and hides what is behind it — a shut gate — read from its
-     * template, so the fog's line of sight stops at them and a gate opened lets it through the next frame.
-     */
-    private List<uz.dukeengine.core.thing.Footprint> whatBlocksSight() {
-        var logic = game.getLogic();
-        var standing = new ArrayList<uz.dukeengine.core.thing.Footprint>();
-        for (var view : snapshot.units()) {
-            var template = logic == null ? null : logic.getThingFactory().findTemplate(view.templateName());
-            if (template instanceof uz.dukeengine.core.thing.Solid solid && solid.blocksSight()) {
-                standing.add(new uz.dukeengine.core.thing.Footprint(solid.geometry(),
-                        new Coord3D(view.x(), view.y(), 0f), view.orientation()));
-            }
-        }
-        return standing;
-    }
-
-    /** What is open, decided: drawn. */
-    private void drawWhatIsOpen(float tpf) {
-        // How it is drawn eases toward what is open, so the
-        // edge sweeps rather than switching. Seconds, not frames.
-        discovery.soften(tpf);
-        // On a wide world the dark is kept round where the camera looks, and the ground coming into it drawn.
-        discovery.follow(camera.targetX(), camera.targetZ());
-        // The picture is what the player actually sees the dark as; the terrain is
-        // only told what is so far behind it that drawing it is waste.
-        fogMap.update(discovery, renderer);
-        if (fogMap.windowVersion() != fogWindowTold) {
-            fogWindowTold = fogMap.windowVersion();
-            tellEveryFogReaderWhereTheFogHolds();
-        }
-        terrain.applyDiscovery(discovery);
-        applyMinimapDiscovery();
-        if (worldPicture != null) {
-            worldPicture.heard(discovery);
-            worldPicture.paint(discovery);
-        }
-    }
-
-    /**
      * Notice that the game has swapped in a different world and rebuild
      * everything that was drawn from the old one.
      *
@@ -4282,18 +1700,19 @@ final class DukeRtsApp extends SimpleApplication {
      * that has been left behind.
      */
     private void refreshWorldIfChanged() {
-        if (game.getTerrain() == builtFrom && !lookChanged) {
+        if (game.getTerrain() == ground.builtFrom() && !lookChanged) {
             return;
         }
         // A rebuilt world has nothing burning in it, and whoever is in it has just
         // arrived: even a hero whose id and floor match the last run's, and even when
         // the floor's look catches up with the floor a moment late -- which rebuilds
         // it again, and puts out the light he arrived in.
-        runMoments.forget();
+        events.newWorld();
         parts.forEach(HudPart::newWorld);
         lookChanged = false;
         buildTerrain();
-        rebuildMinimapTerrain();
+        minimapView.rebuild();
+        readTheNewGrid();
         noises.forget(); // a new floor; nothing about the last one is news
         orderMarkers.clear(); // orders given in the old world mean nothing here
         if (modelMarks != null) {
@@ -4304,113 +1723,68 @@ final class DukeRtsApp extends SimpleApplication {
         lasers.clear();
         ridingEffects.clear();
         rallyMarks.clear();
-        groundPictures.clear();
-        wordTints.clear();
-        stealthLook.clear();
-        selectionFlash.clear();
-        hitNumbers.clear();
-        hitStops.clear();
-        floatingTexts.clear();
-        pictureStrips.clear();
+        unitScene.newWorld();
         unitBars.clear();
-        healthWatch.forget(); // new creatures, new ids; nobody here was just hit
         camera.requestOwnUnit(); // his units are somewhere else entirely now
-        // And the hero he had selected is not this floor's hero. See
-        // keepHisOwnSelected: his skills need him picked out.
-        selected.clear();
-        findHimInTheNewWorld = true;
-    }
-
-    /**
-     * Somewhere to look before there is anything to look at. The moment the game
-     * starts, {@link CameraFocus#requestOwnUnit()} replaces this with the player's
-     * own units — this is only what fills the screen until then.
-     */
-    private void centerCameraOnMap() {
-        var grid = game.getTerrain();
-        camera.lookAt(grid == null ? 350f : grid.getWidth() * grid.getCellSize() / 2f,
-                grid == null ? 225f : grid.getHeight() * grid.getCellSize() / 2f);
+        // And the hero he had selected is not this floor's hero: his skills need him picked out.
+        orders.newWorld();
     }
 
     // ---- input ----
 
-    /**
-     * Every control this client has bound, so that one thing can be listened to.
-     *
-     * <p>★ Kept because forgetting is invisible. A mapping added and left out of
-     * the listener's list is a key that is bound, reaches nothing and says
-     * nothing about it: Ctrl shipped that way and simply did not exist, and there
-     * is no error, no warning and nothing on screen to notice. The list is now
-     * built by the binding rather than typed out beside it, so the two cannot
-     * come apart.
-     */
-    private final List<String> bound = new ArrayList<>();
-
     private void installInput() {
-        bound.clear();
-        hotkeyListener = null; // heard by the listener made below, once
-        map("Select", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
-        map("Order", new MouseButtonTrigger(MouseInput.BUTTON_RIGHT));
-        map("Turn", new MouseButtonTrigger(MouseInput.BUTTON_MIDDLE));
-        map("ZoomIn", new MouseAxisTrigger(MouseInput.AXIS_WHEEL, false));
-        map("ZoomOut", new MouseAxisTrigger(MouseInput.AXIS_WHEEL, true));
-        // Every key anything is on, one mapping each: what it does is worked out in one place, pressKey, and
-        // never by two listeners racing to it.
-        takeTheRebindings(); // before the keys are counted: a control put on a key of his own is listened for
-        for (int code : listenedKeys()) {
-            map(KEY + code, new KeyTrigger(code));
-        }
-
+        keyBindings = new KeyBindings(inputManager, hotkeys, controls, preferences);
+        // What each key does is worked out in one place, pressKey.
         ActionListener actions = (name, pressed, tpf) -> {
-            if (sceneLocked() && pressed && !name.startsWith(KEY) && screen == Screen.PLAYING && !menu.isVisible()) {
+            if (sceneLocked() && pressed && !name.startsWith(KeyBindings.KEY) && inPlay()) {
                 return; // a scene the game plays: no picking, selecting or ordering until it lets go
             }
             switch (name) {
                 case "Select" -> {
-                    if (menu.isVisible()) {
+                    if (screens.menu().isVisible()) {
                         if (!pressed) {
-                            menu.release(); // letting go lets go of the slider
-                        } else if (menu.click(inputManager.getCursorPosition())) {
+                            screens.menu().release(); // letting go lets go of the slider
+                        } else if (screens.menu().click(inputManager.getCursorPosition())) {
                             noises.moment("menu_click", timer.getTimeInSeconds());
                         }
-                    } else if (screen == Screen.PLAYING) {
-                        if (!pressed && holdingASkill()) {
-                            letGoOfHeldSkill(true); // he pressed its slot; this is the cast
+                    } else if (screens.now() == Screen.PLAYING) {
+                        if (!pressed && skillKeys.holdingASkill()) {
+                            skillKeys.letGoOfHeldSkill(true); // he pressed its slot; this is the cast
                             break;
                         }
-                        if (pressed && clickedASkillSlot()) {
+                        if (pressed && skillKeys.clickedASkillSlot()) {
                             // The bar took it; nothing else may have it.
                             break;
                         }
-                        if (holdingASkill()) {
+                        if (skillKeys.holdingASkill()) {
                             break; // the mouse has no part in a skill being held
                         }
-                        if (pressed && commandBarClick()) {
+                        if (pressed && buttons.commandBarClick()) {
                             // The bar took it -- before anything armed does, so pressing a
                             // second button is that button and not a place for the first.
-                        } else if (pressed && !pointerOnTheWorld()) {
+                        } else if (pressed && !pointer.pointerOnTheWorld()) {
                             // Off the world's part of the window: nothing of the world is there to take it.
-                        } else if (pressed && aiming.isArmed()) {
-                            aimArmedButton(); // this click is the armed button's place or thing
-                        } else if (!pressed && aiming.placement() != null && aiming.placement().pressed()) {
-                            releaseArmedButton(); // let go: put down where it went down, turned as dragged
-                        } else if (pressed && arming != null) {
+                        } else if (pressed && buttons.armed()) {
+                            buttons.aimArmedButton(); // this click is the armed button's place or thing
+                        } else if (!pressed && buttons.placing()) {
+                            buttons.releaseArmedButton(); // let go: put down where it went down, turned as dragged
+                        } else if (pressed && skillKeys.armed()) {
                             // This click belongs to the armed key, not to selection.
                             // The release is swallowed with it, or letting go would
                             // end a drag that never began.
-                            aimArmedKey();
+                            skillKeys.aimArmedKey();
                         } else if (scheme.left(pressed)) {
                             // the scheme's: a lock, a swing or a strike ahead, and no selecting by the left button
                         } else if (pressed) {
-                            beginDrag();
-                        } else if (dragFrom != null) {
-                            endDrag(controls.isHeld(KeyMap.Control.ADD_TO_SELECTION));
+                            orders.beginDrag();
+                        } else if (orders.dragging()) {
+                            orders.endDrag(controls.isHeld(KeyMap.Control.ADD_TO_SELECTION));
                         }
                     }
                 }
-                case "Turn" -> turnByTheMiddleButton(pressed);
+                case "Turn" -> cameraRig.turnByTheMiddleButton(pressed);
                 case "Order" -> {
-                    if (screen != Screen.PLAYING) {
+                    if (screens.now() != Screen.PLAYING) {
                         break;
                     }
                     var over = inputManager.getCursorPosition();
@@ -4420,46 +1794,44 @@ final class DukeRtsApp extends SimpleApplication {
                         // mouse's order given on the click's release.
                         float y = cam.getHeight() - over.y;
                         if (pressed) {
-                            steering.rightDown(over.x, y, timer.getTimeInSeconds(), camera.targetX(),
-                                    camera.targetZ(), visuals.getRightDrag());
-                        } else if (steering.rightUp(over.x, y, timer.getTimeInSeconds(), camera.targetX(),
-                                camera.targetZ())) {
-                            if (aiming.isArmed() || arming != null || mouse.rightClickLetsGo()) {
+                            cameraRig.rightDown(over.x, y);
+                        } else if (cameraRig.rightUp(over.x, y)) {
+                            if (buttons.armed() || skillKeys.armed() || mouse.rightClickLetsGo()) {
                                 secondThoughts();
-                            } else if (pointerOnTheWorld() && !onAPanel(over.x, over.y)) {
-                                order();
+                            } else if (pointer.pointerOnTheWorld() && !onAPanel(over.x, over.y)) {
+                                orders.order();
                             }
                         }
-                    } else if (pressed && (aiming.isArmed() || arming != null || mouse.rightClickLetsGo())) {
+                    } else if (pressed && (buttons.armed() || skillKeys.armed() || mouse.rightClickLetsGo())) {
                         secondThoughts();
-                    } else if (pressed && pointerOnTheWorld() && !onAPanel(over.x, over.y)
-                            && scheme.rightOrders(snapshot.contextOrder() != null, pickUnit() != null)) {
-                        order(); // a right-click on the bar, or off the world, is not an order to the world
+                    } else if (pressed && pointer.pointerOnTheWorld() && !onAPanel(over.x, over.y)
+                            && scheme.rightOrders(snapshot.contextOrder() != null, pointer.pickUnit() != null)) {
+                        orders.order(); // a right-click on the bar, or off the world, is not an order to the world
                     }
                 }
                 default -> {
-                    if (name.startsWith(KEY)) {
-                        pressKey(Integer.parseInt(name.substring(KEY.length())), pressed);
+                    if (name.startsWith(KeyBindings.KEY)) {
+                        pressKey(Integer.parseInt(name.substring(KeyBindings.KEY.length())), pressed);
                         return;
                     }
-                    if (screen != Screen.PLAYING) {
+                    if (screens.now() != Screen.PLAYING) {
                         return;
                     }
                     if (!pressed) {
                         // Letting go of a skill that was drawn while it was held.
                         // See SkillRange.castOnRelease.
-                        if (name.startsWith(HOTKEY) && arming != null
-                                && arming == name.charAt(HOTKEY.length())) {
+                        if (name.startsWith(KeyBindings.HOTKEY)
+                                && skillKeys.armedWith(name.charAt(KeyBindings.HOTKEY.length()))) {
                             if (scheme.aiming() && scheme.castsOnRelease()) {
-                                aimArmedKey(); // aimed from him, cast as the key is let go
+                                skillKeys.aimArmedKey(); // aimed from him, cast as the key is let go
                                 return;
                             }
-                            letGoOfHeldSkill(false);
+                            skillKeys.letGoOfHeldSkill(false);
                         }
                         return;
                     }
-                    if (name.startsWith(HOTKEY)) {
-                        char letter = name.charAt(HOTKEY.length());
+                    if (name.startsWith(KeyBindings.HOTKEY)) {
+                        char letter = name.charAt(KeyBindings.HOTKEY.length());
                         if (ctrlHeld[0]) {
                             // ★ Ctrl and the letter spends a level on that skill,
                             // which is Warcraft's arrangement and is worth copying
@@ -4468,76 +1840,22 @@ final class DukeRtsApp extends SimpleApplication {
                             // of its own means nothing new to learn and nothing to
                             // press by accident -- Q alone still casts, and always
                             // will.
-                            raiseSkill(letter);
+                            skillKeys.raiseSkill(letter);
                         } else {
-                            pressHotkey(letter, false);
+                            skillKeys.pressHotkey(letter, false);
                         }
                     }
                 }
             }
         };
-        mapTheHotkeys();
-        // Everything that was bound, in one call. Not a list typed out here: see
-        // the note on `bound`.
-        inputManager.addListener(actions, bound.toArray(new String[0]));
-        hotkeyListener = actions; // a binding put on another key later is heard by it too
+        keyBindings.install(actions);
 
         AnalogListener zoom = (name, value, tpf) -> {
-            if (screen == Screen.PLAYING && snapshot.camera() == null && !sceneLocked()) {
+            if (screens.now() == Screen.PLAYING && snapshot.camera() == null && !sceneLocked()) {
                 camera.wheel(name.equals("ZoomIn")); // nobody's to zoom while the game has it
             }
         };
         inputManager.addListener(zoom, "ZoomIn", "ZoomOut");
-    }
-
-    /** What hears the game's keys, for a binding moved to another key. */
-    private ActionListener hotkeyListener;
-
-    /** Each of the game's bindings on its key — its own letter's, or the one the player put it on. */
-    private void mapTheHotkeys() {
-        var names = new ArrayList<String>();
-        for (var key : hotkeys.all().keySet()) {
-            int code = hotkeys.codeFor(key);
-            String mapping = HOTKEY + key;
-            if (inputManager.hasMapping(mapping)) {
-                inputManager.deleteMapping(mapping);
-            }
-            if (code < 0) {
-                continue;
-            }
-            inputManager.addMapping(mapping, new KeyTrigger(code));
-            names.add(mapping);
-            if (!bound.contains(mapping)) {
-                bound.add(mapping);
-            }
-        }
-        if (hotkeyListener != null && !names.isEmpty()) {
-            inputManager.addListener(hotkeyListener, names.toArray(new String[0])); // a mapping deleted lost its ear
-        }
-    }
-
-    /** What a key's mapping is called: this and its code. */
-    private static final String KEY = "Key";
-
-    /**
-     * Every key the client listens to: every one its controls, groups and bookmarks are on; the modifiers, which
-     * change what the others mean; the keys a menu is walked with; every letter, for the command bar's buttons;
-     * and — while nothing else has them — the digits, which build.
-     */
-    private java.util.Set<Integer> listenedKeys() {
-        var codes = new java.util.LinkedHashSet<Integer>(controls.map().codes());
-        codes.addAll(List.of(KeyInput.KEY_LSHIFT, KeyInput.KEY_RSHIFT, KeyInput.KEY_LCONTROL,
-                KeyInput.KEY_RCONTROL, KeyInput.KEY_LMENU, KeyInput.KEY_RMENU, KeyInput.KEY_ESCAPE,
-                KeyInput.KEY_RETURN, KeyInput.KEY_NUMPADENTER, KeyInput.KEY_SPACE, KeyInput.KEY_UP,
-                KeyInput.KEY_DOWN, KeyInput.KEY_LEFT, KeyInput.KEY_RIGHT));
-        for (char letter = 'A'; letter <= 'Z'; letter++) {
-            codes.add(Hotkeys.codeOf(letter));
-        }
-        if (!controls.map().takesDigits()) {
-            codes.addAll(List.of(KeyInput.KEY_1, KeyInput.KEY_2, KeyInput.KEY_3, KeyInput.KEY_4, KeyInput.KEY_5,
-                    KeyInput.KEY_6, KeyInput.KEY_7, KeyInput.KEY_8, KeyInput.KEY_9));
-        }
-        return codes;
     }
 
     /**
@@ -4558,22 +1876,22 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         var key = new KeyMap.Key(code, ctrlHeld[0], shiftDown, altDown);
-        if (menu.isVisible() || screen != Screen.PLAYING) {
-            menuKey(code, key);
+        if (screens.menu().isVisible() || screens.now() != Screen.PLAYING) {
+            screens.key(code, key);
             return;
         }
         if (sceneLocked() && code != KeyInput.KEY_ESCAPE) {
             return; // the scene's: Esc alone still reaches the menu
         }
-        if (code == KeyInput.KEY_ESCAPE && (aiming.isArmed() || arming != null)) {
-            if (aiming.isArmed()) {
-                disarmButton(); // mid-aim with a bar button: one keypress deep
+        if (code == KeyInput.KEY_ESCAPE && (buttons.armed() || skillKeys.armed())) {
+            if (buttons.armed()) {
+                buttons.disarmButton(); // mid-aim with a bar button: one keypress deep
             } else {
-                disarm(); // mid-aim with a key: the same
+                skillKeys.disarm(); // mid-aim with a key: the same
             }
             return;
         }
-        char letter = letterOf(code);
+        char letter = KeyBindings.letterOf(code);
         if (hotkeys.claims(code)) {
             return; // the game's own key, answered by its own mapping
         }
@@ -4584,164 +1902,12 @@ final class DukeRtsApp extends SimpleApplication {
             }
             return;
         }
-        if (letter != 0 && pressBarKey(letter)) {
+        if (letter != 0 && buttons.pressBarKey(letter)) {
             return;
         }
         int digit = code - KeyInput.KEY_1 + 1;
         if (digit >= 1 && digit <= 9 && !controls.map().takesDigits()) {
-            queueBuild(digit - 1);
-        }
-    }
-
-    /** What waits for the next key pressed to be its own — a game key, a walking key, a control — or null. */
-    private Object capturing;
-
-    /** The next key pressed made the waiting key's own, kept, and the keys page shown again with it. */
-    private void capture(KeyMap.Key pressed) {
-        var waiting = capturing;
-        capturing = null;
-        int code = pressed.code();
-        if (code == KeyInput.KEY_ESCAPE) {
-            return; // asked and let go
-        }
-        if (waiting instanceof KeyMap.Control control) {
-            rebindControl(control, pressed);
-            showSettingsMenu(settingsReturn);
-            return;
-        }
-        char action = (Character) waiting;
-        hotkeys.rebind(action, code);
-        for (var bound : hotkeys.all().keySet()) {
-            preferences.set("key." + (int) bound, hotkeys.codeFor(bound));
-        }
-        mapTheHotkeys();
-        showSettingsMenu(settingsReturn);
-    }
-
-    /**
-     * A control of the client's own put on {@code pressed} alone, kept as {@code ctl.<CONTROL>}; a control already on it
-     * takes the moved control's old key, so the two change places.
-     */
-    private void rebindControl(KeyMap.Control control, KeyMap.Key pressed) {
-        for (var touched : putOn(controls.map(), control, pressed)) {
-            var keys = controls.map().keysOf(touched);
-            preferences.set("ctl." + touched.name(), packed(keys.isEmpty() ? null : keys.getFirst()));
-        }
-        listenFor(pressed.code());
-    }
-
-    /**
-     * {@code control} put on {@code pressed} alone; a control already on it given the moved one's old key in its place.
-     *
-     * @return the controls whose keys changed, the moved one first
-     */
-    static List<KeyMap.Control> putOn(KeyMap map, KeyMap.Control control, KeyMap.Key pressed) {
-        var touched = new ArrayList<KeyMap.Control>(List.of(control));
-        var was = map.keysOf(control);
-        for (var other : KeyMap.Control.values()) {
-            if (other != control && map.keysOf(other).contains(pressed)) {
-                var theirs = new ArrayList<>(map.keysOf(other));
-                theirs.remove(pressed);
-                if (!was.isEmpty()) {
-                    theirs.add(was.getFirst());
-                }
-                map.bind(other, theirs.toArray(new KeyMap.Key[0]));
-                touched.add(other);
-            }
-        }
-        map.bind(control, pressed);
-        return touched;
-    }
-
-    /** A key with its modifiers in one number, as the settings file keeps it: -1 for none. */
-    static int packed(KeyMap.Key key) {
-        return key == null ? -1 : key.code() | (key.ctrl() ? 1 << 16 : 0) | (key.shift() ? 1 << 17 : 0)
-                | (key.alt() ? 1 << 18 : 0);
-    }
-
-    /** The key a number kept by {@link #packed} names, or null for none. */
-    static KeyMap.Key unpacked(int packed) {
-        return packed < 0 ? null : new KeyMap.Key(packed & 0xFFFF, (packed & 1 << 16) != 0, (packed & 1 << 17) != 0,
-                (packed & 1 << 18) != 0);
-    }
-
-    /** A key heard from now on, where nothing listened for it yet. */
-    private void listenFor(int code) {
-        String mapping = KEY + code;
-        if (inputManager.hasMapping(mapping)) {
-            return;
-        }
-        inputManager.addMapping(mapping, new KeyTrigger(code));
-        bound.add(mapping);
-        if (hotkeyListener != null) {
-            inputManager.addListener(hotkeyListener, mapping);
-        }
-    }
-
-    /** The keys he put the game's bindings and walking on, as he kept them last. */
-    private void takeTheRebindings() {
-        for (var control : KeyMap.Control.values()) {
-            int kept = preferences.number("ctl." + control.name(), Integer.MIN_VALUE);
-            if (kept != Integer.MIN_VALUE) {
-                var key = unpacked(kept);
-                controls.map().bind(control, key == null ? new KeyMap.Key[0] : new KeyMap.Key[] {key});
-            }
-        }
-        for (var bound : java.util.List.copyOf(hotkeys.all().keySet())) {
-            int code = preferences.number("key." + (int) bound, -1);
-            if (code >= 0) {
-                hotkeys.rebind(bound, code);
-            }
-        }
-    }
-
-    /** A key on a menu: the pan keys and the arrows walk it, Enter and Space take, Escape goes back. */
-    private void menuKey(int code, KeyMap.Key key) {
-        if (capturing != null) {
-            capture(key);
-            return;
-        }
-        var control = controls.controlOn(key);
-        if (control == KeyMap.Control.FULLSCREEN) {
-            toggleFullscreen();
-            return;
-        }
-        if (menu.isVisible()) {
-            Runnable step = code == KeyInput.KEY_UP || control == KeyMap.Control.PAN_UP ? menu::up
-                    : code == KeyInput.KEY_DOWN || control == KeyMap.Control.PAN_DOWN ? menu::down
-                    : code == KeyInput.KEY_LEFT || control == KeyMap.Control.PAN_LEFT ? menu::left
-                    : code == KeyInput.KEY_RIGHT || control == KeyMap.Control.PAN_RIGHT ? menu::right : null;
-            if (step != null) {
-                step.run();
-                noises.moment("menu_hover", timer.getTimeInSeconds());
-                return;
-            }
-            if (code == KeyInput.KEY_RETURN || code == KeyInput.KEY_NUMPADENTER || code == KeyInput.KEY_SPACE) {
-                if (menu.enter()) {
-                    noises.moment("menu_click", timer.getTimeInSeconds());
-                }
-                return;
-            }
-        }
-        if (code != KeyInput.KEY_ESCAPE) {
-            return;
-        }
-        switch (screen) {
-            case PAUSED -> {
-                if (!menu.escape()) {
-                    resumeGame();
-                }
-            }
-            case SETTINGS -> {
-                // The open list first, then the screen. Escaping the screen keeps what he has seen applied, as
-                // closing the window does; Cancel is the one way back.
-                if (!menu.escape()) {
-                    preferences.keep();
-                    leaveSettings();
-                }
-            }
-            case PLAYING, MENU -> {
-            }
+            orders.queueBuild(digit - 1);
         }
     }
 
@@ -4750,10 +1916,10 @@ final class DukeRtsApp extends SimpleApplication {
         switch (control) {
             case OPTIONS -> {
                 if (!shell.isDrawnByTheGame()) {
-                    showPauseMenu(); // a game that draws its own screens has its own for this
+                    screens.showPauseMenu(); // a game that draws its own screens has its own for this
                 }
             }
-            case TOGGLE_COMMAND_BAR -> commandBarHidden = !commandBarHidden;
+            case TOGGLE_COMMAND_BAR -> buttons.toggle();
             case CHAT_ALL -> hotkeys.chat(game, true);
             case CHAT_ALLIES -> hotkeys.chat(game, false);
             case SCREENSHOT -> {
@@ -4766,20 +1932,10 @@ final class DukeRtsApp extends SimpleApplication {
             // Set here rather than queued for the simulation: a paused engine does not step, so a task asking it
             // to resume would never be reached and the pause could not be lifted.
             case PAUSE -> setSimulationPaused(!game.getLogic().isGamePaused());
-            case FULLSCREEN -> toggleFullscreen();
+            case FULLSCREEN -> windowDisplay.toggleFullscreen();
             default -> {
             }
         }
-    }
-
-    /** The letter a key is, or 0 for one that is not a letter. */
-    private static char letterOf(int code) {
-        for (char letter = 'A'; letter <= 'Z'; letter++) {
-            if (Hotkeys.codeOf(letter) == code) {
-                return letter;
-            }
-        }
-        return 0;
     }
 
     /** What the client's controls are handed: the world as this client draws it. */
@@ -4840,261 +1996,9 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public void answer(int unit) {
-            answerSelection(unit);
+            orders.answerSelection(unit);
         }
     };
-
-    /** A selection answered as a click's is: with the select voice of {@code unit}, a thing it took in. */
-    private void answerSelection(int unit) {
-        var view = viewOf(unit);
-        if (view != null) {
-            noises.selected(view, game.getLocalPlayerIndex(), timer.getTimeInSeconds());
-        }
-    }
-
-    /**
-     * Bind a control, and remember that it is one the listener has to hear.
-     */
-    private void map(String mapping, com.jme3.input.controls.Trigger... triggers) {
-        inputManager.addMapping(mapping, triggers);
-        bound.add(mapping);
-    }
-
-    /**
-     * The unit under the mouse cursor, or {@code null}.
-     * The unit under the cursor, found by the boxes of the pieces of it drawn now
-     * rather than by its triangles — see {@link Picking}.
-     *
-     * <p>Triangle-accurate picking stopped working the day the creatures got
-     * models. A skinned mesh is deformed on the graphics card; the copy this side
-     * keeps is the pose it was modelled in, so the shape the ray is tested against
-     * is not the shape on screen. Clicking a monster missed it and the click fell
-     * through to the floor behind — which reads as an order given to the wrong
-     * place rather than as a click that hit nothing.
-     *
-     * <p>A piece's box does not care how a thing is posed. It is a more
-     * generous target than the mesh, which is the right way to be wrong: in a
-     * dungeon the cost of a click landing on the monster you meant is nothing, and
-     * the cost of it landing on the floor behind him is a hero who walks into a
-     * room instead of shooting into it. The box of the whole model in the world's
-     * axes was too generous: a hidden muzzle flash made a tank a third longer, and
-     * a building put down at 45 degrees twice its area, so a click on the ground
-     * beside one's own things picked them and the move was never given.
-     *
-     * <p>Only things the game says are selectable, so an arrow crossing in front
-     * of a monster cannot be clicked instead of it.
-     */
-    private UnitNode pickUnit() {
-        if (!pointerOnTheWorld()) {
-            return null; // nothing of the world under a pointer off the world's part of the window
-        }
-        var click = inputManager.getCursorPosition();
-        var near = cam.getWorldCoordinates(new Vector2f(click.x, click.y), 0f);
-        var ray = new Ray(near, cam.getWorldCoordinates(new Vector2f(click.x, click.y), 1f)
-                .subtract(near).normalizeLocal());
-        UnitNode nearest = null;
-        float closest = Float.MAX_VALUE;
-        for (var node : unitNodes.values()) {
-            // A rider is clicked as what it rides on.
-            var picked = node.view == null ? null : node.view.ridesOn() >= 0 ? unitNodes.get(node.view.ridesOn())
-                    : riderOf.getOrDefault(node.view.id(), node); // a ridden mount is clicked as its rider
-            if (picked == null || !picked.view.selectable() || node.body == null) {
-                continue;
-            }
-            // The nearest hit along the ray wins, so clicking a monster standing in
-            // front of another picks the one you can see — not the one whose middle
-            // is nearer, which a big thing behind a small one can be.
-            float away = Picking.drawnHit(node.body, ray);
-            if (away < closest) {
-                closest = away;
-                nearest = picked;
-            }
-        }
-        return nearest;
-    }
-
-    /**
-     * Where the mouse is pointing at the ground.
-     *
-     * <p>One way of answering this, used by everything that asks — orders,
-     * markers, aimed skills, the minimap's outline. There were two: this one met
-     * the plane at zero and was what every click actually went through, while the
-     * one that knew about storeys was only being asked by the outline. So the
-     * click kept landing a pace beyond the cursor upstairs however carefully the
-     * other was fixed.
-     */
-    private Vector3f pickGround() {
-        var aimed = schemeAim();
-        if (aimed != null) {
-            return aimed; // no pointer: where the scheme aims
-        }
-        var click = inputManager.getCursorPosition();
-        return groundUnder(click.x, click.y);
-    }
-
-    /** Where the scheme aims what is armed, on the ground; null while it aims nothing. */
-    private Vector3f schemeAim() {
-        var at = scheme.aiming() ? scheme.aimPoint() : null;
-        return at == null ? null : new Vector3f(at[0], floorHeightAt(at[0], at[1]), at[1]);
-    }
-
-    /**
-     * Click a unit to select it — anyone's, not only the player's own.
-     *
-     * <p>Clicking something that is not his is <em>inspecting</em> it: the panel
-     * describes whatever is selected, and being able to read a monster's health
-     * and what it hits for is most of what makes a dungeon's bar worth looking at.
-     * Nothing can be ordered with it — see {@link #selectedIds} — so an enemy in
-     * the selection is a thing being looked at rather than a thing being
-     * commanded.
-     *
-     * <p>Which is also why it never joins a group: shift-clicking a skeleton onto
-     * a selection of his own units would make "what is selected" mean two
-     * different things at once, and every order after it would have to decide
-     * which half it applied to. One enemy on its own, or his own units.
-     */
-    private void select(boolean add) {
-        var hit = pickUnit();
-        boolean mine = hit != null && hit.view.playerIndex() == game.getLocalPlayerIndex();
-        var clicked = SelectionBox.click(hit == null ? null
-                : new SelectionBox.Candidate(hit.view.id(), 0f, 0f, mine, hit.view.selectable()),
-                List.copyOf(selected), add);
-        selected.clear();
-        selected.addAll(clicked.selection());
-        controls.forgetGroupPress();
-        if (clicked.tookIn() >= 0) {
-            if (mine) {
-                noises.moment("vo.select", timer.getTimeInSeconds());
-            }
-            noises.selected(hit.view, game.getLocalPlayerIndex(), timer.getTimeInSeconds());
-        }
-    }
-
-    // ---- drag selection ----
-
-    /**
-     * Where the left button went down, or {@code null} when it is not down.
-     */
-    private Vector2f dragFrom;
-
-    /**
-     * The game key that has been pressed and is waiting to be pointed at something.
-     */
-    private Character arming;
-
-    /**
-     * Whether it was armed by clicking its slot rather than by pressing its key.
-     *
-     * <p>Only a held skill cares, and it cares a great deal: what casts it is
-     * letting go of the same thing that armed it. Without this, arming with the
-     * keyboard and then releasing a mouse button that happened to be down would
-     * fire it.
-     */
-    private boolean armedByMouse;
-
-    /**
-     * Draws how far an armed skill reaches. See RangeRings.
-     */
-    private RangeRings rangeRings;
-
-    /**
-     * A game key was pressed.
-     *
-     * <p>Most act at once. One that needs pointing at something instead goes
-     * quiet and waits for the next click — pressed again it thinks better of it,
-     * and so does a right-click or escape. All any of this may do in the end is
-     * post a command: the render thread has no business in the simulation.
-     */
-    private void pressHotkey(char key, boolean byMouse) {
-        var binding = hotkeys.all().get(key);
-        if (binding == null) {
-            return;
-        }
-        var range = visuals.getSkillRange(key);
-        if (ordersSelection(key) && !parts.stream().allMatch(HudPart::mayOrder)) {
-            // The four orders belong to whatever is selected, and what is selected
-            // is not his -- so there is nothing to give the order to. The panel
-            // draws them dim for the same reason; this is the half that stops the
-            // key going round the outside of the dim button.
-            return;
-        }
-        if (range != null && !ordersSelection(key) && selectedIds().isEmpty()) {
-            // A skill is something one of his creatures does, so it needs that
-            // creature picked out — pressing Q with nothing selected, or with a
-            // skeleton selected to look at it, used to cast anyway. The orders
-            // beside them are deliberately not like this: they are the player
-            // talking to whoever he owns, and are meant to work with an empty
-            // selection.
-            //
-            // ★ Which is why the order has to be asked about by name. It used to
-            // be enough that only a skill had a reach to draw — until the attack
-            // order was given one too, and it is worth having: the ring says how
-            // far he hits from, which is the question a player is asking when he
-            // reaches for that key.
-            return;
-        }
-        if (binding.aim() == Hotkeys.Aim.NOW) {
-            if (range != null && range.castOnRelease()) {
-                // Held rather than spent. A skill with nothing to point at used to
-                // go off the instant the key went down, which left the player no
-                // way to ask how far it reaches except by spending it. Holding
-                // shows him; letting go casts, so a tap is still a cast and all
-                // that has changed is that looking is now free.
-                if (ready(key)) {
-                    arm(key, byMouse);
-                } else {
-                    sayWhyNot(key);
-                }
-                return;
-            }
-            disarm();
-            hotkeys.pressNow(game, key);
-            return;
-        }
-        if (arming != null && arming == key) {
-            if (scheme.aiming()) {
-                aimArmedKey(); // aimed by the scheme: the key again casts
-                return;
-            }
-            disarm();
-            return;
-        }
-        // Refusing here rather than arming and going quiet: a slot the panel is
-        // already showing as spent would take a click and do nothing with it.
-        if (!ready(key)) {
-            sayWhyNot(key);
-            return;
-        }
-        arm(key, byMouse);
-        if (scheme.armed(key, byMouse, range)) {
-            return; // the scheme aims it
-        }
-        if (scheme.castsAtOnce(byMouse)) {
-            quickCasting = true;
-            try {
-                aimArmedKey(); // cast at once, as if its aim were clicked where the pointer is
-            } finally {
-                quickCasting = false;
-            }
-        }
-    }
-
-    /** Answer a key that was refused, where a part's panel does not already show why. */
-    private void sayWhyNot(char key) {
-        for (var part : parts) {
-            part.refused(key, timer.getTimeInSeconds());
-        }
-    }
-
-    /** Whether a key orders what is selected, as a part's panel says. */
-    private boolean ordersSelection(char key) {
-        return parts.stream().anyMatch(part -> part.ordersSelection(key));
-    }
-
-    /** Whether a key may be pressed now, as every part's panel says. */
-    private boolean ready(char key) {
-        return parts.stream().allMatch(part -> part.ready(key));
-    }
 
     /** Whether a point of the window is on a part's panel. */
     private boolean onAPanel(float x, float y) {
@@ -5112,841 +2016,13 @@ final class DukeRtsApp extends SimpleApplication {
         return null;
     }
 
-    /**
-     * Arm a key: the panel lights its slot, and its reach is drawn on the floor.
-     */
-    private void arm(char key, boolean byMouse) {
-        arming = key;
-        armedByMouse = byMouse;
-        tellThePartsWhatIsArmed(key);
-    }
-
-    /**
-     * Letting go of a held skill casts it.
-     *
-     * <p>Whichever way it was armed and only that way: the key it was pressed
-     * with, or the mouse, if he pressed its slot on the bar. Otherwise releasing
-     * the mouse after arming from the keyboard would fire it before the player had
-     * aimed his eyes, never mind his hand.
-     */
-    private void letGoOfHeldSkill(boolean byMouse) {
-        if (!holdingASkill() || armedByMouse != byMouse) {
-            return;
-        }
-        var binding = hotkeys.all().get(arming);
-        disarm();
-        if (binding != null) {
-            binding.run().accept(game, null);
-        }
-    }
-
-    /**
-     * Whether what is armed is drawn while held and cast when let go.
-     */
-    private boolean holdingASkill() {
-        if (arming == null) {
-            return false;
-        }
-        var range = visuals.getSkillRange(arming);
-        return range != null && range.castOnRelease();
-    }
-
-    private void disarm() {
-        scheme.disarmed();
-        arming = null;
-        armedByMouse = false;
-        tellThePartsWhatIsArmed(null);
-        rangeRings.hide();
-    }
-
-    private void tellThePartsWhatIsArmed(Character key) {
-        for (var part : parts) {
-            part.armed(key);
-        }
-    }
-
-    /** Whether the aim is a quick cast's, where a creature near the pointer counts as under it. */
-    private boolean quickCasting;
-
-    /** How near the pointer a quick cast takes a creature that is not under it. */
-    static final float QUICK_CAST_REACH = 6f;
-
-    /** The creature nearest {@code ground} within {@link #QUICK_CAST_REACH} of it, the lowest id on a tie; or null. */
-    private UnitNode nearTheGround(Vector3f ground) {
-        var views = new ArrayList<uz.dukeengine.core.view.UnitView>();
-        for (var node : unitNodes.values()) {
-            if (node.view != null) {
-                views.add(node.view);
-            }
-        }
-        int id = nearestWithin(views, ground.x, ground.z, QUICK_CAST_REACH);
-        return id < 0 ? null : unitNodes.get(id);
-    }
-
-    /** The living creature nearest ({@code x}, {@code y}) within {@code reach}, the lowest id on a tie; -1 for none. */
-    static int nearestWithin(List<uz.dukeengine.core.view.UnitView> views, float x, float y, float reach) {
-        int best = -1;
-        float bestGap = Float.MAX_VALUE;
-        for (var view : views) {
-            if (view.maxHealth() <= 0f || view.health() <= 0f) {
-                continue;
-            }
-            float gap = (float) Math.hypot(view.x() - x, view.y() - y);
-            if (gap <= reach && (gap < bestGap || gap == bestGap && view.id() < best)) {
-                best = view.id();
-                bestGap = gap;
-            }
-        }
-        return best;
-    }
-
-    /**
-     * The click that completes an armed key. Clicking nothing usable drops it,
-     * rather than leaving the player armed and wondering why nothing happened.
-     */
-    private void aimArmedKey() {
-        // ★ Read BEFORE disarming, which nulls it. The clamp below asks what the
-        // armed key reaches, and asking after the disarm got null every time --
-        // so the mark it was written to put in the right place was left at the
-        // cursor, which is the one place it was written not to be.
-        char aimed = arming == null ? 0 : arming;
-        var binding = hotkeys.all().get(arming);
-        var ahead = schemeAim(); // read before the disarm lets the scheme's aim go
-        disarm();
-        if (binding == null) {
-            return;
-        }
-        boolean mayBeACreature = binding.aim() == Hotkeys.Aim.UNIT
-                || binding.aim() == Hotkeys.Aim.UNIT_OR_GROUND;
-        if (mayBeACreature) {
-            var unit = ahead != null ? nearTheGround(ahead) : pickUnit(); // the creature nearest where it aims, within six
-            if (unit == null && quickCasting) {
-                var under = pickGround();
-                unit = under == null ? null : nearTheGround(under);
-            }
-            if (unit != null) {
-                binding.run().accept(game, new Hotkeys.Aimed(unit.view.id(), null));
-                markOrder(unit.view.x(), unit.view.y(), unit.view.id(),
-                        OrderMarkers.Kind.ATTACK);
-                noises.moment("vo.attack", timer.getTimeInSeconds());
-                return;
-            }
-            if (binding.aim() == Hotkeys.Aim.UNIT) {
-                return; // it had to be a creature, and the click found none
-            }
-        }
-        var ground = ahead != null ? ahead : pickGround();
-        if (ground == null) {
-            return;
-        }
-        if (binding.aim() == Hotkeys.Aim.OPEN_GROUND && !isOpenAndSeen(ground)) {
-            return; // stone, or somewhere he has never been — nothing is sent
-        }
-        var spot = new Coord3D(ground.x, ground.z, 0f);
-        binding.run().accept(game, new Hotkeys.Aimed(0, spot));
-        // ★ The mark goes where the SKILL goes, not where the mouse was. A click
-        // past the ring is read by the simulation as "as far that way as I can"
-        // -- it clamps to the edge -- so a mark left at the cursor would stand a
-        // long way from where the thing actually landed and the picture would be
-        // a lie in exactly the case the player most needs it to be true.
-        //
-        // An ORDER is not clamped, and the difference is real rather than an
-        // exception: the ring on an order says how far he HITS from, which is
-        // worth knowing and is not a fence. He may be sent to fight his way
-        // across the whole floor.
-        var landing = ordersSelection(aimed) ? spot : clampedToReach(aimed, spot);
-        boolean attackMove = binding.aim() == Hotkeys.Aim.UNIT_OR_GROUND;
-        markOrder(landing.x(), landing.y(), attackMove ? OrderMarkers.Kind.ATTACK_MOVE : OrderMarkers.Kind.MOVE);
-        if (attackMove) {
-            hintMove(landing.x(), landing.y());
-        }
-    }
-
-    /**
-     * A spot pulled back to the edge of what the armed skill can reach.
-     *
-     * <p>The same rule {@code SkillBook.withinReach} applies on the far side,
-     * drawn from the same {@link SkillRange} the ring on the floor is drawn from
-     * -- so the mark, the ring and the cast all agree about where "as far that
-     * way as I can" is. A skill with no ring, or a click already inside it, is
-     * left exactly where it was.
-     */
-    private Coord3D clampedToReach(char key, Coord3D wanted) {
-        var range = key == 0 ? null : visuals.getSkillRange(key);
-        var hero = whereHisHeroIs();
-        if (range == null || hero == null) {
-            return wanted;
-        }
-        return range.within(hero, wanted);
-    }
-
-    /**
-     * Whether that spot is somewhere the player could stand and has already seen.
-     *
-     * <p>Asked here rather than of the simulation because both halves are the
-     * client's to answer. The map's shape it has; what the player has <em>seen</em>
-     * of it only it has — that is a fact about this screen, not about the world,
-     * and the simulation would be wrong to hold it.
-     *
-     * <p>A game with no discovery at all has seen everything, which is the right
-     * answer rather than a special case: with the whole map on screen there is no
-     * such thing as aiming into the dark.
-     */
-    private boolean isOpenAndSeen(Vector3f ground) {
-        var grid = game.getTerrain();
-        if (grid == null) {
-            return true;
-        }
-        int cx = grid.toCellX(new Coord3D(ground.x, ground.z, 0f));
-        int cy = grid.toCellY(new Coord3D(ground.x, ground.z, 0f));
-        if (!grid.inBounds(cx, cy) || grid.isTerrainBlocked(cx, cy)) {
-            return false;
-        }
-        return discovery == null || discovery.stateAt(cx, cy) != Discovery.State.UNSEEN;
-    }
-
-    /**
-     * Whether that spot is somewhere he could put his feet, as far as the player
-     * knows.
-     *
-     * <p>A different question from {@link #isOpenAndSeen}, and the difference is
-     * the whole of what each is for. A skill has to be <em>aimed</em>, so it may
-     * only be sent somewhere the player has actually seen. A walking order is not
-     * aimed — it may be given anywhere on the map, the dark included, and how far
-     * he gets is the simulation's business.
-     *
-     * <p>So the dark reads as open here. Not as a kindness: a pointer that turned
-     * away over undiscovered stone would be reading the map out to the player
-     * through the shape of his own cursor.
-     *
-     * <p>What it does say no to is a place he plainly cannot stand — a wall, or
-     * the barrel in the middle of the room. That is a warning and not a veto: the
-     * click still goes, and he walks as near it as the floor allows.
-     */
-    private boolean couldStandThere(Vector3f ground) {
-        var grid = game.getTerrain();
-        if (grid == null) {
-            return true;
-        }
-        var at = new Coord3D(ground.x, ground.z, 0f);
-        int cx = grid.toCellX(at);
-        int cy = grid.toCellY(at);
-        if (!grid.inBounds(cx, cy)) {
-            return false;
-        }
-        if (discovery != null && discovery.stateAt(cx, cy) == Discovery.State.UNSEEN) {
-            return true; // unknown ground is not known to be bad
-        }
-        return !grid.isBlocked(cx, cy);
-    }
-
-    /**
-     * A click on a skill slot casts it, exactly as pressing its key would.
-     *
-     * <p>Down the same road, deliberately: the click ends in {@link #pressHotkey},
-     * so a skill that needs pointing at something arms and waits for the next
-     * click just as the keyboard's does, and a skill that does not goes off at
-     * once. Anything else would be a second copy of the rules for casting, and the
-     * two would drift.
-     *
-     * <p>A slot that is cooling or locked eats the click and does nothing, which
-     * is what a stone slot with a shadow over it looks like it should do.
-     * Spend a level on a slot, from the keyboard.
-     *
-     * <p>Refused in silence when there is nothing to spend or nowhere to spend
-     * it, and that is a requirement rather than an omission: Ctrl is held for
-     * other reasons, and a key that made a noise every time the player happened
-     * to be holding it would be a key he learns to dread. The panel is asked
-     * rather than the simulation because the panel is what is showing him a
-     * badge -- if there is no badge, the press means nothing and says nothing.
-     *
-     * @return whether the bar took the click
-     */
-    private void raiseSkill(char key) {
-        if (parts.stream().noneMatch(part -> part.raises(key))) {
-            return;
-        }
-        hotkeys.raiseSkill(game, key);
-        noises.moment("power_taken", (float) timer.getTimeInSeconds());
-    }
-
-    private boolean clickedASkillSlot() {
-        var cursor = inputManager.getCursorPosition();
-        // The badge before the slot, because it hangs over the slot's own corner
-        // and a click there means the badge. It is only ever there when a point
-        // may go into that slot, so the corner of a socket with nothing to buy
-        // arms the skill exactly as it always did.
-        Character raising = firstOfTheParts(part -> part.raiseAt(cursor.x, cursor.y));
-        if (raising != null) {
-            hotkeys.raiseSkill(game, raising);
-            noises.moment("power_taken", timer.getTimeInSeconds());
-            return true;
-        }
-        Character key = firstOfTheParts(part -> part.keyAt(cursor.x, cursor.y));
-        if (key != null) {
-            pressHotkey(key, true);
-            return true;
-        }
-        // The rest of a panel swallows clicks too. Without this, clicking its
-        // portrait sends the hero walking to wherever the panel happens to cover.
-        return onAPanel(cursor.x, cursor.y);
-    }
-
-    /**
-     * The unit the game was last told about, so it is only told when it changes.
-     * Whether a new world is still waiting for its hero to be picked out.
-     */
-    private boolean findHimInTheNewWorld;
-
-    /**
-     * Select his own unit once, when a world he has just arrived in produces one.
-     *
-     * <p>The other half of "a skill needs its caster selected" — see
-     * {@link #pressHotkey}. On its own that rule is a trap rather than a rule: a
-     * run begins with nothing selected and every new floor hands him a <em>new</em>
-     * hero whose id the old selection does not name, so his keys would quietly
-     * stop working until he remembered to click himself, on every floor, with no
-     * hint that clicking was what was wanted.
-     *
-     * <p><b>Once per world, and only then.</b> Anything more would be a client
-     * that refuses to be told: pressing escape to clear the selection is
-     * deliberate, and so is clicking a skeleton to read its card — the panel's
-     * empty state and its creature card both exist because the player asked for
-     * them, and a frame later this would have taken both away.
-     */
-    private void keepHisOwnSelected() {
-        if (!findHimInTheNewWorld || screen != Screen.PLAYING) {
-            return;
-        }
-        for (var view : snapshot.units()) {
-            if (view.playerIndex() == game.getLocalPlayerIndex() && view.selectable()) {
-                selected.clear();
-                selected.add(view.id());
-                findHimInTheNewWorld = false;
-                return;
-            }
-        }
-    }
-
-    private int watching = -1;
-
-    /**
-     * Say which single unit the player has picked out, when that changes.
-     *
-     * <p>Selection belongs here and the simulation has none — but what a creature
-     * is worth does not belong here and the simulation is the only thing that
-     * knows it. A monster's damage is its template times what this floor
-     * multiplies by, and this side has never seen a template; reading one across
-     * the thread that is mutating it would be worse than not knowing.
-     *
-     * <p>So the fact travels the way every other fact from this side does: as a
-     * command, on a frame boundary. Sent on change rather than every frame,
-     * because forty a second of "still that one" is a command stream nobody can
-     * read and a replay nobody can search.
-     *
-     * <p>One unit only. A panel that describes a creature cannot describe nine,
-     * and {@code -1} — nothing, or a whole box of them — puts it back to
-     * describing the player's own.
-     */
-    private void tellTheGameWhatHeIsLookingAt() {
-        if (!hotkeys.watches()) {
-            return;
-        }
-        int single = selected.size() == 1 ? selected.iterator().next() : -1;
-        if (single != watching) {
-            watching = single;
-            hotkeys.watch(game, single);
-        }
-    }
-
-    private void beginDrag() {
-        if (minimapClick()) {
-            return; // the minimap took the press; not a selection
-        }
-        var cursor = inputManager.getCursorPosition();
-        dragFrom = new Vector2f(cursor.x, cursor.y);
-    }
-
-    /**
-     * Finish a press: a box if the mouse travelled, the old single-unit pick if it
-     * did not.
-     *
-     * <p>Falling back to the click matters — a click is a drag of zero pixels and a
-     * real hand never quite manages zero, so without the distinction every click
-     * would become a tiny empty box that selects nothing.
-     */
-    private void endDrag(boolean add) {
-        var from = dragFrom;
-        dragFrom = null;
-        dragRectangle.hide();
-        if (from == null) {
-            return; // the press was taken by the minimap or a menu
-        }
-        var cursor = inputManager.getCursorPosition();
-        if (!isBox(visuals, from.x, from.y, cursor.x, cursor.y)) {
-            var hit = pickUnit();
-            boolean onOwn = hit != null && hit.view.selectable()
-                    && hit.view.playerIndex() == game.getLocalPlayerIndex();
-            // The force-attack key held: a click on his own thing is an attack on it, not a pick.
-            boolean picks = onOwn && !controls.isHeld(KeyMap.Control.FORCE_ATTACK);
-            if (leftClickOrders(mouse, picks, snapshot.contextOrder() != null, add, !selectedIds().isEmpty())) {
-                order(); // the reference's left-click mouse: a click off his own things commands them
-                return;
-            }
-            select(add);
-            return;
-        }
-        var before = List.copyOf(selected);
-        boolean hisUnits = snapshot.units().stream().filter(view -> selected.contains(view.id()))
-                .allMatch(view -> view.playerIndex() == game.getLocalPlayerIndex() && !view.structure());
-        var after = SelectionBox.after(SelectionBox.inside(from.x, from.y, cursor.x, cursor.y, onScreenUnits()),
-                before, hisUnits, add);
-        selected.clear();
-        selected.addAll(after);
-        controls.forgetGroupPress();
-        var first = after.stream().filter(id -> !before.contains(id)).findFirst();
-        // One answer for the box, as for a click: the first thing it took in.
-        first.ifPresent(id -> noises.selected(viewOf(id), game.getLocalPlayerIndex(), timer.getTimeInSeconds()));
-    }
-
-    /**
-     * Whether a left click, not a drag, orders what is selected rather than choosing what it landed on: under the
-     * left-click mouse, a click off the player's own things, or on one of them a click gives the game's word on — a
-     * transport to board — unless the add-to-selection key is held, which always chooses, adding the thing, as the
-     * reference's shift-click does whatever the context command ({@code isInPreferSelectionMode}).
-     */
-    static boolean leftClickOrders(Mouse mouse, boolean onOwnSelectable, boolean worded, boolean add,
-            boolean ownSelected) {
-        return mouse.leftClickOrders(onOwnSelectable && (add || !worded), ownSelected);
-    }
-
-    /** The order a click on the ground gives where the game has a word for it ({@code DukeGame.groundOrder}), or null. */
-    static uz.dukeengine.combat.message.GameOrder groundOrder(int local, List<ObjectId> units, String word, Vector3f ground) {
-        return word == null ? null
-                : new uz.dukeengine.combat.message.GameOrder(local, word, units, new Coord3D(ground.x, ground.z, ground.y), null, 0);
-    }
-
-    /** What the last snapshot says of one thing, or null where it said nothing. */
-    private uz.dukeengine.core.view.UnitView viewOf(int id) {
-        for (var view : snapshot.units()) {
-            if (view.id() == id) {
-                return view;
-            }
-        }
-        return null;
-    }
-
-    /** A click that gave the game's word answered as the game names: its moment, none, or a move's. */
-    private void answerWord(String word, List<ObjectId> units) {
-        var answer = visuals.orderAnswerFor(word, null);
-        if (answer != null) {
-            answerOrder(answer, units);
-        }
-    }
-
-    /** An order given on {@code thing}, answered: its mark laid there, the thing flashed, the selection's voice. */
-    private void answer(ThingAnswer answer, uz.dukeengine.core.view.UnitView thing, List<ObjectId> units) {
-        if (answer.mark() != null) {
-            markOrder(thing.x(), thing.y(), thing.id(), answer.mark());
-        }
-        if (answer.flash()) {
-            flash(thing.id(), visuals.getSelectionFlash() != null
-                    ? visuals.getSelectionFlash() : Visuals.SelectionFlashLook.REFERENCE);
-        }
-        if (answer.voice() != null) {
-            answerOrder(answer.voice(), units);
-        }
-    }
-
-    /** An order the player gave the selection: {@code ordered.<order>.<template>} for the first of it. */
-    private void answerOrder(String order, List<ObjectId> units) {
-        if (!units.isEmpty()) {
-            noises.ordered(order, viewOf(units.getFirst().value()), game.getLocalPlayerIndex(),
-                    timer.getTimeInSeconds());
-        }
-    }
-
-    /**
-     * Every unit in the snapshot, projected to where it is drawn on screen.
-     */
-    private List<SelectionBox.Candidate> onScreenUnits() {
-        int local = game.getLocalPlayerIndex();
-        var candidates = new java.util.ArrayList<SelectionBox.Candidate>();
-        for (var view : snapshot.units()) {
-            var node = unitNodes.get(view.id());
-            var screen = cam.getScreenCoordinates(drawnCentre(node == null ? null : node.root.getWorldBound(),
-                    view.x(), view.y(), floorHeightAt(view.x(), view.y())));
-            candidates.add(new SelectionBox.Candidate(view.id(), screen.x, screen.y,
-                    view.playerIndex() == local, view.selectable(), view.structure()));
-        }
-        return candidates;
-    }
-
-    /**
-     * Where a box tests a thing: the middle of its drawn body, as a click picks it by the body — or, with nothing drawn
-     * of it, the ground under it, not the foot of the world at height 0.
-     */
-    static Vector3f drawnCentre(com.jme3.bounding.BoundingVolume drawn, float x, float y, float floor) {
-        return drawn != null && drawn.getCenter() != null ? drawn.getCenter().clone() : new Vector3f(x, floor, y);
-    }
-
-    /**
-     * Whether a press from one point let go at the other is a box: never where the game says a drag selects nothing
-     * ({@link Visuals#dragSelects}).
-     */
-    static boolean isBox(Visuals visuals, float fromX, float fromY, float toX, float toY) {
-        return visuals.isDragSelecting() && SelectionBox.isDrag(fromX, fromY, toX, toY, visuals.getDragDistance());
-    }
-
-    /**
-     * Redraw the box while the button is held, as an outline over the world.
-     */
-    private void syncDragRectangle() {
-        if (dragFrom == null) {
-            return;
-        }
-        var cursor = inputManager.getCursorPosition();
-        if (!isBox(visuals, dragFrom.x, dragFrom.y, cursor.x, cursor.y)) {
-            dragRectangle.hide();
-            return;
-        }
-        dragRectangle.lay(dragFrom.x, dragFrom.y, cursor.x, cursor.y);
-    }
-
-    private void order() {
-        var units = selectedIds();
-        if (units.isEmpty()) {
-            return;
-        }
-        int local = game.getLocalPlayerIndex();
-        var enemy = pickUnit();
-        if (enemy != null && snapshot.contextOrder() != null) {
-            // The order the game said a click on this thing gives — see DukeGame.contextOrder.
-            game.postCommand(new uz.dukeengine.combat.message.GameOrder(local, snapshot.contextOrder(), units,
-                    new Coord3D(enemy.view.x(), enemy.view.y(), 0f), new ObjectId(enemy.view.id()), 0));
-            answer(ThingAnswer.toTheWord(snapshot.contextOrder(), visuals, AnswerTarget.of(enemy.view, local)),
-                    enemy.view, units);
-            return;
-        }
-        // With the force-attack key held, any thing is fired on — his own and an ally's too, as the reference's
-        // MSG_DO_FORCE_ATTACK_OBJECT — and open ground is shelled (MSG_DO_FORCE_ATTACK_GROUND).
-        boolean forced = controls.isHeld(KeyMap.Control.FORCE_ATTACK);
-        if (forced && enemy == null) {
-            var place = pickGround();
-            if (place != null) {
-                game.postCommand(new CombatOrder.AttackGround(local, units, new Coord3D(place.x, place.z, place.y),
-                        true));
-                answerOrder("attack", units);
-                markOrder(place.x, place.z, OrderMarkers.Kind.ATTACK);
-                return;
-            }
-        }
-        if (forced && enemy != null && !units.contains(new ObjectId(enemy.view.id()))) {
-            if (!snapshot.attackable()) {
-                return;
-            }
-            game.postCommand(new CombatOrder.AttackObject(local, units, new ObjectId(enemy.view.id()), true));
-            answerOrder("attack", units);
-            markOrder(enemy.view.x(), enemy.view.y(), enemy.view.id(), OrderMarkers.Kind.ATTACK);
-            noises.moment("vo.attack", (float) timer.getTimeInSeconds());
-            return;
-        }
-        if (enemy != null && enemy.view.playerIndex() != local && enemy.view.playerIndex() != 0) {
-            if (!snapshot.attackable()) {
-                return; // nothing selected may be fired at it: refused, as the pointer already said
-            }
-            game.postCommand(new CombatOrder.AttackObject(local, units, new ObjectId(enemy.view.id()), forced));
-            answerOrder("attack", units);
-            markOrder(enemy.view.x(), enemy.view.y(), enemy.view.id(), OrderMarkers.Kind.ATTACK);
-            // His own orders only. In a game with more than one player at it,
-            // each hears his own hero answer and nobody hears anyone else's.
-            noises.moment("vo.attack", (float) timer.getTimeInSeconds());
-            return;
-        }
-        var ground = pickGround();
-        if (ground == null) {
-            return;
-        }
-        var click = groundClick(local, selectedOwn(), enemy == null ? snapshot.contextOrder() : null,
-                game.namesGroundOrders(), ground, parts);
-        if (click instanceof CombatOrder.MoveTo plain && controls.isHeld(KeyMap.Control.QUEUE_WAYPOINTS)) {
-            click = plain.appended(); // the waypoint key held: a place added to the walk (MSG_ADD_WAYPOINT)
-        }
-        switch (click) {
-            case null -> {
-                // nothing selected may take it: the pointer already said so
-            }
-            case uz.dukeengine.combat.message.GameOrder steer -> {
-                game.postCommand(steer); // the game's word for a click here — see DukeGame.groundOrder
-                if (visuals.wordMarkFor(steer.word()) == Visuals.WordMark.MARK) {
-                    markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE); // no thing on open ground to flash
-                }
-                answerWord(steer.word(), units);
-            }
-            case CombatOrder.MoveTo move -> {
-                if (!move.units().isEmpty()) {
-                    game.postCommand(move); // none of them can move: answered as a move all the same, and none sent
-                }
-                // One mark for the order, not one per unit: it was a single decision. And
-                // put WHERE HE CLICKED rather than where they will end up. The mark is an
-                // answer to the click -- "that, understood" -- and moving it to the place
-                // they can reach answers a question the player did not ask and hides the
-                // one thing he wants to see, which is whether he clicked where he meant
-                // to. How far they actually get is theirs to work out on the way.
-                markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
-                hintMove(ground.x, ground.z);
-                // And one answer, for the same reason. His own orders only: in a game
-                // with more than one player at it each hears his own hero and nobody
-                // hears anyone else's.
-                if (!move.units().isEmpty()) {
-                    noises.moment("vo.move", (float) timer.getTimeInSeconds());
-                    answerOrder("move", move.units());
-                }
-            }
-            default -> {
-                game.postCommand(click); // a building's rally point, as its kind of game names it
-                markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
-            }
-        }
-    }
-
-    /**
-     * What a click on open ground orders the local player's selected things: the game's word for it, where it has one;
-     * else one move for those of them that can move — placed as a group by the simulation, and the player's own click,
-     * which gathers a group clicked in its middle; else the rally point of a lone production building of his, only in a
-     * game that names no ground orders of its own, as the first of {@code parts} to have one sends it; else nothing for one structure of his selected alone, and for more a
-     * move of none of them — answered as a move, sent to nobody — as the reference issues its move whatever the
-     * selection ({@code CommandTranslator::evaluateContextCommand}).
-     */
-    static uz.dukeengine.core.message.Command groundClick(int local, List<uz.dukeengine.core.view.UnitView> own,
-            String word, boolean gameDecides, Vector3f ground, List<HudPart> parts) {
-        var steer = groundOrder(local, own.stream().map(unit -> new ObjectId(unit.id())).toList(), word, ground);
-        if (steer != null) {
-            return steer;
-        }
-        var place = new Coord3D(ground.x, ground.z, 0f);
-        var movers = own.stream().filter(uz.dukeengine.core.view.UnitView::mobile)
-                .map(unit -> new ObjectId(unit.id())).toList();
-        if (!movers.isEmpty()) {
-            return new CombatOrder.MoveTo(local, movers, place, true);
-        }
-        var rally = rallies(own, gameDecides) ? rallyOf(local, own.getFirst(), place, parts) : null;
-        if (rally != null) {
-            return rally;
-        }
-        return own.isEmpty() || loneStructure(own) ? null : new CombatOrder.MoveTo(local, List.of(), place, true);
-    }
-
-    /**
-     * Whether a click on open ground with no word of the game's is taken — the move pointer — rather than refused: it
-     * is refused only to one structure of his selected alone that takes it as no rally point, as the reference's
-     * {@code InGameUI::createMouseoverHint} shows {@code GENERIC_INVALID} for a lone structure alone.
-     */
-    static boolean groundTakes(int local, List<uz.dukeengine.core.view.UnitView> own, boolean gameDecides,
-            List<HudPart> parts) {
-        return own.stream().anyMatch(uz.dukeengine.core.view.UnitView::mobile) || !loneStructure(own)
-                || rallies(own, gameDecides) && rallyOf(local, own.getFirst(), new Coord3D(0f, 0f, 0f), parts) != null;
-    }
-
-    /** A building's rally point at {@code place}, as the first of {@code parts} with one sends it, or null. */
-    private static uz.dukeengine.core.message.Command rallyOf(int local, uz.dukeengine.core.view.UnitView building,
-            Coord3D place, List<HudPart> parts) {
-        for (var part : parts) {
-            var rally = part.rally(local, building, place);
-            if (rally != null) {
-                return rally;
-            }
-        }
-        return null;
-    }
-
-    private static boolean loneStructure(List<uz.dukeengine.core.view.UnitView> own) {
-        return own.size() == 1 && own.getFirst().structure();
-    }
-
-    /** Whether the client's own rule takes a click on open ground as the rally point of a lone building of his. */
-    private static boolean rallies(List<uz.dukeengine.core.view.UnitView> own, boolean gameDecides) {
-        return !gameDecides && own.size() == 1 && own.getFirst().producer() && !own.getFirst().mobile();
-    }
-
-    /**
-     * Acknowledge an order where the player clicked. Presentation only.
-     *
-     * <p>The tick goes here rather than beside each of the four places an order
-     * can be given, so a mark and its sound cannot come apart — they are one
-     * acknowledgement, and a game that names no {@code order_mark} sound simply
-     * gets the silent half.
-     */
-    private void markOrder(float worldX, float worldY, OrderMarkers.Kind kind) {
-        markOrder(worldX, worldY, OrderMarkers.NOBODY, kind);
-    }
-
-    private void markOrder(float worldX, float worldY, int unitId, OrderMarkers.Kind kind) {
-        float now = timer.getTimeInSeconds();
-        orderMarkers.add(worldX, worldY, unitId, kind, now);
-        noises.moment("order_mark", now);
-    }
-
-    /**
-     * A move, or an attack-move, answered with the game's own model where it names one — the reference's move hint,
-     * laid for those orders alone: a rally point, a power's place or an order the game names are not moves, and a
-     * lone building told to go nowhere gets none, as a lone {@code KINDOF_IMMOBILE} thing does there.
-     */
-    private void hintMove(float worldX, float worldY) {
-        var look = visuals.getOrderMark();
-        if (!hintsMove(look, selected, snapshot.units())) {
-            return;
-        }
-        var selection = selectedIds().stream().map(ObjectId::value).toList();
-        modelMarks.add(selection, worldX, worldY, floorHeightAt(worldX, worldY), look, timer.getTimeInSeconds());
-    }
-
-    /** The rally points of the selected things of his that have one, and the flag of the only one — see RallyMarks. */
-    private void showRallies() {
-        var own = ownSelected().stream().map(uz.dukeengine.core.view.UnitView::id).collect(java.util.stream.Collectors
-                .toSet());
-        var shown = snapshot.rallies().stream().filter(rally -> own.contains(rally.id())).toList();
-        rallyMarks.show(visuals.getRally(), shown, RallyMarks.flagOf(shown, selected.size()),
-                toColor(game.getColor(game.getLocalPlayerIndex())), visuals.getHouseColour(), this::floorHeightAt,
-                cam.getLocation());
-    }
-
-    /**
-     * Whether a move by {@code selected} is answered with the game's own model: where it named one, and not for a lone
-     * structure, which cannot move ({@code InGameUI::createMoveHint}, {@code KINDOF_IMMOBILE}).
-     */
-    static boolean hintsMove(OrderMark look, java.util.Set<Integer> selected, List<UnitView> units) {
-        return look.model() != null && !(selected.size() == 1
-                && units.stream().anyMatch(view -> selected.contains(view.id()) && view.structure()));
-    }
-
-    /**
-     * A move the game gave — a radar's press, its own {@code MoveTo} — answered as the player's own click there is: the
-     * order mark and, where the game named a model, the move hint for the selection. See {@link Duke3D#answerMove}.
-     */
-    void answerMove(Coord3D place) {
-        markOrder(place.x(), place.y(), OrderMarkers.Kind.MOVE);
-        hintMove(place.x(), place.y());
-    }
-
-    /** A move mark's model, as the file has it: no dressing, it is the game's own answer to a click. */
-    private Spatial loadMarkModel(String path) {
-        try {
-            return assetManager.loadModel(path);
-        } catch (RuntimeException notThere) {
-            warnOnce(path, "order mark");
-            return null;
-        }
-    }
-
-    /**
-     * The selected unit's health, when exactly one is selected.
-     *
-     * <p>Read from the snapshot like everything else here. It is worth showing
-     * because a hero's maximum health is not fixed in every game — a roguelike
-     * hero's rises as he levels, and the number moving is the player seeing that
-     * happen.
-     */
-    private String selectedHealth() {
-        if (selected.size() != 1) {
-            return "";
-        }
-        for (var view : snapshot.units()) {
-            if (selected.contains(view.id())) {
-                return "    hp %.0f/%.0f".formatted(view.health(), view.maxHealth());
-            }
-        }
-        return "";
-    }
-
-    /**
-     * The single selected own production structure, or {@code null}.
-     */
-    private UnitView selectedProducer() {
-        if (selected.size() != 1) {
-            return null;
-        }
-        for (var unit : snapshot.units()) {
-            if (selected.contains(unit.id())) {
-                return unit.producer() && unit.playerIndex() == game.getLocalPlayerIndex() ? unit : null;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Queue the {@code index}-th entry of the selected factory's build menu.
-     */
-    private void queueBuild(int index) {
-        var producer = selectedProducer();
-        if (producer == null) {
-            return;
-        }
-        for (var part : parts) {
-            var build = part.build(game, producer, index);
-            if (build != null) {
-                game.postCommand(build);
-                return;
-            }
-        }
-    }
-
-    /**
-     * The selected units an order may be given to: his own, and only his own.
-     *
-     * <p>The selection may hold something that is not his -- clicking a monster
-     * is how its health and its damage are read off the bar -- and an order must
-     * never reach it. Filtered here rather than at the click, so that inspecting
-     * a creature and commanding one stay two different questions with two
-     * different answers.
-     */
-    private List<ObjectId> selectedIds() {
-        return selectedOwn().stream().map(u -> new ObjectId(u.id())).toList();
-    }
-
-    /**
-     * Who his orders go to: what he has selected of his own, or what a part says instead — a game of one hero's, the
-     * hero, whatever is picked out to be looked at.
-     */
-    private List<uz.dukeengine.core.view.UnitView> selectedOwn() {
-        var own = ownSelected();
-        for (var part : parts) {
-            var ordered = part.ordered(snapshot, game.getLocalPlayerIndex(), own);
-            if (ordered != null) {
-                return ordered;
-            }
-        }
-        return own;
-    }
-
-    /** What the snapshot says of the selected things that are his. */
-    private List<uz.dukeengine.core.view.UnitView> ownSelected() {
-        return snapshot.units().stream()
-                .filter(u -> selected.contains(u.id()) && u.playerIndex() == game.getLocalPlayerIndex())
-                .toList();
-    }
-
-    /** Who his orders went to when the game was last told, so it is told only when that changes. */
-    private List<Integer> orderedTold = List.of();
-
-    /** The game told who his orders go to, where a part makes that other than what is selected. */
-    private void tellTheGameWhoIsOrdered() {
-        var own = ownSelected();
-        var ordered = selectedOwn();
-        var told = ordered.equals(own) ? null : ordered.stream().map(uz.dukeengine.core.view.UnitView::id).toList();
-        if (!java.util.Objects.equals(told, orderedTold)) {
-            orderedTold = told;
-            game.setOrdered(told);
-        }
-    }
-
     // ---- per-frame sync ----
 
     @Override
     public void simpleUpdate(float tpf) {
         frameOf(tpf);
         interfaceHiding.apply(interfaceHidden.getAsBoolean(), guiViewPort, guiNode,
-                List.of(veil.node(), canvasDrawing.node()), markerNode);
+                List.of(veil.node(), canvas.node()), markerNode);
     }
 
     /** Whether the game has its interface put away now — see {@link Duke3D#interfaceHidden}. */
@@ -5961,9 +2037,7 @@ final class DukeRtsApp extends SimpleApplication {
     private void frameOf(float tpf) {
         noises.sounds().update(tpf);
         frame(tpf);
-        runTheMovie(tpf);
-        // Last, over everything, whatever the screen: the game's front end, its load screen, its HUD in play.
-        paintTheCanvas(tpf);
+        canvas.frame(tpf);
     }
 
     private void frame(float tpf) {
@@ -5974,33 +2048,33 @@ final class DukeRtsApp extends SimpleApplication {
         showOnlyWhilePlaying();
         snapshot = game.getSnapshot();
         // What the pointer is on, so the next snapshot says whether an attack on it would be taken.
-        boolean pointing = screen == Screen.PLAYING && !menu.isVisible();
-        var pointedAt = pointing ? pickUnit() : null;
-        var pointedGround = pointing && pointedAt == null ? pickGround() : null;
+        boolean pointing = inPlay();
+        var pointedAt = pointing ? pointer.pickUnit() : null;
+        var pointedGround = pointing && pointedAt == null ? pointer.pickGround() : null;
         game.setPointedAt(pointedAt == null || pointedAt.view == null ? -1 : pointedAt.view.id(),
                 pointedGround == null ? null : new Coord3D(pointedGround.x, pointedGround.z, pointedGround.y),
-                pointedGround == null || discovery == null || discovery.everSeen(pointedGround.x, pointedGround.z));
+                pointedGround == null || discovery() == null || discovery().everSeen(pointedGround.x, pointedGround.z));
         // Before every early return below, not after them. The menu and the
         // loading screen are screens too, and a pointer that only appears once
         // the world does leaves the player clicking Play with the operating
         // system's arrow -- which is the first thing he sees of the game.
         showTheRightPointer();
-        if (menu.isVisible()) {
+        if (screens.menu().isVisible()) {
             // A held slider follows the hand every frame; nothing else does, and
             // it makes no noise about it — a knob being pulled would be forty
             // clicks a second.
-            if (menu.isDragging()) {
-                menu.drag(inputManager.getCursorPosition());
-            } else if (menu.hover(inputManager.getCursorPosition())) {
-                noises.moment("menu_hover", (float) timer.getTimeInSeconds());
+            if (screens.menu().isDragging()) {
+                screens.menu().drag(inputManager.getCursorPosition());
+            } else if (screens.menu().hover(inputManager.getCursorPosition())) {
+                noises.moment("menu_hover", timer.getTimeInSeconds());
             }
         }
-        if ((screen == Screen.MENU || screen == Screen.FRONT) && !backdropShown()) {
+        if ((screens.now() == Screen.MENU || screens.now() == Screen.FRONT) && !backdropShown()) {
             hud.setText("");
             buildMenu.setText("");
             return; // the world starts when the player presses Play
         }
-        if (screen == Screen.LOADING) {
+        if (screens.now() == Screen.LOADING) {
             advanceLoadingArt();
             return; // and it waits until there is art to start it with
         }
@@ -6009,35 +2083,43 @@ final class DukeRtsApp extends SimpleApplication {
         // floor's kit would be a floor of the wrong stone until the next one.
         adoptTheLookTheGameNames();
         refreshWorldIfChanged(); // a new run lays out a new world; redraw it
-        terrain.stream(camera.targetX(), camera.targetZ()); // the ground as far as the camera sees, on a wide world
-        syncDiscovery(tpf);
-        followTheLookUnderTheCamera(tpf);
+        ground.stream(camera.targetX(), camera.targetZ()); // the ground as far as the camera sees, on a wide world
+        if (fog.sync(tpf)) {
+            var seen = fog.discovery();
+            ground.applyDiscovery(seen);
+            minimapView.paintWhatIsKnown();
+            if (worldPicture != null) {
+                worldPicture.heard(seen);
+                worldPicture.paint(seen);
+            }
+        }
+        light.step(tpf);
+        fog.followTheLookUnderTheCamera(tpf);
         camera.focusOnOwnUnit(snapshot.units(), game.getLocalPlayerIndex());
-        updateCamera(tpf);
+        cameraRig.frame(tpf);
         game.setViewRays(worldRegion.raysThrough(cam));
         // Before the units, not after: a death has to take the body out of the
         // live list before anything decides it merely vanished. It also means a
         // shot lights its muzzle on the frame it was fired rather than the next.
-        handleEvents();
-        layTheMapsMarks();
-        layTheMapsStrips();
+        events.read();
+        ground.layWhatTheGameLaid();
         // What this frame is worth hearing. Reads the same snapshot everything
         // else does and writes nothing back -- see GameSounds.
         placeTheListener();
         letItFall();
         noises.frame(snapshot, game.getLocalPlayerIndex(),
-                (float) timer.getTimeInSeconds());
+                timer.getTimeInSeconds());
         for (var event : snapshot.unseenEvents()) {
             if (event instanceof uz.dukeengine.core.event.SoundPlayed sound
                     && noises.sounds().throughFog(sound.cue())) {
-                heard(sound); // where he does not see: heard, as fog does not hide it, and nothing shown
+                events.heard(sound); // where he does not see: heard, as fog does not hide it, and nothing shown
             }
         }
-        keepHisOwnSelected();
-        tellTheGameWhatHeIsLookingAt();
-        syncUnits();
-        seatTheRiders();
-        flashTheNewlySelected(tpf);
+        orders.keepHisOwnSelected();
+        orders.tellTheGameWhatHeIsLookingAt();
+        unitScene.sync();
+        unitScene.seatTheRiders();
+        unitScene.flashTheNewlySelected(tpf);
         showUnitBars();
         // After the units, because a burst lit this frame has to reach the stone
         // this frame — the terrain reads its lights off a material parameter, not
@@ -6047,344 +2129,34 @@ final class DukeRtsApp extends SimpleApplication {
         layered.update(tpf, cam);
         particles.step(tpf);
         listShow.update(tpf);
-        barrels.update(tpf);
+        unitScene.update(tpf);
         particleDrawing.draw(cam);
-        carryTheLightsToTheStone();
-        hazeRoundTheCamera();
-        slideTheShades();
-        if (water != null && snapshot != null) {
-            water.update(snapshot.gameTimeSeconds());
-            trackMarks.see(snapshot.units(), visuals.getTrackMarks(), snapshot.frame(), this::floorHeightAt,
-                    (x, y) -> !Float.isNaN(water.surfaceAt(x, y)));
-            shoreWaves.see(snapshot.frame(), this::waterOrGround);
+        groundLooks.carryTheLightsToTheStone(effects.allLights());
+        groundLooks.hazeRoundTheCamera();
+        groundLooks.slideTheShades();
+        if (snapshot != null) {
+            ground.see(snapshot);
         }
         markTheHidden();
-        if (border != null) {
-            border.colour(viewPort.getBackgroundColor()); // the unexplored colour, whatever the theme makes it
-        }
-        reapTheDead();
-        followWithTheMinimap();
-        syncMinimap();
-        syncMinimapMarks();
-        syncViewportOutline();
-        syncDragRectangle();
+        ground.colourTheBorder(viewPort.getBackgroundColor()); // the unexplored colour, whatever the theme makes it
+        unitScene.reapTheDead();
+        minimapView.follow();
+        minimapView.syncDots();
+        minimapView.syncMarks();
+        minimapView.outline(worldRegion, pointer::groundUnder);
+        orders.syncDragRectangle();
         syncOrderMarkers();
         updateHud(tpf);
-        keepTheSelectionInStep();
-        updateCommandBar();
-        followTheAim(); // the bar's aim or the game's, whether or not the client's bar is up
+        orders.keepTheSelectionInStep();
+        buttons.updateCommandBar();
+        buttons.followTheAim(); // the bar's aim or the game's, whether or not the client's bar is up
         updateBanner();
-        placeMinimap();
-    }
-
-    private CommandBar commandBar;
-    /** The selection kept in step with the game's, both ways — see {@link SelectionLink}. */
-    private final SelectionLink selectionLink = new SelectionLink();
-
-    /**
-     * The game told what is selected whenever that changes, and the game's own pick taken up — in a match, whatever
-     * draws the HUD: a game that draws its own bar hangs it off the selection just as the client's bar does.
-     *
-     * <p>Half of one conversation with {@link #updateCommandBar}, and deliberately a frame apart from it: the
-     * selection goes out now, and the buttons come back in the <em>next</em> snapshot, because they are worked out
-     * on the simulation thread where the state they are about lives — what a barracks can train, what this player
-     * can afford. A frame is not worth racing for.
-     */
-    private void keepTheSelectionInStep() {
-        if (screen != Screen.PLAYING && screen != Screen.PAUSED) {
-            return;
-        }
-        if (snapshot != null) {
-            selectionLink.takeUp(selected, game, snapshot.units(), game.getLocalPlayerIndex(), this::answerSelection);
-        }
-        selectionLink.tell(selected, game);
-        selectionLink.tellGroups(controls.groups(), game);
-        if (snapshot != null) {
-            tellTheGameWhoIsOrdered();
-        }
-    }
-
-    /**
-     * Draw what the game says may be done with the selection, when the client's own HUD is up.
-     *
-     * <p>A game that never asked for a bar sends no buttons and nothing is drawn, which is what every
-     * game had before there was one.
-     */
-    private void updateCommandBar() {
-        if (!clientHud() || commandBarHidden) {
-            if (commandBar != null) {
-                commandBar.hide();
-            }
-            return;
-        }
-        var buttons = snapshot == null ? java.util.List.<uz.dukeengine.core.view.CommandButton>of()
-                : snapshot.commands();
-        if (commandBar == null) {
-            if (buttons.isEmpty()) {
-                return; // nothing to draw and nothing to build for it
-            }
-            if (craft == null) {
-                craft = new StoneCraft(assetManager, guiFont, visuals.getMenuStyle());
-            }
-            commandBar = new CommandBar(craft, fontOrDefault(visuals.getMenuStyle().rowFont()));
-            guiNode.attachChild(commandBar.node());
-        }
-        commandBar.unhide();
-        commandBar.show(buttons, cam.getWidth());
-        if (aiming.isArmed() && aiming.fromTheBar()
-                && buttons.stream().noneMatch(one -> one.id().equals(aiming.button().id()))) {
-            disarmButton(); // the thing that offered it is no longer selected: nothing is waiting to build
-        }
-    }
-
-    /**
-     * Whether the press at the cursor landed on the command bar, in which case it pressed a button and is
-     * not the beginning of a selection.
-     *
-     * <p>Asked before the drag starts, like the minimap's: a click that is doing one thing must not also
-     * be doing another, or building a barracks would deselect the base that was about to build it.
-     */
-    private boolean commandBarClick() {
-        if (commandBar == null || commandBar.isEmpty() || screen != Screen.PLAYING) {
-            return false;
-        }
-        var cursor = inputManager.getCursorPosition();
-        var button = commandBar.at(cursor.x, cursor.y);
-        if (button == null) {
-            return false;
-        }
-        if (!button.available()) {
-            return true; // dim: it takes the click and does nothing with it
-        }
-        pressButton(button);
-        return true;
-    }
-
-    /**
-     * A letter the bar shows on one of its buttons presses that button, as clicking it does — a button keeps the
-     * key its label names. A dim one takes the key and does nothing, as it takes a click.
-     */
-    private boolean pressBarKey(char letter) {
-        if (commandBar == null || commandBar.isEmpty() || commandBarHidden || snapshot == null) {
-            return false;
-        }
-        for (var button : snapshot.commands()) {
-            if (button.hotkey() != null && button.hotkey().equalsIgnoreCase(String.valueOf(letter))) {
-                if (button.available()) {
-                    pressButton(button);
-                }
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void pressButton(uz.dukeengine.core.view.CommandButton button) {
-        if (button.aim() != uz.dukeengine.core.view.CommandButton.Aim.NOW) {
-            armButton(button); // it needs a place or a thing first; the next click supplies it
-            return;
-        }
-        // Straight to the game, which turns it into one of its own commands and posts it -- the road
-        // every order already travels. Nothing here touches the world.
-        game.pressCommand(button.id());
-        answerOrder(button.id(), selectedIds());
-    }
-
-    // ---- a bar button that aims ----
-
-    /** The button waiting for its place or its thing — the bar's, or the game's. Never at once with a hotkey's. */
-    private final Aiming aiming = new Aiming();
-    /** The circle round the cursor an aim at the ground may ask for, made when first wanted. */
-    private GroundRing aimRing;
-    /** The picture on the ground an aim may ask for in place of the circle, made when first wanted. */
-    private GroundDecal aimDecal;
-    /** What the armed button will put down, drawn at the cursor, or null for a button with no ghost. */
-    private Ghost ghost;
-
-    /**
-     * Arm a button that needs a place or a thing: the next click supplies it, and a right click or Escape
-     * thinks better of it — the same two-step a hotkey that aims has always had.
-     */
-    private void armButton(uz.dukeengine.core.view.CommandButton button) {
-        arm(button, true, 0f, null, null, null);
-    }
-
-    /**
-     * Arm a button of the game's own canvas exactly as the bar arms its own — see {@link Duke3D#aim}. The game is
-     * told how it ended.
-     */
-    void armFromGame(uz.dukeengine.core.view.CommandButton button, float radius, String pointer, AimDecal decal,
-            java.util.function.Consumer<AimOutcome> told) {
-        arm(button, false, radius, pointer, decal, told);
-    }
-
-    private void arm(uz.dukeengine.core.view.CommandButton button, boolean fromTheBar, float radius, String pointer,
-            AimDecal decal, java.util.function.Consumer<AimOutcome> told) {
-        disarm(); // a hotkey armed first is given up: one thing waits for the next click, never two
-        disarmButton();
-        if (button.aim() == uz.dukeengine.core.view.CommandButton.Aim.NOW) {
-            return; // nothing to wait for: a button that needs no place is pressed, not armed
-        }
-        aiming.arm(button, fromTheBar, radius, pointer, decal, told);
-        if (button.aim() == uz.dukeengine.core.view.CommandButton.Aim.GROUND) {
-            showGhost(button.ghost());
-        }
-    }
-
-    /** The armed button given up by the game, as Escape gives it up — see {@link Duke3D#giveUpAim}. */
-    void giveUpAimFromGame() {
-        disarmButton();
-    }
-
-    /** The armed button used by the game at {@code place}, as a click there would use it — see {@link Duke3D#useAim}. */
-    void useAimFromGame(Coord3D place) {
-        var press = aiming.useAt(place);
-        if (press == null) {
-            return;
-        }
-        forgetTheAim();
-        game.pressCommand(press.button().id(), press.place(), press.facing(), press.target());
-        answerOrder(press.button().id(), selectedIds());
-        markOrder(place.x(), place.y(), -1, OrderMarkers.Kind.MOVE);
-    }
-
-    /** Give the armed button up: nothing sent, and whoever armed it told so. */
-    private void disarmButton() {
-        if (!aiming.isArmed()) {
-            return;
-        }
-        aiming.giveUp();
-        forgetTheAim();
-    }
-
-    /** Take down what an aim put up: the ghost, the circle, and the game's question about the place. */
-    private void forgetTheAim() {
-        game.setAim(null, null, 0f);
-        if (ghost != null) {
-            ghost.remove();
-            ghost = null;
-        }
-        if (aimRing != null) {
-            aimRing.hide();
-        }
-        if (aimDecal != null) {
-            aimDecal.hide();
-        }
-    }
-
-    /**
-     * The armed button's press: the thing, sent at once — or, for a place, where it goes down. A place is
-     * sent when the press is let go, so a drag in between can turn it; see {@link PlacementDrag}.
-     */
-    private void aimArmedButton() {
-        var button = aiming.button();
-        if (button.aim() == uz.dukeengine.core.view.CommandButton.Aim.UNIT) {
-            var unit = pickUnit();
-            if (unit == null) {
-                return; // it had to be a thing, and the click found none
-            }
-            var press = aiming.target(unit.view.id());
-            forgetTheAim();
-            game.pressCommand(press.button().id(), null, 0f, press.target());
-            answer(ThingAnswer.toThePress(button, visuals, AnswerTarget.of(unit.view, game.getLocalPlayerIndex())),
-                    unit.view, selectedIds());
-            return;
-        }
-        var ground = pickGround();
-        var cursor = inputManager.getCursorPosition();
-        aiming.placement().press(cursor.x, cursor.y, ground == null ? null : new Coord3D(ground.x, ground.z, 0f));
-    }
-
-    /**
-     * The press let go: put down where it went down, facing the way it was dragged or its button's way.
-     *
-     * <p>A place the simulation last said will not do is not sent, and the button stays armed — the ghost
-     * was red, and a click on red is a player looking for somewhere green. The simulation's word decides
-     * either way: a place sent is judged again when its order is applied, and refused there costs nothing.
-     */
-    private void releaseArmedButton() {
-        var press = aiming.putDown(snapshot != null && snapshot.aimFits(),
-                refused -> game.refusePress(refused.button().id(), refused.place(), refused.facing()));
-        if (press == null) {
-            return;
-        }
-        forgetTheAim();
-        game.pressCommand(press.button().id(), press.place(), press.facing(), -1);
-        answerOrder(press.button().id(), selectedIds());
-        markOrder(press.place().x(), press.place().y(), -1, OrderMarkers.Kind.MOVE);
-    }
-
-    /**
-     * What the armed button will put down, drawn where it would stand.
-     *
-     * <p>Named by the game as a template — drawn as that template is drawn, at its size and turned its
-     * way — or, failing that, as a model's path. One flat translucent colour over the whole of it, because
-     * a ghost is a question, not the building: what it answers is green or red.
-     */
-    private void showGhost(String named) {
-        if (named == null) {
-            return;
-        }
-        var look = visualFor(named);
-        Spatial body = look != null && look.modelPath != null ? buildBody(look, java.util.List.of()) : null;
-        if (body == null) {
-            try {
-                body = assetManager.loadModel(named);
-            } catch (RuntimeException notAModel) {
-                warnOnce(named, "ghost");
-                return;
-            }
-        }
-        var ghostLook = visuals.getGhostLook();
-        if (ghostLook != null && visuals.getHouseColour() != null) {
-            paintOwner(body, visuals.getHouseColour(), toColor(game.getColor(game.getLocalPlayerIndex())));
-        }
-        ghost = new Ghost(assetManager, markerNode, body, ghostLook);
-    }
-
-    /**
-     * Every frame an armed button waits: tell the game where the cursor is, and draw the ghost there in the
-     * colour the simulation last gave for it — a frame behind the cursor, which is not worth racing for.
-     */
-    private void followTheAim() {
-        var placement = aiming.placement();
-        if (!aiming.isArmed() || placement == null) {
-            return;
-        }
-        var ground = pickGround();
-        var cursor = inputManager.getCursorPosition();
-        placement.cursor(cursor.x, cursor.y, ground == null ? null : new Coord3D(ground.x, ground.z, 0f));
-        var where = placement.where();
-        if (where == null) {
-            return;
-        }
-        // Asked at the facing the ghost has now: for a box the footprint the player sees is the question.
-        game.setAim(aiming.button().id(), where, placement.facing());
-        boolean fits = snapshot != null && snapshot.aimFits();
-        if (ghost != null) {
-            ghost.node().setLocalTranslation(where.x(), floorHeightAt(where.x(), where.y()), where.y());
-            ghost.node().setLocalRotation(PlacementDrag.turnedTo(placement.facing()));
-            ghost.answer(fits, snapshot == null ? java.util.List.of() : snapshot.aimMarks(), this::floorHeightAt);
-        }
-        if (aiming.radius() > 0f && aiming.decal() != null) {
-            if (aimDecal == null) {
-                aimDecal = new GroundDecal(assetManager, markerNode);
-            }
-            aimDecal.show(where, aiming.radius(), aiming.decal(), snapshot.frame(), this::floorHeightAt);
-        } else if (aiming.radius() > 0f) {
-            var look = visuals.getRangeLook() == null ? RangeLook.DEFAULT : visuals.getRangeLook();
-            if (aimRing == null) {
-                aimRing = new GroundRing(assetManager, markerNode, look.bandWidth(), look.segments(),
-                        look.brightness());
-            }
-            aimRing.show(where, aiming.radius(), look.height(), fits ? look.allowColour() : look.denyColour(),
-                    look.edgeAlpha(), look.fillAlpha(), this::floorHeightAt);
-        }
+        minimapView.place();
     }
 
     /**
      * The one creature a panel describes, or nobody: the one selected, while the HUD is up. The same rule the card
-     * itself is built from — see {@link #tellTheGameWhatHeIsLookingAt}.
+     * itself is built from — see {@link Orders#tellTheGameWhatHeIsLookingAt}.
      */
     private UnitView portraitSubject() {
         if (!clientHud() || selected.size() != 1) {
@@ -6415,6 +2187,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /** Whether a held control of the client's is held now, and play is what is going on. */
+    private boolean held(KeyMap.Control control) {
+        return inPlay() && controls.isHeld(control);
+    }
+
     /**
      * Hide what belongs to playing while something else is on the screen.
      *
@@ -6424,21 +2201,9 @@ final class DukeRtsApp extends SimpleApplication {
      * are just left over, sitting behind the menu, saying the client forgot to
      * put them away.
      */
-    /**
-     * Send a direction to the menu, or let it through to the camera.
-     *
-     * @return whether the world should have it — false once a menu has taken it,
-     * which also stops the camera being left drifting when a menu opens
-     * mid-press and the release never reaches it
-     */
-    /** Whether a held control of the client's is held now, and play is what is going on. */
-    private boolean held(KeyMap.Control control) {
-        return screen == Screen.PLAYING && !menu.isVisible() && controls.isHeld(control);
-    }
-
     private void showOnlyWhilePlaying() {
         var hint = clientHud() ? Spatial.CullHint.Never : Spatial.CullHint.Always;
-        minimapNode.setCullHint(hint);
+        minimapView.show(clientHud());
         if (controlsHint != null) {
             controlsHint.setCullHint(hint);
         }
@@ -6470,8 +2235,9 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         var over = whatThePointerIsOver();
-        if (aiming.isArmed() && aiming.pointer() != null && over.scrolling() == null && !over.overPanel()) {
-            cursors.show(aiming.pointer()); // the pointer the game named for this aim, over the world
+        var aimPointer = buttons.aimPointer();
+        if (aimPointer != null && over.scrolling() == null && !over.overPanel()) {
+            cursors.show(aimPointer); // the pointer the game named for this aim, over the world
             return;
         }
         cursors.showFirst(Cursors.overCanvas(canvasPointer, canvasInputs != null && canvasInputs.pointerTaken(),
@@ -6490,13 +2256,12 @@ final class DukeRtsApp extends SimpleApplication {
      * The six facts about the screen the choice is made from.
      */
     private Cursors.Over whatThePointerIsOver() {
-        boolean playing = screen == Screen.PLAYING && !menu.isVisible();
+        boolean playing = inPlay();
         if (!playing) {
             return new Cursors.Over(false, null, false, false, false, false);
         }
         var at = inputManager.getCursorPosition();
-        var binding = arming == null ? null : hotkeys.all().get(arming);
-        var armed = binding == null ? null : binding.aim();
+        var armed = skillKeys.armedAim();
         // Armed is not aiming -- see Hotkeys.Aim.needsPointing. A skill that goes
         // off round him is held to be looked at, and while it is the pointer goes
         // on answering the ordinary questions.
@@ -6504,119 +2269,22 @@ final class DukeRtsApp extends SimpleApplication {
         boolean canReach;
         if (aiming) {
             canReach = armed != Hotkeys.Aim.OPEN_GROUND
-                    || isOpenAndSeen(groundUnder(at.x, at.y));
+                    || pointer.isOpenAndSeen(pointer.groundUnder(at.x, at.y));
         } else {
-            canReach = couldStandThere(groundUnder(at.x, at.y));
+            canReach = pointer.couldStandThere(pointer.groundUnder(at.x, at.y));
         }
-        var over = aiming ? null : pickUnit();
+        var over = aiming ? null : pointer.pickUnit();
         // Over a window of the game's own canvas, or off the world's part of the window, is over the panel: the
         // arrow, as the reference shows it over any window of its interface.
-        boolean overPanel = onAPanel(at.x, at.y) || overTheMinimap(at)
-                || canvasInputs != null && canvasInputs.pointerTaken() || !pointerOnTheWorld();
-        var own = selectedOwn();
+        boolean overPanel = onAPanel(at.x, at.y) || minimapView.covers(at)
+                || canvasInputs != null && canvasInputs.pointerTaken() || !pointer.pointerOnTheWorld();
+        var own = orders.selectedOwn();
         return new Cursors.Over(true, armed, canReach, overPanel,
                 over != null, over != null && over.view.playerIndex() == game.getLocalPlayerIndex(),
                 snapshot.attackable(), !own.isEmpty(), snapshot.contextOrder(), // a thing's, or the ground's
-                scrolling, groundTakes(game.getLocalPlayerIndex(), own, game.namesGroundOrders(), parts),
+                cameraRig.scrolling(),
+                Orders.groundTakes(game.getLocalPlayerIndex(), own, game.namesGroundOrders(), parts),
                 controls.isHeld(KeyMap.Control.FORCE_ATTACK));
-    }
-
-    /**
-     * Whether a screen point is inside the minimap, which takes its own clicks.
-     */
-    private boolean overTheMinimap(Vector2f at) {
-        float wide = minimap.widthPixels() * minimapScale;
-        float tall = minimap.heightPixels() * minimapScale;
-        return at.x >= minimapX && at.x <= minimapX + wide
-                && at.y >= minimapY && at.y <= minimapY + tall;
-    }
-
-    private void updateCamera(float tpf) {
-        holdTheMouse();
-        scheme.frame(tpf); // a scene the game directs or not: a key let go is always told
-        var directed = snapshot.camera();
-        if (directed != null) {
-            // The game has the camera: it goes where the game's code put it, and the player's controls wait.
-            camera.restore(new CameraFocus.View(directed.x(), directed.y(), directed.angle(),
-                    Float.isNaN(directed.zoom()) ? camera.distance() : directed.zoom()));
-            cameraPitch = Float.isNaN(directed.pitch()) ? camera.pitch() : directed.pitch();
-            scrolling = null;
-        } else {
-            if (!sceneLocked()) {
-                steerTheCamera(tpf);
-            }
-            cameraPitch = camera.pitch();
-            game.setCameraSeen(camera.targetX(), camera.targetZ(), camera.yaw(), camera.pitch(), camera.distance());
-        }
-        placeTheCamera(tpf);
-        veil.show(game.camera().screen(), cam.getWidth(), cam.getHeight());
-    }
-
-    /** The player's own hands on the camera: the pan keys, the window's edges and the right button, turning, zooming. */
-    private void steerTheCamera(float tpf) {
-        var moved = game.takeViewMove();
-        if (moved != null) {
-            camera.lookAt(moved.x(), moved.y()); // the game put his view here; he scrolls on from it
-        }
-        var at = inputManager.getCursorPosition();
-        int tall = cam.getHeight();
-        // No edge while a menu is up: the pointer is being used for something else, and a view that drifted out from
-        // under a choice would be its own kind of bug.
-        boolean atTheEdges = screen == Screen.PLAYING && !menu.isVisible() && pointerInTheWindow()
-                && !capture.captured(); // a held mouse scrolls nothing at the edges
-        steering.stillHeld(buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_RIGHT),
-                buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_MIDDLE));
-        var hands = new Steering.Hands(held(KeyMap.Control.PAN_LEFT), held(KeyMap.Control.PAN_RIGHT),
-                held(KeyMap.Control.PAN_UP), held(KeyMap.Control.PAN_DOWN), at.x, tall - at.y, atTheEdges,
-                cam.getWidth(), tall);
-        var pan = steering.scroll(hands, tpf, camera.panAcross() * scrollSpeed, camera.panAlong() * scrollSpeed,
-                visuals.getEdgeScroll());
-        scrolling = Cursors.scrollDirection(pan.x, pan.y, steering.dragging());
-        // Across and down the screen, which is the ground turned the way the camera is.
-        float cos = FastMath.cos(camera.yaw());
-        float sin = FastMath.sin(camera.yaw());
-        camera.panBy(pan.x * cos + pan.y * sin, pan.y * cos - pan.x * sin);
-        scheme.steer(pan.x != 0f || pan.y != 0f, tpf);
-        camera.turnBy(steering.turn(inputManager.getCursorPosition().x, turnPerPixel()));
-        if (held(KeyMap.Control.TURN_LEFT)) {
-            camera.heldTurn(1, tpf);
-        }
-        if (held(KeyMap.Control.TURN_RIGHT)) {
-            camera.heldTurn(-1, tpf);
-        }
-        if (held(KeyMap.Control.ZOOM_IN)) {
-            camera.heldZoom(true, tpf);
-        }
-        if (held(KeyMap.Control.ZOOM_OUT)) {
-            camera.heldZoom(false, tpf);
-        }
-        camera.approach(tpf); // the eye closing on where the wheel and the keys set it
-    }
-
-    /** The eye where the focus says, riding up with the ground under it, at its slope, shaken by what landed. */
-    private void placeTheCamera(float tpf) {
-        // The camera rides up with the ground under what it is looking at, or a
-        // room on the second storey is a room seen from underneath. Eased rather
-        // than stepped: a storey is a whole body's height and arriving at one in a
-        // single frame reads as the world jumping.
-        float wanted = floorHeightAt(camera.targetX(), camera.targetZ());
-        cameraHeight += (wanted - cameraHeight) * Math.min(1f, tpf * 6f);
-
-        var target = new Vector3f(camera.targetX(), cameraHeight, camera.targetZ());
-        // The knock from whatever just landed, added to where the camera was
-        // going to be rather than replacing it -- so the shake never argues with
-        // the pan, the zoom or the storey it is riding up.
-        //
-        // Only the EYE is moved and not what it is looking at. Shaking both is a
-        // camera being carried about; shaking one is the ground being hit, which
-        // is what is actually happening. It also keeps the thing the player is
-        // watching in the middle of the screen while the world rattles round it.
-        var knock = skillEffects == null ? Vector3f.ZERO : skillEffects.shakeNow();
-        if (listShow != null) {
-            knock = knock.add(listShow.shakeNow());
-        }
-        cam.setLocation(target.add(camera.eyeOffset(cameraPitch)).addLocal(knock));
-        cam.lookAt(target, Vector3f.UNIT_Y);
     }
 
     /**
@@ -6624,34 +2292,12 @@ final class DukeRtsApp extends SimpleApplication {
      * an armed key, the way a right-click always means; or, on the reference's left-click mouse, the selection let go.
      */
     private void secondThoughts() {
-        if (aiming.isArmed()) {
-            disarmButton();
-        } else if (arming != null) {
-            disarm();
+        if (buttons.armed()) {
+            buttons.disarmButton();
+        } else if (skillKeys.armed()) {
+            skillKeys.disarm();
         } else if (mouse.rightClickLetsGo()) {
             selected.clear();
-        }
-    }
-
-    /** How far a middle drag turns the view for each pixel it moves across, in radians; 0 where the game set none. */
-    private float turnPerPixel() {
-        float perPixel = cameraFrame.turnPerPixel();
-        return Float.isNaN(perPixel) ? 0f : perPixel;
-    }
-
-    /**
-     * The middle button on the player's camera, where the game framed a turn for it: held, a drag across turns the view
-     * (the reference's {@code LookAtTranslator}); let go as a click, the view is put back as a reset puts it.
-     */
-    private void turnByTheMiddleButton(boolean pressed) {
-        var at = inputManager.getCursorPosition();
-        float now = timer.getTimeInSeconds();
-        if (pressed) {
-            if (screen == Screen.PLAYING && !menu.isVisible() && snapshot.camera() == null && turnPerPixel() != 0f) {
-                steering.middleDown(at.x, at.y, now);
-            }
-        } else if (steering.middleUp(at.x, at.y, now) && snapshot.camera() == null) {
-            camera.resetView();
         }
     }
 
@@ -6660,172 +2306,16 @@ final class DukeRtsApp extends SimpleApplication {
         return screen == Screen.FRONT || backdropShown;
     }
 
-    /**
-     * The bar over each creature that is being drawn.
-     *
-     * <p>Off the nodes rather than off the snapshot, so that whatever is not on
-     * screen has already been left out once: {@code syncUnits} drops anything
-     * behind a wall, and the snapshot itself was built from what the player can
-     * see. What is left is filtered again by the edge of the screen inside
-     * {@link UnitBars}, which is the one of the three that the camera decides.
-     */
+    /** The bars over the things drawn, but behind a front end — see {@link UnitScene#showBars}. */
     private void showUnitBars() {
-        if (barsHidden(screen, backdropShown())) {
+        if (barsHidden(screens.now(), backdropShown())) {
             unitBars.clear(); // behind a front end: a picture, with nothing of play laid over it
             return;
         }
-        var standing = new ArrayList<UnitBars.Standing>(unitNodes.size());
-        int mine = game.getLocalPlayerIndex();
-        var plain = visuals.getUnitBars().plain();
-        var pointed = plain == null ? null : pickUnit();
-        for (var node : unitNodes.values()) {
-            if (node.view == null || node.view.maxHealth() <= 0f || node.view.remembered()
-                    || riderOf.containsKey(node.view.id())) {
-                continue; // a prop or an arrow, a thing remembered through the fog, or a mount barred as its rider
-            }
-            var template = game.getLogic().getThingFactory().findTemplate(node.view.templateName());
-            var shape = template == null ? null : uz.dukeengine.core.thing.Solid.of(template);
-            float foot = node.root.getWorldTranslation().y;
-            float top = barTop(foot, node.barTop, shape, plain);
-            boolean picked = selected.contains(node.view.id()) || pointed != null && pointed.view.id() == node.view.id();
-            standing.add(new UnitBars.Standing(node.view, top, foot, node.view.playerIndex() == mine,
-                    badgesOf(node), sizeOf(shape), picked));
-        }
-        barReading = UnitBarReading.read(snapshot.status());
-        var eye = cam.getLocation();
-        unitBars.update(cam, standing, barReading, eye.y - floorHeightAt(eye.x, eye.z), visuals.getBarColours());
+        barReading = unitScene.showBars(unitBars, visuals.getUnitBars().plain() == null ? null : pointer.pickUnit());
     }
 
     /**
-     * The world height a thing's bar floats at: over its feet where they stand this frame — up a hill, in a jump — by
-     * its model's height, or by its shape's and the plain bar's lift.
-     */
-    static float barTop(float foot, float overFoot, uz.dukeengine.core.thing.Geometry shape, UnitBarLook.Plain plain) {
-        return foot + (plain == null ? overFoot : topOf(shape) + plain.lift());
-    }
-
-    /** How far over its position a thing's geometry reaches: a box's or cylinder's height, a sphere's radius. */
-    static float topOf(uz.dukeengine.core.thing.Geometry shape) {
-        return switch (shape) {
-            case uz.dukeengine.core.thing.Geometry.Box box -> box.height();
-            case uz.dukeengine.core.thing.Geometry.Cylinder cylinder -> cylinder.height();
-            case uz.dukeengine.core.thing.Geometry.Sphere sphere -> sphere.radius();
-            case null -> 0f;
-        };
-    }
-
-    /** A thing's two radii added, as the reference sizes a bar by them: a sphere's or cylinder's radius twice. */
-    static float sizeOf(uz.dukeengine.core.thing.Geometry shape) {
-        return switch (shape) {
-            case uz.dukeengine.core.thing.Geometry.Box box -> box.majorRadius() + box.minorRadius();
-            case uz.dukeengine.core.thing.Geometry.Cylinder cylinder -> 2f * cylinder.radius();
-            case uz.dukeengine.core.thing.Geometry.Sphere sphere -> 2f * sphere.radius();
-            case null -> 0f;
-        };
-    }
-
-    /**
-     * The marks a thing's words put by its bar, each at the picture its strip is on now: played from its first picture
-     * as its words come, or from one drawn at random where the mark says so.
-     */
-    private java.util.List<UnitBars.Badge> badgesOf(UnitNode node) {
-        var view = node.view;
-        var look = visualFor(view);
-        if (look.marks.isEmpty()) {
-            return java.util.List.of();
-        }
-        var shown = look.marksFor(look.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()));
-        node.markSince.keySet().retainAll(shown);
-        float now = timer.getTimeInSeconds();
-        var badges = new java.util.ArrayList<UnitBars.Badge>(shown.size());
-        for (int index : shown) {
-            var mark = look.marks.get(index);
-            float since = node.markSince.computeIfAbsent(index,
-                    key -> now - mark.startSeconds(java.util.concurrent.ThreadLocalRandom.current()));
-            badges.add(new UnitBars.Badge(mark.frameAt(now - since), mark.scale(), mark.place()));
-        }
-        return badges;
-    }
-
-    private void syncUnits() {
-        var seen = new HashSet<Integer>();
-        lyingDead.clear();
-        for (var view : snapshot.units()) {
-            if (outOfSight(view)) {
-                continue; // behind a wall: not drawn, and taken away if it was
-            }
-            var corpse = corpseOf(view.id());
-            if (corpse != null) {
-                // Dead, and kept in the world while its death plays out: drawn where the world says it is — sinking,
-                // if it sinks — and as its words and health say, and nothing of it gets up again.
-                lookDead(corpse.node(), view);
-                lyingDead.add(view.id());
-                continue;
-            }
-            seen.add(view.id());
-            boolean isNew = !unitNodes.containsKey(view.id());
-            var node = unitNodes.computeIfAbsent(view.id(), id -> createUnitNode(view));
-            updateUnitNode(node, view);
-            var look = visualFor(view);
-            if (isNew) {
-                layered.flying(view.id(), look.effect, node.root,
-                        new Vector3f(look.effectForward, look.yOffset, 0f), cam);
-            }
-        }
-        var gone = unitNodes.entrySet().iterator();
-        while (gone.hasNext()) {
-            var entry = gone.next();
-            if (seen.contains(entry.getKey())) {
-                continue;
-            }
-            // Its layers are grounded whether it arrived or merely walked out of the
-            // light -- what it did on the way down is Landing's to say.
-            layered.grounded(entry.getKey());
-            barrels.forget(entry.getKey());
-            runningGear.forget(entry.getKey());
-            turretBones.forget(entry.getKey());
-            drivenBones.forget(entry.getKey());
-            groundPictures.forget(entry.getKey());
-            wordTints.forget(entry.getKey());
-            stealthLook.forget(entry.getKey());
-            selectionFlash.forget(entry.getKey());
-            var node = entry.getValue();
-            var at = node.root.getLocalTranslation();
-            if (Landing.arrived(node.view, game.getLocalPlayerIndex(),
-                    discovery == null || discovery.canSee(at.x, at.z))) {
-                // ★ Here, and not on ObjectDied. An arrow, a fireball and the mark a
-                // meteor falls on have no body, and the core removes a thing with no
-                // body without ever posting that it died. Gone is the moment it
-                // ended; whether it ended in a strike is only known once this
-                // frame's blows are read -- see burstWhatStruck.
-                endedShots.add(new Landing.Gone(entry.getKey(),
-                        visualFor(node.view).effect,
-                        node.view.playerIndex() == game.getLocalPlayerIndex(),
-                        node.bornX, node.bornZ, node.bornAt, at.x, at.z,
-                        timer.getTimeInSeconds()));
-            }
-            node.root.removeFromParent();
-            selected.remove(entry.getKey());
-            gone.remove();
-        }
-    }
-
-    /**
-     * React to what happened this frame, as opposed to what merely is.
-     *
-     * <p>A unit leaving the snapshot used to be all the client had to go on, so it
-     * guessed: gone while badly hurt meant dead, gone while healthy meant fog.
-     * That was wrong at both ends. The simulation now says outright what died and
-     * what fired, already filtered through fog of war.
-     * Whether something is standing where the player cannot see it.
-     *
-     * <p>The engine's fog is a circle and does not know about walls, so a monster
-     * in the next room is in the snapshot and would be drawn standing in the dark.
-     * Discovery already knows which cells he can see into; this asks it the same
-     * question about a creature.
-     *
-     * <p>His own things are always drawn — they are his, and an arrow of his own
-     * that vanished mid-flight would be a bug rather than a fog.
      * How high the floor stands at a place on the map.
      *
      * <p>Read off the same grid the simulation walks on rather than sent in the
@@ -6839,10 +2329,9 @@ final class DukeRtsApp extends SimpleApplication {
                 : terrain.groundHeight(new uz.dukeengine.core.math.Coord3D(worldX, worldY, 0f));
     }
 
-    private boolean outOfSight(UnitView view) {
-        return discovery != null
-                && view.playerIndex() != game.getLocalPlayerIndex()
-                && !discovery.canSee(view.x(), view.y());
+    /** What the player has seen, or null for a game that is never discovered, or before the window opened. */
+    private Discovery discovery() {
+        return fog == null ? null : fog.discovery();
     }
 
     /** A strip's picture by its whole path, or null where it will not load — said once. */
@@ -6858,42 +2347,6 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private final java.util.Set<String> missingStripPictures = new java.util.HashSet<>();
-
-    /**
-     * An effect the simulation played: the moment of that name, or else the game's effect list, effect or particle
-     * system of that name — riding the thing it names where it names one it can draw — or else its sound cue of that
-     * name, heard there and following the thing it rides. A name the game has none of draws nothing.
-     */
-    private void played(uz.dukeengine.core.event.EffectPlayed played) {
-        var rider = played.riding() == null ? null : unitNodes.get(played.riding().value());
-        var riding = rider == null ? null : rider.root;
-        var cue = WorldMoments.played(played, riding, this::floorHeightAt);
-        int on = rider == null ? LayeredEffects.NOBODY : played.riding().value();
-        if (visuals.getMoment(played.name()) != null) {
-            moment(played.name(), cue, on);
-            return;
-        }
-        if (lists != null && lists.play(played.name(), cue)) {
-            return;
-        }
-        if (visuals.effectNamed(played.name()) == null && visuals.particleSystemNamed(played.name()) == null) {
-            if (noises != null && cue != null) {
-                boolean owned = rider == null || rider.view == null
-                        || rider.view.playerIndex() == game.getLocalPlayerIndex();
-                noises.played(played.name(), cue.at(), rider == null ? -1 : played.riding().value(), owned,
-                        timer.getTimeInSeconds());
-            }
-            return;
-        }
-        if (layered != null && !layered.rides(played.name(), riding)) {
-            var moment = new LayeredEffects.Moment(cue.at(), null, null, 0f, 1f, 0f, on, on);
-            if (played.toward() == null) {
-                layered.cast(played.name(), moment, cam);
-            } else {
-                layered.cast(played.name(), moment, cam, played.toward().value());
-            }
-        }
-    }
 
     /**
      * Where the sounds are heard from this frame: where the game places the listener — on the line from the ground
@@ -6914,36 +2367,6 @@ final class DukeRtsApp extends SimpleApplication {
         listener.setRotation(cam.getRotation());
         listener.setVelocity(Vector3f.ZERO); // the view moving bends no sound's pitch
         noises.sounds().hear(at, eye.distance(at));
-    }
-
-    /** A sound cue the simulation played, heard where it is and following the thing it rides. */
-    private void heard(uz.dukeengine.core.event.SoundPlayed sound) {
-        if (noises == null) {
-            return;
-        }
-        var rider = sound.riding() == null ? null : unitNodes.get(sound.riding().value());
-        boolean owned = rider == null || rider.view == null || rider.view.playerIndex() == game.getLocalPlayerIndex();
-        var at = new Vector3f(sound.where().x(), sound.where().z(), sound.where().y());
-        noises.sound(sound, at, owned, timer.getTimeInSeconds());
-    }
-
-    /**
-     * A moment of the world's that the game gave a look to by name — {@code died.<template>.<type>},
-     * {@code fired.<weapon>}, {@code landed.<weapon>} — played where {@link WorldMoments} says it happened: an
-     * effect list, an effect, or a particle system of that name.
-     */
-    private void moment(String name, EffectLists.Cue cue, int on) {
-        var look = visuals.getMoment(name);
-        if (look == null || cue == null) {
-            return;
-        }
-        if (lists != null && lists.play(look.effect(), cue)) {
-            return;
-        }
-        if (layered != null) {
-            layered.cast(look.effect(), new LayeredEffects.Moment(cue.at(), null, null, 0f, 1f, cue.radius(), on,
-                    on), cam, look.scale());
-        }
     }
 
     /**
@@ -6984,192 +2407,6 @@ final class DukeRtsApp extends SimpleApplication {
         });
     }
 
-    private void handleEvents() {
-        if (snapshot == lastEventedSnapshot) {
-            return; // the sim has not produced a new frame; do not replay this one
-        }
-        lastEventedSnapshot = snapshot;
-        killedThisFrame.clear();
-        skillsCastThisFrame(snapshot);
-        for (var event : snapshot.events()) {
-            if (event instanceof ObjectDied died) {
-                killedThisFrame.add(new HealthWatch.Death(died.object().value(),
-                        died.position().x(), died.position().y(), died.playerIndex()));
-                // Told outright, and it has to be: a dead creature is gone from
-                // the next snapshot, so by the time the frame could notice there
-                // would be nothing left to play a death on.
-                for (var part : parts) {
-                    part.died(died.object().value());
-                }
-                var where = new Vector3f(died.position().x(), 0f, died.position().y());
-                var dying = unitNodes.get(died.object().value());
-                var look = dying != null ? visualFor(dying.view) : visualFor(died.templateName()); // as it was drawn
-                playSound(look.dieSound, where);
-                // "Destroyed" is what this event means, so it is the arrow landing
-                // as much as the monster falling. What it draws where it struck is
-                // its layers' -- see Landing; what is left here is the knock, if the
-                // thing that just stopped existing asked for one. Nothing does but a
-                // meteor arriving, so the biggest thump in the game belongs to the
-                // thing that ARRIVED rather than to the man who called for it a
-                // second and a half ago and may well be dead.
-                skillEffects.cast(look.effect,
-                        new uz.dukeengine.core.math.Coord3D(died.position().x(),
-                                died.position().y(), 0f),
-                        cam.getLocation());
-                controls.died(died.object().value());
-                hurtMoments.forget(died.object().value());
-                layOut(died.object().value(), died.deathType(), died.frame());
-                barrels.forget(died.object().value());
-                runningGear.forget(died.object().value());
-                turretBones.forget(died.object().value());
-                drivenBones.forget(died.object().value());
-                moment(GameSounds.diedMoment(died),
-                        WorldMoments.died(died, dying == null ? null : dying.root, this::floorHeightAt),
-                        died.object().value());
-            } else if (event instanceof WeaponFired fired) {
-                var node = unitNodes.get(fired.shooter().value());
-                // Its barrel flashes and kicks whether or not the shot was given a look of its own.
-                var bone = node == null ? null : barrels.fire(fired.shooter().value(), fired.slot());
-                if (fired.weapon() != null) {
-                    // By the shooter's rank first, a veteran's flash: fired.<weapon>.<rank>, falling back by its dots.
-                    moment("fired." + fired.weapon() + (fired.rank() > 0 ? "." + fired.rank() : ""),
-                            WorldMoments.fired(fired, bone, node == null ? null : node.root, this::floorHeightAt),
-                            fired.shooter().value());
-                }
-                if (node != null) {
-                    playSound(visualFor(node.view).fireSound,
-                            node.root.getLocalTranslation());
-                    // The swing, on the frame the weapon let go — unless it began with the wind-up this shot ends.
-                    if (!node.swungFromWindUp) {
-                        playOnce(node, visualFor(node.view).attackAnim);
-                    }
-                    node.swungFromWindUp = false;
-                }
-            } else if (event instanceof uz.dukeengine.combat.event.WeaponWoundUp wound) {
-                var node = unitNodes.get(wound.shooter().value());
-                if (node != null) {
-                    // The whole wind-up drawn: the swing begins now and its blow meets the shot.
-                    playOnce(node, visualFor(node.view).attackAnim);
-                    node.swungFromWindUp = true;
-                }
-            } else if (event instanceof uz.dukeengine.core.event.ObjectHurt hurt) {
-                if (hurt.critical()) {
-                    criticalThisFrame.add(hurt.object().value());
-                }
-                hitStops.heard(hurt, visuals.getHitStop(), visuals.getHitNumbers().bigAt(), timer.getTimeInSeconds());
-                var name = hurtMoments.nameFor(hurt, visuals::namesMoment);
-                if (name != null) {
-                    var victim = unitNodes.get(hurt.object().value());
-                    var cue = WorldMoments.hurt(hurt, victim == null ? null : victim.root, this::floorHeightAt);
-                    moment(name, cue, hurt.object().value());
-                    if (noises != null) {
-                        noises.sounds().play(name, cue.at(), timer.getTimeInSeconds(),
-                                hurt.playerIndex() == game.getLocalPlayerIndex());
-                    }
-                }
-            } else if (event instanceof uz.dukeengine.core.event.SceneryChanged changed) {
-                if (terrain.showScenery(changed.index(), !changed.removed())) {
-                    // ponytail: a ground built whole is built whole again for one tree; streamed worlds rebuild a chunk
-                    layTheGround();
-                }
-            } else if (event instanceof uz.dukeengine.core.event.TextFloated text) {
-                floatingTexts.add(text, text.frame());
-            } else if (event instanceof uz.dukeengine.core.event.StripPlayed strip) {
-                pictureStrips.add(strip, strip.frame());
-            } else if (event instanceof uz.dukeengine.core.event.SoundPlayed sound) {
-                heard(sound);
-            } else if (event instanceof uz.dukeengine.core.event.EffectPlayed played) {
-                played(played);
-            } else if (event instanceof ShotLanded landed && landed.weapon() != null) {
-                var victim = landed.victim() == null ? null : unitNodes.get(landed.victim().value());
-                moment("landed." + landed.weapon(),
-                        WorldMoments.landed(landed, victim == null ? null : victim.root, this::floorHeightAt),
-                        landed.victim() == null ? LayeredEffects.NOBODY : landed.victim().value());
-            }
-        }
-    }
-
-    /**
-     * What was cast this frame, out of the status line.
-     *
-     * <p><b>Why the status line and not an event.</b> The engine's event channel
-     * carries {@code WeaponFired}, and every cast already posts one -- but it says
-     * only WHO fired and where, which is all a muzzle flash needs and not nearly
-     * enough to tell a nova from a blink. The event lives in {@code rts}, which is
-     * shared with games that have never heard of a skill, so widening it there to
-     * carry a key would be the dungeon's idea put somewhere it does not belong.
-     *
-     * <p>The status line is the game talking to its own client and is exactly the
-     * seam for this: a string the engine carries and never reads. It already
-     * carries the things a dungeon has that an RTS does not -- the note, which
-     * stone the floor is built from -- and this is one more.
-     *
-     * <p>Read from the snapshot rather than from the panel, because the panel is
-     * about what is SELECTED: the moment the player clicks a skeleton his own
-     * card is gone and so would his effects be. The frame number is what keeps
-     * one cast drawn once, since the same line is sent again until something
-     * changes.
-     *
-     * <p>Format is {@code cast=<recipe>,<frame>,<x>,<y>,<radius>,<whose>}. A line
-     * that does not parse is dropped in silence: a missing ring is the cheapest
-     * possible failure, and an effect that threw would take the frame with it.
-     */
-    int skillsCastThisFrame(WorldSnapshot snapshot) {
-        if (skillEffects == null || !snapshot.hasStatus()) {
-            return 0;
-        }
-        var casts = SkillEffects.castsIn(snapshot.status(), lastCastFrameDrawn);
-        for (var cast : casts) {
-            lastCastFrameDrawn = Math.max(lastCastFrameDrawn, cast.frame());
-            skillEffects.cast(cast.look(), cast.at(), cam.getLocation());
-            // And the caster is seen doing it, if the game named a gesture for
-            // this recipe. Nothing did until a mage needed both hands.
-            castGesture(unitNodes.get(cast.by()), visuals.getCastAnim(cast.look()));
-        }
-        drawLayers(casts);
-        return casts.size();
-    }
-
-    /**
-     * The layered half of this frame's casts.
-     *
-     * <p>A run and a blink arrive as two marks of one look in one frame -- the spot
-     * he left, which belongs to the floor, and the spot he arrived at, which is his
-     * -- and a layer laid along the run or flashed at both ends needs them as ONE
-     * moment with two ends. Everything else is one mark and one moment, facing the
-     * way from whoever cast it to where it went off.
-     */
-    private void drawLayers(List<SkillEffects.Cast> casts) {
-        if (layered == null) {
-            return;
-        }
-        for (int i = 0; i < casts.size(); i++) {
-            var cast = casts.get(i);
-            var next = i + 1 < casts.size() ? casts.get(i + 1) : null;
-            var spot = new Vector3f(cast.at().x(), 0f, cast.at().y());
-            boolean run = next != null && next.look().equals(cast.look())
-                    && next.frame() == cast.frame() && cast.on() == SkillEffects.NOBODY
-                    && next.on() != SkillEffects.NOBODY;
-            if (run) {
-                var to = new Vector3f(next.at().x(), 0f, next.at().y());
-                layered.cast(cast.look(), new LayeredEffects.Moment(to, spot, to,
-                        to.x - spot.x, to.z - spot.z, next.radius(), next.on(), next.by()), cam);
-                i++;
-                continue;
-            }
-            float facingX = 0f;
-            float facingZ = 0f;
-            var caster = unitNodes.get(cast.by());
-            if (caster != null) {
-                var from = caster.root.getLocalTranslation();
-                facingX = spot.x - from.x;
-                facingZ = spot.z - from.z;
-            }
-            layered.cast(cast.look(), new LayeredEffects.Moment(spot, null, null, facingX,
-                    facingZ, cast.radius(), cast.on(), cast.by()), cam);
-        }
-    }
-
     /**
      * What the layered effects may know about the world: the floor, where a
      * creature stands, who is whose enemy, and what the player can see.
@@ -7187,7 +2424,7 @@ final class DukeRtsApp extends SimpleApplication {
 
             @Override
             public Vector3f whereIs(int unitId) {
-                var node = unitNodes.get(unitId);
+                var node = unitScene.node(unitId);
                 if (node == null) {
                     return null;
                 }
@@ -7216,1415 +2453,16 @@ final class DukeRtsApp extends SimpleApplication {
 
             @Override
             public boolean canSee(float x, float z) {
-                return discovery == null || discovery.canSee(x, z);
+                return fog.canSee(x, z);
             }
         };
-    }
-
-    /**
-     * Every flash eased on by the game's time, and a thing new to the selection flashed as the game names — the
-     * reference's {@code Drawable::onSelected} — with the riders it shows.
-     */
-    private void flashTheNewlySelected(float tpf) {
-        selectionFlash.update(tpf / Particles.FRAME_SECONDS);
-        var look = visuals.getSelectionFlash();
-        if (look != null) {
-            for (int id : selected) {
-                if (!wasSelected.contains(id)) {
-                    flash(id, look);
-                }
-            }
-        }
-        wasSelected = java.util.Set.copyOf(selected);
-    }
-
-    /** A thing flashed as {@code look} says, and what rides on it with it — {@code clientVisibleContainedFlash...}. */
-    private void flash(int id, Visuals.SelectionFlashLook look) {
-        var node = unitNodes.get(id);
-        if (node == null || node.view == null) {
-            return;
-        }
-        selectionFlash.flash(id, node.root, look, toColor(game.getColor(node.view.wears())));
-        for (var rider : unitNodes.values()) {
-            if (rider.view != null && rider.view.ridesOn() == id) {
-                selectionFlash.flash(rider.view.id(), rider.root, look, toColor(game.getColor(rider.view.wears())));
-            }
-        }
-    }
-
-    /** The marks the game burnt into its ground since the last frame, laid whatever the player sees. */
-    private void layTheMapsMarks() {
-        if (marksOf != game) {
-            marksOf = game;
-            marksLaid = 0;
-        }
-        var marks = game.groundMarks();
-        for (; marksLaid < marks.size(); marksLaid++) {
-            var mark = marks.get(marksLaid);
-            scorches.lay(mark.x(), mark.y(), mark.radius(), mark.picture());
-        }
-    }
-
-    /** The pieces the game laid along its ground since the last frame. */
-    private void layTheMapsStrips() {
-        if (stripsOf != game) {
-            stripsOf = game;
-            stripsLaid = 0;
-        }
-        var pieces = game.stripPieces();
-        if (stripsLaid < pieces.size()) {
-            strips.lay(List.copyOf(pieces.subList(stripsLaid, pieces.size())));
-            stripsLaid = pieces.size();
-        }
-    }
-
-    /**
-     * How a piece laid along the ground is drawn: the ground's own material over its picture — lit and shrouded as the
-     * ground — blended by the picture's alpha over it, as the reference draws its roads. Null where it will not load.
-     */
-    private Material stripLook(String path) {
-        if (groundTexture(path) == null) {
-            return null;
-        }
-        var look = ground(ColorRGBA.White, path);
-        var state = look.getAdditionalRenderState();
-        state.setBlendMode(com.jme3.material.RenderState.BlendMode.Alpha);
-        state.setDepthWrite(false);
-        state.setPolyOffset(-1f, -1f);
-        return look;
-    }
-
-    /** The ground as it is drawn, for a mark laid on it: its cells, its heights, and the cut each is drawn along. */
-    private DrawnGround drawnGround() {
-        var grid = builtFrom;
-        if (grid == null) {
-            return DrawnGround.NONE;
-        }
-        var paint = builtPaint;
-        return new DrawnGround() {
-            @Override
-            public float cellSize() {
-                return grid.getCellSize();
-            }
-
-            @Override
-            public int columns() {
-                return grid.getWidth();
-            }
-
-            @Override
-            public int rows() {
-                return grid.getHeight();
-            }
-
-            @Override
-            public float heightAt(float x, float z) {
-                return floorHeightAt(x, z);
-            }
-
-            @Override
-            public uz.dukeengine.core.pathfind.HeightMap.Diagonal diagonal(int cx, int cy) {
-                return TerrainScene.drawnDiagonal(grid, paint, cx, cy);
-            }
-        };
-    }
-
-    /**
-     * How a mark burnt into the ground is drawn: its picture times the reference's one colour for every scorch — the
-     * ground's ambient and half its sun ({@code updateScorches}) — blended by its alpha over the ground, and shrouded
-     * as the ground is where the game keeps a fog. Null, said once, where the picture will not load.
-     */
-    private Material scorchLook(String path) {
-        if (scorchLooks.containsKey(path)) {
-            return scorchLooks.get(path);
-        }
-        Material look = null;
-        try {
-            var picture = assetManager.loadTexture(path);
-            picture.setWrap(com.jme3.texture.Texture.WrapMode.EdgeClamp);
-            var shade = ambientColour.add(sunColour.mult(0.5f));
-            shade.a = 1f;
-            if (fogMap == null) {
-                look = unshaded(shade);
-                look.setTexture("ColorMap", picture);
-            } else {
-                look = new Material(assetManager, "MatDefs/duke/FoggedTerrain.j3md");
-                look.setColor("Color", ColorRGBA.White);
-                look.setColor("Ambient", shade);
-                look.setColor("Sun", ColorRGBA.Black);
-                look.setVector3("SunDirection", sunDirection);
-                look.setTexture("FogMap", fogMap.texture());
-                look.setVector2("FogSize", fogMap.worldSize());
-                tellWhereTheFogHolds(look);
-                look.setTexture("ColorMap", picture);
-                // Set, and dark: nothing burning lights a scorch, and an array never written differs by driver.
-                look.setParam("PointLightColours", com.jme3.shader.VarType.Vector4Array, darkness());
-                look.setParam("PointLightPositions", com.jme3.shader.VarType.Vector4Array, darkness());
-            }
-            var state = look.getAdditionalRenderState();
-            state.setBlendMode(com.jme3.material.RenderState.BlendMode.Alpha);
-            state.setDepthWrite(false);
-            state.setPolyOffset(-1f, -1f);
-        } catch (RuntimeException notThere) {
-            if (missingScorches.add(path)) {
-                LOG.warning(() -> "a scorch mark names a picture that will not load: " + path);
-            }
-        }
-        scorchLooks.put(path, look);
-        return look;
     }
 
     /** A thrown piece's house-colour meshes in the colour the thing it was thrown for wears, dead or alive. */
     private void paintThrown(Spatial piece, Spatial thing) {
         Integer wears = thing.getUserData("wears");
         if (visuals.getHouseColour() != null && wears != null) {
-            paintOwner(piece, visuals.getHouseColour(), toColor(game.getColor(wears)));
-        }
-    }
-
-    /** A fresh copy of a model, or of one named piece of it, for something thrown off; null where it will not load. */
-    private Spatial debrisPiece(String model, String piece) {
-        try {
-            var loaded = assetManager.loadModel(model);
-            return piece == null ? loaded : partOf(loaded, piece, model);
-        } catch (RuntimeException notThere) {
-            warnOnce(model, "debris model");
-            return null;
-        }
-    }
-
-    /**
-     * Lift one named mesh out of a loaded model and stand it on its own.
-     *
-     * <p>Taken out of its parents entirely rather than hidden among them: the
-     * piece is wanted at the origin, pointing along its own axis, and it arrives
-     * carrying wherever it sat on the character — in a hand, at an angle, at head
-     * height. Dropping that transform is what makes an arrow an arrow rather than
-     * an arrow held by an invisible archer.
-     *
-     * <p>A part that is not there leaves the whole model, which is visibly wrong
-     * and says so in the log — better than a unit that quietly disappears.
-     */
-    private Spatial partOf(Spatial model, String partName, String path) {
-        var found = new Spatial[1];
-        model.depthFirstTraversal(spatial -> {
-            if (found[0] == null && spatial instanceof Geometry
-                    && partName.equals(spatial.getName())) {
-                found[0] = spatial;
-            }
-        });
-        if (found[0] == null) {
-            warnOnce(path + "#" + partName, "model part");
-            return model;
-        }
-        var piece = found[0];
-        piece.removeFromParent();
-        piece.setLocalTransform(new com.jme3.math.Transform()); // its own origin
-        var holder = new Node(partName);
-        holder.attachChild(piece);
-        return holder;
-    }
-
-    /**
-     * A body playing out its death, and when to take it away.
-     */
-    private record Dying(int id, UnitNode node, float until) {
-
-        Node root() {
-            return node.root;
-        }
-    }
-
-    /** The bodies the world still keeps, dead, this frame: taken away only once it lets them go. */
-    private final java.util.Set<Integer> lyingDead = new java.util.HashSet<>();
-
-    /** The body playing out {@code id}'s death, or null. */
-    private Dying corpseOf(int id) {
-        for (var body : dying) {
-            if (body.id() == id) {
-                return body;
-            }
-        }
-        return null;
-    }
-
-    private final java.util.List<Dying> dying = new java.util.ArrayList<>();
-
-    /**
-     * Let something that has just died fall over before it goes.
-     *
-     * <p>Driven by the death <em>event</em> rather than by a unit leaving the
-     * snapshot, because those are not the same thing: with fog, a monster walking
-     * out of sight leaves the snapshot too, and a corpse dropped every time
-     * something rounded a corner would be worse than none at all.
-     *
-     * <p>The body is taken out of the live units at once — it is no longer part of
-     * the game, cannot be selected, and must not be given a walk animation because
-     * the simulation says it is moving. What is left is a clip and a timer.
-     */
-    private void layOut(int unitId, uz.dukeengine.core.module.DeathType deathType, int frame) {
-        var node = unitNodes.remove(unitId);
-        selected.remove(unitId);
-        if (node == null) {
-            return;
-        }
-        var clipName = visualFor(node.view).dieAnimFor(deathType, unitId, frame);
-        var clip = clipName == null || node.composer == null
-                ? null : node.composer.getAnimClip(clipName);
-        node.diedOn = frame;
-        if (clip == null) {
-            // Nothing to play: it goes — once the world lets it go, if it keeps the thing a while dead.
-            node.ring.removeFromParent();
-            dying.add(new Dying(unitId, node, timer.getTimeInSeconds()));
-            return;
-        }
-        node.deathClip = clipName;
-        // The trappings of something alive. The bar over its head goes without
-        // being told: it is drawn from the snapshot, and a corpse is not in one.
-        node.ring.removeFromParent();
-
-        // Once through, not looping: a corpse that gets up and dies again forever
-        // is worse than one that never fell over.
-        node.composer.setCurrentAction(clipName, AnimComposer.DEFAULT_LAYER, false);
-        node.currentAnim = clipName;
-        dying.add(new Dying(unitId, node,
-                (float) (timer.getTimeInSeconds() + clip.getLength() + CORPSE_LINGER)));
-    }
-
-    /**
-     * How long a body stays after its death animation has played out.
-     */
-    private static final float CORPSE_LINGER = 1.5f;
-
-    private void reapTheDead() {
-        float now = (float) timer.getTimeInSeconds();
-        dying.removeIf(body -> {
-            if (now < body.until() || lyingDead.contains(body.id())) {
-                return false; // still playing, or still kept in the world
-            }
-            body.root().removeFromParent();
-            groundPictures.forget(body.id());
-            wordTints.forget(body.id());
-            return true;
-        });
-    }
-
-    /**
-     * A thing the world keeps dead, drawn by the words it holds and its health as a living thing is — the reference
-     * goes on drawing a dead thing by its condition: a soldier flung by a blast flailing and then landing, a building
-     * that keeps its ruin drawn as its ruin from its death. Its model, its pieces, its layers and the clips between
-     * their looks, its tints as their words go; its clip what its words choose, else its death lain in; and what lay
-     * under it fading out, as the reference's decal does at a death.
-     */
-    private void lookDead(UnitNode node, UnitView view) {
-        node.view = view;
-        var visual = visualFor(view);
-        var world = visuals.getWorldConditions();
-        var holding = visual.holding(view.healthFraction(), world, view.conditions());
-        var wanted = visual.modelFor(view.healthFraction(), world, view.conditions());
-        if (node.body != null && wanted != null && !wanted.equals(node.modelPath)) {
-            swapBody(node, view, visual, wanted);
-        }
-        if (visual.choosesByWords()) {
-            wearTheWords(node, visual, holding);
-        }
-        if (!visual.boneParticles.isEmpty() && node.boneSystems != null) {
-            node.boneSystems.choose(visual.particlesFor(holding), node.body);
-        }
-        node.root.setLocalTranslation(UnitPlacement.where(view, this::floorHeightAt));
-        node.root.setLocalRotation(UnitPlacement.turn(view));
-        float frames = timer.getTimePerFrame() / Particles.FRAME_SECONDS;
-        if (!visual.groundPictures.isEmpty()) {
-            groundPictures.see(view.id(), visual, null, new Coord3D(view.x(), view.y(), 0f), view.orientation(),
-                    frames, this::floorHeightAt);
-        }
-        if (!visual.wordTints.isEmpty()) {
-            wordTints.see(view.id(), node.root, visual, holding, frames);
-        }
-        for (var layer : node.layers) {
-            layer.wear(node.root, view, world, snapshot.frame(), body -> paintHouseColour(body, view),
-                    clip -> warnOnce(view.templateName() + "/" + clip, "animation"),
-                    bone -> boneOf(node, layer, bone));
-        }
-        if (node.composer != null) {
-            node.currentAnim = WordClip.playDead(node.composer, node.wordClip, node.currentAnim, visual, holding,
-                    snapshot.frame(), view.id(), node.deathClip, node.diedOn,
-                    clip -> warnOnce(view.templateName() + "/" + clip, "animation"));
-        }
-    }
-
-    private UnitNode createUnitNode(UnitView view) {
-        var visual = visualFor(view);
-        var node = new UnitNode();
-        node.root = new Node("unit-" + view.id());
-        node.bornX = view.x();
-        node.bornZ = view.y();
-        node.bornAt = timer.getTimeInSeconds();
-        node.root.setUserData("unitId", view.id());
-        node.root.setUserData("wears", view.wears()); // for what it throws once it is gone from the snapshot
-
-        node.modelPath = visual.modelFor(view.healthFraction(), visuals.getWorldConditions(), view.conditions());
-        Spatial body = visual.shapeless ? new Node("no-shape") : buildBody(visual, java.util.List.of(), node.modelPath);
-        if (body != null && visual.line != null && view.span() != null) {
-            body = layAlong(body, view, visual, node);
-        }
-        if (body != null) {
-            paintHouseColour(body, view);
-            takeUpBody(node, body, visual);
-        }
-        if (body == null) {
-            // A fireball has no model and should not be given the capsule-with-a-
-            // gun-barrel every other modelless thing gets. Its effect is its body.
-            // It comes back already standing where its own fire burns from, and
-            // at the width the recipe asked for: the scale on this visual is for
-            // the plain shape a modelless thing falls back to, and an orb is
-            // given its size in world units.
-            body = effects.bodyFor(visual);
-        }
-        if (body == null) {
-            body = buildPrimitive(view);
-            // Size applies to a shape as much as to a model. Without this a game
-            // could say how big a thing is only by shipping art for it, and
-            // anything small — a dart, a spark, a rat — came out unit-sized.
-            body.setLocalScale(visual.scale);
-            body.setLocalTranslation(0, visual.yOffset, 0);
-        }
-        node.body = body;
-        node.root.attachChild(body);
-
-        node.boneSystems = new BoneSystems(particles, rootNode);
-        for (var look : visual.layers.values()) {
-            node.layers.add(new ModelLayer(look, path -> buildBody(look, java.util.List.of(), path),
-                    new BoneSystems(particles, rootNode)));
-        }
-        node.ring = buildSelectionRing(view);
-        node.root.attachChild(node.ring);
-        node.barTop = heightOf(body, view) + visuals.getUnitBars().lift();
-
-        unitsNode.attachChild(node.root);
-        return node;
-    }
-
-    /**
-     * A creature's body: its model, its skin, its tint, whatever it carries, and
-     * the clips it was named — or {@code null} for a thing that has no model, or
-     * whose model would not load.
-     *
-     * <p>Pulled out of {@link #createUnitNode} because the hero panel's live
-     * portrait wants the same body built the same way, and a second copy of this
-     * paragraph would be a portrait of somebody slightly else — a different tint,
-     * an unarmed archer, a model that is lit and one that is not. Everything about
-     * what a creature <em>is</em> is here; where it stands and what it is doing
-     * belong to whoever asked for it.
-     *
-     * <p>Every material is its own, never shared with another body. A skinned
-     * material holds the pose of the skeleton driving it, so two things on one
-     * material both stand in whichever pose was written last — which is why the
-     * portrait needs a body of its own rather than the one in the world.
-     *
-     * @param alsoWanted clips beyond the creature's own five. A unit asks for
-     *                   none; the portrait asks for the ones only it plays, and nothing else
-     *                   would ever fetch them off the library
-     */
-    private Spatial buildBody(Visuals.UnitVisual visual, java.util.Collection<String> alsoWanted) {
-        return buildBody(visual, alsoWanted, visual.modelPath);
-    }
-
-    /** Whatever a node has to know about the body it is drawn with: how it is animated, and how tall it is. */
-    private void takeUpBody(UnitNode node, Spatial body, Visuals.UnitVisual visual) {
-        node.composer = findControl(body, AnimComposer.class);
-        node.legacyChannel = null;
-        var legacy = findControl(body, AnimControl.class);
-        if (node.composer == null && legacy != null) {
-            node.legacyChannel = legacy.createChannel();
-        }
-        snap(node.composer, visual.attackAnim);
-        snap(node.composer, visual.hurtAnim);
-        node.bodyTop = visual.risesAsBuilt ? UnitPlacement.riseOf(visual, body) : 0f;
-        // Its barrels are the model's, so a new model is found again: a wreck may have none.
-        Integer id = node.root.getUserData("unitId");
-        if (id != null) {
-            barrels.dress(id, body, node.barrelBones != null ? node.barrelBones : visual.weaponBones, visual.recoil);
-            node.pieces.applyTo(body, barrels.flashes(id));
-            runningGear.dress(id, body, visual);
-            node.turretLooks = null; // a new model: its turrets found on it again
-        }
-    }
-
-    /**
-     * Its barrels and its pieces as the words it holds choose them: the best-fitting set's fire bones, flashes and
-     * recoil bones, found on the model again when the choice changes, and its pieces hidden and shown as its states
-     * leave them — see {@link Visuals.UnitVisual#pieces}. A barrel's flash is left to the barrel.
-     */
-    private void wearTheWords(UnitNode node, Visuals.UnitVisual visual, java.util.Set<String> holding) {
-        Integer id = node.root.getUserData("unitId");
-        if (id == null || node.body == null) {
-            return;
-        }
-        var bones = visual.weaponBonesFor(holding);
-        boolean redressed = bones != node.barrelBones;
-        if (redressed) {
-            node.barrelBones = bones;
-            barrels.dress(id, node.body, bones, visual.recoil);
-        }
-        if (node.pieces.choose(visual.pieceStateFor(holding), visual.pieceStates) || redressed) {
-            node.pieces.applyTo(node.body, barrels.flashes(id));
-        }
-        var turrets = visual.turretsFor(holding);
-        if (turrets != node.turretLooks) {
-            node.turretLooks = turrets;
-            turretBones.dress(id, node.body, turrets);
-        }
-    }
-
-    /**
-     * Draw a thing with a different model than the one it has been wearing, without it moving.
-     *
-     * <p>A building crossing a health threshold stops being whole and starts being wrecked, and the thing
-     * on screen has to become the other model where it stands. What holds its place is its own node — the
-     * translation and the rotation live there and the body hangs under it — so the swap is a child
-     * exchanged, and where it stands and which way it faces are never touched.
-     *
-     * <p>Everything measured off the body is measured again, because the new one is a different shape: the
-     * height its bar floats at, and whatever animation controls the new file happens to carry. A swapped
-     * model is usually a different skeleton, so the clip that was playing carries over <b>by name</b> where
-     * the new one has a clip of that name; where it has not, the state machine is let choose again next
-     * frame, which is a thing standing rather than a thing frozen.
-     *
-     * <p>A file that will not load leaves it wearing what it had. Half a wrecked building is better than
-     * none of one.
-     */
-    private void swapBody(UnitNode node, UnitView view, Visuals.UnitVisual visual, String wanted) {
-        stealthLook.forget(view.id()); // what it laid over the old body goes with it
-        var body = buildBody(visual, java.util.List.of(), wanted);
-        if (body != null && visual.line != null && view.span() != null) {
-            body = layAlong(body, view, visual, node);
-        }
-        if (body == null) {
-            node.modelPath = wanted; // it will not load; do not try again every frame
-            return;
-        }
-        paintHouseColour(body, view); // a wrecked barracks is still his
-        var playing = node.currentAnim;
-        if (node.body != null) {
-            node.body.removeFromParent();
-        }
-        node.modelPath = wanted;
-        node.body = body;
-        node.root.attachChild(body);
-        takeUpBody(node, body, visual);
-        node.barTop = heightOf(body, view) + visuals.getUnitBars().lift();
-        // Cleared first either way: what it says it is playing has to be true of the model it is on.
-        node.currentAnim = "";
-        node.actionUntil = 0f;
-        if (playing != null && !playing.isEmpty() && node.composer != null
-                && node.composer.getAnimClip(playing) != null) {
-            play(node, view.looksAs(), playing, true);
-        }
-    }
-
-    /**
-     * A model laid along its thing's line as its look says ({@link LinePieces}), in place of the model at its place,
-     * and fogged as the ground under it is, since it lies where the ground does.
-     */
-    private Spatial layAlong(Spatial model, UnitView view, Visuals.UnitVisual visual, UnitNode node) {
-        var laid = LinePieces.lay(model, visual.line, view.span().from(), view.span().to());
-        if (fogMap != null) {
-            laid.depthFirstTraversal(spatial -> {
-                if (spatial instanceof Geometry geometry) {
-                    geometry.setMaterial(fogged(visual.tint == null ? ColorRGBA.White : toColor(visual.tint),
-                            ambientColour.mult(PLAIN_AMBIENT), skinOf(geometry.getMaterial())));
-                }
-            });
-        }
-        node.laidSpan = view.span();
-        return laid;
-    }
-
-    /**
-     * The same, drawn from a named file rather than from the visual's plain one.
-     *
-     * <p>Which file is the caller's: a template may name a model for a set of conditions — hurt, in snow,
-     * at night — and which of them holds is decided per thing and per frame. Everything else about the body
-     * is the same whichever file it came from.
-     */
-    private Spatial buildBody(Visuals.UnitVisual visual, java.util.Collection<String> alsoWanted,
-            String modelPath) {
-        if (modelPath == null) {
-            return null;
-        }
-        try {
-            var body = assetManager.loadModel(modelPath);
-            if (visual.modelPart != null) {
-                body = partOf(body, visual.modelPart, modelPath);
-            }
-            body.setLocalScale(visual.scale);
-            body.setLocalTranslation(0, visual.yOffset, 0);
-            body.setLocalRotation(new Quaternion().fromAngles(0,
-                    FastMath.DEG_TO_RAD * visual.facingDegrees, 0));
-            dressModel(body, visual, modelPath);
-            // After being dressed, because dressing replaces every material on
-            // it and would put the fire out again.
-            effects.lightThePartsOf(body, visual.effect);
-            putInHisHand(body, visual);
-            borrowAnimations(body, visual, alsoWanted);
-            return body;
-        } catch (RuntimeException e) {
-            warnOnce(modelPath, "model");
-            return null;
-        }
-    }
-
-    /**
-     * Give a loaded model the colour map and tint the game asked for, on a
-     * material this client can actually light.
-     *
-     * <p>The loader's own material is replaced rather than added to, and the
-     * reason is the whole bug this fixes. jME's glTF loader builds a
-     * <b>PBR</b> material, and physically based shading takes its ambient light
-     * from an environment map — a light probe. This client has a sun and a flat
-     * ambient and no probe, so a PBR model comes out black: not untextured, not
-     * mis-scaled, simply unlit. It looks exactly like a missing texture, which is
-     * what makes it worth a comment.
-     *
-     * <p>Plain lighting over the same colour map is what the tiles already use and
-     * what these flat-shaded kits are drawn for. It carries {@code NumberOfBones}
-     * and {@code BoneMatrices}, so skinning keeps working — the one thing the PBR
-     * material was being kept for.
-     *
-     * <p>A material per geometry per unit, never shared: a skinned material holds
-     * the pose of the skeleton driving it, so two monsters on one material would
-     * both stand in whichever pose was written last.
-     */
-    private void dressModel(Spatial body, Visuals.UnitVisual visual, String modelPath) {
-        com.jme3.texture.Texture skin = null;
-        if (visual.texturePath != null) {
-            try {
-                skin = assetManager.loadTexture(skinKey(visual.texturePath, visual.modelPath));
-            } catch (RuntimeException e) {
-                warnOnce(visual.texturePath, "texture");
-            }
-        }
-        var tint = visual.tint == null ? ColorRGBA.White : toColor(visual.tint);
-        var named = skin;
-        var marked = blendsOf(modelPath);
-        body.depthFirstTraversal(spatial -> {
-            if (spatial instanceof Geometry geometry) {
-                var loaded = geometry.getMaterial();
-                var blend = loaded == null || loaded.getName() == null ? null : marked.get(loaded.getName());
-                var colours = named != null ? named : skinOf(loaded);
-                var coloured = ownColour(loaded, colours, modelPath).mult(tint);
-                // A marked light or shadow stays as unlit as the file made it; the rest is lit as it always was.
-                var dressed = blend != null && ModelBlends.unlit(loaded)
-                        ? unlitMaterial(colours, coloured) : creatureMaterial(colours, coloured);
-                ModelBlends.carryOver(loaded, dressed, geometry, blend);
-                geometry.setMaterial(dressed);
-            }
-        });
-    }
-
-    /**
-     * The colour a dressed piece of a model is drawn in before the look's tint. Where the piece has a picture — the
-     * look's, or the one it came with — the picture carries its colours and this is white, the tint laid over it alone.
-     * A glTF model's piece with none is drawn in the colour its file gives its surface, {@code baseColorFactor}, which
-     * jME's loader holds as {@code BaseColor} — {@code Color} on an unlit surface: kept as a picture is kept, so a silver
-     * key with no texture is drawn silver, not white. White for any other file, as every piece was.
-     */
-    static ColorRGBA ownColour(Material loaded, com.jme3.texture.Texture colours, String modelPath) {
-        if (colours != null || loaded == null || !isGltf(modelPath)) {
-            return ColorRGBA.White.clone();
-        }
-        for (var name : new String[] {"BaseColor", "Color"}) {
-            if (loaded.getParamValue(name) instanceof ColorRGBA base) {
-                return base.clone();
-            }
-        }
-        return ColorRGBA.White.clone();
-    }
-
-    private static boolean isGltf(String modelPath) {
-        return modelPath != null && (modelPath.endsWith(".glb") || modelPath.endsWith(".gltf"));
-    }
-
-    /** The materials of a model file the game marked with a blend of its own — see {@link ModelBlends}. Read once. */
-    private final Map<String, Map<String, ModelBlends.Blend>> blendsByModel = new HashMap<>();
-
-    private Map<String, ModelBlends.Blend> blendsOf(String modelPath) {
-        if (modelPath == null || !modelPath.endsWith(".glb")) {
-            return Map.of();
-        }
-        return blendsByModel.computeIfAbsent(modelPath, path -> {
-            var found = assetManager.locateAsset(new com.jme3.asset.AssetKey<>(path));
-            if (found == null) {
-                return Map.of();
-            }
-            try (var in = found.openStream()) {
-                return ModelBlends.read(in);
-            } catch (java.io.IOException | RuntimeException e) {
-                warnOnce(path, "model's materials");
-                return Map.of();
-            }
-        });
-    }
-
-    /** An unlit material over a colour map, tinted: for a marked light or shadow the file drew without lighting. */
-    private Material unlitMaterial(com.jme3.texture.Texture colours, ColorRGBA colour) {
-        var material = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        material.setColor("Color", colour);
-        if (colours != null) {
-            material.setTexture("ColorMap", colours);
-        }
-        return material;
-    }
-
-    /**
-     * How a skin named for a model has to be read to land where the model's own skin did.
-     *
-     * <p>A glTF model's UVs count down from the top of its picture and its loader reads
-     * its own skin that way, where a texture loaded by name alone is turned the other way
-     * up. On a kit whose colours are swatches laid out in rows that is no small error:
-     * every face samples the row below the one it was painted for, and the Skeleton
-     * Healer's green robe came out cream. Anything that is not glTF is read as it always
-     * was.
-     */
-    static com.jme3.asset.TextureKey skinKey(String texturePath, String modelPath) {
-        var key = new com.jme3.asset.TextureKey(texturePath, !isGltf(modelPath));
-        key.setGenerateMips(true);
-        return key;
-    }
-
-    /**
-     * Hang the thing this unit carries on the bone that is there to carry it.
-     *
-     * <p>jME builds the attachment node itself and parents it under the joint, so
-     * the weapon is moved by the same clip that moves the hand and there is
-     * nothing to keep in step each frame. What it does <em>not</em> do is dress
-     * it: a weapon loads with the same PBR material the body does, and this client
-     * cannot light one, so an undressed bow is a black bow. Nor does it know which
-     * way round the model goes — see {@link Visuals.UnitVisual#heldTurn}.
-     *
-     * <p>A bone the rig does not have is a warning rather than a failure. The unit
-     * is drawn empty-handed, which is a thing you can see and think about; a
-     * missing model is not worth a black screen.
-     */
-    private void putInHisHand(Spatial body, Visuals.UnitVisual visual) {
-        if (visual.carried.isEmpty()) {
-            return;
-        }
-        var skin = findControl(body, com.jme3.anim.SkinningControl.class);
-        if (skin == null) {
-            return; // nothing rigged to hang anything on
-        }
-        for (var one : visual.carried) {
-            hang(skin, one, visual);
-        }
-    }
-
-    /**
-     * One carried thing, on one bone. Each failure is its own and loses only itself.
-     */
-    private void hang(com.jme3.anim.SkinningControl skin, Visuals.UnitVisual.Carried one,
-                      Visuals.UnitVisual visual) {
-        if (one.path == null || one.bone == null) {
-            return;
-        }
-        if (skin.getArmature().getJoint(one.bone) == null) {
-            warnOnce(one.path + "@" + one.bone, "bone");
-            return;
-        }
-        Spatial held;
-        try {
-            held = assetManager.loadModel(one.path);
-        } catch (RuntimeException e) {
-            warnOnce(one.path, "model");
-            return;
-        }
-        var tint = visual.tint == null ? ColorRGBA.White : toColor(visual.tint);
-        held.depthFirstTraversal(spatial -> {
-            if (spatial instanceof Geometry geometry) {
-                var loaded = geometry.getMaterial();
-                var colours = skinOf(loaded);
-                geometry.setMaterial(creatureMaterial(colours, ownColour(loaded, colours, one.path).mult(tint)));
-            }
-        });
-        held.setLocalScale(one.scale);
-        held.setLocalRotation(new Quaternion().fromAngles(
-                FastMath.DEG_TO_RAD * one.pitch,
-                FastMath.DEG_TO_RAD * one.yaw,
-                FastMath.DEG_TO_RAD * one.roll));
-        held.setLocalTranslation(one.x, one.y, one.z);
-        skin.getAttachmentsNode(one.bone).attachChild(held);
-    }
-
-    /**
-     * The colour map a loaded material already holds.
-     *
-     * <p>Creatures come with a skin beside them and the game names it; kit props
-     * do not — a barrel carries its colours inside its own glTF, pointing at the
-     * pack's atlas. Naming no texture therefore means <em>the one it came
-     * with</em>, not <em>none</em>. Reading it as none is how a barrel and a bare
-     * tree came out plain white: the right shape, lit correctly, wearing the
-     * tint over nothing at all.
-     */
-    static com.jme3.texture.Texture skinOf(Material material) {
-        if (material == null) {
-            return null;
-        }
-        // Asked by its role first: jME lists a glTF piece's normal and emissive maps before its base colour, and a
-        // piece dressed in its normal map comes out pale lavender.
-        for (var role : SKIN_ROLES) {
-            var param = material.getTextureParam(role);
-            if (param != null && param.getTextureValue() != null) {
-                return param.getTextureValue();
-            }
-        }
-        for (var param : material.getParams()) {
-            if (param.getValue() instanceof com.jme3.texture.Texture texture) {
-                return texture;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * How much of its own colour a creature keeps where no light reaches it --
-     * which is also where a hit flash starts from and fades back to.
-     */
-    private static final float CREATURE_AMBIENT = 0.55f;
-
-    /** The names a material holds its base colour's picture by, in the order asked. */
-    private static final String[] SKIN_ROLES = {"BaseColorMap", "DiffuseMap", "ColorMap"};
-
-    /**
-     * Flat lighting over a kit's own colour map, tinted.
-     */
-    /**
-     * Paint the parts of a body its art marked for its owner in its owner's colour.
-     *
-     * <p>Laid over what is there, never instead of it: the material's own colour and its own picture are
-     * multiplied by the owner's, so the shading painted into a house-colour mesh — which is grey for
-     * exactly this reason — comes through. The shadowed side too, or a red army goes grey in the shade.
-     *
-     * <p>After the body is built rather than inside {@link #buildBody}, because a body does not know whose
-     * it is — the same file serves both sides, and the portrait builds one that belongs to nobody. So it is
-     * done where the owner is known: when a unit arrives, and again when its model is swapped for a
-     * condition, because a wrecked barracks is still his.
-     */
-    private void paintHouseColour(Spatial body, UnitView view) {
-        var prefix = visuals.getHouseColour();
-        if (prefix == null || body == null) {
-            return; // a game that names none is drawn as it always was
-        }
-        paintOwner(body, prefix, toColor(game.getColor(view.wears()))); // a disguise's to those it fools
-    }
-
-    /**
-     * The parts of {@code body} named with {@code prefix} painted {@code owner}: the colour each was drawn with, kept
-     * the first time, times the owner's — so painting again for a new owner gives that colour times theirs.
-     */
-    static void paintOwner(Spatial body, String prefix, ColorRGBA owner) {
-        body.depthFirstTraversal(spatial -> {
-            if (!(spatial instanceof Geometry geometry) || !isHouseColoured(geometry, body, prefix)) {
-                return;
-            }
-            var material = geometry.getMaterial();
-            for (var channel : java.util.List.of("Diffuse", "Ambient")) {
-                // From the colour it was drawn with, kept the first time: painted again for a new owner, it is that
-                // colour times theirs, not the last owner's times theirs.
-                ColorRGBA base = geometry.getUserData("house." + channel);
-                if (base == null && material.getParamValue(channel) instanceof ColorRGBA was) {
-                    base = was.clone();
-                    geometry.setUserData("house." + channel, base);
-                }
-                if (base != null) {
-                    material.setColor(channel, base.mult(owner));
-                }
-            }
-        });
-    }
-
-    /**
-     * Whether a mesh is one of the parts marked for its owner: its own name, or the name of anything it
-     * hangs under inside this body, begins with the prefix the game gave — letter case aside.
-     *
-     * <p>The ancestors as well as the mesh, because a loader does not always keep a name where the art put
-     * it. A glTF node called {@code HOUSECOLOR01} may reach the scene as a node of that name holding a
-     * geometry called something else entirely, and it is the node the artist named.
-     */
-    static boolean isHouseColoured(Spatial geometry, Spatial body, String prefix) {
-        for (Spatial at = geometry; at != null; at = at.getParent()) {
-            var name = at.getName();
-            if (name != null && name.regionMatches(true, 0, prefix, 0, prefix.length())) {
-                return true;
-            }
-            if (at == body) {
-                return false; // nothing above the body is part of it
-            }
-        }
-        return false;
-    }
-
-    private Material creatureMaterial(com.jme3.texture.Texture skin, ColorRGBA colour) {
-        var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
-        material.setBoolean("UseMaterialColors", true);
-        material.setColor("Diffuse", colour);
-        material.setColor("Ambient", colour.mult(CREATURE_AMBIENT));
-        material.setColor("Specular", ColorRGBA.Black); // kit art has no highlights
-        material.setFloat("Shininess", 1f);
-        if (skin != null) {
-            material.setTexture("DiffuseMap", skin);
-        }
-        return material;
-    }
-
-    /**
-     * How long the old clip is faded out under a new one, on the legacy path.
-     */
-    private static final float BLEND_SECONDS = 0.2f;
-
-    /**
-     * How long a <em>blow</em> is allowed to fade in over what came before.
-     *
-     * <p>jME cross-fades into every clip and gives it four tenths of a second to
-     * do it, which is right for settling from a walk into a stand and quite wrong
-     * for a punch: the clip is one second long, so nearly half of it was spent
-     * arriving, and the strike had no snap in it at all. A blow is a moment and
-     * has to start on the frame it starts.
-     */
-    private static final float SNAP_SECONDS = 0.08f;
-
-    /**
-     * Let this clip start at once rather than easing in over the default fade.
-     */
-    private static void snap(AnimComposer composer, String clipName) {
-        if (composer == null || clipName == null || composer.getAnimClip(clipName) == null) {
-            return;
-        }
-        if (composer.action(clipName) instanceof BlendableAction blendable) {
-            blendable.setTransitionLength(SNAP_SECONDS);
-        }
-    }
-
-    /**
-     * Fetch this unit's animations out of a library file built on the same
-     * skeleton, and put them on the model that has none.
-     *
-     * <p>The library is loaded once and kept: it is a large file and every monster
-     * on the floor wants clips out of it. What each monster gets is its own,
-     * though — a clip's tracks point straight at the joints they drive, so a clip
-     * shared between two monsters would animate whichever of them was built first
-     * and leave the other standing.
-     */
-    private void borrowAnimations(Spatial body, Visuals.UnitVisual visual,
-                                  java.util.Collection<String> alsoWanted) {
-        var wanted = new java.util.ArrayList<String>();
-        for (var name : new String[]{visual.idleAnim, visual.walkAnim,
-                visual.attackAnim, visual.hurtAnim, visual.dieAnim}) {
-            if (name != null) {
-                wanted.add(name);
-            }
-        }
-        for (var name : alsoWanted) {
-            if (name != null && !wanted.contains(name)) {
-                wanted.add(name);
-            }
-        }
-        for (var name : visual.dieAnims.values()) {
-            if (!wanted.contains(name)) {
-                wanted.add(name);
-            }
-        }
-        for (var picks : visual.rolePicks.values()) {
-            for (var pick : picks) {
-                if (!wanted.contains(pick.clip())) {
-                    wanted.add(pick.clip());
-                }
-            }
-        }
-        // And whatever else the game said this one needs -- a gesture it casts
-        // with, say. A clip nobody asked for by name is not copied, and then
-        // nothing can play it: see Visuals.UnitVisual.alsoAnimation.
-        for (var name : visual.otherAnims) {
-            if (!wanted.contains(name)) {
-                wanted.add(name);
-            }
-        }
-        for (var source : visual.animations) {
-            var library = animationLibraries.get(source.assetPath());
-            if (library == null) {
-                try {
-                    library = assetManager.loadModel(source.assetPath());
-                } catch (RuntimeException e) {
-                    warnOnce(source.assetPath(), "animation library");
-                    continue;
-                }
-                animationLibraries.put(source.assetPath(), library);
-            }
-            boolean arrived = source.clipName() == null
-                    ? AnimationLibrary.copy(library, body, wanted) > 0
-                    : AnimationLibrary.copySingle(library, body, source.clipName());
-            if (!arrived && missingAssets.add(source.assetPath() + "#clips")) {
-                var path = source.assetPath();
-                LOG.warning(() -> "no animation was taken from " + path
-                        + " — either it holds none, or it and the model are on"
-                        + " different skeletons");
-            }
-        }
-    }
-
-    /**
-     * Animation libraries, loaded once each and shared by everything that borrows.
-     */
-    private final Map<String, Spatial> animationLibraries =
-            new java.util.concurrent.ConcurrentHashMap<>();
-
-    /**
-     * What colour to draw this unit: the type's own if the game gave it one,
-     * otherwise its player's.
-     *
-     * <p>Player colour says whose it is, which is all an RTS usually needs. A
-     * game fielding several kinds of thing per side needs to say what it is too,
-     * and with no models yet there is nothing else to say it with.
-     */
-    private ColorRGBA colourOf(UnitView view) {
-        var own = visualFor(view).colour;
-        return toColor(own != null ? own : game.getColor(view.wears()));
-    }
-
-    /**
-     * A clean placeholder in the player's colour when no model is assigned.
-     */
-    private Spatial buildPrimitive(UnitView view) {
-        var color = colourOf(view);
-        var group = new Node("primitive");
-        if (view.structure()) {
-            var box = new Geometry("b", new Box(2.6f, 1.8f, 2.6f));
-            box.setMaterial(lit(color));
-            box.setLocalTranslation(0, 1.8f, 0);
-            group.attachChild(box);
-        } else {
-            var hull = new Geometry("h", new Cylinder(2, 16, 1.1f, 2.4f, true));
-            hull.setMaterial(lit(color));
-            hull.rotate(FastMath.HALF_PI, 0, 0);
-            hull.setLocalTranslation(0, 1.2f, 0);
-            group.attachChild(hull);
-            var barrel = new Geometry("barrel", new Box(1.1f, 0.18f, 0.18f));
-            barrel.setMaterial(lit(color.mult(1.4f)));
-            barrel.setLocalTranslation(1.2f, 1.4f, 0);
-            group.attachChild(barrel);
-        }
-        return group;
-    }
-
-    /**
-     * The ring under a selected unit — green for his own, red for anything else.
-     *
-     * <p>Not decoration. Something that is not his can be selected, because that
-     * is how its health and its damage are read off the bar, and it cannot be
-     * ordered. A green ring under a skeleton would promise a command that the
-     * next right-click is not going to give.
-     */
-    private Geometry buildSelectionRing(UnitView view) {
-        var ring = new Geometry("ring", new com.jme3.scene.Mesh());
-        ring.setMaterial(unshaded(view.playerIndex() == game.getLocalPlayerIndex()
-                ? new ColorRGBA(0.4f, 1f, 0.4f, 1f) : new ColorRGBA(1f, 0.36f, 0.3f, 1f)));
-        ring.setCullHint(Spatial.CullHint.Always);
-        return ring;
-    }
-
-    /** How far over the ground the ring under a selected thing lies. */
-    private static final float RING_LIFT = 0.06f;
-
-    /**
-     * The ring under a selected thing laid over the ground under it, where a flat disc under its feet put the half on
-     * a slope that climbs under the hill: turned back against its thing's own turn, pitch and sway, so it lies as the
-     * ground does however the thing stands, and on the ground under a thing in the air.
-     */
-    private void layRing(UnitNode node, UnitView view) {
-        var root = node.root.getLocalTranslation();
-        node.ring.setLocalRotation(node.root.getLocalRotation().inverse());
-        node.ringDisc.lay(node.ring.getMesh(), new Coord3D(root.x, root.z, 0f), view.structure() ? 4.2f : 2.2f,
-                root.y - RING_LIFT, this::floorHeightAt);
-        node.ring.updateModelBound();
-    }
-
-    /**
-     * A colour that is drawn over the scene rather than into it.
-     */
-    private Material overlay(ColorRGBA colour) {
-        var material = unshaded(colour);
-        material.getAdditionalRenderState().setDepthTest(false);
-        return material;
-    }
-
-    /**
-     * How tall this unit stands, measured rather than assumed.
-     *
-     * <p>A model's height depends on the kit it came from and the scale the game
-     * gave it, neither of which the client can guess. The fallback is the old
-     * constant, for the primitives that have no bounds worth measuring.
-     */
-    private static float heightOf(Spatial body, UnitView view) {
-        float fallback = view.structure() ? 6.5f : 4.5f;
-        if (body == null) {
-            return fallback;
-        }
-        body.updateModelBound();
-        body.updateGeometricState();
-        return body.getWorldBound() instanceof com.jme3.bounding.BoundingBox box
-                ? Math.max(fallback, box.getYExtent() * 2f) : fallback;
-    }
-
-    private void updateUnitNode(UnitNode node, UnitView view) {
-        boolean handedOver = node.view != null && node.view.playerIndex() != view.playerIndex();
-        boolean recoloured = node.view != null && node.view.wears() != view.wears();
-        node.view = view;
-        if (handedOver || recoloured) {
-            // Its owner changed, however it did, or the colours it wears to this viewer: drawn in the new ones.
-            node.root.setUserData("wears", view.wears());
-            paintHouseColour(node.body, view);
-            node.layers.forEach(layer -> paintHouseColour(layer.body(), view));
-        }
-        if (handedOver) {
-            selected.remove(view.id()); // out of the old owner's hands
-        }
-        if (!view.selectable()) {
-            selected.remove(view.id()); // made unselectable, or sold: out of the selection the frame it is
-        }
-        // What it looks like can change while it stands there: a building past a health threshold is a
-        // wrecked building, and the wreck is a different file. Asked every frame because the answer is a
-        // lookup against a map that is empty for every template that named no second model.
-        var visual = visualFor(view);
-        // Its own words too — an upgrade's weapon set, a rank — for a look that chooses anything by them.
-        var holding = visual.choosesByWords()
-                ? visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()) : null;
-        var wanted = visual.modelFor(view.healthFraction(), visuals.getWorldConditions(), view.conditions());
-        if (node.body != null && wanted != null && !wanted.equals(node.modelPath)) {
-            swapBody(node, view, visual, wanted);
-        } else if (visual.line != null && view.span() != null && !view.span().equals(node.laidSpan)) {
-            swapBody(node, view, visual, node.modelPath); // its line moved: laid again along the new one
-        }
-        if (holding != null) {
-            wearTheWords(node, visual, holding);
-        }
-        if (!visual.boneParticles.isEmpty() && node.boneSystems != null) {
-            node.boneSystems.choose(visual.particlesFor(holding != null ? holding
-                    : visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions())),
-                    node.body);
-        }
-        node.root.setLocalTranslation(UnitPlacement.where(view, this::floorHeightAt));
-        node.root.setLocalRotation(UnitPlacement.turn(view));
-        if (visual.sway != null && view.pitch() == 0f && view.roll() == 0f) {
-            node.root.setLocalRotation(visual.sway.tiltAt(view.id(), snapshot.gameTimeSeconds())
-                    .mult(node.root.getLocalRotation()));
-        }
-        if (node.laidSpan != null && node.body != null) {
-            // The line is the world's: where it starts and which way it runs, taken into the thing's own frame.
-            var start = new Vector3f(node.laidSpan.from().x(), node.laidSpan.from().z(), node.laidSpan.from().y());
-            var end = new Vector3f(node.laidSpan.to().x(), node.laidSpan.to().z(), node.laidSpan.to().y());
-            var back = node.root.getLocalRotation().inverse();
-            node.body.setLocalTranslation(back.mult(start.subtract(node.root.getLocalTranslation())));
-            node.body.setLocalRotation(back.mult(LinePieces.along(end.subtract(start))));
-        }
-        if (!visual.groundPictures.isEmpty()) {
-            groundPictures.see(view.id(), visual,
-                    visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()),
-                    view.hostile(), node.body, new Coord3D(view.x(), view.y(), 0f), view.orientation(),
-                    timer.getTimePerFrame() / Particles.FRAME_SECONDS, this::floorHeightAt);
-        }
-        if (visuals.getSeeThroughWord() != null || visuals.getGlowWord() != null || visuals.getOwnGlowWord() != null
-                || view.opacity() < 1f || stealthLook.looking(view.id())) {
-            stealthLook.see(view, node.body, visuals, visual, timer.getTimePerFrame() / Particles.FRAME_SECONDS,
-                    view.playerIndex() == game.getLocalPlayerIndex());
-        }
-        if (!visual.wordTints.isEmpty()) {
-            wordTints.see(view.id(), node.root, visual,
-                    visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()),
-                    timer.getTimePerFrame() / Particles.FRAME_SECONDS);
-        }
-        if (visual.risesAsBuilt && node.body != null) {
-            node.body.setLocalTranslation(0f, visual.yOffset - UnitPlacement.sunk(view.built(), node.bodyTop), 0f);
-        }
-        for (var layer : node.layers) {
-            layer.wear(node.root, view, visuals.getWorldConditions(), snapshot.frame(),
-                    body -> paintHouseColour(body, view),
-                    clip -> warnOnce(view.templateName() + "/" + clip, "animation"),
-                    bone -> boneOf(node, layer, bone));
-        }
-        runningGear.see(view.id(), view, snapshot.frame());
-        turretBones.turn(view.id(), view.turrets());
-        drivenBones.drive(view.id(), node.body, visual.drivenBones, view, timer.getTimeInSeconds());
-        // Its shadow, from its opaque pieces as drawn — none while it is drawn see-through or faded.
-        boolean casts = visual.castsShadow && !stealthLook.looking(view.id());
-        if (sunShadows != null && node.body != null && (casts != node.casting || node.body != node.shadowBody)) {
-            sunShadows.cast(node.body, casts, visual.leastSunHeight);
-            node.casting = casts;
-            node.shadowBody = node.body;
-        }
-
-        boolean ringed = visuals.drawsSelectionRings() && selected.contains(view.id());
-        node.ring.setCullHint(ringed ? Spatial.CullHint.Never : Spatial.CullHint.Always);
-        if (ringed) {
-            layRing(node, view);
-        }
-
-        flinch(node, view);
-        animate(node, view);
-    }
-
-    /** A bone of a thing's drawn models by name: its body's, else another of its layers' than {@code asking}. */
-    private static Spatial boneOf(UnitNode node, ModelLayer asking, String name) {
-        var bone = Bones.named(node.body, name);
-        for (var layer : node.layers) {
-            if (bone != null) {
-                break;
-            }
-            if (layer != asking) {
-                bone = Bones.named(layer.body(), name);
-            }
-        }
-        return bone;
-    }
-
-    /**
-     * A short flinch when something has taken health off it.
-     *
-     * <p>Read off the health in the snapshot rather than off whatever fired,
-     * which is not the same moment and sometimes not the same thing at all: an
-     * arrow is loosed a third of a second before it arrives, and splash, a spell
-     * or a floor's own trap have no shot to listen for. A drop between two
-     * snapshots is not a guess about what happened — it is the thing that
-     * happened, and it is already in hand.
-     *
-     * <p>Without it a monster absorbs a blow with no sign that it landed, and a
-     * fight reads as two things standing near each other.
-     */
-    private void flinch(UnitNode node, UnitView view) {
-        float before = node.lastHealth;
-        node.lastHealth = view.health();
-        // Nothing on the first sight of a unit, and nothing on the blow that
-        // killed it: that one has a death to play and this would talk over it.
-        if (!Float.isNaN(before) && view.health() < before && view.health() > 0f) {
-            float now = timer.getTimeInSeconds();
-            // Never over a swing, a cast or its work: a hero in a crowd fights rather than trembles.
-            boolean busy = now < node.actionUntil || now < node.gestureUntil || view.busyClip() != null
-                    || view.attacking();
-            if (flinches.flinches(visuals.getFlinch(), view.id(), now, busy, before - view.health(),
-                    criticalThisFrame.contains(view.id()), visuals.getHitNumbers().bigAt())) {
-                playOnce(node, visualFor(view).hurtAnim);
-            }
-        }
-    }
-
-    /** Whether a busy clip has just begun: one now, and not the one it had. */
-    static boolean cutsIn(String wasBusy, String isBusy) {
-        return isBusy != null && !isBusy.equals(wasBusy);
-    }
-
-    /**
-     * Choose the clip that matches what the unit is doing.
-     *
-     * <p>What a unit is <em>doing</em> is only ever moving or standing. Attacking
-     * used to be here as a third state and it was never a state: a snapshot's
-     * {@code attacking} means the unit <em>has a target</em>, which stays true for
-     * the whole engagement — the walk in, the reload, the standing about between
-     * blows. A clip chosen from it therefore ran on a loop at its own tempo, so a
-     * monster threw punches continuously and none of them was the blow. Worse, the
-     * loop's rate is the clip's: the heavy one that strikes every 1.6 seconds threw
-     * a one-second punch, so it punched half again as often as it hit.
-     *
-     * <p>The swing is a moment and is played as one, on the shot — see
-     * {@link #playOnce}. Between blows a unit that has run out of things to do is
-     * standing, which is what it looks like.
-     */
-    private void animate(UnitNode node, UnitView view) {
-        if (riderOf.containsKey(view.id())) {
-            return; // a ridden mount walks as its rider does — see paceTheMount
-        }
-        if (node.carryingAgainAt > 0f && timer.getTimeInSeconds() >= node.carryingAgainAt) {
-            carrying(node, true);
-            node.carryingAgainAt = 0f;
-        }
-        if (cutsIn(node.lastBusy, view.busyClip())) {
-            // A stagger landing mid-swing: the swing's blows will not land, so its clip gives way to the flinch.
-            node.actionUntil = 0f;
-            UpperBody.end(node.composer);
-        }
-        node.lastBusy = view.busyClip();
-        if (timer.getTimeInSeconds() < node.actionUntil) {
-            return; // a blow or a flinch has the model; it will hand it back
-        }
-        var visual = visualFor(view);
-        if (playByWords(node, visual, view)) {
-            return;
-        }
-        var busy = view.busyClip();
-        if (busy != null) {
-            if (!busy.equals(node.currentAnim)) {
-                play(node, view.looksAs(), busy, true); // its work, looped; a clip it has not is played as nothing
-            }
-            return;
-        }
-        boolean walking = view.moving() && visual.walkAnim != null;
-        if (!walking && visual.isIdle(node.currentAnim)) {
-            return; // standing with the idle it drew as it began to
-        }
-        String wanted = walking ? visual.walkAnim : visual.idleFor(view.id(), snapshot.frame());
-        if (wanted != null && !wanted.equals(node.currentAnim)) {
-            play(node, view.looksAs(), wanted, true);
-        }
-        if (walking && visual.walkDistance > 0f && node.composer != null) {
-            // Paced to its speed, the simulation's: a soldier slowed on a slope steps slower instead of sliding.
-            var action = node.composer.getCurrentAction();
-            var clip = node.composer.getAnimClip(visual.walkAnim);
-            if (action != null && clip != null) {
-                action.setSpeed(Visuals.paced(clip.getLength(), visual.walkDistance, view.speed(), 1.0));
-            }
-        }
-    }
-
-    /**
-     * The clip the words it holds choose, where they choose one: set on the model when the choice changes, held still
-     * — its time set from the game's frame, never advanced by the window's — and false where they choose none, so
-     * its roles play. Leaving a chosen clip clears what it was playing, so its role starts afresh even where it is
-     * the same clip.
-     */
-    private boolean playByWords(UnitNode node, Visuals.UnitVisual visual, UnitView view) {
-        if (visual.clipStates.isEmpty() || node.composer == null) {
-            return false;
-        }
-        var holding = visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions());
-        boolean had = node.wordClip.chosen();
-        var chosen = WordClip.playOn(node.composer, node.wordClip, node.currentAnim, visual, holding, snapshot.frame(),
-                view.id(), view.speed(), clip -> warnOnce(view.templateName() + "/" + clip, "animation"));
-        if (chosen == null) {
-            if (had) {
-                node.currentAnim = "";
-            }
-            return false;
-        }
-        node.currentAnim = chosen;
-        return true;
-    }
-
-    /**
-     * Play a clip once, over whatever the unit was doing, and give the model back
-     * when it has finished.
-     *
-     * <p>For the things that <em>happen</em> — a blow struck, a blow taken. They
-     * are moments, and a moment played on a loop is not the same thing slower: it
-     * is a different thing entirely, and it is what made a monster in a fight look
-     * like a monster shadow-boxing.
-     *
-     * <p><b>A gesture the game named outranks this.</b> A skill with a wind-up
-     * fires the weapon too — a meteor is a shot that lands late — so the same
-     * frame that starts the two-handed cast also carries a {@code WeaponFired},
-     * and the ordinary swing was landing on top of the cast and winning. What the
-     * player saw was a mage reaching out one hand, which is the shooting clip, and
-     * no sign of the animation that had just been asked for.
-     *
-     * <p>The cost is that a flinch is swallowed for as long as a gesture runs. It
-     * is the right way round: the gesture is a thing the game asked for by name
-     * and the flinch is one the client supplies, and losing the whole of the first
-     * to half a second of the second is the worse trade.
-     */
-    private void playOnce(UnitNode node, String clipName) {
-        if (clipName == null || node.composer == null) {
-            return;
-        }
-        if (timer.getTimeInSeconds() < node.gestureUntil) {
-            return; // a cast the game named is already being made
-        }
-        var clip = node.composer.getAnimClip(clipName);
-        if (clip == null) {
-            return;
-        }
-        var joint = node.view.moving() ? visualFor(node.view).upperBody : null;
-        var skin = joint == null ? null
-                : AnimationLibrary.findControl(node.body, com.jme3.anim.SkinningControl.class);
-        if (skin != null && UpperBody.play(node.composer, skin.getArmature(), joint, clipName)) {
-            return; // on the move: the blow above, the walk going on below
-        }
-        play(node, node.view.looksAs(), clipName, false);
-        node.actionUntil = (float) (timer.getTimeInSeconds() + clip.getLength());
-    }
-
-    /**
-     * The gesture a spell is cast with, on the creature that cast it.
-     *
-     * <p>Timed rather than simply played. A spell with a wind-up on it -- a
-     * meteor takes a second and a half to arrive -- wants a gesture that ENDS as
-     * it lands: the same clip at its own speed either finishes early and leaves
-     * him standing there waiting, or runs on past the impact and reads as
-     * somebody waving at a hole in the ground. How long it should take is the
-     * game's to say, since the game is the one that knows about the wind-up.
-     *
-     * <p>And his hands come empty. This one is two-handed, and a mage casting it
-     * with a staff in one fist and a book in the other is a mage doing two things
-     * at once -- see {@link #carrying}.
-     */
-    private void castGesture(UnitNode node, Visuals.CastAnim gesture) {
-        if (node == null || node.composer == null || gesture == null) {
-            return;
-        }
-        var clip = node.composer.getAnimClip(gesture.clip());
-        if (clip == null) {
-            warnOnce(node.view.templateName() + "/" + gesture.clip(), "cast animation");
-            return;
-        }
-        float length = (float) clip.getLength();
-        float seconds = gesture.seconds() > 0f ? gesture.seconds() : length;
-        play(node, node.view.looksAs(), gesture.clip(), false);
-        var action = node.composer.getCurrentAction();
-        if (action != null && seconds > 0f) {
-            action.setSpeed(length / seconds);
-        }
-        node.actionUntil = (float) (timer.getTimeInSeconds() + seconds);
-        node.gestureUntil = node.actionUntil;
-        carrying(node, false);
-        node.carryingAgainAt = node.actionUntil;
-    }
-
-    /**
-     * Put what a creature carries into its hands, or take it out of them.
-     *
-     * <p>Culled rather than detached and rebuilt: a weapon hangs on the bone's own
-     * attachments node, so hiding it is one flag and getting it back is the same
-     * flag -- where taking it off and hanging it again would reload the model and
-     * lose the tint and the turn that were measured onto it.
-     */
-    private void carrying(UnitNode node, boolean shown) {
-        var skin = node.body == null ? null
-                : AnimationLibrary.findControl(node.body, com.jme3.anim.SkinningControl.class);
-        if (skin == null) {
-            return;
-        }
-        var visual = visualFor(node.view);
-        for (var one : visual.carried) {
-            if (one.bone == null || skin.getArmature().getJoint(one.bone) == null) {
-                continue;
-            }
-            skin.getAttachmentsNode(one.bone).setCullHint(
-                    shown ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
-        }
-    }
-
-    private void play(UnitNode node, String templateName, String clipName, boolean loop) {
-        try {
-            if (node.composer != null) {
-                // At its own speed: a clip its words held still, or a cast timed to its wind-up, left its action slowed.
-                node.composer.setCurrentAction(clipName, AnimComposer.DEFAULT_LAYER, loop).setSpeed(1);
-            } else if (node.legacyChannel != null) {
-                node.legacyChannel.setAnim(clipName, BLEND_SECONDS);
-                node.legacyChannel.setLoopMode(loop
-                        ? com.jme3.animation.LoopMode.Loop : com.jme3.animation.LoopMode.DontLoop);
-            } else {
-                return;
-            }
-            node.currentAnim = clipName;
-        } catch (IllegalArgumentException e) {
-            warnOnce(templateName + "/" + clipName, "animation");
-            node.currentAnim = clipName; // don't retry every frame
+            Bodies.paintOwner(piece, visuals.getHouseColour(), Materials.colour(game.getColor(wears)));
         }
     }
 
@@ -8644,8 +2482,8 @@ final class DukeRtsApp extends SimpleApplication {
         // A game whose status the panel can draw gets it drawn; anything else is
         // still written out along the top, which is what every game got before.
         var cursor = inputManager.getCursorPosition();
-        var frame = new HudPart.Frame(snapshot, tpf, !menu.isVisible() && !snapshot.paused(), portraitSubject(),
-                cursor.x, cursor.y, screen == Screen.PLAYING);
+        var frame = new HudPart.Frame(snapshot, tpf, !screens.menu().isVisible() && !snapshot.paused(),
+                portraitSubject(), cursor.x, cursor.y, screens.now() == Screen.PLAYING);
         boolean drawn = false;
         for (var part : parts) {
             drawn |= part.show(frame);
@@ -8656,11 +2494,11 @@ final class DukeRtsApp extends SimpleApplication {
         // game about a resource the game does not have.
         hud.setText(drawn ? "" : "$ %d    power %s    t=%.1fs    selected %d%s%s%s".formatted(
                 snapshot.localPlayerMoney(), power, snapshot.gameTimeSeconds(),
-                selected.size(), selectedHealth(),
+                selected.size(), orders.selectedHealth(),
                 snapshot.hasStatus() ? "    " + snapshot.status() : "",
                 snapshot.paused() ? "    [PAUSED]" : ""));
 
-        var producer = selectedProducer();
+        var producer = orders.selectedProducer();
         if (producer == null) {
             buildMenu.setText("");
             return;
@@ -8677,763 +2515,29 @@ final class DukeRtsApp extends SimpleApplication {
                 cam.getWidth(), cam.getHeight());
     }
 
-    // ---- assets & helpers ----
-
-    private void playSound(String assetPath, Vector3f position) {
-        var audio = soundNode(assetPath);
-        if (audio == null) {
-            return;
-        }
-        audio.setLocalTranslation(position);
-        audio.playInstance();
+    /** A move the game gave, answered as the player's own click there is — see {@link Duke3D#answerMove}. */
+    void answerMove(Coord3D place) {
+        orders.answerMove(place);
     }
 
-    /**
-     * This sound, ready to play, or {@code null} if it is not there.
-     *
-     * <p>Kept rather than built per shot, and built ahead of the first shot by
-     * {@link ArtLoad}: decoding a sound is not much work, but it is work in the
-     * frame the arrow leaves the bow, which is the frame that can least afford it.
-     */
-    private AudioNode soundNode(String assetPath) {
-        if (assetPath == null || missingAssets.contains(assetPath)) {
-            return null;
-        }
-        var audio = audioCache.computeIfAbsent(assetPath, path -> {
-            try {
-                var node = new AudioNode(assetManager, path, AudioData.DataType.Buffer);
-                node.setPositional(true);
-                node.setRefDistance(40f);
-                rootNode.attachChild(node);
-                return node;
-            } catch (RuntimeException e) {
-                warnOnce(path, "sound");
-                return null;
-            }
-        });
-        if (audio == null) {
-            missingAssets.add(assetPath);
-        }
-        return audio;
+    /** Arm a button of the game's own canvas as the bar arms its own — see {@link Duke3D#aim}. */
+    void armFromGame(uz.dukeengine.core.view.CommandButton button, float radius, String pointer, AimDecal decal,
+            java.util.function.Consumer<AimOutcome> told) {
+        buttons.armFromGame(button, radius, pointer, decal, told);
     }
 
-    private void warnOnce(String asset, String kind) {
-        if (missingAssets.add(asset)) {
-            LOG.warning(() -> "could not load " + kind + " '" + asset + "' — using fallback");
-        }
+    /** The armed button given up by the game — see {@link Duke3D#giveUpAim}. */
+    void giveUpAimFromGame() {
+        buttons.giveUpAimFromGame();
     }
 
-    private static <T extends com.jme3.scene.control.Control> T findControl(Spatial spatial, Class<T> type) {
-        var found = new Object[1];
-        spatial.depthFirstTraversal(s -> {
-            var control = s.getControl(type);
-            if (control != null && found[0] == null) {
-                found[0] = control;
-            }
-        });
-        return type.cast(found[0]);
+    /** The armed button used by the game at {@code place} — see {@link Duke3D#useAim}. */
+    void useAimFromGame(Coord3D place) {
+        buttons.useAimFromGame(place);
     }
-
-    /**
-     * Loads a modular kit's pieces.
-     *
-     * <p>Two things happen here that are easy to miss until the dungeon comes out
-     * black. First, jME's glTF loader gives every piece a <b>PBR</b> material, and
-     * PBR takes its ambient light from an environment map — of which this client
-     * has none, only a sun and a flat ambient, so a PBR scene renders nearly
-     * unlit. Kenney's kits are flat-shaded palette art anyway, so the material is
-     * rebuilt as plain lighting over the same texture, which is both correct and
-     * what the art was drawn for.
-     *
-     * <p>Second, a floor of several hundred tiles is several hundred copies of
-     * three meshes. They are cloned without cloning materials, and there is
-     * exactly <em>one</em> material for the whole kit: how dark a piece looks is
-     * decided by where its fragments stand, in the shader, so no piece needs a
-     * material of its own to be dimmer than its neighbour.
-     */
-    private final class KitTiles implements TileSource {
-
-        private final Map<String, Spatial> masters = new HashMap<>();
-
-        /**
-         * The atlas kit's shared materials, one per picture and cast.
-         *
-         * <p>Per tint because a tone may ask for the same stone in a colder cast,
-         * and one skin for the lot would give whichever floor was built first the
-         * casting vote over every later one.
-         *
-         * <p>And per texture, because a kit is not always one atlas. A floor of
-         * beaten earth with a line of trees standing along its edges is two packs
-         * and two pictures, and one skin over both hands the trees the floor's
-         * atlas — every leaf then reads its colour from whatever happens to sit at
-         * those coordinates on the other sheet, which came out as a row of grey
-         * mushrooms.
-         */
-        private final Map<String, Material> skins = new HashMap<>();
-
-        /**
-         * One ready piece, dressed the way its kit wants and holding the fog.
-         *
-         * <p>Kits come in two sorts and the difference is not cosmetic. One is
-         * drawn on a single colour atlas: every piece is the same picture, so one
-         * material serves the lot and sharing it is most of what keeps a floor of
-         * six hundred tiles cheap. The other ships no texture at all and says in
-         * its own materials what colour each part of each piece is; give that one
-         * a single skin and the whole kit turns one flat grey.
-         *
-         * <p>Either way the material has to be one that reads the fog, or the
-         * pieces would be lit and never darkened. So the second sort is not left
-         * with what it came with — it is rebuilt, one fogged material per material
-         * it brought, keeping the colour and gaining the dark.
-         *
-         * <p>Cached by kit and tint rather than by path alone, because the same
-         * piece under two tints is two different masters and every copy of one
-         * shares its materials.
-         */
-        @Override
-        public Spatial piece(String assetPath) {
-            return piece(assetPath, 0xFFFFFF);
-        }
-
-        /**
-         * The same, under a colour of this piece's own on top of the kit's.
-         *
-         * <p>Everything the plain call does, and it costs nothing more: the masters
-         * and the skins were already kept per tint, so a second tint is a second
-         * entry in maps that exist. The lid over the rock and the floors of two
-         * different storeys are then three materials rather than one, over a floor
-         * that is several hundred pieces.
-         */
-        @Override
-        public Spatial piece(String assetPath, int packedRgb) {
-            return piece(activeKit(), assetPath, packedRgb);
-        }
-
-        /**
-         * The same, dressed as {@code kit} dresses its pieces rather than as the kit in force — for a map whose cells
-         * wear looks of their own. Kept per kit's own tint and way of dressing, so two looks sharing a model share it
-         * only where they dress it alike.
-         */
-        @Override
-        public Spatial piece(Tileset kit, String assetPath, int packedRgb) {
-            return piece(kit, assetPath, packedRgb, "");
-        }
-
-        /** The same, drawn with {@code picture} in place of its own; kept apart from it by the picture's name. */
-        @Override
-        public Spatial piece(Tileset kit, String assetPath, int packedRgb, String picture) {
-            boolean own = kit != null && kit.keepsOwnMaterials();
-            int tint = blend(kit == null ? 0xFFFFFF : kit.getTint(), packedRgb);
-            com.jme3.texture.Texture drawnWith = picture == null || picture.isBlank() ? null : pictureFor(picture);
-            String key = assetPath + "#" + Integer.toHexString(tint) + (own ? "#own" : "")
-                    + (drawnWith == null ? "" : "@" + picture);
-            var master = masters.get(key);
-            if (master == null) {
-                try {
-                    master = assetManager.loadModel(assetPath);
-                } catch (RuntimeException e) {
-                    // A missing piece is a missing file, not a broken client: draw
-                    // the rest of the floor and say which one went missing.
-                    if (missingAssets.add(assetPath)) {
-                        LOG.warning(() -> "tile not found: " + assetPath + " (" + e.getMessage() + ")");
-                    }
-                    return null;
-                }
-                if (own) {
-                    refogOwnMaterials(master, toColor(new java.awt.Color(tint)), drawnWith);
-                } else {
-                    // One skin per picture the kit draws on, and per tint over it.
-                    var atlas = drawnWith != null ? drawnWith : textureOf(master);
-                    master.setMaterial(skins.computeIfAbsent(
-                            nameOf(atlas) + "#" + Integer.toHexString(tint),
-                            ignored -> tileMaterial(atlas, toColor(new java.awt.Color(tint)))));
-                }
-                masters.put(key, master);
-            }
-            return master.clone(false); // share the mesh and the material
-        }
-
-        /**
-         * Rebuild every material a model brought as one that reads the fog,
-         * keeping the colour it was given and multiplying the kit's tint over it.
-         */
-        private void refogOwnMaterials(Spatial model, ColorRGBA tint, com.jme3.texture.Texture picture) {
-            if (model instanceof Geometry geometry) {
-                var was = geometry.getMaterial();
-                var colour = colourOf(was).mult(tint);
-                var drawn = picture != null ? picture : textureOf(geometry);
-                geometry.setMaterial(fogMap == null
-                        ? litKitMaterial(colour, drawn)
-                        : fogged(colour, ambientColour.mult(KIT_AMBIENT), drawn));
-                return;
-            }
-            if (model instanceof Node node) {
-                for (var child : node.getChildren()) {
-                    refogOwnMaterials(child, tint, picture);
-                }
-            }
-        }
-
-        /** A picture a piece is drawn with in place of its own, loaded once; null for one that will not load. */
-        private com.jme3.texture.Texture pictureFor(String path) {
-            try {
-                return assetManager.loadTexture(path);
-            } catch (RuntimeException e) {
-                if (missingAssets.add(path)) {
-                    LOG.warning(() -> "picture not found: " + path + " (" + e.getMessage() + ")");
-                }
-                return null;
-            }
-        }
-
-        /**
-         * What colour a loaded material says its surface is; white if it says nothing.
-         */
-        private ColorRGBA colourOf(Material material) {
-            if (material == null) {
-                return ColorRGBA.White;
-            }
-            for (var name : new String[]{"Diffuse", "Color", "BaseColor"}) {
-                var param = material.getParam(name);
-                if (param != null && param.getValue() instanceof ColorRGBA colour) {
-                    return colour.clone();
-                }
-            }
-            return ColorRGBA.White;
-        }
-
-        private Material litKitMaterial(ColorRGBA colour, com.jme3.texture.Texture atlas) {
-            var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
-            material.setBoolean("UseMaterialColors", true);
-            material.setColor("Diffuse", colour);
-            material.setColor("Ambient", KIT_AMBIENT.mult(colour));
-            if (atlas != null) {
-                material.setTexture("DiffuseMap", atlas);
-            }
-            return material;
-        }
-
-        /**
-         * How much of the ambient the kit's palette art returns.
-         */
-        private static final ColorRGBA KIT_AMBIENT = new ColorRGBA(0.55f, 0.55f, 0.62f, 1f);
-
-        private Material tileMaterial(com.jme3.texture.Texture atlas, ColorRGBA tint) {
-            if (fogMap != null) {
-                return fogged(tint, ambientColour.mult(KIT_AMBIENT).mult(tint), atlas);
-            }
-            var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
-            material.setBoolean("UseMaterialColors", true);
-            material.setColor("Diffuse", tint);
-            material.setColor("Ambient", KIT_AMBIENT.mult(tint));
-            if (atlas != null) {
-                material.setTexture("DiffuseMap", atlas);
-            }
-            return material;
-        }
-
-        /**
-         * Two packed colours multiplied, channel by channel — white leaves the other alone.
-         */
-        private static int blend(int over, int under) {
-            if (under == 0xFFFFFF) {
-                return over;
-            }
-            int red = (over >> 16 & 0xFF) * (under >> 16 & 0xFF) / 255;
-            int green = (over >> 8 & 0xFF) * (under >> 8 & 0xFF) / 255;
-            int blue = (over & 0xFF) * (under & 0xFF) / 255;
-            return red << 16 | green << 8 | blue;
-        }
-
-        /**
-         * What a texture is called, for keying a skin by it; untextured pieces share one name.
-         */
-        private String nameOf(com.jme3.texture.Texture atlas) {
-            var key = atlas == null ? null : atlas.getKey();
-            return key == null ? "" : key.getName();
-        }
-
-        /**
-         * The kit's colour atlas, taken off whatever material the loader made.
-         */
-        private com.jme3.texture.Texture textureOf(Spatial model) {
-            if (model instanceof Geometry geometry && geometry.getMaterial() != null) {
-                for (var param : geometry.getMaterial().getParams()) {
-                    if (param.getValue() instanceof com.jme3.texture.Texture texture) {
-                        return texture;
-                    }
-                }
-            }
-            if (model instanceof Node node) {
-                for (var child : node.getChildren()) {
-                    var found = textureOf(child);
-                    if (found != null) {
-                        return found;
-                    }
-                }
-            }
-            return null;
-        }
-
-    }
-
-    private Material lit(ColorRGBA color) {
-        var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
-        material.setBoolean("UseMaterialColors", true);
-        material.setColor("Diffuse", color);
-        material.setColor("Ambient", color.mult(0.7f));
-        return material;
-    }
-
-    /**
-     * A material for a piece of ground: the colour it is painted, and the picture the map named for it.
-     *
-     * <p>The picture is loaded by the name the map wrote and nothing else — no folder put in front of it,
-     * no suffix taken off. Where it will not load, that is said once and the ground is drawn in its colour,
-     * because a map with a typo in one palette entry should be a map with one grey field in it rather than
-     * a black screen.
-     *
-     * <p>Set to repeat, because the ground's texture coordinates run across the world rather than 0..1
-     * inside a cell — see {@code TerrainScene.paintGround}. Clamped, one cell would show the whole picture
-     * and every cell after it the picture's last column, which is a map drawn in stripes.
-     */
-    private Material ground(ColorRGBA colour, String texture) {
-        if (texture != null) {
-            colour = tinted(colour, visuals.getSurface(texture));
-        }
-        var picture = texture == null ? null : groundTexture(texture);
-        if (picture == null) {
-            return foggedGround() ? foggedTerrain(colour) : lit(colour);
-        }
-        if (!foggedGround()) {
-            var material = lit(colour);
-            material.setTexture("DiffuseMap", picture);
-            return material;
-        }
-        return fogged(colour, ambientColour.mult(PLAIN_AMBIENT), picture);
-    }
-
-    /**
-     * Whether the ground is drawn with its own shader: where there is a fog to lay over it, and where the game lights
-     * it by lights of its own or lays a picture over all of it, which only that shader draws.
-     */
-    private boolean foggedGround() {
-        return fogMap != null || visuals.getGroundLight() != null || !visuals.getGroundShades().isEmpty();
-    }
-
-    /**
-     * A picture laid over the ground and faded into it by the alpha each vertex carries.
-     *
-     * <p>The ground's own material with three things changed: it reads the vertex alpha, it blends over
-     * what is under it, and it neither writes depth nor loses to the ground it lies exactly on — pulled a
-     * hair toward the eye instead. It is only ever asked for by a map with a second layer, so the ground of
-     * every other map is built exactly as it was.
-     */
-    private Material groundOverlay(ColorRGBA colour, String texture) {
-        var material = ground(colour, texture);
-        if (foggedGround()) {
-            material.setBoolean("VertexAlpha", true);
-        } else {
-            material.setBoolean("UseVertexColor", true);
-        }
-        var state = material.getAdditionalRenderState();
-        state.setBlendMode(com.jme3.material.RenderState.BlendMode.Alpha);
-        state.setDepthWrite(false);
-        state.setPolyOffset(-1f, -1f);
-        return material;
-    }
-
-    /** The ground's materials, both kinds — see {@link Surfaces}. */
-    private final Surfaces groundSurfaces = new Surfaces() {
-        @Override
-        public Material of(ColorRGBA colour, String texture) {
-            return ground(colour, texture);
-        }
-
-        @Override
-        public Material overlay(ColorRGBA colour, String texture) {
-            return groundOverlay(colour, texture);
-        }
-
-        @Override
-        public Material blended(List<GroundPaint.Surface> surfaces, float[] spans) {
-            return blendedGround(surfaces, spans);
-        }
-    };
-
-    /** A surface's colour times the tint the game gave its picture ({@link Visuals#surface}). */
-    static ColorRGBA tinted(ColorRGBA colour, Visuals.SurfaceLook look) {
-        int tint = look.tint();
-        return colour.mult(new ColorRGBA((tint >> 16 & 0xFF) / 255f, (tint >> 8 & 0xFF) / 255f, (tint & 0xFF) / 255f,
-                1f));
-    }
-
-    /** A white picture of one texel, for a blended ground's surfaces that are colours or are not used. */
-    private com.jme3.texture.Texture white;
-
-    private com.jme3.texture.Texture white() {
-        if (white == null) {
-            var image = new com.jme3.texture.Image(com.jme3.texture.Image.Format.RGBA8, 1, 1,
-                    com.jme3.util.BufferUtils.createByteBuffer(new byte[] {-1, -1, -1, -1}),
-                    com.jme3.texture.image.ColorSpace.Linear);
-            white = new com.jme3.texture.Texture2D(image);
-            white.setWrap(com.jme3.texture.Texture.WrapMode.Repeat);
-        }
-        return white;
-    }
-
-    /**
-     * The material of ground blended from its paint: the ground's own fogged shader, its blended branch, each surface's
-     * picture — white for a colour — laid across the world at its span and multiplied by its colour; the game's noise
-     * and sharpness for the borders ({@link Visuals#paintBlend}).
-     */
-    private Material blendedGround(List<GroundPaint.Surface> surfaces, float[] spans) {
-        var material = fogged(ColorRGBA.White, ambientColour.mult(PLAIN_AMBIENT), null);
-        material.setBoolean("Blended", true);
-        var scales = new float[TerrainScene.BLEND_SLOTS];
-        var varied = new float[TerrainScene.BLEND_SLOTS];
-        var tints = new com.jme3.math.Vector4f[TerrainScene.BLEND_SLOTS];
-        for (int slot = 0; slot < TerrainScene.BLEND_SLOTS; slot++) {
-            var surface = slot < surfaces.size() ? surfaces.get(slot) : null;
-            var picture = surface == null || surface.texture() == null ? null : groundTexture(surface.texture());
-            material.setTexture("Surface" + slot, picture == null ? white() : picture);
-            var look = surface == null || surface.texture() == null ? Visuals.SurfaceLook.PLAIN
-                    : visuals.getSurface(surface.texture());
-            var colour = surface == null ? ColorRGBA.Black : tinted(surface.colour(), look);
-            varied[slot] = look.variation();
-            tints[slot] = new com.jme3.math.Vector4f(colour.r, colour.g, colour.b, 1f);
-            scales[slot] = slot < spans.length && spans[slot] > 0f ? 1f / spans[slot] : 1f;
-        }
-        material.setVector4("SurfaceScale0", new com.jme3.math.Vector4f(scales[0], scales[1], scales[2], scales[3]));
-        material.setVector4("SurfaceScale1", new com.jme3.math.Vector4f(scales[4], scales[5], scales[6], scales[7]));
-        material.setParam("SurfaceTints", com.jme3.shader.VarType.Vector4Array, tints);
-        var blend = visuals.getPaintBlend() == null ? Visuals.PaintBlend.SMOOTH : visuals.getPaintBlend();
-        material.setFloat("BlendSharp", blend.sharpness());
-        float cell = builtFrom == null ? uz.dukeengine.core.pathfind.PathGrid.DEFAULT_CELL_SIZE
-                : builtFrom.getCellSize();
-        var variation = blend.variation() == null ? null : groundTexture(blend.variation());
-        if (variation != null) {
-            material.setTexture("Variation", variation);
-            material.setFloat("VariationScale", 1f / (blend.variationCoverage() * cell));
-            material.setVector4("SurfaceVariation0",
-                    new com.jme3.math.Vector4f(varied[0], varied[1], varied[2], varied[3]));
-            material.setVector4("SurfaceVariation1",
-                    new com.jme3.math.Vector4f(varied[4], varied[5], varied[6], varied[7]));
-        }
-        var cliffs = visuals.getPaintCliffs();
-        var rock = cliffs == null ? null : groundTexture(cliffs.picture());
-        if (rock != null) {
-            material.setTexture("Cliff", rock);
-            material.setFloat("CliffScale", 1f / (cliffs.coverage() * cell));
-            material.setFloat("CliffSlope",
-                    com.jme3.math.FastMath.cos(cliffs.slope() * com.jme3.math.FastMath.DEG_TO_RAD));
-        }
-        var noise = blend.noise() == null ? null : groundTexture(blend.noise());
-        if (noise != null) {
-            material.setTexture("BlendNoise", noise);
-            material.setFloat("NoiseScale", 1f / (blend.noiseCoverage() * cell));
-            material.setFloat("BlendRagged", blend.raggedness());
-        }
-        return material;
-    }
-
-    private final java.util.Map<String, com.jme3.texture.Texture> groundTextures =
-            new java.util.HashMap<>();
-
-    /** How sharply the ground's pictures are drawn at a slant: anisotropic filtering, as far as the card allows. */
-    static final int GROUND_ANISOTROPY = 8;
-
-    /**
-     * A ground picture set to repeat, mipmapped and filtered at a slant as a model's skin is — ground seen far off
-     * under a tilted camera otherwise shimmers, every texel of a distant field fighting for one pixel.
-     */
-    static com.jme3.texture.Texture forTheGround(com.jme3.texture.Texture texture) {
-        texture.setWrap(com.jme3.texture.Texture.WrapMode.Repeat);
-        texture.setMinFilter(com.jme3.texture.Texture.MinFilter.Trilinear);
-        texture.setAnisotropicFilter(GROUND_ANISOTROPY);
-        return texture;
-    }
-
-    /** The picture a palette entry names, loaded once and set to repeat, or null with a word about why. */
-    private com.jme3.texture.Texture groundTexture(String path) {
-        return groundTextures.computeIfAbsent(path, named -> {
-            try {
-                return forTheGround(assetManager.loadTexture(named));
-            } catch (RuntimeException notThere) {
-                LOG.log(java.util.logging.Level.WARNING,
-                        "the ground names a picture that will not load: {0} ({1})",
-                        new Object[] {named, notThere.getMessage()});
-                return null;
-            }
-        });
-    }
-
-    /**
-     * The one sun and the one flat ambient the whole scene is lit by, as the game
-     * asked for them — see {@link Sunlight}.
-     *
-     * <p>Read once and kept, rather than asked of the visuals at each of the four
-     * places that want them: they are read while materials are built, which is
-     * often, and the answer cannot change while a scene stands.
-     *
-     * <p>They were three constants here until a player said the map looked flat.
-     * It did, and this is where: a sun far enough from vertical is the only thing
-     * that tells a floor from the top of a wall, since the two are the same tile
-     * with the same normal, and how far is a decision about how a game should look
-     * rather than a fact about drawing one.
-     */
-    private Vector3f sunDirection;
-    private ColorRGBA sunColour;
-    private ColorRGBA ambientColour;
-    /** The two scene lights, kept so a new world can relight them rather than add a second sun. */
-    private DirectionalLight sun;
-    private AmbientLight ambient;
-    /** The sunlight the scene is lit by now, so a world that asks for the same one changes nothing. */
-    private Sunlight litBy;
-
-    /**
-     * How much of the ambient plain terrain returns — what {@link #lit} asks for.
-     */
-    private static final float PLAIN_AMBIENT = 0.7f;
-
-    private Material foggedTerrain(ColorRGBA color) {
-        return fogged(color, ambientColour.mult(PLAIN_AMBIENT), null);
-    }
-
-    /**
-     * Terrain that reads the dark out of {@link FogMap} at the place each fragment
-     * stands.
-     *
-     * <p>The lighting is written out here rather than handed to the engine's
-     * because the shader is only ever used on terrain and the terrain is lit by
-     * exactly one sun and one flat ambient. Passing them as material parameters is
-     * a few lines; a shader that spoke the engine's light protocol would be a copy
-     * of its whole lighting pipeline, for a scene that has one light in it.
-     *
-     * @param ambient how much of the ambient the surface returns, already
-     *                multiplied by the ambient light itself
-     */
-    private Material fogged(ColorRGBA color, ColorRGBA ambient,
-                            com.jme3.texture.Texture atlas) {
-        var material = new Material(assetManager, "MatDefs/duke/FoggedTerrain.j3md");
-        material.setColor("Color", color);
-        material.setColor("Ambient", ambient);
-        material.setColor("Sun", sunColour);
-        material.setVector3("SunDirection", sunDirection);
-        material.setTexture("FogMap", fogMap != null ? fogMap.texture() : noFog());
-        material.setVector2("FogSize", fogMap != null ? fogMap.worldSize() : new com.jme3.math.Vector2f(1f, 1f));
-        tellWhereTheFogHolds(material);
-        if (atlas != null) {
-            material.setTexture("ColorMap", atlas);
-        }
-        var shades = visuals.getGroundShades();
-        for (int i = 0; i < shades.size(); i++) {
-            var picture = groundTexture(shades.get(i).picture());
-            if (picture != null) {
-                material.setTexture(i == 0 ? "ShadeMap" : "ShadeMap2", picture);
-            }
-        }
-        if (!shades.isEmpty()) {
-            material.setFloat("ShadeShown", shadesShown ? 1f : 0f);
-            placeShades(material, snapshot == null ? 0f : snapshot.gameTimeSeconds());
-        }
-        material.setParam("PointLightColours",
-                com.jme3.shader.VarType.Vector4Array, terrainLightColours);
-        material.setParam("PointLightPositions",
-                com.jme3.shader.VarType.Vector4Array, terrainLightPlaces);
-        fogged.add(material);
-        return material;
-    }
-
-    /**
-     * How a map's water is drawn: the water's own shader over its picture — laid across the world for standing water,
-     * along a river for running — in the ground's light times the game's tint, shrouded as the ground. Null where its
-     * picture will not load.
-     */
-    private Material waterLook(Visuals.WaterLook look, boolean river) {
-        var path = river && look.riverPicture() != null ? look.riverPicture() : look.picture();
-        var picture = path == null ? null : groundTexture(path);
-        if (path != null && picture == null) {
-            return null;
-        }
-        var material = new Material(assetManager, "MatDefs/duke/Water.j3md");
-        if (picture != null) {
-            material.setTexture("ColorMap", picture);
-        }
-        if (!river && look.overlay() != null && groundTexture(look.overlay()) != null) {
-            material.setTexture("OverlayMap", groundTexture(look.overlay()));
-        }
-        if (river && look.riverEdge() != null) {
-            try {
-                var edge = assetManager.loadTexture(look.riverEdge());
-                edge.setWrap(com.jme3.texture.Texture.WrapMode.EdgeClamp);
-                material.setTexture("EdgeMap", edge);
-            } catch (RuntimeException notThere) {
-                LOG.warning(() -> "a river's banks name a picture that will not load: " + look.riverEdge());
-            }
-        }
-        material.setBoolean("Along", river);
-        // W3DWater: the ground's light on flat ground, times the water's own colour for the hour.
-        var light = visuals.getGroundLight() != null ? visuals.getGroundLight().at(Vector3f.UNIT_Y)
-                : ambientColour.add(sunColour.mult(Math.max(0f, -sunDirection.y)));
-        int tint = look.tint();
-        material.setColor("Color", new ColorRGBA(Math.min(1f, light.r) * (tint >> 16 & 0xFF) / 255f,
-                Math.min(1f, light.g) * (tint >> 8 & 0xFF) / 255f, Math.min(1f, light.b) * (tint & 0xFF) / 255f,
-                (tint >>> 24) / 255f));
-        material.setTexture("FogMap", fogMap != null ? fogMap.texture() : noFog());
-        material.setVector2("FogSize", fogMap != null ? fogMap.worldSize() : new com.jme3.math.Vector2f(1f, 1f));
-        tellWhereTheFogHolds(material);
-        waterLooks.add(material);
-        return material;
-    }
-
-    private com.jme3.texture.Texture2D noFogTexture;
-
-    /** A fog of nothing, for ground drawn by the fog's shader where the game keeps no fog. */
-    private com.jme3.texture.Texture2D noFog() {
-        if (noFogTexture == null) {
-            var clear = com.jme3.util.BufferUtils.createByteBuffer(4);
-            clear.put(new byte[] {0, 0, 0, 0}).flip();
-            noFogTexture = new com.jme3.texture.Texture2D(
-                    new com.jme3.texture.Image(com.jme3.texture.Image.Format.RGBA8, 1, 1, clear,
-                            com.jme3.texture.image.ColorSpace.Linear));
-        }
-        return noFogTexture;
-    }
-
-    /** Whether the pictures laid over all the ground show — see {@link Duke3D#groundShades}. */
-    private volatile boolean shadesShown = true;
-
-    /** The game's marks on the minimap — see {@link Duke3D#minimapMarks}. */
-    private java.util.function.Supplier<java.util.List<MinimapMark>> minimapMarks;
-    private final java.util.List<Geometry> markShapes = new java.util.ArrayList<>();
-    private final Map<String, com.jme3.texture.Texture> markPictures = new HashMap<>();
-
-    void minimapMarks(java.util.function.Supplier<java.util.List<MinimapMark>> marks) {
-        this.minimapMarks = marks;
-    }
-
-    /** The game's marks drawn over the dots, one shape each, kept from frame to frame and hidden when not asked. */
-    private void syncMinimapMarks() {
-        var marks = minimapMarks == null ? java.util.List.<MinimapMark>of() : minimapMarks.get();
-        marks = marks == null ? java.util.List.of() : marks;
-        boolean lit = (int) (timer.getTimeInSeconds() * 4f) % 2 == 0;
-        for (int at = 0; at < Math.max(marks.size(), markShapes.size()); at++) {
-            if (at >= marks.size()) {
-                markShapes.get(at).setCullHint(Spatial.CullHint.Always);
-                continue;
-            }
-            var mark = marks.get(at);
-            if (at >= markShapes.size()) {
-                var shape = new Geometry("mm-mark", new Quad(MARK_SIZE, MARK_SIZE));
-                shape.setMaterial(unshaded(ColorRGBA.White));
-                shape.getMaterial().getAdditionalRenderState().setBlendMode(
-                        com.jme3.material.RenderState.BlendMode.Alpha);
-                minimapNode.attachChild(shape);
-                markShapes.add(shape);
-            }
-            var shape = markShapes.get(at);
-            var material = shape.getMaterial();
-            var picture = mark.picture() == null ? null : markPictures.computeIfAbsent(mark.picture(), path -> {
-                try {
-                    return assetManager.loadTexture(path);
-                } catch (RuntimeException notThere) {
-                    LOG.warning(() -> "a minimap mark names a picture that will not load: " + path);
-                    return null;
-                }
-            });
-            if (picture != null) {
-                material.setTexture("ColorMap", picture);
-            } else {
-                material.clearParam("ColorMap");
-            }
-            material.setColor("Color", toColor(new java.awt.Color(mark.colour())));
-            var point = minimap.markAt(mark.x(), mark.y());
-            // A diamond is the square turned an eighth; a picture stands upright.
-            float turn = picture == null ? com.jme3.math.FastMath.QUARTER_PI : 0f;
-            shape.setLocalRotation(new com.jme3.math.Quaternion().fromAngles(0f, 0f, turn));
-            float half = MARK_SIZE / 2f;
-            float offX = picture == null ? 0f : -half;
-            float offY = picture == null ? -half * com.jme3.math.FastMath.sqrt(2f) : -half;
-            shape.setLocalTranslation(point.x() + offX, point.y() + offY, 2);
-            shape.setCullHint(!mark.blinks() || lit ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
-        }
-    }
-
-    private static final float MARK_SIZE = 7f;
-
-    /** The world's sun on its way from one hour to the next — see {@link Duke3D#sunlight}; null before any was asked. */
-    private HourOfDay hour;
-    /** The ground's sun parameters laid over every material under the root at once. */
-    private com.jme3.material.MatParamOverride sunDirectionOverride;
-    private com.jme3.material.MatParamOverride ambientShiftOverride;
-    private com.jme3.material.MatParamOverride sunShiftOverride;
-
-    void sunlight(Sunlight light, float seconds) {
-        if (light == null) {
-            return;
-        }
-        if (hour == null) {
-            hour = new HourOfDay(new HourOfDay.Sun(sunDirection.clone(), sunColour.clone(), ambientColour.clone()));
-        }
-        hour.toward(HourOfDay.Sun.of(light), seconds);
-        lightTheHour();
-    }
-
-    /** The hour's sun on the lights, the shadows and the painted ground, as far as it has eased. */
-    private void lightTheHour() {
-        if (hour == null) {
-            return;
-        }
-        var now = hour.now();
-        if (sun != null) {
-            sun.setDirection(now.direction());
-            sun.setColor(now.colour());
-        }
-        if (ambient != null) {
-            ambient.setColor(now.ambient());
-        }
-        if (sunShadows != null) {
-            sunShadows.sun(now.direction());
-        }
-        // The ground's materials were built with the sun of their world: told the hour's share of it, all at once.
-        if (sunDirectionOverride == null) {
-            sunDirectionOverride = new com.jme3.material.MatParamOverride(com.jme3.shader.VarType.Vector3,
-                    "SunDirection", now.direction().clone());
-            ambientShiftOverride = new com.jme3.material.MatParamOverride(com.jme3.shader.VarType.Vector4,
-                    "AmbientShift", HourOfDay.shift(now.ambient(), ambientColour));
-            sunShiftOverride = new com.jme3.material.MatParamOverride(com.jme3.shader.VarType.Vector4,
-                    "SunShift", HourOfDay.shift(now.colour(), sunColour));
-            rootNode.addMatParamOverride(sunDirectionOverride);
-            rootNode.addMatParamOverride(ambientShiftOverride);
-            rootNode.addMatParamOverride(sunShiftOverride);
-        } else {
-            sunDirectionOverride.setValue(now.direction().clone());
-            ambientShiftOverride.setValue(HourOfDay.shift(now.ambient(), ambientColour));
-            sunShiftOverride.setValue(HourOfDay.shift(now.colour(), sunColour));
-        }
-    }
-
-    /** The colour the haze is eased to, or null for the fog's own; and how quickly. */
-    private ColorRGBA hazeWanted;
-    private float hazeSeconds;
 
     void hazeColour(int rgb, float seconds) {
-        hazeWanted = rgb < 0 ? null : new ColorRGBA(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f,
-                (rgb & 0xFF) / 255f, 1f);
-        hazeSeconds = Math.max(0f, seconds);
-    }
-
-    /** The haze eased to the game's colour, the fog map and the void behind the world with it. */
-    private void easeTheHaze(float tpf) {
-        var from = fogTintNow != null ? fogTintNow : viewPort.getBackgroundColor().clone();
-        float share = hazeSeconds <= 0f ? 1f : 1f - (float) Math.exp(-tpf / hazeSeconds);
-        var eased = from.clone().interpolateLocal(hazeWanted, share);
-        if (fogMap != null && packedRgb(eased) != packedRgb(from)) {
-            fogMap.recolour(eased);
-        }
-        viewPort.setBackgroundColor(eased);
-        fogTintNow = eased;
+        fog.hazeColour(rgb, seconds);
     }
 
     void lightScale(float times) {
@@ -9465,140 +2569,21 @@ final class DukeRtsApp extends SimpleApplication {
             view.attachScene(tintNode);
         }
         worldTintQuad.setLocalScale(cam.getWidth(), cam.getHeight(), 1f);
-        worldTintQuad.getMaterial().setColor("Color", new ColorRGBA(((argb >> 16) & 0xFF) / 255f,
-                ((argb >> 8) & 0xFF) / 255f, (argb & 0xFF) / 255f, alpha));
+        var colour = Materials.rgb(argb);
+        colour.a = alpha;
+        worldTintQuad.getMaterial().setColor("Color", colour);
         worldTintQuad.setCullHint(alpha <= 0f ? Spatial.CullHint.Always : Spatial.CullHint.Never);
         var root = worldTintQuad.getParent();
         root.updateLogicalState(0f);
         root.updateGeometricState();
     }
 
-    /** Each ridden mount's rider, by the mount's id — see {@code GameObject.rideOn}; filled each frame. */
-    private final Map<Integer, UnitNode> riderOf = new HashMap<>();
-
-    /**
-     * Every rider hung on its mount's bone, the mount drawn where the rider stands and walking as he walks; one that
-     * got off put back among the units where it stands.
-     */
-    private void seatTheRiders() {
-        riderOf.clear();
-        for (var node : unitNodes.values()) {
-            var riding = node.view == null ? null : node.view.riding();
-            var mount = riding == null ? null : unitNodes.get(riding.mount());
-            if (mount == null || mount.view == null) {
-                if (node.root.getParent() != unitsNode) {
-                    unitsNode.attachChild(node.root); // got off: its own place again, set next frame by its view
-                }
-                continue;
-            }
-            mount.root.setLocalTranslation(UnitPlacement.where(node.view, this::floorHeightAt));
-            mount.root.setLocalRotation(UnitPlacement.turn(node.view));
-            if (Riders.seat(node.root, mount.body, riding.bone(), new Vector3f(riding.x(), riding.z(), riding.y()))) {
-                riderOf.put(mount.view.id(), node);
-                paceTheMount(mount, node.view);
-            }
-        }
-    }
-
-    /** A ridden mount walking as its rider walks, at his speed — the rider is what moves — else standing. */
-    private void paceTheMount(UnitNode mount, UnitView rider) {
-        var visual = visualFor(mount.view);
-        if (mount.composer == null) {
-            return;
-        }
-        String wanted = rider.moving() && visual.walkAnim != null ? visual.walkAnim
-                : visual.idleFor(mount.view.id(), snapshot.frame());
-        if (wanted != null && !wanted.equals(mount.currentAnim)) {
-            play(mount, mount.view.looksAs(), wanted, true);
-        }
-        if (rider.moving() && visual.walkDistance > 0f) {
-            var action = mount.composer.getCurrentAction();
-            var clip = mount.composer.getAnimClip(visual.walkAnim);
-            if (action != null && clip != null) {
-                action.setSpeed(Visuals.paced(clip.getLength(), visual.walkDistance, rider.speed(), 1.0));
-            }
-        }
-    }
-
-    /** The mouse held by the window, as the scheme asks — see {@link ControlScheme.Context#holdMouse}. */
-    private final MouseCapture capture = new MouseCapture();
-    /** How far the held mouse moved this frame, in pixels; and where the platform's pointer stood last. */
-    private float heldDx;
-    private float heldDy;
-    private double[] pointerWas;
-
-    /** The mouse held or let go as the screen asks, and how far it moved this frame read while it is held. */
-    private void holdTheMouse() {
-        long window = windowHandle();
-        boolean was = capture.captured();
-        boolean freed = screen != Screen.PLAYING || menu.isVisible()
-                || canvasInput != null && canvasInput.holdsKeys() || snapshot == null || snapshot.camera() != null
-                || controls.isHeld(KeyMap.Control.FREE_POINTER) || window == 0L
-                || org.lwjgl.glfw.GLFW.glfwGetWindowAttrib(window, org.lwjgl.glfw.GLFW.GLFW_FOCUSED) == 0;
-        boolean held = capture.update(freed);
-        if (held != was && window != 0L) {
-            org.lwjgl.glfw.GLFW.glfwSetInputMode(window, org.lwjgl.glfw.GLFW.GLFW_CURSOR,
-                    held ? org.lwjgl.glfw.GLFW.GLFW_CURSOR_DISABLED : org.lwjgl.glfw.GLFW.GLFW_CURSOR_NORMAL);
-            inputManager.setCursorVisible(!held);
-            pointerWas = null;
-        }
-        heldDx = 0f;
-        heldDy = 0f;
-        if (!held || window == 0L) {
-            return;
-        }
-        double[] x = new double[1];
-        double[] y = new double[1];
-        org.lwjgl.glfw.GLFW.glfwGetCursorPos(window, x, y);
-        float dx = pointerWas == null ? 0f : (float) (x[0] - pointerWas[0]);
-        float dy = pointerWas == null ? 0f : (float) (y[0] - pointerWas[1]);
-        pointerWas = new double[] {x[0], y[0]};
-        var moved = capture.motion(dx, dy);
-        heldDx = moved[0];
-        heldDy = moved[1];
-    }
-
-    /** Whether the letter or digit {@code key} is down now: its GLFW code is the character itself. */
-    private static boolean keyHeld(long window, char key) {
-        return window != 0L && org.lwjgl.glfw.GLFW.glfwGetKey(window, Character.toUpperCase(key))
-                == org.lwjgl.glfw.GLFW.GLFW_PRESS;
-    }
-
     /** The pictures laid over all the ground shown or put away — see {@link Duke3D#groundShades}. */
     void groundShades(boolean shown) {
-        this.shadesShown = shown;
+        groundLooks.groundShades(shown);
     }
 
-    /** Where each picture laid over all the ground lies {@code seconds} into the game, told to a ground material. */
-    private void placeShades(Material material, float seconds) {
-        var shades = visuals.getGroundShades();
-        for (int i = 0; i < shades.size(); i++) {
-            var place = shades.get(i).placeAt(seconds);
-            material.setVector4(i == 0 ? "ShadePlace" : "ShadePlace2",
-                    new com.jme3.math.Vector4f(place[0], place[1], place[2], place[3]));
-        }
-    }
-
-    /** The pictures over all the ground slid on with the game's time, and shown or put away as the game says. */
-    private void slideTheShades() {
-        if (visuals.getGroundShades().isEmpty() || snapshot == null) {
-            return;
-        }
-        for (var material : fogged) {
-            if (material.getParam("ShadeMap") != null) {
-                placeShades(material, snapshot.gameTimeSeconds());
-                material.setFloat("ShadeShown", shadesShown ? 1f : 0f);
-            }
-        }
-    }
-
-    private Material unshaded(ColorRGBA color) {
-        var material = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        material.setColor("Color", color);
-        return material;
-    }
-
-    private static ColorRGBA toColor(java.awt.Color color) {
-        return new ColorRGBA(color.getRed() / 255f, color.getGreen() / 255f, color.getBlue() / 255f, 1f);
+    void sunlight(Sunlight light, float seconds) {
+        this.light.sunlight(light, seconds);
     }
 }
