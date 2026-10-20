@@ -73,7 +73,7 @@ class WorldEventTest {
 
         var events = logic.drainEvents();
         assertEquals(2, events.size(), "the blow that hurt it, and its death");
-        assertTrue(events.get(0) instanceof ObjectHurt, "struck first");
+        assertTrue(events.getFirst() instanceof ObjectHurt, "struck first");
         var died = (ObjectDied) events.get(1);
         assertEquals(id, died.object());
         assertEquals("Soldier", died.templateName(), "it is gone, so the event must say what it was");
@@ -96,7 +96,7 @@ class WorldEventTest {
         assertEquals(0, wreckMaker.corpsesVisibleWhenItRan,
                 "wreckage must not be built around a corpse still standing in the world");
         assertEquals(1, logic.getObjects().size());
-        assertEquals("Wreck", logic.getObjects().get(0).getTemplate().name());
+        assertEquals("Wreck", logic.getObjects().getFirst().getTemplate().name());
     }
 
     @Test
@@ -132,7 +132,7 @@ class WorldEventTest {
 
         var events = logic.drainEvents();
         assertTrue(events.size() <= 1024, "must not grow without bound, was " + events.size());
-        assertEquals(4999, events.get(events.size() - 1).frame(),
+        assertEquals(4999, events.getLast().frame(),
                 "the newest are kept; it is the oldest that are dropped");
     }
 
@@ -150,8 +150,8 @@ class WorldEventTest {
         var told = logic.drainEvents().stream().filter(event -> event instanceof SoundPlayed)
                 .map(event -> (SoundPlayed) event).toList();
         assertEquals(2, told.size());
-        assertEquals(soldier.getId(), told.get(0).riding());
-        assertEquals(new Coord3D(40f, 50f, 0f), told.get(0).where());
+        assertEquals(soldier.getId(), told.getFirst().riding());
+        assertEquals(new Coord3D(40f, 50f, 0f), told.getFirst().where());
         assertNull(told.get(1).riding());
         assertEquals(5, told.get(1).hold());
     }

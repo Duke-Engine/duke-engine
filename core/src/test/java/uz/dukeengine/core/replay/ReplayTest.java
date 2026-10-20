@@ -79,7 +79,7 @@ class ReplayTest {
             for (var command : packet.commands()) {
                 var move = (TestCommand.Move) command;
                 out.append(';').append(move.playerIndex())
-                        .append(',').append(move.units().get(0).value())
+                        .append(',').append(move.units().getFirst().value())
                         .append(',').append(Float.toString(move.destination().x()))
                         .append(',').append(Float.toString(move.destination().y()));
             }

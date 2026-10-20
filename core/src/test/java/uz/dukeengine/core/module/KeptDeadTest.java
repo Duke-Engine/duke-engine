@@ -51,7 +51,7 @@ class KeptDeadTest {
     @BeforeEach
     void setUp() {
         var factory = new ThingFactory(ModuleFactory.withDefaults()
-                .register(SlowDeath.Data.class, (owner, data) -> new SlowDeath(owner)));
+                .register(SlowDeath.Data.class, (owner, _) -> new SlowDeath(owner)));
         factory.addTemplate(ObjectTemplate.named("Soldier").geometry(new Geometry.Cylinder(5f, 10f))
                 .module(new ActiveBody.Data(100f)).module(new SlowDeath.Data()).build());
         factory.addTemplate(ObjectTemplate.named("Rifleman").geometry(new Geometry.Cylinder(5f, 10f))

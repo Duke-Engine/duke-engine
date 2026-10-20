@@ -16,7 +16,7 @@ public record Hundredths(int value) {
     public static Hundredths of(String written) {
         try {
             return new Hundredths(new BigDecimal(written.trim()).movePointRight(2).intValueExact());
-        } catch (NumberFormatException | ArithmeticException wrong) {
+        } catch (NumberFormatException | ArithmeticException _) {
             throw new IllegalArgumentException(written + " is not a number with at most two decimal places");
         }
     }

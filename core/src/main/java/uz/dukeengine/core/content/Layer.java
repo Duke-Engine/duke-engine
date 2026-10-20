@@ -110,7 +110,7 @@ public record Layer(String name, String type, String texture, String blend, Floa
 
     private static void pair(Map<String, String> said, String first, String second, List<?> values) {
         if (!values.isEmpty()) {
-            said.put(first, String.valueOf(values.get(0)));
+            said.put(first, String.valueOf(values.getFirst()));
             said.put(second, String.valueOf(values.get(1)));
         }
     }

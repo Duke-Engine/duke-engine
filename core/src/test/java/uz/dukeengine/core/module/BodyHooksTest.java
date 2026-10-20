@@ -100,8 +100,8 @@ class BodyHooksTest {
     @BeforeEach
     void setUp() {
         var factory = new ThingFactory(ModuleFactory.withDefaults()
-                .register(Ears.Data.class, (owner, data) -> new Ears(owner))
-                .register(Hive.Data.class, (owner, data) -> new Hive(owner)));
+                .register(Ears.Data.class, (owner, _) -> new Ears(owner))
+                .register(Hive.Data.class, (owner, _) -> new Hive(owner)));
         factory.addTemplate(ObjectTemplate.named("Soldier")
                 .module(new ActiveBody.Data(100f, Map.of(DamageType.FLAME, 0f))).module(new Ears.Data()).build());
         factory.addTemplate(ObjectTemplate.named("Stinger").module(new Hive.Data()).module(new Ears.Data()).build());

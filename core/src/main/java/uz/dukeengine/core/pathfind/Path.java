@@ -76,6 +76,6 @@ public final class Path {
 
     /** The final waypoint (the destination), or {@code null} if empty. */
     public Coord3D getDestination() {
-        return waypoints.isEmpty() ? null : waypoints.get(waypoints.size() - 1);
+        return waypoints.isEmpty() ? null : waypoints.getLast();
     }
 }

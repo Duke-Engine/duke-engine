@@ -102,7 +102,7 @@ class SpatialIndexTest {
         var specks = new ArrayList<GameObject>();
         for (var at : List.of(new Coord3D(300f, 0f, 0f), new Coord3D(-300f, 0f, 0f), new Coord3D(0f, 300f, 0f),
                 new Coord3D(0f, -300f, 0f))) {
-            var speck = world.createObject(field.kinds().get(0));
+            var speck = world.createObject(field.kinds().getFirst());
             speck.setPosition(at);
             specks.add(speck);
         }

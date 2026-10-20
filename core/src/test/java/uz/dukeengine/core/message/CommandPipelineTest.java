@@ -33,7 +33,7 @@ class CommandPipelineTest {
             switch (testCommand) {
                 case TestCommand.Move move -> moveEach(move.units(), move.destination());
                 case TestCommand.Halt halt -> moveEach(halt.units(), Coord3D.ZERO);
-                case TestCommand.Ping ignored -> pingsHandled++;
+                case TestCommand.Ping _ -> pingsHandled++;
             }
         }
 
