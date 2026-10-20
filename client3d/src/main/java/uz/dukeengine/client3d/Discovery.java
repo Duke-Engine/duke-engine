@@ -317,6 +317,14 @@ final class Discovery {
     }
 
     void reveal(List<UnitView> units, int localPlayer, float radius, String eyesOf) {
+        reveal(units, localPlayer, radius, eyesOf, List.of());
+    }
+
+    /**
+     * The same, and the places the game names open besides his eyes ({@link Visuals#alsoSeen}): each circle opened as a
+     * unit's sight opens round it — in sight while listed, remembered once it is not.
+     */
+    void reveal(List<UnitView> units, int localPlayer, float radius, String eyesOf, List<Visuals.Seen> also) {
         lastSight = null;
         allOpen = false;
         if (visibleElsewhere) {
@@ -338,6 +346,13 @@ final class Discovery {
                     continue; // his, but not his eyes
                 }
                 revealAround(unit.x(), unit.y(), radius);
+            }
+        }
+        if (width > 0) {
+            for (var place : also) {
+                if (place.radius() > 0f) {
+                    revealAround(place.x(), place.y(), place.radius());
+                }
             }
         }
         // Out of sight, what was in it and is no longer: put after what is in sight now, so the cells in sight are

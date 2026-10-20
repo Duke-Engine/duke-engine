@@ -572,6 +572,9 @@ E16, in parts.
   under it, but keeps its whole width off trunks and round still things, which hold its body: a gap between two trunks
   too narrow for it is no way, and it stops at the nearest place it reaches rather than standing wedged in the gap,
   still and moving, for as long as it is ordered there. One standing in a circle already squeezes out by its middle.
+- **Places open besides the eyes** (E103): `Visuals.alsoSeen(() -> List.of(new Visuals.Seen(x, y, radius)))` — read each
+  frame the fog is worked, each circle opened as a unit's sight opens: in sight while listed, remembered after. Where a
+  cutscene's camera looks, a capital always open; none by default. The client's own fog, drawing only.
 - **The land before it is walked** (E101): `Visuals.minimapUnseenShows(dim)` — on a painted map the minimap draws a
   cell never seen in its ground's own colour (the surface picture's mean colour, or its palette colour) times `dim`,
   and once seen in it whole; stone as ever, and units and marks hidden where nothing is seen. 0, the dark, as before.

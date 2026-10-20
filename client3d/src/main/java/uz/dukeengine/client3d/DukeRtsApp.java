@@ -4227,7 +4227,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         discovery.blockSight(whatBlocksSight());
         discovery.reveal(snapshot.units(), game.getLocalPlayerIndex(), discoveryRadius,
-                visuals.getDiscoveryTemplate());
+                visuals.getDiscoveryTemplate(), visuals.getAlsoSeen());
         drawWhatIsOpen(tpf);
     }
 

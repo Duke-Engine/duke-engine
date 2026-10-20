@@ -2457,6 +2457,27 @@ public final class Visuals {
         return skybox;
     }
 
+    /** A place the game names open to sight, besides the hero's eyes — see {@link #alsoSeen}. World units. */
+    public record Seen(float x, float y, float radius) {
+    }
+
+    private java.util.function.Supplier<java.util.List<Seen>> alsoSeen = java.util.List::of;
+
+    /**
+     * Places open to sight besides the eyes' — where a cutscene's camera looks, a capital always open (E103): read each
+     * frame the fog is worked, each circle opened as a unit's sight opens, in sight while listed and remembered after.
+     * Drawing only, as the fog the client works is; none by default.
+     */
+    public Visuals alsoSeen(java.util.function.Supplier<java.util.List<Seen>> places) {
+        this.alsoSeen = places == null ? java.util.List::of : places;
+        return this;
+    }
+
+    java.util.List<Seen> getAlsoSeen() {
+        var places = alsoSeen.get();
+        return places == null ? java.util.List.of() : places;
+    }
+
     private float minimapUnseenShows;
 
     /**
