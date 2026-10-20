@@ -118,12 +118,8 @@ final class DukeRtsApp extends SimpleApplication {
     /** The movie playing, and where it is shown — see {@link Duke3D#playMovie}. */
     private MoviePlayer movie;
     private MovieScreen movieScreen;
-    /** How steeply the camera looks down, in radians: the game's camera's where it set one, else the player's. */
-    private float cameraPitch = CameraFocus.DEFAULT_PITCH;
     /** The player's camera as the game frames it — see {@link CameraFrame}. */
     private final CameraFrame cameraFrame;
-    /** The player's mouse on the camera: a middle drag turning it — see {@link Steering}. */
-    private final Steering steering = new Steering();
     private CanvasText canvasText;
     private CanvasDrawing canvasDrawing;
     /** The size the painter was last told the screen is. */
@@ -351,10 +347,8 @@ final class DukeRtsApp extends SimpleApplication {
 
     private WorldSnapshot snapshot = WorldSnapshot.EMPTY;
     private final CameraFocus camera = new CameraFocus();
-    /**
-     * How high the camera is looking, eased toward the ground under its target.
-     */
-    private float cameraHeight;
+    /** The player's eye, steered and placed — see {@link CameraRig}. */
+    private CameraRig cameraRig;
     /** The client's own controls on the game's keys — see {@link KeyMap} and {@link Controls}. */
     private Controls controls;
     /** Shift and Alt down, beside Ctrl: a key means one thing with them and another without. */
@@ -662,7 +656,12 @@ final class DukeRtsApp extends SimpleApplication {
         artStore = new ArtLoad.Store(assetManager, renderManager, bodies, rootNode, terrainNode,
                 soundNodes::soundNode, missing);
 
-        centerCameraOnMap();
+        cameraRig = new CameraRig(cam, camera, cameraFrame, visuals, inputManager, windowDisplay, veil, skillEffects,
+                listShow, timer, () -> game, () -> snapshot, () -> scheme, this::inPlay, this::held,
+                this::sceneLocked,
+                () -> canvasInput != null && canvasInput.holdsKeys() || controls.isHeld(KeyMap.Control.FREE_POINTER),
+                this::floorHeightAt);
+        cameraRig.centreOnTheMap();
         installInput();
 
         hud = new BitmapText(guiFont);
@@ -759,13 +758,9 @@ final class DukeRtsApp extends SimpleApplication {
     private Mouse mouse = Mouse.RIGHT_COMMANDS;
     /** The game's first look at the input, where it asked for one — see {@link CanvasInputs}. */
     private CanvasInputs canvasInputs;
-    /** The player's own scroll speed, a share of the framed pan speed — see {@link Duke3D#scrollSpeed}. */
-    private float scrollSpeed = 1f;
     /** The gamma the whole picture is drawn through — see {@link Duke3D#gamma}. */
     private float gamma = 1f;
     private GammaPass gammaPass;
-    /** Which way the player's view scrolled last frame — {@code N}, {@code NE} … — or null: what the pointer shows. */
-    private String scrolling;
 
     void mouse(Mouse chosen) {
         this.mouse = chosen == null ? Mouse.RIGHT_COMMANDS : chosen;
@@ -895,17 +890,17 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public void holdMouse(boolean held) {
-            capture.want(held);
+            cameraRig.holdMouse(held);
         }
 
         @Override
         public boolean mouseHeld() {
-            return capture.captured();
+            return cameraRig.mouseHeld();
         }
 
         @Override
         public float[] mouseMoved() {
-            return new float[] {heldDx, heldDy};
+            return cameraRig.mouseMoved();
         }
 
         @Override
@@ -936,7 +931,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** The player's own scroll speed — see {@link Duke3D#scrollSpeed}. */
     void scrollSpeed(float share) {
-        this.scrollSpeed = Math.max(0f, share);
+        cameraRig.scrollSpeed(share);
     }
 
     /**
@@ -1937,17 +1932,6 @@ final class DukeRtsApp extends SimpleApplication {
         findHimInTheNewWorld = true;
     }
 
-    /**
-     * Somewhere to look before there is anything to look at. The moment the game
-     * starts, {@link CameraFocus#requestOwnUnit()} replaces this with the player's
-     * own units — this is only what fills the screen until then.
-     */
-    private void centerCameraOnMap() {
-        var grid = game.getTerrain();
-        camera.lookAt(grid == null ? 350f : grid.getWidth() * grid.getCellSize() / 2f,
-                grid == null ? 225f : grid.getHeight() * grid.getCellSize() / 2f);
-    }
-
     // ---- input ----
 
     private void installInput() {
@@ -2000,7 +1984,7 @@ final class DukeRtsApp extends SimpleApplication {
                         }
                     }
                 }
-                case "Turn" -> turnByTheMiddleButton(pressed);
+                case "Turn" -> cameraRig.turnByTheMiddleButton(pressed);
                 case "Order" -> {
                     if (screens.now() != Screen.PLAYING) {
                         break;
@@ -2012,10 +1996,8 @@ final class DukeRtsApp extends SimpleApplication {
                         // mouse's order given on the click's release.
                         float y = cam.getHeight() - over.y;
                         if (pressed) {
-                            steering.rightDown(over.x, y, timer.getTimeInSeconds(), camera.targetX(),
-                                    camera.targetZ(), visuals.getRightDrag());
-                        } else if (steering.rightUp(over.x, y, timer.getTimeInSeconds(), camera.targetX(),
-                                camera.targetZ())) {
+                            cameraRig.rightDown(over.x, y);
+                        } else if (cameraRig.rightUp(over.x, y)) {
                             if (aiming.isArmed() || arming != null || mouse.rightClickLetsGo()) {
                                 secondThoughts();
                             } else if (pointerOnTheWorld() && !onAPanel(over.x, over.y)) {
@@ -3380,7 +3362,7 @@ final class DukeRtsApp extends SimpleApplication {
         light.step(tpf);
         fog.followTheLookUnderTheCamera(tpf);
         camera.focusOnOwnUnit(snapshot.units(), game.getLocalPlayerIndex());
-        updateCamera(tpf);
+        cameraRig.frame(tpf);
         game.setViewRays(worldRegion.raysThrough(cam));
         // Before the units, not after: a death has to take the body out of the
         // live list before anything decides it merely vanished. It also means a
@@ -3873,96 +3855,8 @@ final class DukeRtsApp extends SimpleApplication {
         return new Cursors.Over(true, armed, canReach, overPanel,
                 over != null, over != null && over.view.playerIndex() == game.getLocalPlayerIndex(),
                 snapshot.attackable(), !own.isEmpty(), snapshot.contextOrder(), // a thing's, or the ground's
-                scrolling, groundTakes(game.getLocalPlayerIndex(), own, game.namesGroundOrders(), parts),
+                cameraRig.scrolling(), groundTakes(game.getLocalPlayerIndex(), own, game.namesGroundOrders(), parts),
                 controls.isHeld(KeyMap.Control.FORCE_ATTACK));
-    }
-
-    private void updateCamera(float tpf) {
-        holdTheMouse();
-        scheme.frame(tpf); // a scene the game directs or not: a key let go is always told
-        var directed = snapshot.camera();
-        if (directed != null) {
-            // The game has the camera: it goes where the game's code put it, and the player's controls wait.
-            camera.restore(new CameraFocus.View(directed.x(), directed.y(), directed.angle(),
-                    Float.isNaN(directed.zoom()) ? camera.distance() : directed.zoom()));
-            cameraPitch = Float.isNaN(directed.pitch()) ? camera.pitch() : directed.pitch();
-            scrolling = null;
-        } else {
-            if (!sceneLocked()) {
-                steerTheCamera(tpf);
-            }
-            cameraPitch = camera.pitch();
-            game.setCameraSeen(camera.targetX(), camera.targetZ(), camera.yaw(), camera.pitch(), camera.distance());
-        }
-        placeTheCamera(tpf);
-        veil.show(game.camera().screen(), cam.getWidth(), cam.getHeight());
-    }
-
-    /** The player's own hands on the camera: the pan keys, the window's edges and the right button, turning, zooming. */
-    private void steerTheCamera(float tpf) {
-        var moved = game.takeViewMove();
-        if (moved != null) {
-            camera.lookAt(moved.x(), moved.y()); // the game put his view here; he scrolls on from it
-        }
-        var at = inputManager.getCursorPosition();
-        int tall = cam.getHeight();
-        // No edge while a menu is up: the pointer is being used for something else, and a view that drifted out from
-        // under a choice would be its own kind of bug.
-        boolean atTheEdges = inPlay() && windowDisplay.pointerInTheWindow()
-                && !capture.captured(); // a held mouse scrolls nothing at the edges
-        steering.stillHeld(windowDisplay.buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_RIGHT),
-                windowDisplay.buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_MIDDLE));
-        var hands = new Steering.Hands(held(KeyMap.Control.PAN_LEFT), held(KeyMap.Control.PAN_RIGHT),
-                held(KeyMap.Control.PAN_UP), held(KeyMap.Control.PAN_DOWN), at.x, tall - at.y, atTheEdges,
-                cam.getWidth(), tall);
-        var pan = steering.scroll(hands, tpf, camera.panAcross() * scrollSpeed, camera.panAlong() * scrollSpeed,
-                visuals.getEdgeScroll());
-        scrolling = Cursors.scrollDirection(pan.x, pan.y, steering.dragging());
-        // Across and down the screen, which is the ground turned the way the camera is.
-        float cos = FastMath.cos(camera.yaw());
-        float sin = FastMath.sin(camera.yaw());
-        camera.panBy(pan.x * cos + pan.y * sin, pan.y * cos - pan.x * sin);
-        scheme.steer(pan.x != 0f || pan.y != 0f, tpf);
-        camera.turnBy(steering.turn(inputManager.getCursorPosition().x, turnPerPixel()));
-        if (held(KeyMap.Control.TURN_LEFT)) {
-            camera.heldTurn(1, tpf);
-        }
-        if (held(KeyMap.Control.TURN_RIGHT)) {
-            camera.heldTurn(-1, tpf);
-        }
-        if (held(KeyMap.Control.ZOOM_IN)) {
-            camera.heldZoom(true, tpf);
-        }
-        if (held(KeyMap.Control.ZOOM_OUT)) {
-            camera.heldZoom(false, tpf);
-        }
-        camera.approach(tpf); // the eye closing on where the wheel and the keys set it
-    }
-
-    /** The eye where the focus says, riding up with the ground under it, at its slope, shaken by what landed. */
-    private void placeTheCamera(float tpf) {
-        // The camera rides up with the ground under what it is looking at, or a
-        // room on the second storey is a room seen from underneath. Eased rather
-        // than stepped: a storey is a whole body's height and arriving at one in a
-        // single frame reads as the world jumping.
-        float wanted = floorHeightAt(camera.targetX(), camera.targetZ());
-        cameraHeight += (wanted - cameraHeight) * Math.min(1f, tpf * 6f);
-
-        var target = new Vector3f(camera.targetX(), cameraHeight, camera.targetZ());
-        // The knock from whatever just landed, added to where the camera was
-        // going to be rather than replacing it -- so the shake never argues with
-        // the pan, the zoom or the storey it is riding up.
-        //
-        // Only the EYE is moved and not what it is looking at. Shaking both is a
-        // camera being carried about; shaking one is the ground being hit, which
-        // is what is actually happening. It also keeps the thing the player is
-        // watching in the middle of the screen while the world rattles round it.
-        var knock = skillEffects == null ? Vector3f.ZERO : skillEffects.shakeNow();
-        if (listShow != null) {
-            knock = knock.add(listShow.shakeNow());
-        }
-        cam.setLocation(target.add(camera.eyeOffset(cameraPitch)).addLocal(knock));
-        cam.lookAt(target, Vector3f.UNIT_Y);
     }
 
     /**
@@ -3976,28 +3870,6 @@ final class DukeRtsApp extends SimpleApplication {
             disarm();
         } else if (mouse.rightClickLetsGo()) {
             selected.clear();
-        }
-    }
-
-    /** How far a middle drag turns the view for each pixel it moves across, in radians; 0 where the game set none. */
-    private float turnPerPixel() {
-        float perPixel = cameraFrame.turnPerPixel();
-        return Float.isNaN(perPixel) ? 0f : perPixel;
-    }
-
-    /**
-     * The middle button on the player's camera, where the game framed a turn for it: held, a drag across turns the view
-     * (the reference's {@code LookAtTranslator}); let go as a click, the view is put back as a reset puts it.
-     */
-    private void turnByTheMiddleButton(boolean pressed) {
-        var at = inputManager.getCursorPosition();
-        float now = timer.getTimeInSeconds();
-        if (pressed) {
-            if (inPlay() && snapshot.camera() == null && turnPerPixel() != 0f) {
-                steering.middleDown(at.x, at.y, now);
-            }
-        } else if (steering.middleUp(at.x, at.y, now) && snapshot.camera() == null) {
-            camera.resetView();
         }
     }
 
@@ -4252,43 +4124,6 @@ final class DukeRtsApp extends SimpleApplication {
         root.updateLogicalState(0f);
         root.updateGeometricState();
     }
-    /** The mouse held by the window, as the scheme asks — see {@link ControlScheme.Context#holdMouse}. */
-    private final MouseCapture capture = new MouseCapture();
-    /** How far the held mouse moved this frame, in pixels; and where the platform's pointer stood last. */
-    private float heldDx;
-    private float heldDy;
-    private double[] pointerWas;
-
-    /** The mouse held or let go as the screen asks, and how far it moved this frame read while it is held. */
-    private void holdTheMouse() {
-        long window = windowDisplay.windowHandle();
-        boolean was = capture.captured();
-        boolean freed = screens.now() != Screen.PLAYING || screens.menu().isVisible()
-                || canvasInput != null && canvasInput.holdsKeys() || snapshot == null || snapshot.camera() != null
-                || controls.isHeld(KeyMap.Control.FREE_POINTER) || !windowDisplay.focused();
-        boolean held = capture.update(freed);
-        if (held != was && window != 0L) {
-            org.lwjgl.glfw.GLFW.glfwSetInputMode(window, org.lwjgl.glfw.GLFW.GLFW_CURSOR,
-                    held ? org.lwjgl.glfw.GLFW.GLFW_CURSOR_DISABLED : org.lwjgl.glfw.GLFW.GLFW_CURSOR_NORMAL);
-            inputManager.setCursorVisible(!held);
-            pointerWas = null;
-        }
-        heldDx = 0f;
-        heldDy = 0f;
-        if (!held || window == 0L) {
-            return;
-        }
-        double[] x = new double[1];
-        double[] y = new double[1];
-        org.lwjgl.glfw.GLFW.glfwGetCursorPos(window, x, y);
-        float dx = pointerWas == null ? 0f : (float) (x[0] - pointerWas[0]);
-        float dy = pointerWas == null ? 0f : (float) (y[0] - pointerWas[1]);
-        pointerWas = new double[] {x[0], y[0]};
-        var moved = capture.motion(dx, dy);
-        heldDx = moved[0];
-        heldDy = moved[1];
-    }
-
     /** The pictures laid over all the ground shown or put away — see {@link Duke3D#groundShades}. */
     void groundShades(boolean shown) {
         groundLooks.groundShades(shown);
