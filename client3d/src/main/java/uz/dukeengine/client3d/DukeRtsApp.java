@@ -1,40 +1,18 @@
 package uz.dukeengine.client3d;
 
-import com.jme3.anim.AnimComposer;
-import com.jme3.anim.tween.action.BlendableAction;
-import com.jme3.animation.AnimChannel;
-import com.jme3.animation.AnimControl;
 import com.jme3.app.SimpleApplication;
-import com.jme3.audio.AudioData;
-import com.jme3.audio.AudioNode;
-import com.jme3.collision.CollisionResults;
 import com.jme3.font.BitmapText;
 import com.jme3.input.KeyInput;
-import com.jme3.input.MouseInput;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.AnalogListener;
-import com.jme3.input.controls.KeyTrigger;
-import com.jme3.input.controls.MouseAxisTrigger;
-import com.jme3.input.controls.MouseButtonTrigger;
-import com.jme3.light.AmbientLight;
-import com.jme3.light.DirectionalLight;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
-import com.jme3.math.FastMath;
-import com.jme3.math.Quaternion;
-import com.jme3.math.Ray;
-import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
-import com.jme3.scene.control.BillboardControl;
-import com.jme3.scene.shape.Box;
-import com.jme3.scene.shape.Cylinder;
-import com.jme3.scene.shape.Quad;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -43,14 +21,11 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Logger;
 
-import uz.dukeengine.core.event.ObjectDied;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.game.DukeGame;
 import uz.dukeengine.core.view.UnitView;
 import uz.dukeengine.core.view.WorldSnapshot;
-import uz.dukeengine.combat.event.ShotLanded;
-import uz.dukeengine.combat.event.WeaponFired;
 import uz.dukeengine.combat.message.CombatOrder;
 
 /**
@@ -84,8 +59,6 @@ final class DukeRtsApp extends SimpleApplication {
      */
     static final java.util.prefs.Preferences PREFS =
             java.util.prefs.Preferences.userRoot().node("duke-engine/game");
-    private static final int[][] RESOLUTIONS = {{1280, 720}, {1600, 900}, {1920, 1080}};
-    private static final int[] VOLUMES = {100, 75, 50, 25, 0};
 
     /** The match being drawn: the one the window opened with, or the last the game started. */
     private DukeGame game;
@@ -158,7 +131,7 @@ final class DukeRtsApp extends SimpleApplication {
      * <p>Beside the projectiles' effects rather than inside them, because they
      * answer different questions. That one is asked "this thing is flying / this
      * thing landed"; this one is asked "the player pressed W", which arrives from
-     * somewhere else entirely -- see {@link #skillsCastThisFrame}.
+     * somewhere else entirely -- see {@link WorldEvents}.
      */
     private SkillEffects skillEffects;
     /**
@@ -181,51 +154,6 @@ final class DukeRtsApp extends SimpleApplication {
     private RidingEffects ridingEffects;
     private RallyMarks rallyMarks;
     private OcclusionMarks occlusionMarks;
-
-    /** The game's sky, hung behind everything; none where it names none or its pictures will not load. */
-    private void hangTheSky() {
-        var pictures = visuals.getSkybox();
-        if (pictures.isEmpty()) {
-            return;
-        }
-        try {
-            var sky = pictures.size() == 1
-                    ? com.jme3.util.SkyFactory.createSky(assetManager, pictures.getFirst(),
-                            com.jme3.util.SkyFactory.EnvMapType.CubeMap)
-                    : com.jme3.util.SkyFactory.createSky(assetManager, assetManager.loadTexture(pictures.get(0)),
-                            assetManager.loadTexture(pictures.get(1)), assetManager.loadTexture(pictures.get(2)),
-                            assetManager.loadTexture(pictures.get(3)), assetManager.loadTexture(pictures.get(4)),
-                            assetManager.loadTexture(pictures.get(5)));
-            rootNode.attachChild(sky);
-        } catch (RuntimeException notThere) {
-            LOG.warning(() -> "the sky names pictures that will not load: " + pictures);
-        }
-    }
-
-    /** The things shown behind what stands in front this frame — see {@link Visuals#occlusionMarks}. */
-    private void markTheHidden() {
-        if (!visuals.getOcclusionMarks() || snapshot == null) {
-            if (occlusionMarks != null) {
-                occlusionMarks.mark(Map.of());
-            }
-            return;
-        }
-        if (occlusionMarks == null) {
-            occlusionMarks = new OcclusionMarks(assetManager);
-            viewPort.getProcessors().add(0, occlusionMarks); // before a filter takes the picture and its depth
-        }
-        int local = game.getLocalPlayerIndex();
-        var marked = new java.util.HashMap<Spatial, ColorRGBA>();
-        for (var view : snapshot.units()) {
-            var node = unitScene.node(view.id());
-            if (node == null || view.structure()
-                    || view.playerIndex() != local && !visuals.getOcclusionMarked().test(view)) {
-                continue;
-            }
-            marked.put(node.root, Materials.colour(game.getColor(view.playerIndex())));
-        }
-        occlusionMarks.mark(marked);
-    }
     /** The streams things ride, drawn as ribbons, once the game names a look for one — see {@link Visuals#stream}. */
     private Ribbons ribbons;
     private final Map<String, Material> particleMaterials = new HashMap<>();
@@ -322,7 +250,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private GameSounds noises;
     /**
-     * What the player set, kept in a file beside him — see { GameSettings}.
+     * What the player set, kept in a file beside him — see {@link GameSettings}.
      */
     private final GameSettings preferences = new GameSettings();
     /** The window itself, asked and moved where jME keeps no answer — see {@link WindowDisplay}. */
@@ -722,6 +650,51 @@ final class DukeRtsApp extends SimpleApplication {
         choices.applyVolume();
     }
 
+    /** The game's sky, hung behind everything; none where it names none or its pictures will not load. */
+    private void hangTheSky() {
+        var pictures = visuals.getSkybox();
+        if (pictures.isEmpty()) {
+            return;
+        }
+        try {
+            var sky = pictures.size() == 1
+                    ? com.jme3.util.SkyFactory.createSky(assetManager, pictures.getFirst(),
+                            com.jme3.util.SkyFactory.EnvMapType.CubeMap)
+                    : com.jme3.util.SkyFactory.createSky(assetManager, assetManager.loadTexture(pictures.get(0)),
+                            assetManager.loadTexture(pictures.get(1)), assetManager.loadTexture(pictures.get(2)),
+                            assetManager.loadTexture(pictures.get(3)), assetManager.loadTexture(pictures.get(4)),
+                            assetManager.loadTexture(pictures.get(5)));
+            rootNode.attachChild(sky);
+        } catch (RuntimeException notThere) {
+            LOG.warning(() -> "the sky names pictures that will not load: " + pictures);
+        }
+    }
+
+    /** The things shown behind what stands in front this frame — see {@link Visuals#occlusionMarks}. */
+    private void markTheHidden() {
+        if (!visuals.getOcclusionMarks() || snapshot == null) {
+            if (occlusionMarks != null) {
+                occlusionMarks.mark(Map.of());
+            }
+            return;
+        }
+        if (occlusionMarks == null) {
+            occlusionMarks = new OcclusionMarks(assetManager);
+            viewPort.getProcessors().add(0, occlusionMarks); // before a filter takes the picture and its depth
+        }
+        int local = game.getLocalPlayerIndex();
+        var marked = new java.util.HashMap<Spatial, ColorRGBA>();
+        for (var view : snapshot.units()) {
+            var node = unitScene.node(view.id());
+            if (node == null || view.structure()
+                    || view.playerIndex() != local && !visuals.getOcclusionMarked().test(view)) {
+                continue;
+            }
+            marked.put(node.root, Materials.colour(game.getColor(view.playerIndex())));
+        }
+        occlusionMarks.mark(marked);
+    }
+
     /**
      * The game's canvas, over everything else in the GUI, and its first look at the input — before any control of
      * the client's own, since the input manager hands a consumed event to nothing after its raw listeners.
@@ -735,8 +708,7 @@ final class DukeRtsApp extends SimpleApplication {
         surround.setClearFlags(true, true, true);
         surround.setEnabled(false);
         if (backdropRecipe != null) {
-            backdrop = new Backdrop(backdropRecipe, built -> new ArtLoad(built.templatesThisMatchCanDraw(), visuals, artStore),
-                    backdropEar == null ? percent -> { } : backdropEar);
+            backdrop = new Backdrop(backdropRecipe, this::artLoadFor, backdropEar == null ? percent -> { } : backdropEar);
         }
         // First of all: a title card that takes the input takes it before the game's canvas or any control.
         inputManager.addRawInputListener(new CardInput(canvas::takesInput, canvas::skip));
@@ -1452,7 +1424,6 @@ final class DukeRtsApp extends SimpleApplication {
         return null;
     }
 
-
     private void startGame() {
         takeTheFrontMatchBack();
         left = false; // a new match: the game is told again when this one is let go
@@ -1503,7 +1474,7 @@ final class DukeRtsApp extends SimpleApplication {
      * {@link Visuals}, which has known since before the window opened.
      */
     private void beginLoading() {
-        matchLoad = new MatchLoad(game, built -> artLoad = new ArtLoad(built.templatesThisMatchCanDraw(), visuals, artStore),
+        matchLoad = new MatchLoad(game, built -> artLoad = artLoadFor(built),
                 percent -> {
                     if (loadingEar != null) {
                         loadingEar.accept(percent);
@@ -1514,6 +1485,11 @@ final class DukeRtsApp extends SimpleApplication {
             loading.show(game.getTitle()); // a game that draws its own screens draws its own load screen
         }
         screens.set(Screen.LOADING);
+    }
+
+    /** The art a match built can draw, read ahead of its first frame — see {@link ArtLoad}. */
+    private ArtLoad artLoadFor(DukeGame built) {
+        return new ArtLoad(built.templatesThisMatchCanDraw(), visuals, artStore);
     }
 
     private void advanceLoadingArt() {
@@ -2039,6 +2015,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         return null;
     }
+
     // ---- per-frame sync ----
 
     @Override
@@ -2089,7 +2066,7 @@ final class DukeRtsApp extends SimpleApplication {
             if (screens.menu().isDragging()) {
                 screens.menu().drag(inputManager.getCursorPosition());
             } else if (screens.menu().hover(inputManager.getCursorPosition())) {
-                noises.moment("menu_hover", (float) timer.getTimeInSeconds());
+                noises.moment("menu_hover", timer.getTimeInSeconds());
             }
         }
         if ((screens.now() == Screen.MENU || screens.now() == Screen.FRONT) && !backdropShown()) {
@@ -2131,7 +2108,7 @@ final class DukeRtsApp extends SimpleApplication {
         placeTheListener();
         letItFall();
         noises.frame(snapshot, game.getLocalPlayerIndex(),
-                (float) timer.getTimeInSeconds());
+                timer.getTimeInSeconds());
         for (var event : snapshot.unseenEvents()) {
             if (event instanceof uz.dukeengine.core.event.SoundPlayed sound
                     && noises.sounds().throughFog(sound.cue())) {
@@ -2210,6 +2187,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /** Whether a held control of the client's is held now, and play is what is going on. */
+    private boolean held(KeyMap.Control control) {
+        return inPlay() && controls.isHeld(control);
+    }
+
     /**
      * Hide what belongs to playing while something else is on the screen.
      *
@@ -2219,18 +2201,6 @@ final class DukeRtsApp extends SimpleApplication {
      * are just left over, sitting behind the menu, saying the client forgot to
      * put them away.
      */
-    /**
-     * Send a direction to the menu, or let it through to the camera.
-     *
-     * @return whether the world should have it — false once a menu has taken it,
-     * which also stops the camera being left drifting when a menu opens
-     * mid-press and the release never reaches it
-     */
-    /** Whether a held control of the client's is held now, and play is what is going on. */
-    private boolean held(KeyMap.Control control) {
-        return inPlay() && controls.isHeld(control);
-    }
-
     private void showOnlyWhilePlaying() {
         var hint = clientHud() ? Spatial.CullHint.Never : Spatial.CullHint.Always;
         minimapView.show(clientHud());
@@ -2312,7 +2282,8 @@ final class DukeRtsApp extends SimpleApplication {
         return new Cursors.Over(true, armed, canReach, overPanel,
                 over != null, over != null && over.view.playerIndex() == game.getLocalPlayerIndex(),
                 snapshot.attackable(), !own.isEmpty(), snapshot.contextOrder(), // a thing's, or the ground's
-                cameraRig.scrolling(), Orders.groundTakes(game.getLocalPlayerIndex(), own, game.namesGroundOrders(), parts),
+                cameraRig.scrolling(),
+                Orders.groundTakes(game.getLocalPlayerIndex(), own, game.namesGroundOrders(), parts),
                 controls.isHeld(KeyMap.Control.FORCE_ATTACK));
     }
 
@@ -2363,6 +2334,7 @@ final class DukeRtsApp extends SimpleApplication {
         return fog == null ? null : fog.discovery();
     }
 
+    /** A strip's picture by its whole path, or null where it will not load — said once. */
     private com.jme3.texture.Texture stripPicture(String path) {
         try {
             return assetManager.loadTexture(path);
@@ -2375,6 +2347,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private final java.util.Set<String> missingStripPictures = new java.util.HashSet<>();
+
     /**
      * Where the sounds are heard from this frame: where the game places the listener — on the line from the ground
      * point the view looks at to the eye, facing as the view faces, with no speed ({@code AudioManager::update}) —
@@ -2484,6 +2457,7 @@ final class DukeRtsApp extends SimpleApplication {
             }
         };
     }
+
     /** A thrown piece's house-colour meshes in the colour the thing it was thrown for wears, dead or alive. */
     private void paintThrown(Spatial piece, Spatial thing) {
         Integer wears = thing.getUserData("wears");
@@ -2508,8 +2482,8 @@ final class DukeRtsApp extends SimpleApplication {
         // A game whose status the panel can draw gets it drawn; anything else is
         // still written out along the top, which is what every game got before.
         var cursor = inputManager.getCursorPosition();
-        var frame = new HudPart.Frame(snapshot, tpf, !screens.menu().isVisible() && !snapshot.paused(), portraitSubject(),
-                cursor.x, cursor.y, screens.now() == Screen.PLAYING);
+        var frame = new HudPart.Frame(snapshot, tpf, !screens.menu().isVisible() && !snapshot.paused(),
+                portraitSubject(), cursor.x, cursor.y, screens.now() == Screen.PLAYING);
         boolean drawn = false;
         for (var part : parts) {
             drawn |= part.show(frame);
@@ -2595,13 +2569,15 @@ final class DukeRtsApp extends SimpleApplication {
             view.attachScene(tintNode);
         }
         worldTintQuad.setLocalScale(cam.getWidth(), cam.getHeight(), 1f);
-        worldTintQuad.getMaterial().setColor("Color", new ColorRGBA(((argb >> 16) & 0xFF) / 255f,
-                ((argb >> 8) & 0xFF) / 255f, (argb & 0xFF) / 255f, alpha));
+        var colour = Materials.rgb(argb);
+        colour.a = alpha;
+        worldTintQuad.getMaterial().setColor("Color", colour);
         worldTintQuad.setCullHint(alpha <= 0f ? Spatial.CullHint.Always : Spatial.CullHint.Never);
         var root = worldTintQuad.getParent();
         root.updateLogicalState(0f);
         root.updateGeometricState();
     }
+
     /** The pictures laid over all the ground shown or put away — see {@link Duke3D#groundShades}. */
     void groundShades(boolean shown) {
         groundLooks.groundShades(shown);

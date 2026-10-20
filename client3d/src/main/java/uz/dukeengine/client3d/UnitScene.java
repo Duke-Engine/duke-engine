@@ -4,7 +4,6 @@ import com.jme3.anim.AnimComposer;
 import com.jme3.anim.tween.action.BlendableAction;
 import com.jme3.animation.AnimControl;
 import com.jme3.asset.AssetManager;
-import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
@@ -693,7 +692,7 @@ final class UnitScene {
      * multiplied by the owner's, so the shading painted into a house-colour mesh — which is grey for
      * exactly this reason — comes through. The shadowed side too, or a red army goes grey in the shade.
      *
-     * <p>After the body is built rather than inside {@link #buildBody}, because a body does not know whose
+     * <p>After the body is built rather than inside {@link Bodies#buildBody}, because a body does not know whose
      * it is — the same file serves both sides, and the portrait builds one that belongs to nobody. So it is
      * done where the owner is known: when a unit arrives, and again when its model is swapped for a
      * condition, because a wrecked barracks is still his.
