@@ -457,6 +457,15 @@ public final class Duke3D {
     }
 
     /**
+     * The engine's own interface put away while {@code hidden} says so, read every frame (E104): the panel and all in it,
+     * the minimap, the bars, the hints and the order marks — the game's own painter still drawn, its letterbox and its
+     * dialogue box. None, as ever. From any thread.
+     */
+    public void interfaceHidden(java.util.function.BooleanSupplier hidden) {
+        later(client -> client.interfaceHidden(hidden));
+    }
+
+    /**
      * What grows on a painted map's ground for the look alone — see {@link GroundCover} — grown round the camera from
      * now, a chunk at a time, instanced; {@link GroundCover#NONE} for nothing. A new world keeps it until told again.
      * From any thread.
