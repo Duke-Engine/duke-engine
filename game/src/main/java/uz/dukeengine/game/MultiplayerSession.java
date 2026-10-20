@@ -581,7 +581,7 @@ public final class MultiplayerSession implements AutoCloseable {
     private static void closeQuietly(Socket socket) {
         try {
             socket.close();
-        } catch (IOException ignored) {
+        } catch (IOException _) {
             // best-effort
         }
     }
@@ -594,7 +594,7 @@ public final class MultiplayerSession implements AutoCloseable {
             if (way instanceof AutoCloseable closeable) {
                 try {
                     closeable.close();
-                } catch (Exception ignored) {
+                } catch (Exception _) {
                     // best-effort
                 }
             }
@@ -602,7 +602,7 @@ public final class MultiplayerSession implements AutoCloseable {
         if (listening != null) {
             try {
                 listening.close();
-            } catch (IOException ignored) {
+            } catch (IOException _) {
                 // best-effort
             }
         }

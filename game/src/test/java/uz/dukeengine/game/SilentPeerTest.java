@@ -23,9 +23,9 @@ class SilentPeerTest {
     @Timeout(60)
     void aGuestThatGoesQuietIsWaitedForThenTakenOutAtTheHostsLimit() throws Exception {
         var sessions = HostLeavesTest.sessions(TWO_PORT, 2);
-        var host = HostLeavesTest.watched(2, sessions.get(0));
+        var host = HostLeavesTest.watched(2, sessions.getFirst());
         var guest = HostLeavesTest.watched(2, sessions.get(1));
-        sessions.get(0).setSilenceLimit(Duration.ofSeconds(2));
+        sessions.getFirst().setSilenceLimit(Duration.ofSeconds(2));
         long giveUp = System.nanoTime() + TimeUnit.SECONDS.toNanos(45);
         HostLeavesTest.stepUntil(List.of(host, guest), 300, giveUp);
         int guestStoppedAt = guest.frame(); // its machine hangs: stepped no more, its socket open
@@ -45,7 +45,7 @@ class SilentPeerTest {
                 stalledSince = System.nanoTime();
                 stalledAt = Math.max(stalledAt, host.frame());
             }
-            if (toldAfterMillis < 0 && sessions.get(0).waitingFor().stream().anyMatch(w -> w.player() == 2)) {
+            if (toldAfterMillis < 0 && sessions.getFirst().waitingFor().stream().anyMatch(w -> w.player() == 2)) {
                 toldAfterMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - stalledSince);
             }
             Thread.sleep(2);
@@ -57,7 +57,7 @@ class SilentPeerTest {
         assertNotNull(host.leftAt().get(2), "told the guest left");
         assertTrue(host.leftAt().get(2) > stalledAt, "from a frame nobody had run: " + host.leftAt().get(2)
                 + " past " + stalledAt);
-        assertTrue(sessions.get(0).waitingFor().isEmpty(), "waiting for nobody now");
+        assertTrue(sessions.getFirst().waitingFor().isEmpty(), "waiting for nobody now");
         sessions.forEach(MultiplayerSession::close);
     }
 
@@ -65,13 +65,13 @@ class SilentPeerTest {
     @Timeout(60)
     void threePlayersTheHostTakesOneOutOnTheGamesWordAndTheOtherTwoRunOnAlike() throws Exception {
         var sessions = HostLeavesTest.sessions(THREE_PORT, 3);
-        var host = HostLeavesTest.watched(3, sessions.get(0));
+        var host = HostLeavesTest.watched(3, sessions.getFirst());
         var two = HostLeavesTest.watched(3, sessions.get(1));
         var three = HostLeavesTest.watched(3, sessions.get(2));
         long giveUp = System.nanoTime() + TimeUnit.SECONDS.toNanos(45);
         HostLeavesTest.stepUntil(List.of(host, two, three), 60, giveUp);
 
-        sessions.get(0).takeOut(3); // the vote on the waiting screen
+        sessions.getFirst().takeOut(3); // the vote on the waiting screen
         HostLeavesTest.stepUntil(List.of(host, two), 660, giveUp);
         three.game().runHeadless(5);
 

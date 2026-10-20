@@ -81,7 +81,7 @@ class ScriptModuleTest {
         assertEquals(30, Walker.UPDATES.get(), "onUpdate fires every logic frame");
 
         // the Walker script ordered movement through the script API
-        var unit = game.getLogic().getObjects().get(0);
+        var unit = game.getLogic().getObjects().getFirst();
         assertTrue(unit.getPosition().x() > 10f, "script-issued move order should take effect");
         // and the Broken script did not stop the simulation
         assertEquals(30, game.getLogic().getFrame());

@@ -74,7 +74,7 @@ class GameCommandTest {
         assertTrue(heard.isEmpty(), "posting is not applying");
         game.runHeadless(5);
         assertEquals(1, heard.size(), "it was applied exactly once");
-        assertTrue(heard.get(0) > postedAt,
+        assertTrue(heard.getFirst() > postedAt,
                 "and on a later frame, not the one it was posted during");
     }
 

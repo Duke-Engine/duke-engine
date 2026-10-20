@@ -154,13 +154,13 @@ class ThreePlayerSyncTest {
 
     /** Whether every world is on the same frame, which is when there is anything to compare. */
     private static boolean allOnSameFrame(List<DukeGame> games) {
-        int frame = games.get(0).getLogic().getFrame();
+        int frame = games.getFirst().getLogic().getFrame();
         return games.stream().allMatch(g -> g.getLogic().getFrame() == frame);
     }
 
     /** Assert equality across every pair of games that happen to be on the same frame. */
     private static int compareAllOnSameFrame(List<DukeGame> games) {
-        var reference = games.get(0);
+        var reference = games.getFirst();
         int frame = reference.getLogic().getFrame();
         if (frame == 0) {
             return 0;

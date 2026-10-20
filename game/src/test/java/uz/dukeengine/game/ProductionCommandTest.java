@@ -105,8 +105,8 @@ class ProductionCommandTest {
         var options = game.flavour(uz.dukeengine.rts.RtsFlavour.class).getBuildOptions("Barracks",
                 game.getLocalPlayerIndex());
         assertEquals(2, options.size());
-        assertEquals("Rifleman", options.get(0).templateName());
-        assertEquals(120, options.get(0).cost());
+        assertEquals("Rifleman", options.getFirst().templateName());
+        assertEquals(120, options.getFirst().cost());
         assertEquals("Battle Tank", options.get(1).displayName());
     }
 }

@@ -48,7 +48,7 @@ class HoldOrdersToldTest {
         game.localPlayer(me).spawn("Truck", me, 150f, 150f).spawn("Rifleman", me, 150f, 150f);
         game.runHeadless(1);
         var objects = game.getLogic().getObjects();
-        var truck = objects.get(0);
+        var truck = objects.getFirst();
         var soldier = objects.get(1);
         truck.findModule(ContainModule.class).load(soldier);
         return new Field(game, me, truck, soldier);

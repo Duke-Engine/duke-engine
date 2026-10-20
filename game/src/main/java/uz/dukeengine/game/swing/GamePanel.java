@@ -128,7 +128,7 @@ public final class GamePanel extends JPanel {
             @Override
             public void mouseWheelMoved(MouseWheelEvent e) {
                 float before = scale;
-                scale = Math.max(3f, Math.min(24f, scale * (e.getWheelRotation() < 0 ? 1.15f : 0.87f)));
+                scale = Math.clamp(scale * (e.getWheelRotation() < 0 ? 1.15f : 0.87f), 3f, 24f);
                 // Keep the point under the cursor fixed while zooming.
                 camX += e.getX() / before - e.getX() / scale;
                 camY += e.getY() / before - e.getY() / scale;

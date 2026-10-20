@@ -47,7 +47,7 @@ class OrdersHeardTest {
         game.spawn("Rifleman", usa, 200f, 100f);
         game.runHeadless(1);
         var objects = game.getLogic().getObjects();
-        var site = objects.get(0);
+        var site = objects.getFirst();
         var hive = new Hive(site);
         hive.soldier = objects.get(1);
         site.addModule(hive);

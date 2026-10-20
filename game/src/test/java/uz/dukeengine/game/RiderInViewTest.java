@@ -21,7 +21,7 @@ class RiderInViewTest {
         game.spawn("Barracks", china, 100f, 100f);
         game.spawn("Rifleman", china, 100f, 100f);
         game.runHeadless(1);
-        var carrier = game.getLogic().getObjects().get(0);
+        var carrier = game.getLogic().getObjects().getFirst();
         var rider = game.getLogic().getObjects().get(1);
         var hold = new ContainModule(carrier, new ContainModule.Data(1, null, false, "GUNNER"));
         carrier.addModule(hold);
@@ -46,7 +46,7 @@ class RiderInViewTest {
         game.spawn("Rifleman", china, 100f, 100f);
         game.runHeadless(1);
         var objects = game.getLogic().getObjects();
-        var carrier = objects.get(0);
+        var carrier = objects.getFirst();
         var hold = new ContainModule(carrier, new ContainModule.Data(3, null, false, "GUNNER", false, null, null,
                 null, false, List.of(Kind.of("VEHICLE"))));
         carrier.addModule(hold);
@@ -77,7 +77,7 @@ class RiderInViewTest {
         }
         game.runHeadless(1);
         var objects = game.getLogic().getObjects();
-        var base = objects.get(0);
+        var base = objects.getFirst();
         var plain = objects.get(1);
         var shows = new ContainModule(base, new ContainModule.Data(4, null, true, null, false, null, null, null,
                 false, List.of(), true));
