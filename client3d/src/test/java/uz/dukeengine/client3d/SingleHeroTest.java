@@ -14,11 +14,11 @@ class SingleHeroTest {
     @Test
     void aGameWhoseDragSelectsNothingHasNoBoxHoweverFarThePressMoves() {
         var visuals = Visuals.create();
-        assertTrue(DukeRtsApp.isBox(visuals, 200f, 200f, 400f, 400f), "a sweep is a box, as in any RTS");
+        assertTrue(Orders.isBox(visuals, 200f, 200f, 400f, 400f), "a sweep is a box, as in any RTS");
 
         visuals.dragSelects(false);
-        assertFalse(DukeRtsApp.isBox(visuals, 200f, 200f, 400f, 400f), "a click where the button is let go");
-        assertFalse(DukeRtsApp.isBox(visuals, 0f, 0f, 4000f, 4000f));
+        assertFalse(Orders.isBox(visuals, 200f, 200f, 400f, 400f), "a click where the button is let go");
+        assertFalse(Orders.isBox(visuals, 0f, 0f, 4000f, 4000f));
     }
 
     @Test

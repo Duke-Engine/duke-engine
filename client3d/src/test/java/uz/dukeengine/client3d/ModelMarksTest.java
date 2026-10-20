@@ -47,9 +47,9 @@ class ModelMarksTest {
                 new uz.dukeengine.core.view.UnitView(9, "WarFactory", 1, 0f, 0f, 0f, 900f, 900f, true, true, false, false,
                         0));
 
-        assertTrue(DukeRtsApp.hintsMove(HINT, java.util.Set.of(4, 7), tanks), "two units: the model is laid");
-        assertFalse(DukeRtsApp.hintsMove(HINT, java.util.Set.of(9), factory), "a lone building: nothing");
-        assertFalse(DukeRtsApp.hintsMove(OrderMark.DEFAULTS, java.util.Set.of(4, 7), tanks), "no model named: none");
+        assertTrue(Orders.hintsMove(HINT, java.util.Set.of(4, 7), tanks), "two units: the model is laid");
+        assertFalse(Orders.hintsMove(HINT, java.util.Set.of(9), factory), "a lone building: nothing");
+        assertFalse(Orders.hintsMove(OrderMark.DEFAULTS, java.util.Set.of(4, 7), tanks), "no model named: none");
     }
 
     @Test

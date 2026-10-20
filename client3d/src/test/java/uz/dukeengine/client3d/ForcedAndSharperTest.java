@@ -20,7 +20,7 @@ class ForcedAndSharperTest {
         camera.update();
         // A tank on a hill: its body drawn round (100, 50, 100), on ground 40 high.
         var body = new BoundingBox(new Vector3f(100f, 50f, 100f), 6f, 10f, 6f);
-        var drawn = camera.getScreenCoordinates(DukeRtsApp.drawnCentre(body, 100f, 100f, 40f));
+        var drawn = camera.getScreenCoordinates(Orders.drawnCentre(body, 100f, 100f, 40f));
         var foot = camera.getScreenCoordinates(new Vector3f(100f, 0f, 100f));
         var candidate = List.of(new SelectionBox.Candidate(1, drawn.x, drawn.y, true, true, false));
 
@@ -28,7 +28,7 @@ class ForcedAndSharperTest {
                 .size(), "a box round where it is seen takes it");
         assertEquals(0, SelectionBox.inside(foot.x - 15f, foot.y - 15f, foot.x + 15f, foot.y + 15f, candidate)
                 .size(), "a box round the ground under the world's foot does not");
-        assertEquals(new Vector3f(10f, 7f, 20f), DukeRtsApp.drawnCentre(null, 10f, 20f, 7f),
+        assertEquals(new Vector3f(10f, 7f, 20f), Orders.drawnCentre(null, 10f, 20f, 7f),
                 "nothing drawn: the ground under it");
     }
 

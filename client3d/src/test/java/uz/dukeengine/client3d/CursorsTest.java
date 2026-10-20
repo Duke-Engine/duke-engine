@@ -391,11 +391,11 @@ class CursorsTest {
         var units = java.util.List.of(new uz.dukeengine.core.thing.ObjectId(7));
         var ground = new com.jme3.math.Vector3f(120f, 4f, 80f); // the scene's y is up
 
-        var order = DukeRtsApp.groundOrder(1, units, "Steer", ground);
+        var order = Orders.groundOrder(1, units, "Steer", ground);
 
         assertEquals(new uz.dukeengine.combat.message.GameOrder(1, "Steer", units,
                 new uz.dukeengine.core.math.Coord3D(120f, 80f, 4f), null, 0), order);
-        assertEquals(null, DukeRtsApp.groundOrder(1, units, null, ground), "no word: the move it always was");
+        assertEquals(null, Orders.groundOrder(1, units, null, ground), "no word: the move it always was");
     }
 
     @Test
