@@ -645,7 +645,7 @@ final class Sounds {
     private String pick(SoundBank.Cue cue) {
         var files = cue.files();
         if (files.size() == 1) {
-            return files.get(0);
+            return files.getFirst();
         }
         var previous = lastFile.get(cue.name());
         int index = random.nextInt(files.size() - (previous == null ? 0 : 1));

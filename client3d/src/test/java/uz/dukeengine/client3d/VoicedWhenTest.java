@@ -39,7 +39,7 @@ class VoicedWhenTest {
             public Playing music(String assetPath, float gain) {
                 return Playing.NONE;
             }
-        }), 5f, template -> Map.of(), greeted);
+        }), 5f, _ -> Map.of(), greeted);
         var unit = new UnitView(7, "Ranger", 1, 50f, 60f, 0f, 100f, 100f, true, true, false, false, -1);
         List<WorldEvent> events = how == null ? List.of() : List.of(new ObjectCreated(1, new ObjectId(7), how));
         noises.frame(new WorldSnapshot(1, 0f, false, 0, 0, List.of(unit), events, "", "", List.of(), true), 1, 0.1f);

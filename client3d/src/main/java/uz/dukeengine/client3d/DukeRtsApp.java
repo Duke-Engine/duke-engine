@@ -660,7 +660,7 @@ final class DukeRtsApp extends SimpleApplication {
             var sky = pictures.size() == 1
                     ? com.jme3.util.SkyFactory.createSky(assetManager, pictures.getFirst(),
                             com.jme3.util.SkyFactory.EnvMapType.CubeMap)
-                    : com.jme3.util.SkyFactory.createSky(assetManager, assetManager.loadTexture(pictures.get(0)),
+                    : com.jme3.util.SkyFactory.createSky(assetManager, assetManager.loadTexture(pictures.getFirst()),
                             assetManager.loadTexture(pictures.get(1)), assetManager.loadTexture(pictures.get(2)),
                             assetManager.loadTexture(pictures.get(3)), assetManager.loadTexture(pictures.get(4)),
                             assetManager.loadTexture(pictures.get(5)));
@@ -708,7 +708,7 @@ final class DukeRtsApp extends SimpleApplication {
         surround.setClearFlags(true, true, true);
         surround.setEnabled(false);
         if (backdropRecipe != null) {
-            backdrop = new Backdrop(backdropRecipe, this::artLoadFor, backdropEar == null ? percent -> { } : backdropEar);
+            backdrop = new Backdrop(backdropRecipe, this::artLoadFor, backdropEar == null ? _ -> { } : backdropEar);
         }
         // First of all: a title card that takes the input takes it before the game's canvas or any control.
         inputManager.addRawInputListener(new CardInput(canvas::takesInput, canvas::skip));
@@ -1256,7 +1256,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (simThread != null) {
             try {
                 simThread.join(5000);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
             }
             simThread = null;
@@ -1336,14 +1336,14 @@ final class DukeRtsApp extends SimpleApplication {
     /** The whole world's picture the game asked for, at most how many texels a side, and whom it is handed to. */
     private int worldPictureMost;
     private java.util.function.Consumer<Picture> worldPictureHanded;
-    private java.util.function.Predicate<Object> worldPictureFor = map -> true;
+    private java.util.function.Predicate<Object> worldPictureFor = _ -> true;
     private WorldPicture worldPicture;
 
     /** See {@link Duke3D#worldPicture}. */
     void worldPicture(int mostTexels, java.util.function.Predicate<Object> forMap,
             java.util.function.Consumer<Picture> handed) {
         this.worldPictureMost = Math.max(1, mostTexels);
-        this.worldPictureFor = forMap == null ? map -> true : forMap;
+        this.worldPictureFor = forMap == null ? _ -> true : forMap;
         this.worldPictureHanded = handed;
         makeTheWorldPicture(game.getTerrain());
     }
@@ -1538,7 +1538,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         try {
             return assetManager.loadFont(assetPath);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             missing.warn(assetPath, "font");
             return guiFont;
         }
@@ -1735,7 +1735,7 @@ final class DukeRtsApp extends SimpleApplication {
     private void installInput() {
         keyBindings = new KeyBindings(inputManager, hotkeys, controls, preferences);
         // What each key does is worked out in one place, pressKey.
-        ActionListener actions = (name, pressed, tpf) -> {
+        ActionListener actions = (name, pressed, _) -> {
             if (sceneLocked() && pressed && !name.startsWith(KeyBindings.KEY) && inPlay()) {
                 return; // a scene the game plays: no picking, selecting or ordering until it lets go
             }
@@ -1850,7 +1850,7 @@ final class DukeRtsApp extends SimpleApplication {
         };
         keyBindings.install(actions);
 
-        AnalogListener zoom = (name, value, tpf) -> {
+        AnalogListener zoom = (name, _, _) -> {
             if (screens.now() == Screen.PLAYING && snapshot.camera() == null && !sceneLocked()) {
                 camera.wheel(name.equals("ZoomIn")); // nobody's to zoom while the game has it
             }
@@ -2375,7 +2375,7 @@ final class DukeRtsApp extends SimpleApplication {
      * multiplied with what is behind it.
      */
     private Material particleMaterial(uz.dukeengine.core.content.ParticleSystem system) {
-        return particleMaterials.computeIfAbsent(system.texture() + "|" + system.blend(), key -> {
+        return particleMaterials.computeIfAbsent(system.texture() + "|" + system.blend(), _ -> {
             var material = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
             material.setBoolean("VertexColor", true);
             if (system.texture() != null) {

@@ -103,18 +103,18 @@ final class GameSounds {
     private Map<Integer, UnitView> before = Map.of();
 
     /** The name of the ground under a point of the world — its paint's picture — or null for none; see surfaces(). */
-    private java.util.function.BiFunction<Float, Float, String> surfaceAt = (x, y) -> null;
+    private java.util.function.BiFunction<Float, Float, String> surfaceAt = (_, _) -> null;
 
     /**
      * Footsteps by the ground under them: {@code walking.<Template>.<surface>}, the surface what {@code at} names at a
      * point of the world, falling back to {@code walking.<Template>} as every name does.
      */
     void surfaces(java.util.function.BiFunction<Float, Float, String> at) {
-        this.surfaceAt = at == null ? (x, y) -> null : at;
+        this.surfaceAt = at == null ? (_, _) -> null : at;
     }
 
     GameSounds(Sounds sounds, float touching) {
-        this(sounds, touching, template -> Map.of());
+        this(sounds, touching, _ -> Map.of());
     }
 
     GameSounds(Sounds sounds, float touching, java.util.function.Function<String, Map<String, Float>> hurtWords) {

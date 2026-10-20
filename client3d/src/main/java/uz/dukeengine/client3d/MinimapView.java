@@ -83,7 +83,7 @@ final class MinimapView {
     private BiFunction<Integer, Integer, ColorRGBA> groundColours(uz.dukeengine.core.pathfind.PathGrid grid) {
         var paint = GroundPaint.of(game.get().getMapRecord());
         if (grid == null || paint == null) {
-            return (cx, cy) -> null;
+            return (_, _) -> null;
         }
         int k = Math.max(1, grid.cellsPerMapCell());
         return (cx, cy) -> {
@@ -350,7 +350,7 @@ final class MinimapView {
         var seen = new HashSet<Integer>();
         for (var view : snapshot.units()) {
             seen.add(view.id());
-            var dot = minimapDots.computeIfAbsent(view.id(), id -> {
+            var dot = minimapDots.computeIfAbsent(view.id(), _ -> {
                 float size = view.structure() ? 6f : 3.5f;
                 var geometry = new Geometry("mm-dot", new Quad(size, size));
                 geometry.setMaterial(Materials.unshaded(assetManager, colourOf.apply(view)));

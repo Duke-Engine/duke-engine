@@ -142,7 +142,7 @@ class ShellTest {
                         new Shell.Question("Which", "", List.of(
                                 new Shell.Option("First", "", null, hero))))));
 
-        assertEquals(hero, how.options().get(0).next(), "the endless branch goes straight to who");
+        assertEquals(hero, how.options().getFirst().next(), "the endless branch goes straight to who");
         assertEquals("Which", how.options().get(1).next().title(),
                 "the stage branch asks one more thing first");
     }

@@ -58,7 +58,7 @@ class PaintedBlendTest {
     }
 
     private static TerrainScene blending(Node root, boolean chunked) {
-        var scene = new TerrainScene(root, (colour, texture) -> null, false, null, null, chunked);
+        var scene = new TerrainScene(root, (_, _) -> null, false, null, null, chunked);
         scene.blendWith(Visuals.PaintBlend.SMOOTH);
         return scene;
     }
@@ -183,7 +183,7 @@ class PaintedBlendTest {
         assertTrue(named(blended, "rock").isEmpty());
 
         var plain = new Node("plain");
-        new TerrainScene(plain, (colour, texture) -> null)
+        new TerrainScene(plain, (_, _) -> null)
                 .rebuild(MapTerrain.of(map, 10f, 0f), null, GroundPaint.of(map));
         assertTrue(!named(plain, "rock").isEmpty(), "this map has stone, or the check above proves nothing");
     }

@@ -11,7 +11,7 @@ class KeysPageTest {
 
     @Test
     void aLetterTheGameClaimedWithAWordIsListedWithItInTheGamesLanguage() {
-        var hotkeys = Hotkeys.create().on('c', "Qahramon", game -> { }).describe('J', "Vazifalar")
+        var hotkeys = Hotkeys.create().on('c', "Qahramon", _ -> { }).describe('J', "Vazifalar")
                 .controls(KeyMap.empty().bind(KeyMap.Control.PAUSE, KeyMap.Key.of(KeyInput.KEY_P)));
 
         var lines = KeyBindings.keyLines(hotkeys, english -> english.equals("Pause") ? "Pauza" : english);

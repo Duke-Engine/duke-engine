@@ -34,7 +34,7 @@ final class CoverGrowth {
      * Told each material cover makes of its own — a copy of a piece's, instanced — so whoever keeps the materials that
      * read the fog up to date (its window, its haze, its lights) keeps these too.
      */
-    private Consumer<Material> madeMaterial = material -> { };
+    private Consumer<Material> madeMaterial = _ -> { };
 
     CoverGrowth(TileSource tiles, Chunks chunks) {
         this.tiles = tiles;
@@ -42,7 +42,7 @@ final class CoverGrowth {
     }
 
     void onMadeMaterial(Consumer<Material> told) {
-        this.madeMaterial = told == null ? material -> { } : told;
+        this.madeMaterial = told == null ? _ -> { } : told;
     }
 
     /** Grow {@code grows} round the camera from now, what grew before let go. */

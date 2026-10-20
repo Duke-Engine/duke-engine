@@ -75,7 +75,7 @@ final class GroundPictures {
      */
     void see(int id, Visuals.UnitVisual look, Set<String> holding, boolean hostile, Spatial model, Coord3D at,
             float facing, float frames, BiFunction<Float, Float, Float> floorAt) {
-        var pictures = laid.computeIfAbsent(id, key -> new ArrayList<>());
+        var pictures = laid.computeIfAbsent(id, _ -> new ArrayList<>());
         int chosen = holding == null ? -1 : look.groundPictureFor(holding);
         var wanted = chosen < 0 ? null : shownTo(look.groundPictures.get(chosen), hostile);
         // Its shadow stays under whatever its words choose, as the reference's shadow decal lies under its state's.

@@ -65,7 +65,7 @@ class ModelLayerTest {
     }
 
     private static void wear(List<ModelLayer> layers, Node root, UnitView view, int frame) {
-        layers.forEach(layer -> layer.wear(root, view, Set.of(), frame, body -> { }, clip -> { }));
+        layers.forEach(layer -> layer.wear(root, view, Set.of(), frame, _ -> { }, _ -> { }));
     }
 
     @Test
@@ -209,7 +209,7 @@ class ModelLayerTest {
         float[] tops = new float[3];
         float[] shares = {0f, 0.5f, 1f};
         for (int at = 0; at < 3; at++) {
-            layer.wear(thing, built(shares[at]), Set.of(), 0, body -> { }, clip -> { });
+            layer.wear(thing, built(shares[at]), Set.of(), 0, _ -> { }, _ -> { });
             thing.updateGeometricState();
             var box = (com.jme3.bounding.BoundingBox) layer.body().getWorldBound();
             tops[at] = box.getCenter().y + box.getYExtent();
@@ -273,7 +273,7 @@ class ModelLayerTest {
         composer.addAnimClip(swing);
         var gun = new ModelLayer(look.layers.get("gun"), ModelLayerTest::tower);
 
-        gun.wear(thing, holding(), Set.of(), 0, drawn -> { }, clip -> { }, name -> Bones.named(body, name));
+        gun.wear(thing, holding(), Set.of(), 0, _ -> { }, _ -> { }, name -> Bones.named(body, name));
         composer.setCurrentAction("Swing");
         thing.updateLogicalState(0.5f); // halfway through the clip: the turret 5 to the side
         thing.updateGeometricState();
@@ -291,7 +291,7 @@ class ModelLayerTest {
         var thing = new Node("thing");
         var light = new ModelLayer(look.layers.get("light"), ModelLayerTest::tower);
 
-        light.wear(thing, holding(), Set.of(), 0, drawn -> { }, clip -> { }, name -> null);
+        light.wear(thing, holding(), Set.of(), 0, _ -> { }, _ -> { }, _ -> null);
 
         assertSame(thing, light.body().getParent());
     }
@@ -335,14 +335,14 @@ class ModelLayerTest {
         var layer = siteFence();
         var root = new Node("root");
 
-        layer.wear(root, holding("AWAITING"), Set.of(), 100, drawn -> { }, clip -> { });
+        layer.wear(root, holding("AWAITING"), Set.of(), 100, _ -> { }, _ -> { });
         assertEquals("models/fence_rise.glb", layer.body().getName(), "the way in first");
         assertEquals(0f, panelHeight(layer), 1e-3f, "from its first frame");
 
-        layer.wear(root, holding("AWAITING"), Set.of(), 115, drawn -> { }, clip -> { });
+        layer.wear(root, holding("AWAITING"), Set.of(), 115, _ -> { }, _ -> { });
         assertEquals(5f, panelHeight(layer), 1e-2f, "half a second in, halfway up");
 
-        layer.wear(root, holding("AWAITING"), Set.of(), 130, drawn -> { }, clip -> { });
+        layer.wear(root, holding("AWAITING"), Set.of(), 130, _ -> { }, _ -> { });
         assertEquals("models/fence.glb", layer.body().getName(), "played: the look's own from then");
         assertEquals(1, root.getQuantity(), "and the way in taken away");
     }
@@ -351,17 +351,17 @@ class ModelLayerTest {
     void theWordsLeavingPlayTheWayOutAtItsSpeedAndTheLayerIsGoneWhenItEnds() {
         var layer = siteFence();
         var root = new Node("root");
-        layer.wear(root, holding("AWAITING"), Set.of(), 0, drawn -> { }, clip -> { });
-        layer.wear(root, holding("AWAITING"), Set.of(), 40, drawn -> { }, clip -> { });
+        layer.wear(root, holding("AWAITING"), Set.of(), 0, _ -> { }, _ -> { });
+        layer.wear(root, holding("AWAITING"), Set.of(), 40, _ -> { }, _ -> { });
 
-        layer.wear(root, holding(), Set.of(), 50, drawn -> { }, clip -> { });
+        layer.wear(root, holding(), Set.of(), 50, _ -> { }, _ -> { });
         assertEquals("models/fence_rise.glb", layer.body().getName(), "the way out, though no look is left");
         assertEquals(10f, panelHeight(layer), 1e-2f, "backwards, from its end");
 
-        layer.wear(root, holding(), Set.of(), 57, drawn -> { }, clip -> { });
+        layer.wear(root, holding(), Set.of(), 57, _ -> { }, _ -> { });
         assertEquals(10f - 10f * 7 * 2 / 30f, panelHeight(layer), 1e-2f, "at twice its pace");
 
-        layer.wear(root, holding(), Set.of(), 65, drawn -> { }, clip -> { });
+        layer.wear(root, holding(), Set.of(), 65, _ -> { }, _ -> { });
         assertNull(layer.body(), "played out: gone");
         assertEquals(0, root.getQuantity());
     }
@@ -397,15 +397,15 @@ class ModelLayerTest {
                         "swing")).of("Factory");
         var layer = new ModelLayer(look.layers.get("crane"), ModelLayerTest::crane);
         var root = new Node("root");
-        layer.wear(root, holding(), Set.of(), 0, drawn -> { }, clip -> { });
-        layer.wear(root, holding(), Set.of(), 45, drawn -> { }, clip -> { });
+        layer.wear(root, holding(), Set.of(), 0, _ -> { }, _ -> { });
+        layer.wear(root, holding(), Set.of(), 45, _ -> { }, _ -> { });
 
-        layer.wear(root, holding("DONE"), Set.of(), 45, drawn -> { }, clip -> { });
+        layer.wear(root, holding("DONE"), Set.of(), 45, _ -> { }, _ -> { });
         var composer = AnimationLibrary.findControl(layer.body(), AnimComposer.class);
         assertEquals(1.5, composer.getTime(AnimComposer.DEFAULT_LAYER), 1e-4, "from where the swing stood");
-        layer.wear(root, holding("DONE"), Set.of(), 59, drawn -> { }, clip -> { });
+        layer.wear(root, holding("DONE"), Set.of(), 59, _ -> { }, _ -> { });
         assertEquals("models/crane.glb", layer.body().getName(), "still on its way out");
-        layer.wear(root, holding("DONE"), Set.of(), 60, drawn -> { }, clip -> { });
+        layer.wear(root, holding("DONE"), Set.of(), 60, _ -> { }, _ -> { });
         assertEquals("models/crane_rest.glb", layer.body().getName(), "half a second later, at rest");
     }
 
@@ -433,9 +433,9 @@ class ModelLayerTest {
         var systems = new BoneSystems(particles, scene);
         var layer = new ModelLayer(look.layers.get("fence"), ModelLayerTest::fence, systems);
 
-        layer.wear(root, holding("AWAITING"), Set.of(), 100, drawn -> { }, clip -> { });
+        layer.wear(root, holding("AWAITING"), Set.of(), 100, _ -> { }, _ -> { });
         assertEquals(1, systems.emitters().size(), "burning while the fence rises");
-        layer.wear(root, holding("AWAITING"), Set.of(), 130, drawn -> { }, clip -> { });
+        layer.wear(root, holding("AWAITING"), Set.of(), 130, _ -> { }, _ -> { });
         assertEquals(0, systems.emitters().size(), "and out once it has");
     }
 
@@ -449,13 +449,13 @@ class ModelLayerTest {
                 .waitFor(Set.of(), Set.of("CARRIED"))).of("Chinook");
         var layer = new ModelLayer(look.layers.get("crates"), ModelLayerTest::fence);
         var root = new Node("root");
-        layer.wear(root, holding(), Set.of(), 0, drawn -> { }, clip -> { });
+        layer.wear(root, holding(), Set.of(), 0, _ -> { }, _ -> { });
 
-        layer.wear(root, holding("CARRIED"), Set.of(), 15, drawn -> { }, clip -> { });
+        layer.wear(root, holding("CARRIED"), Set.of(), 15, _ -> { }, _ -> { });
         assertEquals("models/fence_rise.glb", layer.body().getName(), "half through its lift: still lifting");
-        layer.wear(root, holding("CARRIED"), Set.of(), 29, drawn -> { }, clip -> { });
+        layer.wear(root, holding("CARRIED"), Set.of(), 29, _ -> { }, _ -> { });
         assertEquals("models/fence_rise.glb", layer.body().getName());
-        layer.wear(root, holding("CARRIED"), Set.of(), 30, drawn -> { }, clip -> { });
+        layer.wear(root, holding("CARRIED"), Set.of(), 30, _ -> { }, _ -> { });
         assertEquals("models/fence.glb", layer.body().getName(), "the lift played to its end: carried");
     }
 }

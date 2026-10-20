@@ -51,7 +51,7 @@ class GamePictureTest {
     @Test
     void aTwoByTwoPictureStretchedOverTwentyShowsItsFourQuadrants() {
         var picture = fourColours();
-        var frame = new CanvasFrame(100, 100, new CanvasText(path -> null), Map.<String, int[]>of()::get);
+        var frame = new CanvasFrame(100, 100, new CanvasText(_ -> null), Map.<String, int[]>of()::get);
 
         frame.drawPicture(picture, 0f, 0f, 20f, 20f);
 

@@ -191,7 +191,7 @@ public final class Visuals {
         public UnitVisual turret(java.util.Set<String> conditions, int slot, String turn, float artAngle, String pitch,
                 float artPitch) {
             chooseAgain();
-            turrets.computeIfAbsent(keyOf(conditions), key -> new java.util.TreeMap<>())
+            turrets.computeIfAbsent(keyOf(conditions), _ -> new java.util.TreeMap<>())
                     .put(slot, new TurretLook(turn, artAngle, pitch, artPitch));
             return this;
         }
@@ -206,7 +206,7 @@ public final class Visuals {
         }
 
         private java.util.Map<Integer, WeaponBones> bonesFor(java.util.Set<String> conditions) {
-            return conditionalWeaponBones.computeIfAbsent(keyOf(conditions), key -> new java.util.TreeMap<>());
+            return conditionalWeaponBones.computeIfAbsent(keyOf(conditions), _ -> new java.util.TreeMap<>());
         }
 
         private static void editBones(java.util.Map<Integer, WeaponBones> bones, int slot,
@@ -246,7 +246,7 @@ public final class Visuals {
          * same name, the same layer. What is picked, ringed and barred is still the thing's own look.
          */
         public UnitVisual layer(String name) {
-            return layers.computeIfAbsent(name, named -> new UnitVisual());
+            return layers.computeIfAbsent(name, _ -> new UnitVisual());
         }
 
         /** Whether it casts a shadow from the sun; see {@link #castsShadow}. */
@@ -700,7 +700,7 @@ public final class Visuals {
         java.util.List<Integer> marksFor(java.util.Set<String> holding) {
             var groups = new java.util.LinkedHashMap<String, java.util.List<Integer>>();
             for (int index = 0; index < marks.size(); index++) {
-                groups.computeIfAbsent(marks.get(index).group(), group -> new java.util.ArrayList<>()).add(index);
+                groups.computeIfAbsent(marks.get(index).group(), _ -> new java.util.ArrayList<>()).add(index);
             }
             var shown = new java.util.ArrayList<Integer>();
             for (var members : groups.values()) {
@@ -1004,7 +1004,7 @@ public final class Visuals {
             if (carried.isEmpty()) {
                 carried.add(new Carried()); // turned before it was given anything
             }
-            return carried.get(carried.size() - 1);
+            return carried.getLast();
         }
 
         /**
@@ -1747,7 +1747,7 @@ public final class Visuals {
      * thing be a block of settings rather than a class.
      */
     public Visuals effect(String name, Consumer<EffectVisual> config) {
-        config.accept(fx.recipes.computeIfAbsent(name, n -> new EffectVisual()));
+        config.accept(fx.recipes.computeIfAbsent(name, _ -> new EffectVisual()));
         return this;
     }
 
@@ -2429,7 +2429,7 @@ public final class Visuals {
 
     /** Other things shown so behind what stands in front, beside the local player's own — see {@link #occlusionMarks}. */
     public Visuals occlusionMarked(java.util.function.Predicate<uz.dukeengine.core.view.UnitView> marked) {
-        sight.occlusionMarked = marked == null ? view -> false : marked;
+        sight.occlusionMarked = marked == null ? _ -> false : marked;
         return this;
     }
 
@@ -2890,7 +2890,7 @@ public final class Visuals {
      * never seen. 0, as ever, builds each map whole when it is laid, and darkens it whole.
      */
     public Visuals streamGround(int cells) {
-        return streamGround(cells, map -> true);
+        return streamGround(cells, _ -> true);
     }
 
 
@@ -2942,7 +2942,7 @@ public final class Visuals {
      * none, as ever, where {@code toCells} is 0.
      */
     public Visuals haze(float fromCells, float toCells) {
-        return haze(fromCells, toCells, map -> true);
+        return haze(fromCells, toCells, _ -> true);
     }
 
 
@@ -3326,7 +3326,7 @@ public final class Visuals {
      * made by {@code whenNone} the first time it is asked for.
      */
     public <T> T part(Class<T> type, java.util.function.Supplier<? extends T> whenNone) {
-        return type.cast(parts.computeIfAbsent(type, ignored -> whenNone.get()));
+        return type.cast(parts.computeIfAbsent(type, _ -> whenNone.get()));
     }
 
     /**
@@ -3416,7 +3416,7 @@ public final class Visuals {
      * is for a game whose answer changes as it is played.
      */
     public Visuals theme(String name, Consumer<Theme> config) {
-        var theme = templates.themes.computeIfAbsent(name, n -> new Theme());
+        var theme = templates.themes.computeIfAbsent(name, _ -> new Theme());
         config.accept(theme);
         return this;
     }
@@ -3609,6 +3609,6 @@ public final class Visuals {
     /** A game's rule for which maps something applies to; every map's where it gives none, or none's. */
     static java.util.function.Predicate<Object> mapRule(java.util.function.Predicate<Object> rule,
             boolean whereNone) {
-        return rule != null ? rule : map -> whereNone;
+        return rule != null ? rule : _ -> whereNone;
     }
 }

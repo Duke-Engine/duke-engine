@@ -55,7 +55,7 @@ class MatchLoadTest {
     void theGameIsToldRisingFiguresEndingAt100WithItsCanvasPaintedAfterEach() throws Exception {
         var happened = new ArrayList<String>();
         var told = new ArrayList<Integer>();
-        var load = new MatchLoad(match(), built -> new FiveFrames(), percent -> {
+        var load = new MatchLoad(match(), _ -> new FiveFrames(), percent -> {
             told.add(percent);
             happened.add("told " + percent);
         }, false);
@@ -79,7 +79,7 @@ class MatchLoadTest {
     @Test
     void aStartTheGameHoldsWaitsAt100UntilItIsLetGo() throws Exception {
         var game = match();
-        var load = new MatchLoad(game, built -> new FiveFrames(), percent -> { }, true);
+        var load = new MatchLoad(game, _ -> new FiveFrames(), _ -> { }, true);
 
         drawUntil(load, new ArrayList<>(), 100);
         for (int frame = 0; frame < 10; frame++) {

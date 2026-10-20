@@ -53,7 +53,7 @@ class FoggedCoverTest {
             return node;
         };
         var root = new Node("root");
-        var scene = new TerrainScene(root, (colour, texture) -> null, true, null, tiles, true);
+        var scene = new TerrainScene(root, (_, _) -> null, true, null, tiles, true);
         scene.onMadeMaterial(TOLD::add);
         scene.streamWithin(1000);
         scene.rebuild(MapTerrain.of(map, 10f, 0f), null, GroundPaint.of(map));

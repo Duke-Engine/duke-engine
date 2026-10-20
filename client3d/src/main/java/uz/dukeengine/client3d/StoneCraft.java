@@ -145,7 +145,7 @@ final class StoneCraft {
         Texture texture;
         try {
             texture = assets.loadTexture(path);
-        } catch (AssetNotFoundException e) {
+        } catch (AssetNotFoundException _) {
             return null;
         }
         // Its own shape, not the box's: a map fifty cells by thirty is a wide picture, and stretching it square

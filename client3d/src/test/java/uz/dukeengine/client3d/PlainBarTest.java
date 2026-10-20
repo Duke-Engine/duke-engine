@@ -65,7 +65,7 @@ class PlainBarTest {
 
         var up = bars.plainBars();
         assertEquals(3, up.size());
-        assertTrue(shown(piece(up.get(0), "fill")), "the selected one has a bar");
+        assertTrue(shown(piece(up.getFirst(), "fill")), "the selected one has a bar");
         assertTrue(shown(piece(up.get(1), "fill")), "and the one under the pointer");
         assertEquals(false, shown(piece(up.get(2), "fill")), "the third none");
         assertEquals(false, shown(piece(up.get(2), "outline0")));

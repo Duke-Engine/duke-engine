@@ -68,7 +68,7 @@ class PaintedGroundTest {
 
     private static Node drawn(Object map) {
         var root = new Node("terrain");
-        new TerrainScene(root, (colour, texture) -> null)
+        new TerrainScene(root, (_, _) -> null)
                 .rebuild(MapTerrain.of(map, 10f, 0f), null, GroundPaint.of(map));
         return root;
     }
@@ -165,7 +165,7 @@ class PaintedGroundTest {
         assertNull(GroundPaint.of(bare), "nothing to read");
 
         var root = new Node("terrain");
-        new TerrainScene(root, (colour, texture) -> null)
+        new TerrainScene(root, (_, _) -> null)
                 .rebuild(MapTerrain.of(bare, 10f, 0f), null, GroundPaint.of(bare));
 
         assertTrue(painted(root).isEmpty());
@@ -233,7 +233,7 @@ class PaintedGroundTest {
     void aMapsOwnKitOfFloorModelsWinsOverPaint() {
         var root = new Node("terrain");
         var own = Tileset.create().floor("floor").tileSize(4f);
-        new TerrainScene(root, (colour, texture) -> null, false, null, new SquareTiles())
+        new TerrainScene(root, (_, _) -> null, false, null, new SquareTiles())
                 .rebuild(MapTerrain.of(field(), 10f, 0f), own, GroundPaint.of(field()));
 
         assertTrue(painted(root).isEmpty(), "the map's kit laid the floor; the paint was not drawn over it");
@@ -244,7 +244,7 @@ class PaintedGroundTest {
     void aPaintedMapWinsOverTheGamesDefaultKit() {
         var root = new Node("terrain");
         var games = Tileset.create().floor("floor").tileSize(4f);
-        var scene = new TerrainScene(root, (colour, texture) -> null, false, games, new SquareTiles());
+        var scene = new TerrainScene(root, (_, _) -> null, false, games, new SquareTiles());
 
         scene.rebuild(MapTerrain.of(field(), 10f, 0f), null, GroundPaint.of(field()));
         assertEquals(3, painted(root).size(), "painted, the game's kit set aside");
@@ -639,7 +639,7 @@ class PaintedGroundTest {
     void theGroundLitByItsOwnLightsIsLitWholeUnderAnAmbientOfHalfAndHalfFromAbove() {
         var light = new Visuals.GroundLight(0x808080, List.of(new Visuals.Sun(90f, 0f, 0x808080)));
         var root = new Node("terrain");
-        new TerrainScene(root, (colour, texture) -> null)
+        new TerrainScene(root, (_, _) -> null)
                 .rebuild(MapTerrain.of(field(), 10f, 0f), null, GroundPaint.of(field()), light);
 
         var colours = painted(root).getFirst().getMesh().getFloatBuffer(VertexBuffer.Type.Color);

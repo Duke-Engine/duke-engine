@@ -91,7 +91,7 @@ class FogWindowTest {
             var material = new com.jme3.material.Material(assets, definition);
             assertTrue(material.getParam("FogWindow") == null, definition + ": no window unless told one");
             material.setVector4("FogWindow", new com.jme3.math.Vector4f(10f, 20f, 30f, 40f));
-            var technique = material.getMaterialDef().getTechniqueDefs("Default").get(0);
+            var technique = material.getMaterialDef().getTechniqueDefs("Default").getFirst();
             assertEquals("FOG_WINDOW", technique.getShaderParamDefine("FogWindow"), definition);
             assertTrue(material.getParam("Haze") == null, definition + ": no haze unless told one");
             material.setVector4("Haze", new com.jme3.math.Vector4f(100f, 200f, 300f, 450f));

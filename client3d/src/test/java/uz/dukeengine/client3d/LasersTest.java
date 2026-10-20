@@ -17,7 +17,7 @@ import uz.dukeengine.core.view.BeamView;
 /** A beam the simulation owns, drawn as the reference draws its lasers. */
 class LasersTest {
 
-    private static final WorldMoments.Floor FLAT = (x, z) -> 0f;
+    private static final WorldMoments.Floor FLAT = (_, _) -> 0f;
 
     /** The orbital beam as the ask measured it: twelve lines, 26 wide outside to 0.6 inside. */
     private static final Laser ORBITAL = new Laser("OrbitalBeam", 12, 0.6f, 26f, 0xFAFFFFFF, 0x960000FF, null,
@@ -84,7 +84,7 @@ class LasersTest {
     @Test
     void theDrawnBeamGoesWhereItIsMovedAndAWidthOfNothingShowsNothing() {
         var node = new Node("lasers");
-        var lasers = new Lasers(new DesktopAssetManager(true), node, name -> ORBITAL, FLAT);
+        var lasers = new Lasers(new DesktopAssetManager(true), node, _ -> ORBITAL, FLAT);
         var eye = new Vector3f(0f, 400f, -400f);
 
         lasers.show(List.of(new BeamView(1, "OrbitalBeam", new Coord3D(100f, 200f, 500f),

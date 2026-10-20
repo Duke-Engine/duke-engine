@@ -32,7 +32,7 @@ import uz.dukeengine.combat.event.WeaponFired;
  */
 class EffectListsTest {
 
-    private static final WorldMoments.Floor FLAT = (x, z) -> 0f;
+    private static final WorldMoments.Floor FLAT = (_, _) -> 0f;
 
     /** Blocks of the kinds a game writes, read as it reads them. */
     private static <T extends Record> Map<String, T> read(String text, Class<T> type) {
@@ -162,7 +162,7 @@ class EffectListsTest {
 
         var started = scene.systems().emitters();
         assertEquals(2, started.size(), "both at once");
-        assertAt(100f, -210f, 5f, started.get(0)); // ten ahead of it — the simulation's +y, the systems' -y
+        assertAt(100f, -210f, 5f, started.getFirst()); // ten ahead of it — the simulation's +y, the systems' -y
         assertAt(104f, -200f, 0f, started.get(1)); // four to its left
         assertEquals(List.of("TankDie"), scene.shown().sounds, "and its sound with them");
     }
@@ -210,7 +210,7 @@ class EffectListsTest {
                 """);
         scene.lists().play("Late", EffectLists.Cue.at(new Vector3f()));
 
-        assertEquals(5, scene.systems().emitters().get(0).delayLeft(), "the list's own delay");
+        assertEquals(5, scene.systems().emitters().getFirst().delayLeft(), "the list's own delay");
         assertEquals(30, scene.systems().emitters().get(1).delayLeft(), "the system's, where the list says none");
     }
 
@@ -414,7 +414,7 @@ class EffectListsTest {
         }
 
         var started = scene.systems().emitters();
-        assertAt(112f, -201f, 3f, started.get(0)); // MUZZLE01: the client's (112, 3, 201)
+        assertAt(112f, -201f, 3f, started.getFirst()); // MUZZLE01: the client's (112, 3, 201)
         assertAt(112f, -199f, 3f, started.get(1)); // and the second shot from MUZZLE02
     }
 
@@ -487,7 +487,7 @@ class EffectListsTest {
         assertEquals(30f, cue.at().y, 1e-5f, "in the air, where it was");
         assertEquals(new Vector3f(70f, 30f, 80f), cue.at());
         var grounded = WorldMoments.died(new ObjectDied(9, new ObjectId(6), "Tank", 1, new Coord3D(70f, 80f, 0f),
-                DeathType.NORMAL, null, 0f), null, (x, z) -> 12f);
+                DeathType.NORMAL, null, 0f), null, (_, _) -> 12f);
         assertEquals(12f, grounded.at().y, 1e-5f, "and never under the floor");
     }
 

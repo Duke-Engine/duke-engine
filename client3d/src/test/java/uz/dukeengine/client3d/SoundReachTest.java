@@ -103,7 +103,7 @@ class SoundReachTest {
         sounds.hear(listener, 100f);
         sounds.play("boom", new Vector3f(10f, 0f, 0f), 2f);
 
-        assertEquals(0.8f, heard.gains.get(0), 1e-6f, "the eye far: 0.8 of its gain");
+        assertEquals(0.8f, heard.gains.getFirst(), 1e-6f, "the eye far: 0.8 of its gain");
         assertEquals(1f, heard.gains.get(1), 1e-6f, "a flat cue at 1");
         assertEquals(1f, heard.gains.get(2), 1e-6f, "the eye near: all of it");
     }

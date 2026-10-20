@@ -43,20 +43,20 @@ class DeadLookTest {
                 .clip(Set.of("DYING", "EXPLODED_BOUNCING"), "Land", ONCE, FIRST, null)).of("Soldier");
         var words = new WordClip();
 
-        var playing = WordClip.playDead(composer, words, "Die", look, Set.of("DYING"), 115, 7, "Die", 100, x -> { });
+        var playing = WordClip.playDead(composer, words, "Die", look, Set.of("DYING"), 115, 7, "Die", 100, _ -> { });
         assertEquals("Die", playing, "no word of its own: its death");
         composer.update(0f);
         assertEquals(5f, body.getLocalTranslation().x, 1e-3f, "half a second into it, fifteen frames after it died");
 
         playing = WordClip.playDead(composer, words, playing, look, Set.of("DYING", "EXPLODED_FLAILING"), 120, 7,
-                "Die", 100, x -> { });
+                "Die", 100, _ -> { });
         assertEquals("Flail", playing, "a word gained: its clip");
 
         playing = WordClip.playDead(composer, words, playing, look, Set.of("DYING", "EXPLODED_BOUNCING"), 150, 7,
-                "Die", 100, x -> { });
+                "Die", 100, _ -> { });
         assertEquals("Land", playing, "that word lost: the clip of the words it holds");
 
-        playing = WordClip.playDead(composer, words, playing, look, Set.of("DYING"), 200, 7, "Die", 100, x -> { });
+        playing = WordClip.playDead(composer, words, playing, look, Set.of("DYING"), 200, 7, "Die", 100, _ -> { });
         assertEquals("Die", playing, "and with none, its death again");
         composer.update(0f);
         assertEquals(10f, body.getLocalTranslation().x, 1e-3f, "lain in on its last frame, long played out");
@@ -80,12 +80,12 @@ class DeadLookTest {
         var pictures = new GroundPictures(new DesktopAssetManager(true), new Node("ground"));
         var at = new Coord3D(10f, 50f, 0f);
         for (int frame = 0; frame < 30; frame++) {
-            pictures.see(7, look, Set.of("HORDE"), at, 0f, 1f, (x, y) -> 0f);
+            pictures.see(7, look, Set.of("HORDE"), at, 0f, 1f, (_, _) -> 0f);
         }
         assertEquals(1f, pictures.under(7).getFirst().opacity(), 1e-4f, "whole while it lived");
 
         for (int frame = 0; frame < 15; frame++) {
-            pictures.see(7, look, null, at, 0f, 1f, (x, y) -> 0f); // dead, the word still held
+            pictures.see(7, look, null, at, 0f, 1f, (_, _) -> 0f); // dead, the word still held
         }
         assertEquals(0.5f, pictures.under(7).getFirst().opacity(), 1e-4f, "half gone fifteen frames on");
     }

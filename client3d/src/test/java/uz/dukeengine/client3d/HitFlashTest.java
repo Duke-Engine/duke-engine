@@ -28,7 +28,7 @@ class HitFlashTest {
 
     private static ColorRGBA shown(Node root) {
         assertEquals(1, root.getLocalMatParamOverrides().size(), "one flash over it");
-        return (ColorRGBA) root.getLocalMatParamOverrides().get(0).getValue();
+        return (ColorRGBA) root.getLocalMatParamOverrides().getFirst().getValue();
     }
 
     /**
@@ -48,7 +48,7 @@ class HitFlashTest {
         var root = new Node("skeleton");
         flash(0.2f, 1f).struck(3, root, OWN);
 
-        MatParamOverride laid = root.getLocalMatParamOverrides().get(0);
+        MatParamOverride laid = root.getLocalMatParamOverrides().getFirst();
         assertEquals(parameter.getVarType(), laid.getVarType(), "and of the same kind");
     }
 

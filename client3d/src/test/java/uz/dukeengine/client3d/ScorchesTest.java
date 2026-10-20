@@ -43,7 +43,7 @@ class ScorchesTest {
     };
 
     private static Scorches scorches(Node node, DrawnGround ground) {
-        return new Scorches(node, () -> ground, picture -> new Material());
+        return new Scorches(node, () -> ground, _ -> new Material());
     }
 
     @Test

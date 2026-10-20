@@ -73,7 +73,7 @@ class BackdropTest {
             seat[0] = game.addPlayer("Hero", Color.BLUE);
             game.spawn("Rifleman", seat[0], 100, 100);
             return game;
-        }, built -> NOTHING, percent -> { });
+        }, _ -> NOTHING, _ -> { });
         var running = started(backdrop);
         waitFor(() -> running.getSnapshot().frame() > 10, "ten frames");
         var thread = backdrop.release();
@@ -90,7 +90,7 @@ class BackdropTest {
 
     @Test
     void aBackdropAdvancesWithNobodyPlayingItAndTakesNoOrders() throws Exception {
-        var backdrop = new Backdrop(BackdropTest::recipe, built -> NOTHING, percent -> { });
+        var backdrop = new Backdrop(BackdropTest::recipe, _ -> NOTHING, _ -> { });
         var running = started(backdrop);
         try {
             assertEquals(-1, running.getLocalPlayerIndex(), "watched: nobody's seat");
@@ -126,7 +126,7 @@ class BackdropTest {
         var backdrop = new Backdrop(() -> {
             asked.incrementAndGet();
             return recipe();
-        }, built -> {
+        }, _ -> {
             read.incrementAndGet();
             return NOTHING;
         }, percent -> {
@@ -174,7 +174,7 @@ class BackdropTest {
         var backdrop = new Backdrop(() -> {
             asked.incrementAndGet();
             return recipe();
-        }, built -> NOTHING, percent -> { });
+        }, _ -> NOTHING, _ -> { });
         started(backdrop);
         backdrop.stop(); // a match starts
 
@@ -193,7 +193,7 @@ class BackdropTest {
     @Test
     void aRecipeThatMakesNoMatchStillTells100() {
         var told = new ArrayList<Integer>();
-        var backdrop = new Backdrop(() -> null, built -> NOTHING, told::add);
+        var backdrop = new Backdrop(() -> null, _ -> NOTHING, told::add);
 
         assertNull(backdrop.frame());
         assertNull(backdrop.frame());

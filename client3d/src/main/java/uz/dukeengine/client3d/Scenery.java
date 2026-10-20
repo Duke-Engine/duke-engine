@@ -104,7 +104,7 @@ final class Scenery {
     Map<Integer, List<MapScenery>> byChunk(PathGrid grid, Chunks chunks) {
         var byChunk = new HashMap<Integer, List<MapScenery>>();
         for (var piece : pieces) {
-            byChunk.computeIfAbsent(chunkOf(grid, piece, chunks), chunk -> new ArrayList<>()).add(piece);
+            byChunk.computeIfAbsent(chunkOf(grid, piece, chunks), _ -> new ArrayList<>()).add(piece);
         }
         return byChunk;
     }

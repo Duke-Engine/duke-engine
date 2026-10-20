@@ -84,7 +84,7 @@ class GameSoundChoicesTest {
                 .cue("walking.Wolf.rock", SoundBank.Channel.EFFECTS, false, 1f, 0f, List.of("audio/sfx/step_rock.ogg"))
                 .build();
         var noises = new GameSounds(new Sounds(bank, heard), 5f);
-        noises.surfaces((x, y) -> x < 50f ? "grass" : "rock");
+        noises.surfaces((x, _) -> x < 50f ? "grass" : "rock");
 
         noises.frame(walking(1, 10f), 1, 0f);
         noises.frame(walking(2, 20f), 1, 1f);

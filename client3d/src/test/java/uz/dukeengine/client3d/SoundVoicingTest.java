@@ -164,7 +164,7 @@ class SoundVoicingTest {
         assertEquals(List.of("a.wav", "x.wav", "d.wav"), sink.files());
         var at = sink.started.stream().map(Timed.Started::at).toList();
         assertTrue(at.getFirst() <= 0.8f + 0.11f, "the attack within 0.8 s: " + at.getFirst());
-        assertEquals(at.get(0) + 0.5f, at.get(1), 0.11f, "back to back");
+        assertEquals(at.getFirst() + 0.5f, at.get(1), 0.11f, "back to back");
         assertEquals(at.get(1) + 1f, at.get(2), 0.11f);
     }
 

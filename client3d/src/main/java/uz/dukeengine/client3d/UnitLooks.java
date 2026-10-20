@@ -26,7 +26,7 @@ final class UnitLooks {
     /** The look named {@code templateName} in {@code into}, made if it is new, then configured. */
     static void configure(Map<String, Visuals.UnitVisual> into, String templateName,
             Consumer<Visuals.UnitVisual> config) {
-        config.accept(into.computeIfAbsent(templateName, n -> new Visuals.UnitVisual()));
+        config.accept(into.computeIfAbsent(templateName, _ -> new Visuals.UnitVisual()));
     }
 
     Visuals.UnitVisual of(String templateName) {

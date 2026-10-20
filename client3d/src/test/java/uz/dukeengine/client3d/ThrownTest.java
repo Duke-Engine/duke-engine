@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 /** A piece thrown off: up, down under gravity, a lower bounce, lying still, and gone after its life. */
 class ThrownTest {
 
-    private static final WorldMoments.Floor FLAT = (x, z) -> 0f;
+    private static final WorldMoments.Floor FLAT = (_, _) -> 0f;
 
     @Test
     void aPieceThrownUpComesDownBouncesLowerAndIsGoneAfterItsLife() {
@@ -54,7 +54,7 @@ class ThrownTest {
         var thrown = new Thrown(new Vector3f(0f, 30f, 0f), new Vector3f(1f, 0f, 0f), Vector3f.UNIT_Y, 0f, 1f, 0f,
                 100, 0);
         for (int frame = 0; frame < 30; frame++) {
-            thrown.frame((x, z) -> 12f);
+            thrown.frame((_, _) -> 12f);
         }
         assertEquals(12f, thrown.at().y, 1e-4f, "on the hill it came down on, lying there with no bounce");
         assertTrue(thrown.resting());

@@ -50,7 +50,7 @@ final class SoundNodes {
                 node.setRefDistance(40f);
                 rootNode.attachChild(node);
                 return node;
-            } catch (RuntimeException e) {
+            } catch (RuntimeException _) {
                 missing.warn(path, "sound");
                 return null;
             }

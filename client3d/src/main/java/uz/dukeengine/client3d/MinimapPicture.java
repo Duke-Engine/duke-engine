@@ -42,7 +42,7 @@ final class MinimapPicture {
     /** What unwalked ground fades to: the fog's own colour. */
     private ColorRGBA dark = ColorRGBA.Black;
     /** The ground's own colour at a cell of the grid, or null for none known — see {@link #ground}. */
-    private java.util.function.BiFunction<Integer, Integer, ColorRGBA> groundAt = (cx, cy) -> null;
+    private java.util.function.BiFunction<Integer, Integer, ColorRGBA> groundAt = (_, _) -> null;
     /** What share of it a cell never seen is drawn in; 0, the fog's dark as ever. */
     private float unseenDim;
 
@@ -53,7 +53,7 @@ final class MinimapPicture {
      */
     void ground(float dim, java.util.function.BiFunction<Integer, Integer, ColorRGBA> at) {
         this.unseenDim = Math.max(0f, dim);
-        this.groundAt = at == null ? (cx, cy) -> null : at;
+        this.groundAt = at == null ? (_, _) -> null : at;
     }
 
     /** A cell as the discovery has it: the ground's own colour where the land is drawn before it is walked. */

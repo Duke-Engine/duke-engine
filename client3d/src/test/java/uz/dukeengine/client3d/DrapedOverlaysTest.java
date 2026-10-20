@@ -86,8 +86,8 @@ class DrapedOverlaysTest {
 
         var points = inTheWorld(root, (Geometry) decal.node().getChild(0));
         assertOnTheHill(points, GroundDecal.LIFT);
-        assertTrue(points.get(1).x - points.get(0).x <= GroundRing.STEP,
-                "a cone 120 across laid on cells a step wide, not eight: " + (points.get(1).x - points.get(0).x));
+        assertTrue(points.get(1).x - points.getFirst().x <= GroundRing.STEP,
+                "a cone 120 across laid on cells a step wide, not eight: " + (points.get(1).x - points.getFirst().x));
     }
 
     @Test

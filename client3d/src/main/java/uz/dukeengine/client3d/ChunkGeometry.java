@@ -39,7 +39,7 @@ final class ChunkGeometry {
     /** Files the geometries under {@code under} by what they must share to be gathered, in the order each is first met. */
     static void file(Node under, Map<Gather, List<Geometry>> byLook) {
         for (var geometry : under.descendantMatches(Geometry.class)) {
-            byLook.computeIfAbsent(Gather.of(geometry), key -> new ArrayList<>()).add(geometry);
+            byLook.computeIfAbsent(Gather.of(geometry), _ -> new ArrayList<>()).add(geometry);
         }
     }
 

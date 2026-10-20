@@ -28,7 +28,7 @@ class BottomPanelTest {
                 return stands;
             }
         };
-        var text = new CanvasText(path -> null);
+        var text = new CanvasText(_ -> null);
 
         assertEquals(stands, new CanvasFrame(1600, 900, text, Map.<String, int[]>of()::get, client).bottomPanel());
         assertNull(new CanvasFrame(1600, 900, text, Map.<String, int[]>of()::get).bottomPanel());

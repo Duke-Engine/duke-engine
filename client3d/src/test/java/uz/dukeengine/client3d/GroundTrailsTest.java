@@ -22,21 +22,21 @@ class GroundTrailsTest {
 
     @Test
     void aMovingTankLeavesTwoLinesThatFadeAndAStoppedOneNone() {
-        var marks = new TrackMarks(new Node(), path -> null); // no picture: laid, not drawn
+        var marks = new TrackMarks(new Node(), _ -> null); // no picture: laid, not drawn
         var looks = Map.of("Tank", TREADS);
-        marks.see(List.of(tank(10f, 0f)), looks, 0, (x, y) -> 0f, (x, y) -> false);
-        marks.see(List.of(tank(20f, 0f)), looks, 1, (x, y) -> 0f, (x, y) -> false);
+        marks.see(List.of(tank(10f, 0f)), looks, 0, (_, _) -> 0f, (_, _) -> false);
+        marks.see(List.of(tank(20f, 0f)), looks, 1, (_, _) -> 0f, (_, _) -> false);
         assertNull(marks.ring(TREADS), "stopped: nothing laid");
 
-        marks.see(List.of(tank(30f, 60f)), looks, 2, (x, y) -> 0f, (x, y) -> false);
-        marks.see(List.of(tank(33f, 60f)), looks, 3, (x, y) -> 0f, (x, y) -> false);
+        marks.see(List.of(tank(30f, 60f)), looks, 2, (_, _) -> 0f, (_, _) -> false);
+        marks.see(List.of(tank(33f, 60f)), looks, 3, (_, _) -> 0f, (_, _) -> false);
         var ring = marks.ring(TREADS);
         assertEquals(2, ring.next, "a piece behind each side");
         assertEquals(1f, ring.alpha(0, 3));
         assertEquals(0.5f, ring.alpha(0, 3 + 210), 1e-4f, "half through its fade");
         assertEquals(0f, ring.alpha(1, 3 + 240), "gone at its life's end");
 
-        marks.see(List.of(tank(40f, 60f)), looks, 4, (x, y) -> 0f, (x, y) -> true);
+        marks.see(List.of(tank(40f, 60f)), looks, 4, (_, _) -> 0f, (_, _) -> true);
         assertEquals(2, ring.next, "afloat: none");
     }
 

@@ -422,7 +422,7 @@ final class UnitBars {
         if (bar.cutInto != cuts || bar.wide != width) {
             bar.cutInto = cuts;
             bar.ticks.setMesh(marks.computeIfAbsent(
-                    cuts * 100_000L + Math.round(width), key -> markMesh(cuts, width)));
+                    cuts * 100_000L + Math.round(width), _ -> markMesh(cuts, width)));
         }
         bar.ticks.setLocalScale(1f, look.height(), 1f);
 

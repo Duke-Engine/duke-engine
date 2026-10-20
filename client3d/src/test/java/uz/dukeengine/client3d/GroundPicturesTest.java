@@ -15,7 +15,7 @@ class GroundPicturesTest {
 
     private static final String HORDE = "Common/Textures/dot.png";
     private static final String NATIONALISM = "Common/Textures/MissingTexture.png";
-    private static final BiFunction<Float, Float, Float> FLAT = (x, y) -> 0f;
+    private static final BiFunction<Float, Float, Float> FLAT = (_, _) -> 0f;
 
     private static final Visuals.UnitVisual RED_GUARD = Visuals.create().unit("RedGuard", look -> look
             .groundPicture(Set.of("HORDE"), HORDE, 14f, 14f, 30)

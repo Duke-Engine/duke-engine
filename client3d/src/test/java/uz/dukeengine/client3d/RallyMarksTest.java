@@ -20,7 +20,7 @@ import uz.dukeengine.core.view.RallyView;
 /** A rally point shown while its building is selected: the flag on it, and the line to it with its nodes. */
 class RallyMarksTest {
 
-    private static final WorldMoments.Floor FLAT = (x, z) -> 0f;
+    private static final WorldMoments.Floor FLAT = (_, _) -> 0f;
     private static final Vector3f EYE = new Vector3f(300f, 400f, -200f);
     private static final RallyLook LOOK = new RallyLook("models/scmrally.glb", "SCMRally", -0.785f,
             "models/scmnode.glb", 1.5f, 0x4080FF, null);
@@ -65,7 +65,7 @@ class RallyMarksTest {
         var cloth = (Geometry) ((Node) flag).getChild("HOUSECOLOR01");
         assertEquals(RED, cloth.getMaterial().getParamValue("Diffuse"), "in his colour");
         assertEquals(2, marks.shownLegs().size(), "door to natural rally point, and on to the rally point");
-        assertEquals(new Vector3f(253f, 0f, 170f), end(marks.shownLegs().get(0)));
+        assertEquals(new Vector3f(253f, 0f, 170f), end(marks.shownLegs().getFirst()));
         assertEquals(new Vector3f(450f, 0f, 200f), end(marks.shownLegs().get(1)));
         assertEquals(1, marks.shownNodes().size(), "a node at the natural rally point");
         assertEquals(new Vector3f(253f, 0f, 170f), marks.shownNodes().getFirst().getLocalTranslation());

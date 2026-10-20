@@ -14,7 +14,7 @@ class GroundCoverTest {
     private static final GroundCover COVER = new GroundCover(
             Map.of(MEADOW, List.of(new GroundCover.Kind("models/grass.glb", 3, 11f, 0xFFFFFF),
                     new GroundCover.Kind("models/flower.glb", 1, 9f, 0xFFFFFF))),
-            Map.of(MEADOW, 1.2f), 42L, (cx, cy) -> cx == 5, 24f, 1f);
+            Map.of(MEADOW, 1.2f), 42L, (cx, _) -> cx == 5, 24f, 1f);
 
     private static int grown(GroundCover cover, String picture) {
         int count = 0;

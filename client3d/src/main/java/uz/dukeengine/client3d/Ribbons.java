@@ -42,7 +42,7 @@ final class Ribbons {
                 continue;
             }
             seen.add(stream.name());
-            var ribbon = drawn.computeIfAbsent(stream.name(), name -> made(look));
+            var ribbon = drawn.computeIfAbsent(stream.name(), _ -> made(look));
             ribbon.setMesh(mesh(stream.pieces(), look.width(), eye));
         }
         drawn.entrySet().removeIf(entry -> {

@@ -270,9 +270,9 @@ class UnitBarsTest {
                 unit(2, "Skeleton", 10f, 0f, 30f, 30f)), UnitBarReading.read(LINE));
 
         var showing = up(screen.bars());
-        assertTrue(words(showing.get(0)).contains("7"), words(showing.get(0)).toString());
-        assertTrue(words(showing.get(0)).contains("128/200"));
-        assertTrue(words(showing.get(0)).contains("Erika"), "the printed name, not the template");
+        assertTrue(words(showing.getFirst()).contains("7"), words(showing.getFirst()).toString());
+        assertTrue(words(showing.getFirst()).contains("128/200"));
+        assertTrue(words(showing.getFirst()).contains("Erika"), "the printed name, not the template");
         assertTrue(words(showing.get(1)).contains("3"), "the skeleton is on the third floor");
         assertTrue(words(showing.get(1)).contains("30/30"));
         assertTrue(words(showing.get(1)).contains("Skeleton"), "nothing renamed it");
@@ -293,7 +293,7 @@ class UnitBarsTest {
                 unit(2, "Skeleton", 10f, 0f, 30f, 30f)), UnitBarReading.read(LINE));
 
         var showing = up(screen.bars());
-        assertTrue(showsManaBar(showing.get(0)), "the hero holds a pool");
+        assertTrue(showsManaBar(showing.getFirst()), "the hero holds a pool");
         assertFalse(showsManaBar(showing.get(1)), "and a skeleton does not");
     }
 
@@ -321,9 +321,9 @@ class UnitBarsTest {
                 unit(3, "Warden", -10f, 0f, 400f, 400f)), UnitBarReading.read(LINE));
 
         var showing = up(screen.bars());
-        assertSame(named(showing.get(0), "ticks").getMesh(), named(showing.get(1), "ticks").getMesh(),
+        assertSame(named(showing.getFirst(), "ticks").getMesh(), named(showing.get(1), "ticks").getMesh(),
                 "two of a size should be drawn from one mesh");
-        assertNotSame(named(showing.get(0), "ticks").getMesh(), named(showing.get(2), "ticks").getMesh());
+        assertNotSame(named(showing.getFirst(), "ticks").getMesh(), named(showing.get(2), "ticks").getMesh());
     }
 
     /**
@@ -348,7 +348,7 @@ class UnitBarsTest {
                 unit(9, "Warden", -10f, 0f, 400f, 600f, 1)), UnitBarReading.read(LINE));
 
         var showing = up(screen.bars());
-        var flat = named(showing.get(0), "trough").getMesh();
+        var flat = named(showing.getFirst(), "trough").getMesh();
         for (var bar : showing) {
             for (var name : new String[] {"edge", "trough", "manaEdge", "manaTrough"}) {
                 assertSame(flat, named(bar, name).getMesh(),
@@ -356,9 +356,9 @@ class UnitBarsTest {
             }
         }
 
-        var hisGauge = named(showing.get(0), "fill").getMesh();
+        var hisGauge = named(showing.getFirst(), "fill").getMesh();
         assertNotSame(flat, hisGauge, "a gauge is shaded, so it is not the flat square");
-        assertNotSame(hisGauge, named(showing.get(0), "manaFill").getMesh(),
+        assertNotSame(hisGauge, named(showing.getFirst(), "manaFill").getMesh(),
                 "mana is its own colour, so its gauge is its own square");
         assertSame(named(showing.get(1), "fill").getMesh(),
                 named(showing.get(2), "fill").getMesh(),
@@ -384,7 +384,7 @@ class UnitBarsTest {
         screen.bars().update(screen.camera(), all(unit(1, "Rogue", 0f, 0f, 128f, 200f)),
                 UnitBarReading.read(LINE));
 
-        var mesh = named(up(screen.bars()).get(0), "fill").getMesh();
+        var mesh = named(up(screen.bars()).getFirst(), "fill").getMesh();
         var colours = mesh.getFloatBuffer(com.jme3.scene.VertexBuffer.Type.Color);
         assertNotNull(colours, "a gauge carries its light in its vertex colours");
         assertEquals(3 * 2 * 4, colours.limit(), "three stops, two corners apiece");
@@ -396,7 +396,7 @@ class UnitBarsTest {
                             + ") should be brighter than its foot (" + foot + ")");
         }
         // And the flat pieces carry none, or they would be shaded too.
-        assertNull(named(up(screen.bars()).get(0), "trough").getMesh()
+        assertNull(named(up(screen.bars()).getFirst(), "trough").getMesh()
                 .getFloatBuffer(com.jme3.scene.VertexBuffer.Type.Color));
     }
 
@@ -459,10 +459,10 @@ class UnitBarsTest {
         var standing = all(unit(1, "Rogue", 0f, 0f, 128f, 200f));
 
         screen.bars().update(screen.camera(), standing, UnitBarReading.read(LINE));
-        var first = named(up(screen.bars()).get(0), "arc").getMesh();
+        var first = named(up(screen.bars()).getFirst(), "arc").getMesh();
         screen.bars().update(screen.camera(), standing, UnitBarReading.read(LINE));
 
-        assertSame(first, named(up(screen.bars()).get(0), "arc").getMesh(),
+        assertSame(first, named(up(screen.bars()).getFirst(), "arc").getMesh(),
                 "a ring that has not moved should not have been rebuilt");
         assertNotNull(first);
     }
@@ -477,7 +477,7 @@ class UnitBarsTest {
                 unit(9, "Warden", 10f, 0f, 400f, 600f)), UnitBarReading.read(LINE));
 
         var showing = up(screen.bars());
-        assertTrue(named(showing.get(0), "arc").getLocalCullHint() != Spatial.CullHint.Always);
+        assertTrue(named(showing.getFirst(), "arc").getLocalCullHint() != Spatial.CullHint.Always);
         assertEquals(Spatial.CullHint.Always, named(showing.get(1), "arc").getLocalCullHint(),
                 "the boss earns nothing, so its disc has no arc on it");
     }
@@ -509,7 +509,7 @@ class UnitBarsTest {
         screen.bars().update(screen.camera(), all(unit(1, "Rogue", 0f, 0f, 128f, 200f)),
                 UnitBarReading.read(LINE));
 
-        var bar = up(screen.bars()).get(0);
+        var bar = up(screen.bars()).getFirst();
         for (var name : new String[] {"edge", "trough", "fill", "ticks", "manaEdge",
             "manaTrough", "manaFill", "back", "rim", "arc"}) {
             var state = named(bar, name).getMaterial().getAdditionalRenderState();

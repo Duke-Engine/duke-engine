@@ -16,7 +16,7 @@ import uz.dukeengine.game.DukeGame;
 class StripsTest {
 
     /** Ground rising a fifth of a unit a unit along x, in cells of 10, fifty a side. */
-    private static final DrawnGround SLOPE = ground((x, z) -> x * 0.2f);
+    private static final DrawnGround SLOPE = ground((x, _) -> x * 0.2f);
 
     private static DrawnGround ground(java.util.function.BiFunction<Float, Float, Float> height) {
         return new DrawnGround() {
@@ -74,7 +74,7 @@ class StripsTest {
 
     @Test
     void overFlatGroundItsMiddleColumnsAreLeftOut() {
-        var mesh = Strips.mesh(ground((x, z) -> 3f), List.of(road(0f, 300f, 35f, 0)));
+        var mesh = Strips.mesh(ground((_, _) -> 3f), List.of(road(0f, 300f, 35f, 0)));
 
         assertEquals(4, mesh.getVertexCount(), "the line from its first column to its last lies on every other");
         assertEquals(2, mesh.getTriangleCount());
@@ -83,7 +83,7 @@ class StripsTest {
     @Test
     void aLaterKindIsDrawnOverAnEarlierOneWhereTheyCross() {
         var node = new Node("strips");
-        var strips = new Strips(node, () -> SLOPE, picture -> new Material());
+        var strips = new Strips(node, () -> SLOPE, _ -> new Material());
         var dirt = road(0f, 300f, 20f, 0);
         var crossing = new DukeGame.StripPiece("textures/roads/crosswalk.png", 0f, 0f, 1f, 1f,
                 new Coord3D(140f, 50f, 0f), new Coord3D(140f, 150f, 0f), new Coord3D(160f, 150f, 0f),
@@ -117,7 +117,7 @@ class StripsTest {
         var trapezoid = new DukeGame.StripPiece("textures/roads/asphalt.png", 0f, 0f, 1f, 1f,
                 new Coord3D(100f, 100f, 0f), new Coord3D(200f, 100f, 0f), new Coord3D(180f, 130f, 0f),
                 new Coord3D(110f, 130f, 0f), 0, mapping);
-        eachPoint(Strips.mesh(ground((x, z) -> 0f), List.of(trapezoid)), (where, uv) -> {
+        eachPoint(Strips.mesh(ground((_, _) -> 0f), List.of(trapezoid)), (where, uv) -> {
             assertEquals(mapping.u(where[0], where[1]), uv[0], 1e-4f);
             assertEquals(mapping.v(where[0], where[1]), uv[1], 1e-4f);
         });

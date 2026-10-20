@@ -137,7 +137,7 @@ final class GroundPaint {
                     uvs[i] = Float.parseFloat(words[i + 2]);
                 }
                 read.put(cellKey(Integer.parseInt(words[0]), Integer.parseInt(words[1])), uvs);
-            } catch (NumberFormatException wrong) {
+            } catch (NumberFormatException _) {
                 LOG.log(Level.WARNING, "{0}: picture corners ''{1}'' is not a cell and its eight corner numbers",
                         new Object[] {what, entry.strip()});
             }
@@ -335,7 +335,7 @@ final class GroundPaint {
                     unnamed.merge(key, 1, Integer::sum);
                     continue;
                 }
-                cells.computeIfAbsent(key, k -> new ArrayList<>()).add(new int[] {cy * width + cx, shape});
+                cells.computeIfAbsent(key, _ -> new ArrayList<>()).add(new int[] {cy * width + cx, shape});
             }
         }
         if (warn) {

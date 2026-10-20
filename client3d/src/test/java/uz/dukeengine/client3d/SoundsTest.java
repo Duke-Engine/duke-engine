@@ -216,7 +216,7 @@ class SoundsTest {
 
         sounds.play("shot", 0f);
 
-        assertEquals(0.125f, heard.gains.get(0), 0.0001f);
+        assertEquals(0.125f, heard.gains.getFirst(), 0.0001f);
     }
 
     // ---- where ----
@@ -235,7 +235,7 @@ class SoundsTest {
         sounds.play("shot", where, 0f);
         sounds.play("click", where, 0f);
 
-        assertEquals(where, heard.places.get(0));
+        assertEquals(where, heard.places.getFirst());
         assertNull(heard.places.get(1), "a click has no position to be quieter from");
     }
 

@@ -131,7 +131,7 @@ final class Bodies {
             putInHisHand(body, visual);
             borrowAnimations(body, visual, alsoWanted);
             return body;
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             missing.warn(modelPath, "model");
             return null;
         }
@@ -163,7 +163,7 @@ final class Bodies {
         if (visual.texturePath != null) {
             try {
                 skin = assetManager.loadTexture(skinKey(visual.texturePath, visual.modelPath));
-            } catch (RuntimeException e) {
+            } catch (RuntimeException _) {
                 missing.warn(visual.texturePath, "texture");
             }
         }
@@ -222,7 +222,7 @@ final class Bodies {
             }
             try (var in = found.openStream()) {
                 return ModelBlends.read(in);
-            } catch (java.io.IOException | RuntimeException e) {
+            } catch (java.io.IOException | RuntimeException _) {
                 missing.warn(path, "model's materials");
                 return Map.of();
             }
@@ -297,7 +297,7 @@ final class Bodies {
         Spatial held;
         try {
             held = assetManager.loadModel(one.path);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             missing.warn(one.path, "model");
             return;
         }
@@ -467,7 +467,7 @@ final class Bodies {
             if (library == null) {
                 try {
                     library = assetManager.loadModel(source.assetPath());
-                } catch (RuntimeException e) {
+                } catch (RuntimeException _) {
                     missing.warn(source.assetPath(), "animation library");
                     continue;
                 }

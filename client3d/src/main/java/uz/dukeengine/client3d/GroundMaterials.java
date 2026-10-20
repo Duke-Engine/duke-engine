@@ -133,7 +133,7 @@ final class GroundMaterials {
 
     private static com.jme3.math.Vector4f[] darkness() {
         var slots = new com.jme3.math.Vector4f[TERRAIN_LIGHTS];
-        java.util.Arrays.setAll(slots, i -> new com.jme3.math.Vector4f());
+        java.util.Arrays.setAll(slots, _ -> new com.jme3.math.Vector4f());
         return slots;
     }
 

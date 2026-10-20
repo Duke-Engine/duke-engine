@@ -16,7 +16,7 @@ class StillThingLookTest {
             .unit("Pillar", pillar -> pillar.model("models/props/pillar.glb"))
             .theme("wood", wood -> wood.unit("Pillar", tree -> tree.model("models/props/bare_tree.glb")))
             .theme("cave", cave -> cave.unit("Pillar", column -> column.model("models/props/stalagmite.glb")))
-            .theme("crypt", crypt -> { });
+            .theme("crypt", _ -> { });
     private final Visuals.Theme wood = visuals.getTheme("wood");
     private final Visuals.Theme cave = visuals.getTheme("cave");
 

@@ -65,9 +65,9 @@ class GameSoundTest {
         sounds.cueVolume("GUIClick", 1f);
         sounds.flat("GUIClick", 2f);
 
-        assertEquals(6f * heard.gains.get(0), heard.gains.get(1), 1e-6f,
+        assertEquals(6f * heard.gains.getFirst(), heard.gains.get(1), 1e-6f,
                 "handed on six times as loud, for the sink to clamp where it clamps");
-        assertEquals(heard.gains.get(0), heard.gains.get(2), 1e-6f, "and back to its own at 1");
+        assertEquals(heard.gains.getFirst(), heard.gains.get(2), 1e-6f, "and back to its own at 1");
     }
 
     @Test

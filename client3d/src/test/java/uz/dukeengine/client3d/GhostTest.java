@@ -41,7 +41,7 @@ class GhostTest {
         var body = new Node("barracks");
         body.attachChild(hull(own));
         var ghost = new Ghost(ASSETS, new Node("markers"), body, LOOK);
-        ghost.answer(true, List.of(), (x, y) -> 0f);
+        ghost.answer(true, List.of(), (_, _) -> 0f);
 
         var drawn = ((Geometry) body.getChild("hull")).getMaterial();
         assertNotSame(own, drawn, "its own copy: the things it stands for untouched");
@@ -56,11 +56,11 @@ class GhostTest {
         var body = new Node("barracks");
         body.attachChild(hull(lit()));
         var ghost = new Ghost(ASSETS, new Node("markers"), body, LOOK);
-        ghost.answer(false, List.of(new AimMark(100f, 100f, 0f, 20f, 20f, 20f)), (x, y) -> 0f);
+        ghost.answer(false, List.of(new AimMark(100f, 100f, 0f, 20f, 20f, 20f)), (_, _) -> 0f);
         assertEquals(ColorRGBA.Red, ghost.tint(), "red added to its light");
         assertEquals(1, ghost.marksShowing(), "the picture on the rectangle");
 
-        ghost.answer(true, List.of(), (x, y) -> 0f);
+        ghost.answer(true, List.of(), (_, _) -> 0f);
         assertEquals(ColorRGBA.Black, ghost.tint());
         assertEquals(0, ghost.marksShowing(), "both gone");
     }
@@ -69,7 +69,7 @@ class GhostTest {
     void aRectangleFacing90Reaching10Ahead5Behind4EachSideIsLaidTurned15By8() {
         var parent = new Node("markers");
         var decal = new GroundDecal(ASSETS, parent);
-        Ghost.lay(decal, new AimMark(100f, 100f, 90f, 10f, 5f, 4f), BIB, (x, y) -> 0f);
+        Ghost.lay(decal, new AimMark(100f, 100f, 90f, 10f, 5f, 4f), BIB, (_, _) -> 0f);
 
         var node = (Node) parent.getChild("aim decal");
         assertEquals(100f, node.getLocalTranslation().x, 1e-4f);
@@ -84,7 +84,7 @@ class GhostTest {
         var body = new Node("barracks");
         body.attachChild(hull(lit()));
         var ghost = new Ghost(ASSETS, new Node("markers"), body, null);
-        ghost.answer(false, List.of(new AimMark(0f, 0f, 0f, 1f, 1f, 1f)), (x, y) -> 0f);
+        ghost.answer(false, List.of(new AimMark(0f, 0f, 0f, 1f, 1f, 1f)), (_, _) -> 0f);
         var flat = ((Geometry) body.getChild("hull")).getMaterial();
         assertEquals(Ghost.REFUSED, flat.getParamValue("Color"));
         assertEquals(0, ghost.marksShowing());

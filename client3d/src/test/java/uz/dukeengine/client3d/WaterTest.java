@@ -51,7 +51,7 @@ class WaterTest {
 
     @Test
     void aSquarePondFiveOverAFlatFloorDrawsASurfaceAtFiveOverTheSquareOnly() {
-        var mesh = Water.standing(POND, ground((x, z) -> 0f), 3f);
+        var mesh = Water.standing(POND, ground((_, _) -> 0f), 3f);
         var positions = mesh.getFloatBuffer(VertexBuffer.Type.Position);
 
         assertEquals(3 * 3 * 4, mesh.getVertexCount(), "the nine cells inside it");
@@ -66,11 +66,11 @@ class WaterTest {
 
     @Test
     void overGroundOneAndAHalfUnderTheSurfaceItIsHalfClearWithAFadeDepthOfThree() {
-        var mesh = Water.standing(POND, ground((x, z) -> 3.5f), 3f);
+        var mesh = Water.standing(POND, ground((_, _) -> 3.5f), 3f);
         var colours = mesh.getFloatBuffer(VertexBuffer.Type.Color);
 
         assertEquals(0.5f, colours.get(3), 1e-5f, "1.5 deep of a fade of 3: half");
-        assertEquals(1f, Water.standing(POND, ground((x, z) -> -10f), 3f)
+        assertEquals(1f, Water.standing(POND, ground((_, _) -> -10f), 3f)
                 .getFloatBuffer(VertexBuffer.Type.Color).get(3), 1e-5f, "past the fade depth: whole");
     }
 
@@ -78,7 +78,7 @@ class WaterTest {
     void aRiversPictureRunsDownItFromItsStartAsTimePasses() {
         // Six corners: its mouth from corner 0 to 1, one bank 1, 2, … the other back 0, 5, 4.
         var river = new Area("River", true, 0f, List.of(0f, 0f, 0f, 2f, 10f, 2f, 20f, 2f, 20f, 0f, 10f, 0f), true, 0);
-        var mesh = Water.river(river, ground((x, z) -> -3f));
+        var mesh = Water.river(river, ground((_, _) -> -3f));
         var uvs = mesh.getFloatBuffer(VertexBuffer.Type.TexCoord);
         assertEquals(6, mesh.getVertexCount(), "three pairs across it");
         assertEquals(0f, uvs.get(1), 1e-5f, "its picture from its start");

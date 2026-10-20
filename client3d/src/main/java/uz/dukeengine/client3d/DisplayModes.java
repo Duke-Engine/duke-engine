@@ -37,7 +37,7 @@ final class DisplayModes {
             var mode = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice()
                     .getDisplayMode();
             return mode.getWidth() > 0 && mode.getHeight() > 0 ? new int[] {mode.getWidth(), mode.getHeight()} : null;
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             return null; // headless, or a platform that will not say
         }
     }

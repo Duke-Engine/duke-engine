@@ -14,7 +14,7 @@ import uz.dukeengine.game.DukeGame;
 class TitleCardTest {
 
     private static CanvasFrame frame() {
-        return new CanvasFrame(800, 600, new CanvasText(path -> null), Map.<String, int[]>of()::get);
+        return new CanvasFrame(800, 600, new CanvasText(_ -> null), Map.<String, int[]>of()::get);
     }
 
     @Test

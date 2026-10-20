@@ -300,7 +300,7 @@ final class Screens {
         var maps = front.getMapChoices();
         var factions = front.getFactionChoices();
         if (chosenMap == null && !maps.isEmpty()) {
-            chosenMap = maps.get(0);
+            chosenMap = maps.getFirst();
         }
         while (chosenFactions.size() < 2 && !factions.isEmpty()) {
             chosenFactions.add(factions.get(chosenFactions.size() % factions.size()));
@@ -345,7 +345,7 @@ final class Screens {
                 // who is still missing instead of staring at "waiting…".
                 game.hostMultiplayer(port, wanted, joined -> host.later(() -> showLobby(port, joined, wanted)));
                 host.later(host::startGame);
-            } catch (Exception e) {
+            } catch (Exception _) {
                 host.later(this::showMainMenu); // cancelled or failed — back to the menu
             }
         }, "duke-host").start();
@@ -374,7 +374,7 @@ final class Screens {
             try {
                 game.joinMultiplayer(ip.trim(), uz.dukeengine.game.MultiplayerSession.DEFAULT_PORT);
                 host.later(host::startGame);
-            } catch (Exception e) {
+            } catch (Exception _) {
                 host.later(this::showMainMenu);
             }
         }, "duke-join").start();
@@ -385,7 +385,7 @@ final class Screens {
         try {
             javax.swing.SwingUtilities.invokeAndWait(() ->
                     result[0] = javax.swing.JOptionPane.showInputDialog(null, prompt, initial));
-        } catch (Exception e) {
+        } catch (Exception _) {
             return null;
         }
         return result[0];

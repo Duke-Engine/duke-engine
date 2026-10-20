@@ -70,14 +70,14 @@ final class MovieFrames implements AutoCloseable {
             }
         } catch (IOException e) {
             LOG.warning("a movie stopped reading after " + index + " pictures: " + e.getMessage());
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             return;
         }
         count = index;
         try {
             ahead.put(END);
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
         }
     }

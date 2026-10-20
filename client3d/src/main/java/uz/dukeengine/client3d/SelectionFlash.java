@@ -26,7 +26,7 @@ final class SelectionFlash {
 
     /** A thing flashed from now as {@code look} says, {@code owner} the colour it is drawn in for its own colour's. */
     void flash(int id, Spatial root, Visuals.SelectionFlashLook look, ColorRGBA owner) {
-        var one = flashing.computeIfAbsent(id, key -> new Flash());
+        var one = flashing.computeIfAbsent(id, _ -> new Flash());
         if (one.on != root) {
             if (one.on != null) {
                 one.on.removeLight(one.light);

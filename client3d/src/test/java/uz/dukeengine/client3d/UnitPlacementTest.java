@@ -11,9 +11,9 @@ import uz.dukeengine.core.view.UnitView;
 /** A thing drawn at its own height, turned by its facing, pitch and roll — and a ground unit drawn as it was. */
 class UnitPlacementTest {
 
-    private static final WorldMoments.Floor FLAT = (x, z) -> 0f;
+    private static final WorldMoments.Floor FLAT = (_, _) -> 0f;
     /** A hill 25 high under x 50. */
-    private static final WorldMoments.Floor HILL = (x, z) -> x == 50f ? 25f : 0f;
+    private static final WorldMoments.Floor HILL = (x, _) -> x == 50f ? 25f : 0f;
 
     private static UnitView view(float x, float y, float orientation, float z, float pitch, float roll,
             boolean ownHeight) {
@@ -49,7 +49,7 @@ class UnitPlacementTest {
         var old = view(30f, 40f, 0.7f, 0f, 0f, 0f, false);
         var before = new UnitView(1, "Tank", 1, 30f, 40f, 0.7f, 100f, 100f, false, true, false, false, -1);
 
-        assertEquals(new Vector3f(30f, 25f, 40f), UnitPlacement.where(before, (x, z) -> 25f),
+        assertEquals(new Vector3f(30f, 25f, 40f), UnitPlacement.where(before, (_, _) -> 25f),
                 "on the ground under it, as updateUnitNode put it");
         assertEquals(new Quaternion().fromAngles(0f, -0.7f, 0f), UnitPlacement.turn(before), "turned by its facing alone");
         assertEquals(UnitPlacement.turn(before), UnitPlacement.turn(old));
@@ -64,7 +64,7 @@ class UnitPlacementTest {
 
     @Test
     void aLiftOf3DrawsItAt3AndAYawOfATenthTurnsItATenthFromItsFacing() {
-        assertEquals(3f, UnitPlacement.where(lifted(3f, 0f), (x, z) -> 0f).y, 1e-6f, "drawn at 3");
+        assertEquals(3f, UnitPlacement.where(lifted(3f, 0f), (_, _) -> 0f).y, 1e-6f, "drawn at 3");
         assertEquals(new Quaternion().fromAngles(0f, -0.8f, 0f), UnitPlacement.turn(lifted(0f, 0.1f)),
                 "drawn turned 0.1 from its facing of 0.7");
         assertEquals(0.7f, lifted(0f, 0.1f).orientation(), "its facing unchanged");

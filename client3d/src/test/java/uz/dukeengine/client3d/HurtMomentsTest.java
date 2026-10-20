@@ -64,7 +64,7 @@ class HurtMomentsTest {
 
     @Test
     void theBlowFacesTheWayItCame() {
-        var cue = WorldMoments.hurt(blow(1, SMALL_ARMS, 1f), null, (x, z) -> 0f);
+        var cue = WorldMoments.hurt(blow(1, SMALL_ARMS, 1f), null, (_, _) -> 0f);
 
         assertEquals(new com.jme3.math.Vector3f(10f, 2f, 20f), cue.at());
         var forward = cue.turn().mult(com.jme3.math.Vector3f.UNIT_X);

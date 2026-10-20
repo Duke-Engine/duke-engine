@@ -23,7 +23,7 @@ class SingleHeroTest {
 
     @Test
     void aPortraitDrawnOnTheCanvasIsAskedForAndLaidAsALivePicture() {
-        var frame = new CanvasFrame(100, 100, new CanvasText(path -> null), Map.<String, int[]>of()::get);
+        var frame = new CanvasFrame(100, 100, new CanvasText(_ -> null), Map.<String, int[]>of()::get);
 
         frame.drawPortrait(7, 10f, 10f, 50f, 60f);
         frame.drawPortrait(4, 0f, 0f, 5f, 5f);

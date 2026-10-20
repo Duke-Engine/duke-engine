@@ -204,7 +204,7 @@ public final class Duke3D {
 
         try {
             client.awaitStop();
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
         }
         client.currentGame().stop();
@@ -212,7 +212,7 @@ public final class Duke3D {
         if (simThread != null) {
             try {
                 simThread.join(5000);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
             }
         }
@@ -591,7 +591,7 @@ public final class Duke3D {
      * painting reads every cell of the world. From any thread, before launch or while it runs.
      */
     public void worldPicture(int mostTexels, Consumer<Picture> handed) {
-        worldPicture(mostTexels, map -> true, handed);
+        worldPicture(mostTexels, _ -> true, handed);
     }
 
     /**

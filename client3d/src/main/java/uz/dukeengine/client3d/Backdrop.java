@@ -118,7 +118,7 @@ final class Backdrop {
         if (thread != null) {
             try {
                 thread.join(5000);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
             }
         }

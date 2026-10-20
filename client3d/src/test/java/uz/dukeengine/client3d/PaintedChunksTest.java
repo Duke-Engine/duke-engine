@@ -83,7 +83,7 @@ class PaintedChunksTest {
     }
 
     private static TerrainScene scene(Node root, boolean chunked) {
-        return new TerrainScene(root, (colour, texture) -> null, true, null, null, chunked);
+        return new TerrainScene(root, (_, _) -> null, true, null, null, chunked);
     }
 
     @Test

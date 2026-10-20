@@ -25,7 +25,7 @@ import uz.dukeengine.core.pathfind.MapLoader;
 class TerrainSceneTest {
 
     private static TerrainScene scene(Node root) {
-        return new TerrainScene(root, (colour, texture) -> null);
+        return new TerrainScene(root, (_, _) -> null);
     }
 
     /** Three cells of stone in a five-wide room. */
@@ -151,7 +151,7 @@ class TerrainSceneTest {
             """;
 
     private static TerrainScene discovering(Node root) {
-        return new TerrainScene(root, (colour, texture) -> null, true);
+        return new TerrainScene(root, (_, _) -> null, true);
     }
 
     /**
@@ -314,14 +314,14 @@ class TerrainSceneTest {
     @Test
     void theTilesRiseWithTheReliefUnderThem() {
         var flatRoot = new Node("terrain");
-        new TerrainScene(flatRoot, (colour, texture) -> null, true, kit(), new SquareTiles()).rebuild(MapLoader.fromText(ROOM));
+        new TerrainScene(flatRoot, (_, _) -> null, true, kit(), new SquareTiles()).rebuild(MapLoader.fromText(ROOM));
 
         var raised = MapLoader.fromText(ROOM);
         var steps = new int[6 * 6];
         java.util.Arrays.fill(steps, 8);
         raised.setRelief(new uz.dukeengine.core.pathfind.HeightMap(6, 6, steps));
         var raisedRoot = new Node("terrain");
-        new TerrainScene(raisedRoot, (colour, texture) -> null, true, kit(), new SquareTiles()).rebuild(raised);
+        new TerrainScene(raisedRoot, (_, _) -> null, true, kit(), new SquareTiles()).rebuild(raised);
 
         assertEquals(highestCorner(flatRoot) + 5f, highestCorner(raisedRoot), 0.001f);
     }
@@ -360,7 +360,7 @@ class TerrainSceneTest {
     @Test
     void aTiledWorldIsBuiltOfPiecesAndHasNoGroundPlane() {
         var root = new Node("terrain");
-        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles());
+        var terrain = new TerrainScene(root, (_, _) -> null, true, kit(), new StubTiles());
 
         terrain.rebuild(MapLoader.fromText(ROOM));
 
@@ -383,7 +383,7 @@ class TerrainSceneTest {
     @Test
     void theRockIsRoofedAtTheTopOfTheWalls() {
         var root = new Node("terrain");
-        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles());
+        var terrain = new TerrainScene(root, (_, _) -> null, true, kit(), new StubTiles());
         var grid = MapLoader.fromText(ROOM);
 
         terrain.rebuild(grid);
@@ -404,7 +404,7 @@ class TerrainSceneTest {
     @Test
     void rebuildingReplacesATiledWorld() {
         var root = new Node("terrain");
-        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles());
+        var terrain = new TerrainScene(root, (_, _) -> null, true, kit(), new StubTiles());
 
         terrain.rebuild(MapLoader.fromText(ROOM));
         int first = pieces(root, "floor").size();
@@ -421,7 +421,7 @@ class TerrainSceneTest {
     void aKitWithoutEveryPieceStillBuilds() {
         var root = new Node("terrain");
         var partial = Tileset.create().floor("floor").tileSize(4f);
-        var terrain = new TerrainScene(root, (colour, texture) -> null, true, partial, new StubTiles());
+        var terrain = new TerrainScene(root, (_, _) -> null, true, partial, new StubTiles());
 
         terrain.rebuild(MapLoader.fromText(ROOM));
 
@@ -435,7 +435,7 @@ class TerrainSceneTest {
     void anUndiscoveredTileIsNotDrawn() {
         var root = new Node("terrain");
         var grid = MapLoader.fromText(ROOM);
-        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles());
+        var terrain = new TerrainScene(root, (_, _) -> null, true, kit(), new StubTiles());
         terrain.rebuild(grid);
 
         terrain.applyDiscovery(new Discovery(grid));
@@ -457,7 +457,7 @@ class TerrainSceneTest {
     void aWallAtTheEdgeOfTheLightGoesDimRatherThanOut() {
         var root = new Node("terrain");
         var grid = MapLoader.fromText(WIDE);
-        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles());
+        var terrain = new TerrainScene(root, (_, _) -> null, true, kit(), new StubTiles());
         terrain.rebuild(grid);
         var seen = new Discovery(grid);
 
@@ -488,7 +488,7 @@ class TerrainSceneTest {
     void aPieceIsCulledForWhereItStands() {
         var root = new Node("terrain");
         var grid = MapLoader.fromText(WIDE);
-        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles());
+        var terrain = new TerrainScene(root, (_, _) -> null, true, kit(), new StubTiles());
         terrain.rebuild(grid);
         var seen = new Discovery(grid);
 
@@ -561,7 +561,7 @@ class TerrainSceneTest {
     private static java.util.List<com.jme3.scene.Spatial> wallsOf(Tileset kit,
             uz.dukeengine.core.pathfind.PathGrid grid) {
         var root = new Node("terrain");
-        new TerrainScene(root, (colour, texture) -> null, true, kit, new StubTiles()).rebuild(grid);
+        new TerrainScene(root, (_, _) -> null, true, kit, new StubTiles()).rebuild(grid);
         return pieces(root, "wall");
     }
 
@@ -611,7 +611,7 @@ class TerrainSceneTest {
         assertEquals(3, faces.size(),
                 "masonry walls the rock from both sides and again on its roof");
         assertEquals(1, body.size(), "a tree has one body, however many sides it is seen from");
-        assertEquals((3 + 0.5f) * cell, body.get(0).getLocalTranslation().x, 0.001f,
+        assertEquals((3 + 0.5f) * cell, body.getFirst().getLocalTranslation().x, 0.001f,
                 "in the middle of the rock rather than on one of its faces");
     }
 
@@ -641,11 +641,11 @@ class TerrainSceneTest {
         float cell = grid.getCellSize();
 
         var faces = onCell(wallsOf(kit(), grid), 3, 1, cell);
-        var body = onCell(wallsOf(kit().wallFillsRock(true), grid), 3, 1, cell).get(0);
+        var body = onCell(wallsOf(kit().wallFillsRock(true), grid), 3, 1, cell).getFirst();
 
         assertEquals(10f, body.getLocalTranslation().y, 0.001f,
                 "on the rock's own roof — the rock beside it rises a storey, so the roof does");
-        assertEquals(faces.get(0).getLocalScale().x, body.getLocalScale().x, 0.001f,
+        assertEquals(faces.getFirst().getLocalScale().x, body.getLocalScale().x, 0.001f,
                 "and the same size it would be anywhere: a tree is a tree, not a storey count");
     }
 
@@ -662,7 +662,7 @@ class TerrainSceneTest {
         var grid = MapLoader.fromText(ROOM);
         float cell = grid.getCellSize();
         var root = new Node("terrain");
-        new TerrainScene(root, (colour, texture) -> null, true,
+        new TerrainScene(root, (_, _) -> null, true,
                 kit().wallClump(3).wallSpread(0.3f).wallVariety(0.5f), new StubTiles())
                 .rebuild(grid);
 
@@ -717,9 +717,9 @@ class TerrainSceneTest {
         var grid = MapLoader.fromText(ROOM);
         var kit = kit().wall("rock_a", "rock_b", "rock_c").wallFillsRock(true).wallClump(3).wallSpread(0.3f);
         var first = new Node("terrain");
-        new TerrainScene(first, (colour, texture) -> null, true, kit, new StubTiles()).rebuild(grid);
+        new TerrainScene(first, (_, _) -> null, true, kit, new StubTiles()).rebuild(grid);
         var second = new Node("terrain");
-        new TerrainScene(second, (colour, texture) -> null, true, kit, new StubTiles()).rebuild(grid);
+        new TerrainScene(second, (_, _) -> null, true, kit, new StubTiles()).rebuild(grid);
 
         for (var rock : java.util.List.of("rock_a", "rock_b", "rock_c")) {
             assertFalse(pieces(first, rock).isEmpty(), rock + " should stand somewhere");
@@ -734,9 +734,9 @@ class TerrainSceneTest {
         var grid = MapLoader.fromText(ROOM);
         var kit = kit().wallClump(3).wallSpread(0.3f).wallVariety(0.5f);
         var root = new Node("terrain");
-        new TerrainScene(root, (colour, texture) -> null, true, kit, new StubTiles()).rebuild(grid);
+        new TerrainScene(root, (_, _) -> null, true, kit, new StubTiles()).rebuild(grid);
         var listed = new Node("terrain");
-        new TerrainScene(listed, (colour, texture) -> null, true, kit.wall("wall"), new StubTiles()).rebuild(grid);
+        new TerrainScene(listed, (_, _) -> null, true, kit.wall("wall"), new StubTiles()).rebuild(grid);
 
         assertEquals(namedAndPlaced(root), namedAndPlaced(listed));
         assertEquals(java.util.List.of("wall"), kit.getWalls());
@@ -776,12 +776,12 @@ class TerrainSceneTest {
     void aStairIsScaledByWhatItClimbsRatherThanByHowTallItsModelBoxes() {
         var grid = twoStoreys();
         var root = new Node("terrain");
-        new TerrainScene(root, (colour, texture) -> null, true, kit().stairs("stairs"), new RailedStair())
+        new TerrainScene(root, (_, _) -> null, true, kit().stairs("stairs"), new RailedStair())
                 .rebuild(grid);
 
         var stairs = pieces(root, "stairs");
         assertEquals(1, stairs.size(), "one flight, on the cell the map marks as a ramp");
-        assertEquals(grid.getLevelHeight() / 4f, stairs.get(0).getLocalScale().y, 0.001f,
+        assertEquals(grid.getLevelHeight() / 4f, stairs.getFirst().getLocalScale().y, 0.001f,
                 "four model units of climb make one storey; scaling by the 5.1 the model "
                         + "boxes leaves the top step short of the floor it joins, and you can "
                         + "see through the gap");
@@ -800,11 +800,11 @@ class TerrainSceneTest {
         var grid = twoStoreys();
         float cell = grid.getCellSize();
         var root = new Node("terrain");
-        new TerrainScene(root, (colour, texture) -> null, true, kit().stairs("stairs"), new RailedStair())
+        new TerrainScene(root, (_, _) -> null, true, kit().stairs("stairs"), new RailedStair())
                 .rebuild(grid);
         root.updateGeometricState();
 
-        var stair = pieces(root, "stairs").get(0);
+        var stair = pieces(root, "stairs").getFirst();
         var footprint = (com.jme3.bounding.BoundingBox) stair.getWorldBound();
         // Cell (3,1) is the ramp in this map.
         assertEquals((3 + 0.5f) * cell, footprint.getCenter().x, 0.01f,
@@ -827,7 +827,7 @@ class TerrainSceneTest {
 
         @Override
         public com.jme3.scene.Spatial piece(String assetPath, int packedRgb) {
-            asked.computeIfAbsent(assetPath, ignored -> new java.util.HashSet<>()).add(packedRgb);
+            asked.computeIfAbsent(assetPath, _ -> new java.util.HashSet<>()).add(packedRgb);
             return new Node(assetPath);
         }
     }
@@ -849,7 +849,7 @@ class TerrainSceneTest {
     @Test
     void theLidOverTheRockIsAskedForInADifferentColourFromTheFloor() {
         var watching = new ColourWatchingTiles();
-        new TerrainScene(new Node("terrain"), (colour, texture) -> null, true,
+        new TerrainScene(new Node("terrain"), (_, _) -> null, true,
                 kit().capTint(0x808080), watching).rebuild(MapLoader.fromText(ROOM));
 
         assertEquals(java.util.Set.of(0xFFFFFF, 0x808080), watching.asked.get("floor"),
@@ -861,7 +861,7 @@ class TerrainSceneTest {
     void andEachStoreyIsAskedForInAColourOfItsOwn() {
         var grid = twoStoreys();
         var watching = new ColourWatchingTiles();
-        new TerrainScene(new Node("terrain"), (colour, texture) -> null, true,
+        new TerrainScene(new Node("terrain"), (_, _) -> null, true,
                 kit().storeyShade(1.2f), watching).rebuild(grid);
 
         assertTrue(watching.asked.get("floor").size() > 1,
@@ -873,7 +873,7 @@ class TerrainSceneTest {
     @Test
     void andAKitThatAsksForNeitherIsDrawnInOneColourAsBefore() {
         var watching = new ColourWatchingTiles();
-        new TerrainScene(new Node("terrain"), (colour, texture) -> null, true, kit(), watching)
+        new TerrainScene(new Node("terrain"), (_, _) -> null, true, kit(), watching)
                 .rebuild(twoStoreys());
 
         for (var entry : watching.asked.entrySet()) {
@@ -936,7 +936,7 @@ class TerrainSceneTest {
         MapLoader.levels(grid, TOWER);
         grid.setLevelHeight(10f);
         var root = new Node("terrain");
-        new TerrainScene(root, (colour, texture) -> null, true, of, new StubTilesWithFace()).rebuild(grid);
+        new TerrainScene(root, (_, _) -> null, true, of, new StubTilesWithFace()).rebuild(grid);
         return pieces(root, "face");
     }
 
@@ -1030,7 +1030,7 @@ class TerrainSceneTest {
         MapLoader.levels(grid, ROCK_STEP);
         grid.setLevelHeight(10f);
         var root = new Node("terrain");
-        new TerrainScene(root, (colour, texture) -> null, true, forestLike().rockFace("face"),
+        new TerrainScene(root, (_, _) -> null, true, forestLike().rockFace("face"),
                 new StubTilesWithFace()).rebuild(grid);
         float cell = grid.getCellSize();
 
@@ -1096,7 +1096,7 @@ class TerrainSceneTest {
     void aMapWhoseCellsNameTwoLooksDrawsEachCellFromItsOwnKit() {
         var grid = MapLoader.fromText(TWO_HALVES);
         var root = new Node("terrain");
-        new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles())
+        new TerrainScene(root, (_, _) -> null, true, kit(), new StubTiles())
                 .rebuild(grid, kit(), null, null, halves(grid));
 
         assertFalse(laidOnTheGround(root, "moss").isEmpty(), "the wood's floor");
@@ -1114,7 +1114,7 @@ class TerrainSceneTest {
     void eachLooksPiecesAreLaidByThatLooksOwnNumbers() {
         var grid = MapLoader.fromText(TWO_HALVES);
         var root = new Node("terrain");
-        new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles())
+        new TerrainScene(root, (_, _) -> null, true, kit(), new StubTiles())
                 .rebuild(grid, kit(), null, null, halves(grid));
 
         assertEquals(2.5f, laidOnTheGround(root, "moss").getFirst().getLocalScale().x, 0.001f);
@@ -1126,11 +1126,11 @@ class TerrainSceneTest {
     void aMapNamingNoLooksIsLaidAsItAlwaysWas() {
         var grid = MapLoader.fromText(TWO_HALVES);
         var plain = new Node("terrain");
-        new TerrainScene(plain, (colour, texture) -> null, true, kit(), new StubTiles()).rebuild(grid);
+        new TerrainScene(plain, (_, _) -> null, true, kit(), new StubTiles()).rebuild(grid);
         var unnamed = new Node("terrain");
         var cells = new Tileset[grid.getWidth() * grid.getHeight()];
         cells[25] = Tileset.create().wall("tree"); // no floor: not a kit that can build one
-        new TerrainScene(unnamed, (colour, texture) -> null, true, kit(), new StubTiles())
+        new TerrainScene(unnamed, (_, _) -> null, true, kit(), new StubTiles())
                 .rebuild(grid, kit(), null, null, cells);
 
         assertEquals(namedAndPlaced(plain), namedAndPlaced(unnamed));
@@ -1146,7 +1146,7 @@ class TerrainSceneTest {
     void aPieceOfSceneryStandsWhereTheMapSaysTurnedAndSizedAsItSays() {
         var grid = twoStoreys();
         var root = new Node("terrain");
-        new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles())
+        new TerrainScene(root, (_, _) -> null, true, kit(), new StubTiles())
                 .rebuild(grid, kit(), null, null, null, java.util.List.of(
                         new Scenery("bush", 2.5f, 1.5f, 90f, 2f, 0xFFFFFF, 0f),
                         new Scenery("banner", 7.5f, 2.5f, 0f, 1f, 0xFFFFFF, 0f)));
@@ -1166,7 +1166,7 @@ class TerrainSceneTest {
     void groundBuiltWithNoWorldYetHidesNothing() {
         assertTrue(WorldGround.removedScenery(null).isEmpty());
         var root = new Node("terrain");
-        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles());
+        var terrain = new TerrainScene(root, (_, _) -> null, true, kit(), new StubTiles());
         terrain.hideScenery(WorldGround.removedScenery(null));
         terrain.rebuild(twoStoreys(), kit(), null, null, null,
                 java.util.List.of(new Scenery("tree", 2.5f, 1.5f, 0f, 1f, 0xFFFFFF, 0.4f)));
@@ -1178,7 +1178,7 @@ class TerrainSceneTest {
     void aFelledPieceIsNotDrawnAndGrownAgainIs() {
         var grid = twoStoreys();
         var root = new Node("terrain");
-        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles());
+        var terrain = new TerrainScene(root, (_, _) -> null, true, kit(), new StubTiles());
         var wood = java.util.List.of(new Scenery("tree", 2.5f, 1.5f, 0f, 1f, 0xFFFFFF, 0.4f),
                 new Scenery("banner", 7.5f, 2.5f, 0f, 1f, 0xFFFFFF, 0f));
         terrain.hideScenery(java.util.Set.of(0));
@@ -1207,13 +1207,13 @@ class TerrainSceneTest {
                 asked.add(assetPath + "@" + picture);
                 var node = new Node(assetPath);
                 var tile = new com.jme3.scene.Geometry("tile", new com.jme3.scene.shape.Quad(4f, 4f));
-                tile.setMaterial(materials.computeIfAbsent(picture, any -> new com.jme3.material.Material()));
+                tile.setMaterial(materials.computeIfAbsent(picture, _ -> new com.jme3.material.Material()));
                 node.attachChild(tile);
                 return node;
             }
         };
         var root = new Node("terrain");
-        new TerrainScene(root, (colour, texture) -> null, true, kit(), tiles)
+        new TerrainScene(root, (_, _) -> null, true, kit(), tiles)
                 .rebuild(twoStoreys(), kit(), null, null, null, java.util.List.of(
                         uz.dukeengine.core.map.SceneryLine.of("fort_wall 2.5 1.5 0 1 0"),
                         uz.dukeengine.core.map.SceneryLine.of("fort_wall@textures/fort_dark.jpg 6.5 1.5 0 1 0")));
@@ -1222,7 +1222,7 @@ class TerrainSceneTest {
                 asked.toString());
         var walls = pieces(root, "fort_wall");
         assertEquals(2, walls.size());
-        var first = (com.jme3.scene.Geometry) ((Node) walls.get(0)).getChild(0);
+        var first = (com.jme3.scene.Geometry) ((Node) walls.getFirst()).getChild(0);
         var second = (com.jme3.scene.Geometry) ((Node) walls.get(1)).getChild(0);
         assertNotSame(first.getMaterial(), second.getMaterial(), "drawn with two pictures");
     }
@@ -1245,7 +1245,7 @@ class TerrainSceneTest {
             }
         }
         var root = new Node("terrain");
-        new TerrainScene(root, (colour, texture) -> null, true, kit(), tiles, true)
+        new TerrainScene(root, (_, _) -> null, true, kit(), tiles, true)
                 .rebuild(wideRoom(), kit(), null, null, null, lawn);
 
         var drawn = root.descendantMatches(com.jme3.scene.Geometry.class);
@@ -1258,7 +1258,7 @@ class TerrainSceneTest {
     void sceneryIsHiddenByTheFogAsItsGroundIs() {
         var grid = wideRoom();
         var root = new Node("terrain");
-        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new SquareTiles(), true);
+        var terrain = new TerrainScene(root, (_, _) -> null, true, kit(), new SquareTiles(), true);
         terrain.rebuild(grid, kit(), null, null, null,
                 java.util.List.of(new Scenery("rock", 36.5f, 5.5f, 0f, 1f, 0xFFFFFF, 0f)));
         var seen = new Discovery(grid);
@@ -1288,7 +1288,7 @@ class TerrainSceneTest {
 
     private static Node built(uz.dukeengine.core.pathfind.PathGrid grid, TileSource tiles, boolean chunked) {
         var root = new Node("terrain");
-        new TerrainScene(root, (colour, texture) -> null, true, kit(), tiles, chunked).rebuild(grid);
+        new TerrainScene(root, (_, _) -> null, true, kit(), tiles, chunked).rebuild(grid);
         return root;
     }
 
@@ -1379,7 +1379,7 @@ class TerrainSceneTest {
                 corner.set(positions.get(i), positions.get(i + 1), positions.get(i + 2));
                 geometry.getWorldTransform().transformVector(corner, world);
                 found.computeIfAbsent(Math.round(world.x * 10) + "," + Math.round(world.z * 10),
-                        place -> new java.util.ArrayList<>()).add(world.y);
+                        _ -> new java.util.ArrayList<>()).add(world.y);
             }
         }
         found.values().forEach(java.util.Collections::sort);
@@ -1406,7 +1406,7 @@ class TerrainSceneTest {
     void theFogLeavesOutAChunkOnlyWhenAllOfItAndACellRoundItIsDark() {
         var grid = wideRoom();
         var root = new Node("terrain");
-        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new SquareTiles(), true);
+        var terrain = new TerrainScene(root, (_, _) -> null, true, kit(), new SquareTiles(), true);
         terrain.rebuild(grid);
         var seen = new Discovery(grid);
         seen.reveal(java.util.List.of(unit(35f, 55f)), 0, 30f, null);

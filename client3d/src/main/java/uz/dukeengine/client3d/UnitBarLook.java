@@ -223,7 +223,7 @@ public record UnitBarLook(
                 return Math.max(1, step.value());
             }
         }
-        return Math.max(1, steps.get(steps.size() - 1).value());
+        return Math.max(1, steps.getLast().value());
     }
 
     /**

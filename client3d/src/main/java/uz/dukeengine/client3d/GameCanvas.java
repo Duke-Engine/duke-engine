@@ -88,7 +88,7 @@ final class GameCanvas {
         try {
             var found = assetManager.locateAsset(new com.jme3.asset.AssetKey<>(path));
             return found == null ? null : found.openStream();
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             return null;
         }
     }

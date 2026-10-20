@@ -161,7 +161,7 @@ final class Lasers {
             var texture = look == null ? null : texture(look.texture());
             var lines = look == null ? List.<Line>of() : lay(look, beam.from(), beam.to(), beam.width(),
                     aspectOf(texture), floor);
-            var geometries = drawn.computeIfAbsent(beam.id(), id -> new ArrayList<>());
+            var geometries = drawn.computeIfAbsent(beam.id(), _ -> new ArrayList<>());
             while (geometries.size() < lines.size()) {
                 geometries.add(line(texture, look.material()));
             }

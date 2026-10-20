@@ -118,7 +118,7 @@ public final class Hotkeys {
      * controls are the ones it knows it needs.
      */
     public Hotkeys on(char key, Consumer<DukeGame> action) {
-        return bind(key, Aim.NOW, (game, aimed) -> action.accept(game));
+        return bind(key, Aim.NOW, (game, _) -> action.accept(game));
     }
 
     /** The same, saying what the letter does in the game's words — shown on the Settings screen's list of keys. */

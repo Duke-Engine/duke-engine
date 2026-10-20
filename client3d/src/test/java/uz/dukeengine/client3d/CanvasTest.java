@@ -18,7 +18,7 @@ class CanvasTest {
     }
 
     private static CanvasText text() {
-        return new CanvasText(path -> null);
+        return new CanvasText(_ -> null);
     }
 
     @Test
@@ -36,8 +36,8 @@ class CanvasTest {
         var drawn = frame.triangles();
 
         assertEquals(5, drawn.size(), "two triangles a quad, one for the triangle");
-        assertInstanceOf(CanvasFrame.Plain.class, drawn.get(0).source());
-        assertEquals(0xFFFF0000, drawn.get(0).argb()[0]);
+        assertInstanceOf(CanvasFrame.Plain.class, drawn.getFirst().source());
+        assertEquals(0xFFFF0000, drawn.getFirst().argb()[0]);
         var picture = drawn.subList(2, 4);
         for (var triangle : picture) {
             assertEquals(new CanvasFrame.Picture("ui/atlas.png", false), triangle.source());
@@ -109,7 +109,7 @@ class CanvasTest {
         var laid = text.layout(font, "Aж");
         var plain = text.layout(Canvas.Font.of("SansSerif", 20), "ж");
 
-        assertEquals("Serif", laid.glyphs().get(0).family());
+        assertEquals("Serif", laid.glyphs().getFirst().family());
         assertEquals("SansSerif", laid.glyphs().get(1).family());
         assertEquals(plain.glyphs().getFirst().glyph().advance(), laid.glyphs().get(1).glyph().advance(),
                 "at the wide face's own width, not the condensed one");

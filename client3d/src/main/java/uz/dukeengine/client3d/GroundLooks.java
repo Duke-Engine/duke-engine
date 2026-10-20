@@ -24,7 +24,7 @@ final class GroundLooks {
     Visuals.Cliffs paintCliffs;
     boolean paintInQuarters;
     int streamGround;
-    Predicate<Object> streamsMap = map -> true;
+    Predicate<Object> streamsMap = _ -> true;
     final Map<String, Visuals.Strip> strips = new HashMap<>();
     final Map<String, Visuals.StreamLook> streamLooks = new LinkedHashMap<>();
 

@@ -46,19 +46,19 @@ class FloatingTextsTest {
         var texts = texts();
         var camera = camera();
         texts.add(MONEY, 100);
-        texts.update(100, camera, (x, y) -> true);
+        texts.update(100, camera, (_, _) -> true);
         assertEquals(Spatial.CullHint.Always, texts.face(0).getLocalCullHint(), "not the frame it was floated");
 
-        texts.update(101, camera, (x, y) -> true);
+        texts.update(101, camera, (_, _) -> true);
         assertEquals(Spatial.CullHint.Inherit, texts.face(0).getLocalCullHint(), "from the next");
         float first = texts.face(0).getLocalTranslation().y;
-        texts.update(111, camera, (x, y) -> true);
+        texts.update(111, camera, (_, _) -> true);
         assertEquals(first + 10f, texts.face(0).getLocalTranslation().y, 1e-3f, "10 frames later, 10 pixels higher");
         assertEquals(230 / 255f, texts.face(0).getColor().a, 1e-3f, "at full alpha");
 
-        texts.update(182, camera, (x, y) -> true);
+        texts.update(182, camera, (_, _) -> true);
         assertEquals(1, texts.count(), "still just there");
-        texts.update(183, camera, (x, y) -> true);
+        texts.update(183, camera, (_, _) -> true);
         assertEquals(0, texts.count(), "gone by frame 183");
     }
 
@@ -67,12 +67,12 @@ class FloatingTextsTest {
         var texts = texts();
         var camera = camera();
         texts.add(MONEY, 100);
-        texts.update(105, camera, (x, y) -> false);
+        texts.update(105, camera, (_, _) -> false);
         assertEquals(Spatial.CullHint.Always, texts.face(0).getLocalCullHint(), "fogged: not drawn");
 
-        texts.update(105, camera, (x, y) -> true);
+        texts.update(105, camera, (_, _) -> true);
         var held = texts.face(0).getLocalTranslation().clone();
-        texts.update(105, camera, (x, y) -> true); // paused: no new frame of the game
+        texts.update(105, camera, (_, _) -> true); // paused: no new frame of the game
         assertEquals(held, texts.face(0).getLocalTranslation(), "held where it is");
     }
 }

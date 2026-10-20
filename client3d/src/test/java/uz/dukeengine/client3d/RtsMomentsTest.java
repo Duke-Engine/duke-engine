@@ -71,7 +71,7 @@ class RtsMomentsTest {
 
     private static GameSounds noises(SoundBank bank, Heard heard) {
         return new GameSounds(new Sounds(bank, heard), 5f,
-                template -> Map.of("DAMAGED", 0.7f, "REALLY_DAMAGED", 0.35f));
+                _ -> Map.of("DAMAGED", 0.7f, "REALLY_DAMAGED", 0.35f));
     }
 
     /** A voice with five takes: selecting plays one of the five. */

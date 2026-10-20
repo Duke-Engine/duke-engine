@@ -47,7 +47,7 @@ final class ParticleStock {
         }
         // The pool is by size and a layer is lent at least as big as it asked;
         // what it did not ask for stays dark and is not counted against anybody.
-        var pool = spare.computeIfAbsent(size, s -> new ArrayDeque<>());
+        var pool = spare.computeIfAbsent(size, _ -> new ArrayDeque<>());
         ParticleLayer drawn;
         if (pool.isEmpty()) {
             made++;
@@ -64,7 +64,7 @@ final class ParticleStock {
         drawn.geometry().removeFromParent();
         drawn.geometry().setLocalTranslation(0f, 0f, 0f);
         inUse -= drawn.capacity;
-        spare.computeIfAbsent(drawn.capacity, size -> new ArrayDeque<>()).push(drawn);
+        spare.computeIfAbsent(drawn.capacity, _ -> new ArrayDeque<>()).push(drawn);
     }
 
     Texture textureFor(String path) {

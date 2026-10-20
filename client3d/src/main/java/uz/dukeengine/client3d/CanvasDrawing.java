@@ -205,8 +205,8 @@ final class CanvasDrawing {
             texture.getImage().setUpdateNeeded();
         }
         var made = texture;
-        return madeMaterials.computeIfAbsent(picture, key -> new java.util.EnumMap<>(Canvas.Blend.class))
-                .computeIfAbsent(blend, key -> unshaded(made, blend));
+        return madeMaterials.computeIfAbsent(picture, _ -> new java.util.EnumMap<>(Canvas.Blend.class))
+                .computeIfAbsent(blend, _ -> unshaded(made, blend));
     }
 
     /** A picture's pixels as the card takes them: red, green, blue, alpha, the bottom row first. */

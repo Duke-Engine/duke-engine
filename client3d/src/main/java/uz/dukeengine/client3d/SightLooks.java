@@ -11,15 +11,15 @@ final class SightLooks {
     String discoveryTemplate;
     boolean fogBySight;
     Fog fog = Fog.DEFAULT;
-    Predicate<Object> startsExplored = map -> false;
+    Predicate<Object> startsExplored = _ -> false;
     Supplier<List<Visuals.Seen>> alsoSeen = List::of;
     float minimapUnseenShows;
     int minimapSpan;
     boolean occlusionMarks;
-    Predicate<UnitView> occlusionMarked = view -> false;
+    Predicate<UnitView> occlusionMarked = _ -> false;
     float hazeFrom;
     float hazeTo;
-    Predicate<Object> hazesMap = map -> true;
+    Predicate<Object> hazesMap = _ -> true;
 
     boolean drawsFog() {
         return discoveryTemplate != null || fogBySight;

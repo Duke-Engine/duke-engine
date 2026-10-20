@@ -143,7 +143,7 @@ final class KitTiles implements TileSource {
                 var atlas = drawnWith != null ? drawnWith : textureOf(master);
                 master.setMaterial(skins.computeIfAbsent(
                         nameOf(atlas) + "#" + Integer.toHexString(tint),
-                        ignored -> tileMaterial(atlas, Materials.rgb(tint))));
+                        _ -> tileMaterial(atlas, Materials.rgb(tint))));
             }
             masters.put(key, master);
         }

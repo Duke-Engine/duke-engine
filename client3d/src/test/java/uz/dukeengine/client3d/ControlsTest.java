@@ -354,7 +354,7 @@ class ControlsTest {
     @Test
     void whatTheScreenGivesJoinsWhatIsHeldOfItAndTheRestIsLetGo() {
         var controls = new Controls(KeyMap.empty().bind(KeyMap.Control.SELECT_ALL, key(KeyInput.KEY_Q))
-                .screenFirst(found -> {
+                .screenFirst(_ -> {
                 }));
         var world = new World();
         world.unit(1, "Tank", ME, 10f, 10f, true);

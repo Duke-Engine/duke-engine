@@ -68,8 +68,8 @@ class PlayerSettingsTest {
         assertEquals(0.5f, PlayerChoices.playerShake(1));
         assertEquals(0f, PlayerChoices.playerShake(2));
 
-        var show = new ListShow(null, new Node(), null, (cue, at) -> { }, () -> Vector3f.ZERO, (x, z) -> 0f,
-                (model, piece) -> new Node("piece"), (name, at) -> { }, null, null);
+        var show = new ListShow(null, new Node(), null, (_, _) -> { }, () -> Vector3f.ZERO, (_, _) -> 0f,
+                (_, piece) -> new Node("piece"), (_, _) -> { }, null, null);
         show.shakeScale(1f * PlayerChoices.playerShake(2));
         var strengths = EffectList.Shake.Strength.values();
         show.shake(Vector3f.ZERO, strengths[strengths.length - 1]);

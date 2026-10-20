@@ -93,7 +93,7 @@ final class WindowDisplay {
                                     && mode.getHeight() == current.getHeight()));
                 }
             }
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             missing.warn("display modes", "screen");
         }
         if (found.isEmpty()) {

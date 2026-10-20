@@ -188,7 +188,7 @@ final class ArtLoad implements MatchLoad.Art {
                     case SOUND -> {
                     }
                 }
-            } catch (RuntimeException | LinkageError e) {
+            } catch (RuntimeException | LinkageError _) {
                 store.missing.warn(job.assetPath(), job.kind().name().toLowerCase(
                         java.util.Locale.ROOT));
             } finally {
@@ -274,7 +274,7 @@ final class ArtLoad implements MatchLoad.Art {
             store.warmNode.attachChild(body);
             store.rootNode.updateGeometricState();
             store.renderManager.preloadScene(body);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             store.missing.warn(one.path(), "model");
         }
     }

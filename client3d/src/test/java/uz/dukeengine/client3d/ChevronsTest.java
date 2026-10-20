@@ -41,7 +41,7 @@ class ChevronsTest {
     }
 
     private static void draw(Scene scene, float now) {
-        scene.chevrons().show(scene.orders().markers(), now, (x, y) -> 0f);
+        scene.chevrons().show(scene.orders().markers(), now, (_, _) -> 0f);
     }
 
     /** Every mark on screen is three arrowheads, points inward. */
@@ -251,7 +251,7 @@ class ChevronsTest {
                 .sorted()
                 .toList();
 
-        assertEquals(2 * Math.PI / 3, angles.get(1) - angles.get(0), 0.001);
+        assertEquals(2 * Math.PI / 3, angles.get(1) - angles.getFirst(), 0.001);
         assertEquals(2 * Math.PI / 3, angles.get(2) - angles.get(1), 0.001);
     }
 
@@ -261,7 +261,7 @@ class ChevronsTest {
         var scene = scene();
         scene.orders().add(10f, 10f, OrderMarkers.Kind.MOVE, NOW);
 
-        scene.chevrons().show(scene.orders().markers(), NOW, (x, y) -> 40f);
+        scene.chevrons().show(scene.orders().markers(), NOW, (_, _) -> 40f);
 
         assertEquals(40f + OrderMark.DEFAULTS.height(),
                 scene.root().getChild(0).getLocalTranslation().y, 0.001f);
@@ -304,7 +304,7 @@ class ChevronsTest {
         float rise = com.jme3.math.FastMath.tan(30f * com.jme3.math.FastMath.DEG_TO_RAD);
         var scene = scene();
         scene.orders().add(50f, 50f, OrderMarkers.Kind.MOVE, NOW);
-        scene.chevrons().show(scene.orders().markers(), NOW, (x, y) -> x * rise);
+        scene.chevrons().show(scene.orders().markers(), NOW, (x, _) -> x * rise);
 
         var slope = new com.jme3.math.Vector3f(-rise, 1f, 0f).normalizeLocal();
         var mark = (Node) scene.root().getChild(0);

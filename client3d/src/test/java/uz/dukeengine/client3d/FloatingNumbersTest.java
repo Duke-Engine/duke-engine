@@ -60,12 +60,12 @@ class FloatingNumbersTest {
         var screen = screen();
 
         screen.numbers().add(hit(34f, false, false), NOW, 14f);
-        screen.numbers().update(NOW, screen.camera(), (x, y) -> 0f);
+        screen.numbers().update(NOW, screen.camera(), (_, _) -> 0f);
         assertEquals("34", firstUp(screen.gui()).getText());
 
         screen.numbers().clear();
         screen.numbers().add(hit(40f, true, true), NOW, 14f);
-        screen.numbers().update(NOW, screen.camera(), (x, y) -> 0f);
+        screen.numbers().update(NOW, screen.camera(), (_, _) -> 0f);
         assertEquals("+40", firstUp(screen.gui()).getText());
     }
 
@@ -75,7 +75,7 @@ class FloatingNumbersTest {
         var screen = screen();
 
         screen.numbers().add(hit(0.4f, false, false), NOW, 14f);
-        screen.numbers().update(NOW, screen.camera(), (x, y) -> 0f);
+        screen.numbers().update(NOW, screen.camera(), (_, _) -> 0f);
 
         assertEquals("1", firstUp(screen.gui()).getText(),
                 "a blow the player was told about cannot read as nothing");
@@ -92,13 +92,13 @@ class FloatingNumbersTest {
     void takingAndDealingAndHealingAreThreeColours() {
         var dealing = screen();
         dealing.numbers().add(hit(20f, false, false), NOW, 14f);
-        dealing.numbers().update(NOW, dealing.camera(), (x, y) -> 0f);
+        dealing.numbers().update(NOW, dealing.camera(), (_, _) -> 0f);
         var taking = screen();
         taking.numbers().add(hit(20f, false, true), NOW, 14f);
-        taking.numbers().update(NOW, taking.camera(), (x, y) -> 0f);
+        taking.numbers().update(NOW, taking.camera(), (_, _) -> 0f);
         var healing = screen();
         healing.numbers().add(hit(20f, true, true), NOW, 14f);
-        healing.numbers().update(NOW, healing.camera(), (x, y) -> 0f);
+        healing.numbers().update(NOW, healing.camera(), (_, _) -> 0f);
 
         var dealt = firstUp(dealing.gui()).getColor();
         var taken = firstUp(taking.gui()).getColor();
@@ -122,11 +122,11 @@ class FloatingNumbersTest {
         var screen = screen();
         screen.numbers().add(hit(34f, false, false), NOW, 14f);
 
-        screen.numbers().update(NOW, screen.camera(), (x, y) -> 0f);
+        screen.numbers().update(NOW, screen.camera(), (_, _) -> 0f);
         float big = firstUp(screen.gui()).getLocalScale().x;
         float solid = firstUp(screen.gui()).getColor().a;
 
-        screen.numbers().update(NOW + LOOK.seconds() * 0.9f, screen.camera(), (x, y) -> 0f);
+        screen.numbers().update(NOW + LOOK.seconds() * 0.9f, screen.camera(), (_, _) -> 0f);
         float settled = firstUp(screen.gui()).getLocalScale().x;
 
         assertEquals(LOOK.popScale(), big, 0.001f, "it should appear at its full size");
@@ -134,7 +134,7 @@ class FloatingNumbersTest {
         assertEquals(1f, solid, 0.001f, "and never be see-through");
         assertEquals(1f, firstUp(screen.gui()).getColor().a, 0.001f);
 
-        screen.numbers().update(NOW + LOOK.seconds() * 1.1f, screen.camera(), (x, y) -> 0f);
+        screen.numbers().update(NOW + LOOK.seconds() * 1.1f, screen.camera(), (_, _) -> 0f);
         assertEquals(null, firstUp(screen.gui()), "and then it is simply gone");
     }
 
@@ -152,7 +152,7 @@ class FloatingNumbersTest {
             screen.numbers().add(hit(10f + blow, false, false), NOW, 14f);
         }
 
-        screen.numbers().update(NOW + LOOK.seconds() * 0.9f, screen.camera(), (x, y) -> 0f);
+        screen.numbers().update(NOW + LOOK.seconds() * 0.9f, screen.camera(), (_, _) -> 0f);
 
         var all = ((Node) screen.gui().getChild(0)).getChildren();
         assertEquals(3, all.size(), "three blows are three numbers");
@@ -172,10 +172,10 @@ class FloatingNumbersTest {
         screen.numbers().add(new HealthWatch.Change(1, 0f, 0f, 12f, false, false), NOW, 14f);
         screen.numbers().add(new HealthWatch.Change(2, 0f, 0f, 12f, false, false), NOW, 14f);
 
-        screen.numbers().update(NOW + LOOK.seconds() * 0.9f, screen.camera(), (x, y) -> 0f);
+        screen.numbers().update(NOW + LOOK.seconds() * 0.9f, screen.camera(), (_, _) -> 0f);
 
         var both = ((Node) screen.gui().getChild(0)).getChildren();
-        assertEquals(both.get(0).getLocalTranslation().x, both.get(1).getLocalTranslation().x,
+        assertEquals(both.getFirst().getLocalTranslation().x, both.get(1).getLocalTranslation().x,
                 0.5f, "they are on different creatures; neither has to get out of the way");
     }
 
@@ -186,10 +186,10 @@ class FloatingNumbersTest {
         screen.numbers().add(new HealthWatch.Change(1, -80f, 0f, 12f, false, false), NOW, 14f);
         screen.numbers().add(new HealthWatch.Change(2, 80f, 0f, 12f, false, false), NOW, 14f);
 
-        screen.numbers().update(NOW, screen.camera(), (x, y) -> 0f);
+        screen.numbers().update(NOW, screen.camera(), (_, _) -> 0f);
 
         var both = ((Node) screen.gui().getChild(0)).getChildren();
-        assertTrue(both.get(0).getLocalTranslation().x < both.get(1).getLocalTranslation().x,
+        assertTrue(both.getFirst().getLocalTranslation().x < both.get(1).getLocalTranslation().x,
                 "one to the west of the other in the world should be to its left on screen");
     }
 
@@ -204,12 +204,12 @@ class FloatingNumbersTest {
         var screen = screen();
         screen.numbers().add(hit(10f, false, false), NOW, 14f);
         screen.numbers().add(hit(10f, false, false), NOW, 14f);
-        screen.numbers().update(NOW, screen.camera(), (x, y) -> 0f);
+        screen.numbers().update(NOW, screen.camera(), (_, _) -> 0f);
         assertEquals(2, screen.numbers().madeSoFar());
 
         for (int blow = 0; blow < 200; blow++) {
             float when = NOW + 10f + blow;
-            screen.numbers().update(when, screen.camera(), (x, y) -> 0f);
+            screen.numbers().update(when, screen.camera(), (_, _) -> 0f);
             screen.numbers().add(hit(blow + 1, false, false), when, 14f);
         }
 
@@ -222,7 +222,7 @@ class FloatingNumbersTest {
     void aNewWorldShowsNothing() {
         var screen = screen();
         screen.numbers().add(hit(34f, false, false), NOW, 14f);
-        screen.numbers().update(NOW, screen.camera(), (x, y) -> 0f);
+        screen.numbers().update(NOW, screen.camera(), (_, _) -> 0f);
         assertEquals(1, screen.numbers().showing());
 
         screen.numbers().clear();
@@ -237,7 +237,7 @@ class FloatingNumbersTest {
         var screen = screen();
         screen.numbers().add(hit(20f, true, false), NOW, 14f);
 
-        screen.numbers().update(NOW, screen.camera(), (x, y) -> 0f);
+        screen.numbers().update(NOW, screen.camera(), (_, _) -> 0f);
 
         var wanted = Glow.colour(LOOK.healColour(), LOOK.brightness(), 1f);
         assertEquals(wanted, firstUp(screen.gui()).getColor());

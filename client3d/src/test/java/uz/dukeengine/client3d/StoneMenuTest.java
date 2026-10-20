@@ -243,7 +243,7 @@ class StoneMenuTest {
         var menu = menu();
         var at = new float[1];
         menu.show("SETTINGS", "", List.of(
-                new StoneMenu.Level("Volume", () -> 50, to -> { }, 5),
+                new StoneMenu.Level("Volume", () -> 50, _ -> { }, 5),
                 new StoneMenu.Buttons("", "Save", () -> saved.add(at[0]),
                         "Cancel", () -> cancelled.add(at[0]), "unsaved changes")),
                 "", "", false);

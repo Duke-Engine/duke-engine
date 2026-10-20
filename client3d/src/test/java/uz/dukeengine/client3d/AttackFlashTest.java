@@ -35,7 +35,7 @@ class AttackFlashTest {
     }
 
     private static void draw(Scene scene, float now) {
-        scene.flash().show(scene.orders().markers(), now, id -> null, (x, y) -> 0f);
+        scene.flash().show(scene.orders().markers(), now, _ -> null, (_, _) -> 0f);
         scene.root().updateGeometricState();
     }
 
@@ -129,7 +129,7 @@ class AttackFlashTest {
         orders.add(40f, 60f, 7, OrderMarkers.Kind.CONTEXT, NOW);
         orders.add(90f, 90f, 8, OrderMarkers.Kind.ATTACK, NOW);
 
-        flash.show(orders.markers(), NOW, id -> null, (x, y) -> 0f);
+        flash.show(orders.markers(), NOW, _ -> null, (_, _) -> 0f);
         root.updateGeometricState();
 
         assertEquals(1, flash.madeSoFar(), "the named order's ring; the attack answered with none, as asked");
@@ -188,7 +188,7 @@ class AttackFlashTest {
         // It has walked twenty units north since the click.
         scene.flash().show(scene.orders().markers(), NOW,
                 id -> id == 7 ? new uz.dukeengine.core.math.Coord3D(100f, 120f, 0f) : null,
-                (x, y) -> 0f);
+                (_, _) -> 0f);
         scene.root().updateGeometricState();
 
         var ring = shown(scene.root());
@@ -202,7 +202,7 @@ class AttackFlashTest {
         var scene = scene();
         scene.orders().add(100f, 100f, 7, OrderMarkers.Kind.ATTACK, NOW);
 
-        scene.flash().show(scene.orders().markers(), NOW, id -> null, (x, y) -> 0f);
+        scene.flash().show(scene.orders().markers(), NOW, _ -> null, (_, _) -> 0f);
         scene.root().updateGeometricState();
 
         var ring = shown(scene.root());

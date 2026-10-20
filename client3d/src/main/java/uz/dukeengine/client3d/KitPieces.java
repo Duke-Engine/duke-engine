@@ -374,7 +374,7 @@ final class KitPieces {
     }
 
     private BoundingBox boundsOf(String asset, Spatial piece) {
-        return tileBounds.computeIfAbsent(asset, path -> {
+        return tileBounds.computeIfAbsent(asset, _ -> {
             var box = measured(piece);
             return box != null ? (BoundingBox) box.clone()
                     : new BoundingBox(Vector3f.ZERO, 1f, 1f, 1f);
@@ -389,7 +389,7 @@ final class KitPieces {
      * no kit says which way it faces.
      */
     private Vector3f climbOf(String asset, Spatial piece) {
-        return tileClimb.computeIfAbsent(asset, path -> {
+        return tileClimb.computeIfAbsent(asset, _ -> {
             var high = new Vector3f();
             var low = new Vector3f();
             var counts = new int[2];
@@ -451,7 +451,7 @@ final class KitPieces {
      * <p>Measured rather than written down, so a kit is right by being shipped.
      */
     private float topOf(String asset, Spatial piece) {
-        return tileTops.computeIfAbsent(asset, path -> {
+        return tileTops.computeIfAbsent(asset, _ -> {
             var box = measured(piece);
             return box != null ? box.getCenter().y + box.getYExtent() : 0f;
         });

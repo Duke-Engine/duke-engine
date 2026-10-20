@@ -260,7 +260,7 @@ final class UnitScene {
         for (int index : shown) {
             var mark = look.marks.get(index);
             float since = node.markSince.computeIfAbsent(index,
-                    key -> now - mark.startSeconds(java.util.concurrent.ThreadLocalRandom.current()));
+                    _ -> now - mark.startSeconds(java.util.concurrent.ThreadLocalRandom.current()));
             badges.add(new UnitBars.Badge(mark.frameAt(now - since), mark.scale(), mark.place()));
         }
         return badges;
@@ -286,7 +286,7 @@ final class UnitScene {
             }
             seen.add(view.id());
             boolean isNew = !unitNodes.containsKey(view.id());
-            var node = unitNodes.computeIfAbsent(view.id(), id -> createUnitNode(view));
+            var node = unitNodes.computeIfAbsent(view.id(), _ -> createUnitNode(view));
             updateUnitNode(node, view);
             var look = looks.visualFor(view);
             if (isNew) {
@@ -1168,7 +1168,7 @@ final class UnitScene {
                 return;
             }
             node.currentAnim = clipName;
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             missing.warn(templateName + "/" + clipName, "animation");
             node.currentAnim = clipName; // don't retry every frame
         }

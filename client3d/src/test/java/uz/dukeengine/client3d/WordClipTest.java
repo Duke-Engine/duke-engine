@@ -226,7 +226,7 @@ class WordClipTest {
         var played = new java.util.ArrayList<String>();
         for (int frame = 0; frame <= 150; frame++) {
             played.add(WordClip.playOn(composer, clip, played.isEmpty() ? null : played.getLast(), look, Set.of(),
-                    frame, 7, missing -> { }));
+                    frame, 7, _ -> { }));
         }
 
         int start = 0;
@@ -251,9 +251,9 @@ class WordClipTest {
 
         for (int thing = 1; thing <= 20; thing++) {
             var here = WordClip.playOn(composerWith(clips), new WordClip(), null, look, Set.of("MOVING"), 90, thing,
-                    missing -> { });
+                    _ -> { });
             var there = WordClip.playOn(composerWith(clips), new WordClip(), null, look, Set.of("MOVING"), 90, thing,
-                    missing -> { });
+                    _ -> { });
             assertEquals(here, there, "thing " + thing);
             assertEquals(look.idleFor(thing, 90), look.idleFor(thing, 90));
             assertEquals(look.dieAnimFor(null, thing, 90), look.dieAnimFor(null, thing, 90));
@@ -333,16 +333,16 @@ class WordClipTest {
         var none = Set.<String>of();
         var short_ = Set.of("UNDERPOWERED");
 
-        WordClip.playOn(composer, clip, null, look, none, 0, 7, name -> { });
-        WordClip.playOn(composer, clip, "Spin", look, none, 12, 7, name -> { });
+        WordClip.playOn(composer, clip, null, look, none, 0, 7, _ -> { });
+        WordClip.playOn(composer, clip, "Spin", look, none, 12, 7, _ -> { });
         assertEquals(0.4, composer.getTime(AnimComposer.DEFAULT_LAYER), 1e-6);
-        WordClip.playOn(composer, clip, "Spin", look, short_, 12, 7, name -> { });
-        WordClip.playOn(composer, clip, "Spin", look, short_, 100, 7, name -> { });
+        WordClip.playOn(composer, clip, "Spin", look, short_, 12, 7, _ -> { });
+        WordClip.playOn(composer, clip, "Spin", look, short_, 100, 7, _ -> { });
         assertEquals(0.4, composer.getTime(AnimComposer.DEFAULT_LAYER), 1e-6, "stood where it was");
 
-        WordClip.playOn(composer, clip, "Spin", look, none, 200, 7, name -> { });
+        WordClip.playOn(composer, clip, "Spin", look, none, 200, 7, _ -> { });
         assertEquals(0.4, composer.getTime(AnimComposer.DEFAULT_LAYER), 1e-6, "the word off, from that frame");
-        WordClip.playOn(composer, clip, "Spin", look, none, 209, 7, name -> { });
+        WordClip.playOn(composer, clip, "Spin", look, none, 209, 7, _ -> { });
         assertEquals(0.7, composer.getTime(AnimComposer.DEFAULT_LAYER), 1e-6, "and on");
     }
 
@@ -351,8 +351,8 @@ class WordClipTest {
         var look = fans(false);
         var composer = composerWith(java.util.Map.of("Spin", 1f));
         var clip = new WordClip();
-        WordClip.playOn(composer, clip, null, look, Set.of("UNDERPOWERED"), 0, 7, name -> { });
-        WordClip.playOn(composer, clip, "Spin", look, Set.of("UNDERPOWERED"), 12, 7, name -> { });
+        WordClip.playOn(composer, clip, null, look, Set.of("UNDERPOWERED"), 0, 7, _ -> { });
+        WordClip.playOn(composer, clip, "Spin", look, Set.of("UNDERPOWERED"), 12, 7, _ -> { });
         assertEquals(0.4, composer.getTime(AnimComposer.DEFAULT_LAYER), 1e-6);
     }
 }

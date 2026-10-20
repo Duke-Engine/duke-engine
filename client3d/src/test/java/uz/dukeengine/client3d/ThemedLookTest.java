@@ -138,7 +138,7 @@ class ThemedLookTest {
     @Test
     void anotherKitBuildsAnotherWorld() {
         var root = new Node("terrain");
-        var terrain = new TerrainScene(root, (colour, texture) -> null, true,
+        var terrain = new TerrainScene(root, (_, _) -> null, true,
                 kit("stone.obj", "stonewall.obj"), new Stub());
         var grid = MapLoader.fromText(ROOM);
 
@@ -155,7 +155,7 @@ class ThemedLookTest {
     @Test
     void noKitFallsBackToTheGamesOwn() {
         var root = new Node("terrain");
-        var terrain = new TerrainScene(root, (colour, texture) -> null, true,
+        var terrain = new TerrainScene(root, (_, _) -> null, true,
                 kit("stone.obj", "stonewall.obj"), new Stub());
 
         terrain.rebuild(MapLoader.fromText(ROOM), null);
@@ -178,15 +178,15 @@ class ThemedLookTest {
         var root = new Node("terrain");
         var twoAndFour = Tileset.create().floor("floor.obj").wall("wall.obj")
                 .tileSize(2f).wallTileSize(4f).wallHeight(4f);
-        var terrain = new TerrainScene(root, (colour, texture) -> null, true, twoAndFour, new Stub());
+        var terrain = new TerrainScene(root, (_, _) -> null, true, twoAndFour, new Stub());
         var grid = MapLoader.fromText(ROOM);
 
         terrain.rebuild(grid);
 
         float cell = grid.getCellSize();
-        assertEquals(cell / 2f, onTheGround(root, "floor.obj").get(0).getLocalScale().x, 0.001f,
+        assertEquals(cell / 2f, onTheGround(root, "floor.obj").getFirst().getLocalScale().x, 0.001f,
                 "a two-unit tile is scaled to fill a cell");
-        assertEquals(cell / 4f, pieces(root, "wall.obj").get(0).getLocalScale().x, 0.001f,
+        assertEquals(cell / 4f, pieces(root, "wall.obj").getFirst().getLocalScale().x, 0.001f,
                 "and a four-unit wall by half as much, so it spans one cell too");
     }
 
@@ -199,13 +199,13 @@ class ThemedLookTest {
         var root = new Node("terrain");
         var sunken = Tileset.create().floor("floor.obj").wall("wall.obj")
                 .tileSize(2f).wallHeight(2f).wallLift(1f);
-        var terrain = new TerrainScene(root, (colour, texture) -> null, true, sunken, new Stub());
+        var terrain = new TerrainScene(root, (_, _) -> null, true, sunken, new Stub());
         var grid = MapLoader.fromText(ROOM);
 
         terrain.rebuild(grid);
 
         float scale = grid.getCellSize() / 2f;
-        assertEquals(1f * scale, pieces(root, "wall.obj").get(0).getLocalTranslation().y, 0.001f,
+        assertEquals(1f * scale, pieces(root, "wall.obj").getFirst().getLocalTranslation().y, 0.001f,
                 "the lift is in model units, so it scales with everything else");
         assertEquals(9, onTheGround(root, "floor.obj").size(),
                 "and the floors are not lifted with them");
@@ -227,9 +227,9 @@ class ThemedLookTest {
         var grid = MapLoader.fromText(ROOM);
 
         var shiftedRoot = new Node("shifted");
-        new TerrainScene(shiftedRoot, (colour, texture) -> null, true, shifted, new Stub()).rebuild(grid);
+        new TerrainScene(shiftedRoot, (_, _) -> null, true, shifted, new Stub()).rebuild(grid);
         var plainRoot = new Node("plain");
-        new TerrainScene(plainRoot, (colour, texture) -> null, true, plain, new Stub()).rebuild(grid);
+        new TerrainScene(plainRoot, (_, _) -> null, true, plain, new Stub()).rebuild(grid);
 
         // Every wall moved, and no two of them the same way — which is what
         // "along its own facing" means when the room has four sides.

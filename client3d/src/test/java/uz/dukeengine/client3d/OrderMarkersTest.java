@@ -19,7 +19,7 @@ class OrderMarkersTest {
         markers.add(120f, 260f, OrderMarkers.Kind.MOVE, 10f);
 
         assertEquals(1, markers.markers().size());
-        var mark = markers.markers().get(0);
+        var mark = markers.markers().getFirst();
         assertEquals(120f, mark.x(), 0.001f);
         assertEquals(260f, mark.y(), 0.001f);
         assertEquals(OrderMarkers.Kind.MOVE, mark.kind());
@@ -30,7 +30,7 @@ class OrderMarkersTest {
         var markers = new OrderMarkers();
         markers.add(10f, 10f, OrderMarkers.Kind.ATTACK, 0f);
 
-        assertEquals(OrderMarkers.Kind.ATTACK, markers.markers().get(0).kind(),
+        assertEquals(OrderMarkers.Kind.ATTACK, markers.markers().getFirst().kind(),
                 "so it can be drawn in its own colour");
     }
 
@@ -64,7 +64,7 @@ class OrderMarkersTest {
         markers.prune(100.3f, 0.4f);
 
         assertEquals(3, markers.markers().size(), "three clicks, three marks");
-        assertEquals(1f, markers.markers().get(0).x(), 0.001f, "in the order they were given");
+        assertEquals(1f, markers.markers().getFirst().x(), 0.001f, "in the order they were given");
     }
 
     @Test
@@ -76,7 +76,7 @@ class OrderMarkersTest {
         markers.prune(0.5f, 0.4f);
 
         assertEquals(1, markers.markers().size(), "the older one has finished");
-        assertEquals(OrderMarkers.Kind.ATTACK, markers.markers().get(0).kind());
+        assertEquals(OrderMarkers.Kind.ATTACK, markers.markers().getFirst().kind());
 
         markers.prune(0.9f, 0.4f);
         assertTrue(markers.markers().isEmpty(), "and eventually none are left");

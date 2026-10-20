@@ -44,7 +44,7 @@ class RangeRingsTest {
 
     private static void draw(Scene scene, SkillRange range, Coord3D hero, Coord3D pointer,
             boolean allowed) {
-        scene.rings().show(range, hero, pointer, allowed, 0f, (x, y) -> 0f);
+        scene.rings().show(range, hero, pointer, allowed, 0f, (_, _) -> 0f);
         scene.root().updateGeometricState();
     }
 
@@ -124,9 +124,9 @@ class RangeRingsTest {
         var scene = scene();
         var range = new SkillRange('Q', SkillRange.Shape.AT_A_CREATURE, 60f, 0f);
 
-        scene.rings().show(range, at(0f, 0f), null, true, 0f, (x, y) -> 0f);
+        scene.rings().show(range, at(0f, 0f), null, true, 0f, (_, _) -> 0f);
         float atOnce = widthOf(scene.root());
-        scene.rings().show(range, at(0f, 0f), null, true, 3f, (x, y) -> 0f);
+        scene.rings().show(range, at(0f, 0f), null, true, 3f, (_, _) -> 0f);
         float later = widthOf(scene.root());
 
         assertEquals(120f + LOOK.bandWidth(), atOnce, 1f, "full size on the frame it appears");
@@ -167,7 +167,7 @@ class RangeRingsTest {
                 .filter(child -> child.getLocalCullHint() != Spatial.CullHint.Always)
                 .toList();
         assertEquals(2, rings.size(), "the reach and the blast are two questions");
-        assertEquals(0f, rings.get(0).getLocalTranslation().x, 0.01f, "his reach is round him");
+        assertEquals(0f, rings.getFirst().getLocalTranslation().x, 0.01f, "his reach is round him");
         assertEquals(30f, rings.get(1).getLocalTranslation().x, 0.01f,
                 "and the blast is under the cursor");
     }
@@ -251,7 +251,7 @@ class RangeRingsTest {
     void aRingSitsOnTheFloorTheCasterIsStandingOn() {
         var scene = scene();
         scene.rings().show(new SkillRange('Q', SkillRange.Shape.AROUND_HIM, 40f, 0f),
-                at(0f, 0f), null, true, 0f, (x, y) -> 40f);
+                at(0f, 0f), null, true, 0f, (_, _) -> 40f);
 
         var ring = shown(scene.root(), "ring");
         assertEquals(40f + LOOK.height(), ring.getLocalTranslation().y, 0.001f);

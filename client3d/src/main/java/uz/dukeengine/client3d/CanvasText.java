@@ -195,7 +195,7 @@ final class CanvasText {
                 if (in != null) {
                     return java.awt.Font.createFont(java.awt.Font.TRUETYPE_FONT, in);
                 }
-            } catch (IOException | java.awt.FontFormatException e) {
+            } catch (IOException | java.awt.FontFormatException _) {
                 // said below, once, like a file that is not there
             }
             if (missing.add(name)) {

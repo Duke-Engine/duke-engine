@@ -33,10 +33,10 @@ class HazePerMapTest {
         var app = new DukeRtsApp(game, Visuals.create(), Shell.standard(), null, null, null, null, null, null, null);
         var handed = new ArrayList<Picture>();
 
-        app.worldPicture(64, map -> false, handed::add);
+        app.worldPicture(64, _ -> false, handed::add);
         assertEquals(0, handed.size(), "a map it says no to: nothing handed");
 
-        app.worldPicture(64, map -> true, handed::add);
+        app.worldPicture(64, _ -> true, handed::add);
         assertEquals(1, handed.size(), "a map it names: its picture");
     }
 }

@@ -33,7 +33,7 @@ class GroundDecalTest {
     void oneIsLaidAtThePointersGroundPointTwiceItsRadiusAcrossFollowingTheGround() {
         var world = new Node("markers");
         var decal = new GroundDecal(new DesktopAssetManager(true), world);
-        decal.show(new Coord3D(100f, 50f, 0f), 100f, STRIKE, 10, (x, z) -> x * 0.1f); // a slope rising east
+        decal.show(new Coord3D(100f, 50f, 0f), 100f, STRIKE, 10, (x, _) -> x * 0.1f); // a slope rising east
 
         assertTrue(decal.showing());
         assertEquals(1, world.getChildren().size(), "one picture");

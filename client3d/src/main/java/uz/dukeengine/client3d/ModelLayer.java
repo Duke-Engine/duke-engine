@@ -61,7 +61,7 @@ final class ModelLayer {
      */
     void wear(Node parent, UnitView view, Set<String> world, int frame, Consumer<Spatial> paint,
             Consumer<String> missing) {
-        wear(parent, view, world, frame, paint, missing, bone -> null);
+        wear(parent, view, world, frame, paint, missing, _ -> null);
     }
 
     /**

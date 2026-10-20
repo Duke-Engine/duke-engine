@@ -83,7 +83,7 @@ final class GameSettings {
         var text = draft.getOrDefault(key, saved.getProperty(key));
         try {
             return text == null ? fallback : Integer.parseInt(text.trim());
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return fallback;
         }
     }

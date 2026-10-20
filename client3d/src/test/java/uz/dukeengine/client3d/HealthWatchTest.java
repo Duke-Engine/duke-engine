@@ -56,7 +56,7 @@ class HealthWatchTest {
         var changes = after(watch, unit(7, THEIRS, 26f, 60f));
 
         assertEquals(1, changes.size());
-        var hit = changes.get(0);
+        var hit = changes.getFirst();
         assertEquals(34f, hit.amount(), 0.001f, "the number is the difference");
         assertEquals(false, hit.healed());
         assertEquals(false, hit.his(), "a skeleton is not one of his");
@@ -72,9 +72,9 @@ class HealthWatchTest {
         var changes = after(watch, unit(1, MINE, 140f, 200f));
 
         assertEquals(1, changes.size());
-        assertEquals(40f, changes.get(0).amount(), 0.001f, "always positive; healed says which way");
-        assertTrue(changes.get(0).healed());
-        assertTrue(changes.get(0).his(), "and this one is his, which is drawn differently");
+        assertEquals(40f, changes.getFirst().amount(), 0.001f, "always positive; healed says which way");
+        assertTrue(changes.getFirst().healed());
+        assertTrue(changes.getFirst().his(), "and this one is his, which is drawn differently");
     }
 
     /**
@@ -104,7 +104,7 @@ class HealthWatchTest {
         var enough = watch.since(List.of(unit(1, MINE, 110f, 200f)), MINE, 5f, List.of());
 
         assertTrue(small.isEmpty(), "two points of regeneration is not worth a number");
-        assertEquals(8f, enough.get(0).amount(), 0.001f, "eight is");
+        assertEquals(8f, enough.getFirst().amount(), 0.001f, "eight is");
     }
 
     /** Several at once are several numbers. */
@@ -166,10 +166,10 @@ class HealthWatchTest {
         var changes = afterKilling(watch, new HealthWatch.Death(7, 40f, 50f, THEIRS));
 
         assertEquals(1, changes.size(), "the last blow is a blow");
-        assertEquals(12f, changes.get(0).amount(), 0.001f, "worth what it had left");
-        assertEquals(false, changes.get(0).healed());
-        assertEquals(40f, changes.get(0).x(), 0.001f, "where it fell, which the world said");
-        assertEquals(50f, changes.get(0).y(), 0.001f);
+        assertEquals(12f, changes.getFirst().amount(), 0.001f, "worth what it had left");
+        assertEquals(false, changes.getFirst().healed());
+        assertEquals(40f, changes.getFirst().x(), 0.001f, "where it fell, which the world said");
+        assertEquals(50f, changes.getFirst().y(), 0.001f);
     }
 
     /**

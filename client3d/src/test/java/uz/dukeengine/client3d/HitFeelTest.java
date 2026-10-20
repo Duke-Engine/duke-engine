@@ -62,13 +62,13 @@ class HitFeelTest {
 
     @Test
     void aShakeAtScaleZeroMovesNothing() {
-        var show = new ListShow(null, new Node(), null, (cue, at) -> { }, () -> Vector3f.ZERO, (x, z) -> 0f,
-                (model, piece) -> new Node("piece"), (name, at) -> { }, null, null);
+        var show = new ListShow(null, new Node(), null, (_, _) -> { }, () -> Vector3f.ZERO, (_, _) -> 0f,
+                (_, piece) -> new Node("piece"), (_, _) -> { }, null, null);
         show.shake(Vector3f.ZERO, EffectList.Shake.Strength.values()[EffectList.Shake.Strength.values().length - 1]);
         assertNotEquals(Vector3f.ZERO, show.shakeNow(), "at scale 1 it knocks");
 
-        var still = new ListShow(null, new Node(), null, (cue, at) -> { }, () -> Vector3f.ZERO, (x, z) -> 0f,
-                (model, piece) -> new Node("piece"), (name, at) -> { }, null, null);
+        var still = new ListShow(null, new Node(), null, (_, _) -> { }, () -> Vector3f.ZERO, (_, _) -> 0f,
+                (_, piece) -> new Node("piece"), (_, _) -> { }, null, null);
         still.shakeScale(0f);
         still.shake(Vector3f.ZERO, EffectList.Shake.Strength.values()[EffectList.Shake.Strength.values().length - 1]);
         assertSame(Vector3f.ZERO, still.shakeNow());

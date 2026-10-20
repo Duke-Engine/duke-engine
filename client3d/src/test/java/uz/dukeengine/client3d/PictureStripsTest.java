@@ -30,7 +30,7 @@ class PictureStripsTest {
         var picture = new Texture2D(new Image(Image.Format.RGBA8, 32, 16, BufferUtils.createByteBuffer(32 * 16 * 4),
                 com.jme3.texture.image.ColorSpace.Linear));
         var assets = new DesktopAssetManager(true);
-        return new PictureStrips(new Node("gui"), path -> picture, name -> name.equals("LevelGained") ? STRIP : null,
+        return new PictureStrips(new Node("gui"), _ -> picture, name -> name.equals("LevelGained") ? STRIP : null,
                 texture -> {
                     var look = new Material(assets, "Common/MatDefs/Misc/Unshaded.j3md");
                     look.setTexture("ColorMap", texture);
@@ -57,16 +57,16 @@ class PictureStripsTest {
         var strips = strips();
         var camera = camera();
         strips.add(RANK, 100);
-        strips.update(101, camera, (x, y) -> true);
+        strips.update(101, camera, (_, _) -> true);
         assertEquals(Spatial.CullHint.Inherit, strips.quad(0).getLocalCullHint(), "drawn from the next frame");
         assertEquals(32f, strips.quad(0).getLocalScale().x, "at its picture's size");
         float first = strips.quad(0).getLocalTranslation().y;
-        strips.update(161, camera, (x, y) -> true);
+        strips.update(161, camera, (_, _) -> true);
         assertTrue(strips.quad(0).getLocalTranslation().y > first, "higher on the screen as it rises");
 
-        strips.update(220, camera, (x, y) -> true);
+        strips.update(220, camera, (_, _) -> true);
         assertEquals(1, strips.count(), "up to its last frame");
-        strips.update(221, camera, (x, y) -> true);
+        strips.update(221, camera, (_, _) -> true);
         assertEquals(0, strips.count(), "gone after 4 seconds");
     }
 
@@ -74,7 +74,7 @@ class PictureStripsTest {
     void oneWhosePointIsNotInClearViewIsNotDrawn() {
         var strips = strips();
         strips.add(RANK, 100);
-        strips.update(101, camera(), (x, y) -> false);
+        strips.update(101, camera(), (_, _) -> false);
 
         assertEquals(Spatial.CullHint.Always, strips.quad(0).getLocalCullHint());
     }

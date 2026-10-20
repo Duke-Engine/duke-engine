@@ -249,7 +249,7 @@ public final class KeyMap {
      * and, pressed again soon after, everywhere.
      */
     public KeyMap screenFirst(java.util.function.Consumer<Found> told) {
-        this.screenFirst = told == null ? found -> {
+        this.screenFirst = told == null ? _ -> {
         } : told;
         return this;
     }

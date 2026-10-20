@@ -387,7 +387,7 @@ class ParticlesTest {
                   Lifetime = [100]
                 End
                 """);
-        var world = new Particles(systems::get, 3L, (x, y) -> 5f, Integer.MAX_VALUE, Integer.MAX_VALUE);
+        var world = new Particles(systems::get, 3L, (_, _) -> 5f, Integer.MAX_VALUE, Integer.MAX_VALUE);
         var emitter = world.startAt("Low", HERE);
         world.update();
 

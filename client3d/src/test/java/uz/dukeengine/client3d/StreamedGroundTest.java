@@ -83,7 +83,7 @@ class StreamedGroundTest {
             if (!(child instanceof Node node) || corners(node).isEmpty()) {
                 continue;
             }
-            var first = corners(node).get(0);
+            var first = corners(node).getFirst();
             int cx = (int) Math.floor(first.x / cell);
             int cy = (int) Math.floor(first.z / cell);
             // a chunk's first piece stands in its first cells, or at their edge
@@ -116,9 +116,9 @@ class StreamedGroundTest {
         var grid = rooms();
         float cell = grid.getCellSize();
         var wholeRoot = new Node("whole");
-        new TerrainScene(wholeRoot, (colour, texture) -> null, true, kit, new SquareTiles(), true).rebuild(grid);
+        new TerrainScene(wholeRoot, (_, _) -> null, true, kit, new SquareTiles(), true).rebuild(grid);
         var streamedRoot = new Node("streamed");
-        var streamed = new TerrainScene(streamedRoot, (colour, texture) -> null, true, kit, new SquareTiles(), true);
+        var streamed = new TerrainScene(streamedRoot, (_, _) -> null, true, kit, new SquareTiles(), true);
         streamed.streamWithin(2 * TerrainScene.CHUNK_CELLS);
         streamed.rebuild(grid);
         assertEquals(0, streamedRoot.getQuantity(), "nothing built until the camera looks somewhere");
@@ -173,11 +173,11 @@ class StreamedGroundTest {
         var wood = Tileset.create().floor("moss").wall("tree").tileSize(4f).wallFillsRock(true);
         java.util.function.IntFunction<Tileset> looks = at -> at % grid.getWidth() < 45 ? masonry : wood;
         var wholeRoot = new Node("whole");
-        new TerrainScene(wholeRoot, (colour, texture) -> null, true, masonry, new SquareTiles(), true)
+        new TerrainScene(wholeRoot, (_, _) -> null, true, masonry, new SquareTiles(), true)
                 .rebuildLooked(grid, masonry, null, null, looks, java.util.List.of());
         var asked = new java.util.BitSet();
         var streamedRoot = new Node("streamed");
-        var streamed = new TerrainScene(streamedRoot, (colour, texture) -> null, true, masonry, new SquareTiles(), true);
+        var streamed = new TerrainScene(streamedRoot, (_, _) -> null, true, masonry, new SquareTiles(), true);
         streamed.streamWithin(TerrainScene.CHUNK_CELLS);
         streamed.rebuildLooked(grid, masonry, null, null, at -> {
             asked.set(at);

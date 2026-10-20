@@ -48,8 +48,8 @@ class TileLayoutTest {
         var floors = only(ONE_ROOM, TileLayout.Piece.FLOOR);
 
         assertEquals(1, floors.size());
-        assertEquals(1.5f * CELL, floors.get(0).x(), 0.001f);
-        assertEquals(1.5f * CELL, floors.get(0).z(), 0.001f);
+        assertEquals(1.5f * CELL, floors.getFirst().x(), 0.001f);
+        assertEquals(1.5f * CELL, floors.getFirst().z(), 0.001f);
     }
 
     /** Stone is never drawn: it is the absence of floor, and what the walls face. */
@@ -278,8 +278,8 @@ class TileLayoutTest {
                 .toList();
 
         assertEquals(1, holdingUp.size(), "the raised room's edge should be held up");
-        assertEquals(4, holdingUp.get(0).cellX(), "and the wall belongs to the higher cell");
-        assertEquals(0f, holdingUp.get(0).ground(), 0.001f,
+        assertEquals(4, holdingUp.getFirst().cellX(), "and the wall belongs to the higher cell");
+        assertEquals(0f, holdingUp.getFirst().ground(), 0.001f,
                 "standing on the lower floor, reaching up to the higher one");
     }
 
@@ -356,7 +356,7 @@ class TileLayoutTest {
         var stairs = only(twoStoreys(), TileLayout.Piece.STAIR);
 
         assertEquals(1, stairs.size(), "one ramp cell, one flight of steps");
-        var stair = stairs.get(0);
+        var stair = stairs.getFirst();
         assertEquals(3, stair.cellX());
         assertEquals(3.5f * CELL, stair.x(), 0.001f, "in the middle of its own cell");
         assertEquals(0f, stair.ground(), 0.001f, "starting on the floor it climbs from");

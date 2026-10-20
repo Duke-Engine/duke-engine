@@ -97,7 +97,7 @@ final class SkillEffects {
                         Float.parseFloat(parts[4].trim()),
                         parts.length > 5 ? Integer.parseInt(parts[5].trim()) : NOBODY,
                         parts.length > 6 ? Integer.parseInt(parts[6].trim()) : NOBODY));
-            } catch (NumberFormatException malformed) {
+            } catch (NumberFormatException _) {
                 // Somebody else's line, or a version that disagrees. Nothing drawn.
             }
         }

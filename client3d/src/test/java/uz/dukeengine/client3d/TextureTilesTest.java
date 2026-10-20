@@ -23,7 +23,7 @@ class TextureTilesTest {
     /** A renderer that only writes down the tiles it is sent. */
     private static Renderer recording(List<Sent> sent) {
         return (Renderer) java.lang.reflect.Proxy.newProxyInstance(Renderer.class.getClassLoader(),
-                new Class<?>[] {Renderer.class}, (proxy, method, args) -> {
+                new Class<?>[] {Renderer.class}, (_, method, args) -> {
                     if (method.getName().equals("modifyTexture") && args.length == 4) {
                         var patch = (Image) args[1];
                         sent.add(new Sent((int) args[2], (int) args[3], patch.getWidth(), patch.getHeight(),

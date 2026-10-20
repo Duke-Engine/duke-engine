@@ -34,7 +34,7 @@ class RebindTest {
 
     @Test
     void theGamesCPutOnKOpensWhatCDidAndAClashChangesPlaces() {
-        var hotkeys = Hotkeys.create().on('C', game -> { }).on('B', game -> { }).on(' ', game -> { });
+        var hotkeys = Hotkeys.create().on('C', _ -> { }).on('B', _ -> { }).on(' ', _ -> { });
         int k = Hotkeys.codeOf('K');
         hotkeys.rebind('C', k);
         assertEquals('C', hotkeys.actionOn(k), "K opens what C did");

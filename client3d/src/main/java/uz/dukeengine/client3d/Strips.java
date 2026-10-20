@@ -71,7 +71,7 @@ final class Strips {
                 continue;
             }
             var group = new Group(piece.layer(), piece.picture());
-            groups.computeIfAbsent(group, key -> new ArrayList<>()).add(piece);
+            groups.computeIfAbsent(group, _ -> new ArrayList<>()).add(piece);
             touched.add(group);
         }
         for (var group : touched) {

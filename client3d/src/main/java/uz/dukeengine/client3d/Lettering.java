@@ -50,7 +50,7 @@ public final class Lettering {
             return null;
         }
         synchronized (KEPT) {
-            return KEPT.computeIfAbsent(assets, manager -> new HashMap<>())
+            return KEPT.computeIfAbsent(assets, _ -> new HashMap<>())
                     .computeIfAbsent(path, named -> java.util.Optional.ofNullable(load(assets, named)))
                     .orElse(null);
         }

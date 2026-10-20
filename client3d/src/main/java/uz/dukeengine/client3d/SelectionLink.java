@@ -44,7 +44,7 @@ final class SelectionLink {
      * @return whether the game had picked
      */
     boolean takeUp(Set<Integer> selected, DukeGame game, List<UnitView> units, int localPlayer) {
-        return takeUp(selected, game, units, localPlayer, unit -> { });
+        return takeUp(selected, game, units, localPlayer, _ -> { });
     }
 
     /** The same, {@code answer} told the first thing it took in where the game asked for its selection answered. */

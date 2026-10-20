@@ -67,7 +67,7 @@ final class Particles {
     /** How high the ground stands at a place, in the same frame. */
     @FunctionalInterface
     interface Ground {
-        Ground FLAT = (x, y) -> 0f;
+        Ground FLAT = (_, _) -> 0f;
 
         float heightAt(float x, float y);
     }
@@ -226,7 +226,7 @@ final class Particles {
         }
         var particle = new Particle(emitter, made++, frame, born);
         emitter.particles().add(particle);
-        living.computeIfAbsent(priority, level -> new LinkedHashSet<>()).add(particle);
+        living.computeIfAbsent(priority, _ -> new LinkedHashSet<>()).add(particle);
         count++;
         return particle;
     }

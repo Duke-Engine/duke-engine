@@ -53,7 +53,7 @@ class CanvasTriangleTest {
     }
 
     private static CanvasFrame frame() {
-        return new CanvasFrame(10, 10, new CanvasText(path -> null), Map.<String, int[]>of()::get);
+        return new CanvasFrame(10, 10, new CanvasText(_ -> null), Map.<String, int[]>of()::get);
     }
 
     @Test

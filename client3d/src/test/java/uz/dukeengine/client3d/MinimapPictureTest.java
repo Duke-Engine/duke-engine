@@ -88,7 +88,7 @@ class MinimapPictureTest {
         var seen = new Discovery(grid);
         var grass = new ColorRGBA(0.4f, 0.6f, 0.2f, 1f);
         var picture = new MinimapPicture();
-        picture.ground(0.5f, (cx, cy) -> grass);
+        picture.ground(0.5f, (_, _) -> grass);
         picture.rebuild(grid, true, ColorRGBA.Black);
         assertEquals(rgb(grass.mult(0.5f)), picture.colourAt(25, 15), "never seen: the meadow, dimmed, not black");
 
@@ -102,7 +102,7 @@ class MinimapPictureTest {
         assertEquals(rgb(grass.mult(0.5f)), picture.colourAt(28, 1), "and still never seen there");
 
         var none = new MinimapPicture();
-        none.ground(0f, (cx, cy) -> grass);
+        none.ground(0f, (_, _) -> grass);
         none.rebuild(grid, true, ColorRGBA.Black);
         assertEquals(0, none.colourAt(25, 15), "0: the dark, as ever");
     }

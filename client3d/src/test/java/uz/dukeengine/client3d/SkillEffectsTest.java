@@ -44,11 +44,11 @@ class SkillEffectsTest {
                 "name=Erika|hp=1/2|cast=FrostNova,412,150.5,160.25,40.0|note=found a sword", 0);
 
         assertEquals(1, casts.size());
-        assertEquals("FrostNova", casts.get(0).look());
-        assertEquals(412, casts.get(0).frame());
-        assertEquals(150.5f, casts.get(0).at().x(), 0.001f);
-        assertEquals(160.25f, casts.get(0).at().y(), 0.001f);
-        assertEquals(40f, casts.get(0).radius(), 0.001f);
+        assertEquals("FrostNova", casts.getFirst().look());
+        assertEquals(412, casts.getFirst().frame());
+        assertEquals(150.5f, casts.getFirst().at().x(), 0.001f);
+        assertEquals(160.25f, casts.getFirst().at().y(), 0.001f);
+        assertEquals(40f, casts.getFirst().radius(), 0.001f);
     }
 
     /**
@@ -62,7 +62,7 @@ class SkillEffectsTest {
      */
     @Test
     void whoItIsOnAndWhoCastItAreAskedSeparately() {
-        var meteor = SkillEffects.castsIn("name=Lira|cast=MeteorCall,900,150.0,160.0,44.0,0,7", 0).get(0);
+        var meteor = SkillEffects.castsIn("name=Lira|cast=MeteorCall,900,150.0,160.0,44.0,0,7", 0).getFirst();
 
         assertEquals(SkillEffects.NOBODY, meteor.on(), "a meteor's mark is the floor's");
         assertEquals(7, meteor.by(), "and the mage is still the one who called it");
@@ -74,8 +74,8 @@ class SkillEffectsTest {
         var casts = SkillEffects.castsIn("name=Erika|cast=FrostNova,412,150.0,150.0,40.0", 0);
 
         assertEquals(1, casts.size(), "the cast is the part that must not be lost");
-        assertEquals(SkillEffects.NOBODY, casts.get(0).on());
-        assertEquals(SkillEffects.NOBODY, casts.get(0).by());
+        assertEquals(SkillEffects.NOBODY, casts.getFirst().on());
+        assertEquals(SkillEffects.NOBODY, casts.getFirst().by());
     }
 
     /**
@@ -92,7 +92,7 @@ class SkillEffectsTest {
                 "name=Lira|cast=MageBlink,900,100.0,100.0,0.0|cast=MageBlink,900,160.0,100.0,0.0", 0);
 
         assertEquals(2, casts.size(), "half a blink is a teleport with a bug");
-        assertEquals(100f, casts.get(0).at().x(), 0.001f);
+        assertEquals(100f, casts.getFirst().at().x(), 0.001f);
         assertEquals(160f, casts.get(1).at().x(), 0.001f);
     }
 
@@ -124,7 +124,7 @@ class SkillEffectsTest {
         var casts = SkillEffects.castsIn("cast=KnightGuard,412,150.0,150.0,0.0,7", 0);
 
         assertEquals(1, casts.size());
-        assertEquals(7, casts.get(0).on());
+        assertEquals(7, casts.getFirst().on());
     }
 
     // ---- the knock ----

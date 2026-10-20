@@ -68,7 +68,7 @@ class CanvasInputTest {
         var input = hand.manager();
         var selections = new ArrayList<Boolean>();
         input.addMapping("Select", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
-        input.addListener((ActionListener) (name, pressed, tpf) -> selections.add(pressed), "Select");
+        input.addListener((ActionListener) (_, pressed, _) -> selections.add(pressed), "Select");
         input.addRawInputListener(new CanvasInputs(PANEL, () -> HEIGHT));
 
         // The input manager counts up from the bottom: 580 is twenty pixels from the top.
@@ -132,7 +132,7 @@ class CanvasInputTest {
         inputs.onMouseButtonEvent(at(MouseInput.BUTTON_LEFT, 102, 101, 400_000_000L));
         inputs.onMouseButtonEvent(at(MouseInput.BUTTON_LEFT, 102, 101, 2_000_000_000L));
 
-        assertFalse(heard.get(0).doubleClick());
+        assertFalse(heard.getFirst().doubleClick());
         assertTrue(heard.get(1).doubleClick(), "within half a second and four pixels");
         assertFalse(heard.get(2).doubleClick(), "a third press is a first");
         assertFalse(heard.get(3).doubleClick(), "and one a long while later is too");

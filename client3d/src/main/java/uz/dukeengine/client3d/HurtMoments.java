@@ -32,7 +32,7 @@ final class HurtMoments {
      * fewer than the rule's frames ago.
      */
     String nameFor(ObjectHurt hurt) {
-        return nameFor(hurt, name -> false);
+        return nameFor(hurt, _ -> false);
     }
 
     /**

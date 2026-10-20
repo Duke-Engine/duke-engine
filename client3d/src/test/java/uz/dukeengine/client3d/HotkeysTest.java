@@ -23,7 +23,7 @@ class HotkeysTest {
     private static Hotkeys claiming(char... keys) {
         var hotkeys = Hotkeys.create();
         for (var key : keys) {
-            hotkeys.on(key, game -> { });
+            hotkeys.on(key, _ -> { });
         }
         return hotkeys;
     }
@@ -105,9 +105,9 @@ class HotkeysTest {
     @Test
     void aKeyKnowsWhetherItNeedsPointingAtSomething() {
         var keys = Hotkeys.create();
-        keys.on('W', game -> { });
-        keys.onUnit('Q', (game, id) -> { });
-        keys.onGround('E', (game, spot) -> { });
+        keys.on('W', _ -> { });
+        keys.onUnit('Q', (_, _) -> { });
+        keys.onGround('E', (_, _) -> { });
 
         assertEquals(Hotkeys.Aim.NOW, keys.all().get('W').aim());
         assertEquals(Hotkeys.Aim.UNIT, keys.all().get('Q').aim());
@@ -118,7 +118,7 @@ class HotkeysTest {
     @Test
     void anAimedKeyIsClaimedLikeAnyOther() {
         var keys = Hotkeys.create();
-        keys.onGround('S', (game, spot) -> { });
+        keys.onGround('S', (_, _) -> { });
 
         assertTrue(keys.claims(KeyInput.KEY_S));
         assertArrayEquals(new int[] {KeyInput.KEY_DOWN},
@@ -131,8 +131,8 @@ class HotkeysTest {
         var chosen = new int[] {-1};
         var landed = new uz.dukeengine.core.math.Coord3D[1];
         var keys = Hotkeys.create();
-        keys.onUnit('Q', (game, id) -> chosen[0] = id);
-        keys.onGround('E', (game, spot) -> landed[0] = spot);
+        keys.onUnit('Q', (_, id) -> chosen[0] = id);
+        keys.onGround('E', (_, spot) -> landed[0] = spot);
 
         keys.all().get('Q').run().accept(null, new Hotkeys.Aimed(42, null));
         keys.all().get('E').run().accept(null,
@@ -164,9 +164,9 @@ class HotkeysTest {
     @Test
     void aGameCanReadBackTheKeysItClaimed() {
         var keys = Hotkeys.create()
-                .on('q', game -> { })
-                .onUnit('w', (game, id) -> { })
-                .onGround('e', (game, spot) -> { });
+                .on('q', _ -> { })
+                .onUnit('w', (_, _) -> { })
+                .onGround('e', (_, _) -> { });
 
         assertEquals(java.util.List.of('Q', 'W', 'E'),
                 java.util.List.copyOf(keys.claimedKeys()), "in the order they were claimed");
