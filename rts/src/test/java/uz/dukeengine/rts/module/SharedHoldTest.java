@@ -101,13 +101,13 @@ class SharedHoldTest {
     @Test
     void aTunnelTakenAwayLeavesItsPassengersInTheOtherAndTheLastTakesThem() {
         world();
-        hold(tunnelA).load(rebels.get(0));
+        hold(tunnelA).load(rebels.getFirst());
         hold(tunnelA).load(rebels.get(1));
 
         logic.destroyObject(tunnelA);
         logic.update();
         assertTrue(logic.getObjects().containsAll(rebels.subList(0, 2)), "still in the world");
-        assertTrue(rebels.get(0).isContained() && rebels.get(1).isContained(), "inside");
+        assertTrue(rebels.getFirst().isContained() && rebels.get(1).isContained(), "inside");
         assertEquals(2, hold(tunnelB).getPassengerCount(), "held by the other tunnel");
 
         logic.destroyObject(tunnelB);
@@ -119,19 +119,19 @@ class SharedHoldTest {
     @Test
     void aSoldTunnelLeavesTheNetworkAndItsPassengersStayInTheOtherUntilTheLastIsSold() {
         world();
-        hold(tunnelA).load(rebels.get(0));
+        hold(tunnelA).load(rebels.getFirst());
         hold(tunnelA).load(rebels.get(1));
         var sell = new uz.dukeengine.rts.message.GameMessage.Sell(tunnelA.getPlayerIndex(), tunnelA.getId());
 
         assertTrue(uz.dukeengine.rts.construction.Selling.order(logic, sell));
         logic.update();
-        assertTrue(rebels.get(0).isContained() && rebels.get(1).isContained(), "still inside, in the network");
+        assertTrue(rebels.getFirst().isContained() && rebels.get(1).isContained(), "still inside, in the network");
         assertEquals(2, hold(tunnelB).getPassengerCount(), "held by the other tunnel");
         assertFalse(hold(tunnelA).load(rebels.get(2)), "and the sold one takes no one in");
 
         assertTrue(uz.dukeengine.rts.construction.Selling.order(logic,
                 new uz.dukeengine.rts.message.GameMessage.Sell(tunnelB.getPlayerIndex(), tunnelB.getId())));
-        assertFalse(rebels.get(0).isContained() || rebels.get(1).isContained(), "the last sold: out they come");
+        assertFalse(rebels.getFirst().isContained() || rebels.get(1).isContained(), "the last sold: out they come");
         for (var rebel : rebels.subList(0, 2)) {
             assertTrue(rebel.getPosition().distance(tunnelB.getPosition()) < 20f, "beside it: " + rebel.getPosition());
         }

@@ -69,7 +69,7 @@ class WeaponFiredTest {
         assertEquals(frames / RELOAD_FRAMES, shots.size(),
                 "the reload cycle is invisible in state; the event is what makes it visible");
 
-        var first = (WeaponFired) shots.get(0);
+        var first = (WeaponFired) shots.getFirst();
         assertEquals(gunner.getId(), first.shooter());
         assertEquals(dummy.getId(), first.target());
         assertTrue(first.where() == first.from(), "fog filtering uses the shooter's position");

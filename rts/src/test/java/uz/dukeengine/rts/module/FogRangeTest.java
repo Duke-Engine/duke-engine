@@ -138,7 +138,7 @@ class FogRangeTest {
                   SeenByAllWithin = 60
                 End
                 """, "things.duke");
-        var crusader = (RtsTemplate) loaded.get(0);
+        var crusader = (RtsTemplate) loaded.getFirst();
         var cannon = (RtsTemplate) loaded.get(1);
 
         assertEquals(300f, crusader.fogRange());

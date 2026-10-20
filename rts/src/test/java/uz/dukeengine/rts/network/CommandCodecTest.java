@@ -87,7 +87,7 @@ class CommandCodecTest {
         float awkward = 0.1f + 0.2f; // not exactly representable
         var packet = new CommandPacket(1, 1, List.of(
                 new CombatOrder.MoveTo(1, List.of(new ObjectId(1)), new Coord3D(awkward, 0f, 0f))));
-        var decoded = (CombatOrder.MoveTo) CommandCodec.INSTANCE.decode(CommandCodec.INSTANCE.encode(packet)).commands().get(0);
+        var decoded = (CombatOrder.MoveTo) CommandCodec.INSTANCE.decode(CommandCodec.INSTANCE.encode(packet)).commands().getFirst();
         assertEquals(Float.floatToIntBits(awkward), Float.floatToIntBits(decoded.destination().x()));
     }
 }

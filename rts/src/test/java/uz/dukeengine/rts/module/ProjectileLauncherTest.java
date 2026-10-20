@@ -153,8 +153,8 @@ class ProjectileLauncherTest {
 
         fireOnce(attacker, victim);
 
-        assertEquals(60f, quiver.caught.get(0), 0.01f, "20 doubled and again by three");
-        assertEquals(DamageType.NORMAL, quiver.types.get(0), "and the weapon's own damage type");
+        assertEquals(60f, quiver.caught.getFirst(), 0.01f, "20 doubled and again by three");
+        assertEquals(DamageType.NORMAL, quiver.types.getFirst(), "and the weapon's own damage type");
     }
 
     /**

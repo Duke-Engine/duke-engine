@@ -145,10 +145,10 @@ class PassengersAndRidersTest {
 
         assertEquals(Set.of(gattling.getId()), shootersOver(logic, tank, 60), "the rider fires, the two hold fire");
         assertEquals(Bones.inWorld(helix, "GUNNER"), gattling.getPosition(), "from its bone");
-        assertTrue(hold.rides(gattling) && !hold.rides(soldiers.get(0)), "it rides, they sit inside");
+        assertTrue(hold.rides(gattling) && !hold.rides(soldiers.getFirst()), "it rides, they sit inside");
 
         hold.setPassengersFire(true);
-        assertEquals(Set.of(gattling.getId(), soldiers.get(0).getId(), soldiers.get(1).getId()),
+        assertEquals(Set.of(gattling.getId(), soldiers.getFirst().getId(), soldiers.get(1).getId()),
                 shootersOver(logic, tank, 60), "all three, once the two may fire");
 
         assertTrue(ContainModule.evacuate(logic,

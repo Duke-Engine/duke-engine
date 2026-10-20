@@ -88,7 +88,7 @@ class WindUpTest {
         field.enemy(120f, 100f);
         field.run(0, 400);
         assertEquals(List.of(15, 330), field.shots(), "15 frames after it is ready, and 315 after that");
-        assertEquals(WeaponStatus.PRE_ATTACK, field.statuses().get(0), "winding up from its first frame");
+        assertEquals(WeaponStatus.PRE_ATTACK, field.statuses().getFirst(), "winding up from its first frame");
         assertEquals(WeaponStatus.PRE_ATTACK, field.statuses().get(14));
         assertEquals(15, field.statuses().stream().limit(15).filter(WeaponStatus.PRE_ATTACK::equals).count());
     }

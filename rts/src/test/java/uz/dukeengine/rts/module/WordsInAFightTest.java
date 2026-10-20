@@ -183,7 +183,7 @@ class WordsInAFightTest {
                 """, "test");
 
         var modules = factory.findTemplate("Crusader").modules();
-        var body = (ActiveBody.Data) modules.get(0);
+        var body = (ActiveBody.Data) modules.getFirst();
         var rank = (ExperienceModule.Data) modules.get(1);
 
         assertEquals(List.of(new ArmorSet(List.of("Upgrade_Composite"), Map.of(ARMOR_PIERCING, 0.75f))),

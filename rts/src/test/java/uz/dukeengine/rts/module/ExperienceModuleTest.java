@@ -140,7 +140,7 @@ class ExperienceModuleTest {
 
         assertEquals(25, data.experienceValue());
         assertEquals(3, data.ranks().size());
-        assertEquals(100, data.ranks().get(0).experience());
+        assertEquals(100, data.ranks().getFirst().experience());
         assertEquals(400, data.ranks().get(2).experience());
         assertEquals(1.3f, data.ranks().get(2).damageMultiplier(), 1e-6f);
         assertTrue(data.healOnPromotion());

@@ -88,14 +88,14 @@ class ProductionListenerTest {
         run(3);
 
         assertEquals(2, released.size());
-        assertEquals(released.get(0).frame(), released.get(1).frame(), "the same frame");
+        assertEquals(released.getFirst().frame(), released.get(1).frame(), "the same frame");
         for (var one : released) {
             assertEquals(soldier, one.unit().getTemplate());
             assertTrue(one.unit().getPosition().distance(one.factory().getPosition()) < 100f,
                     "the unit reported is the one that stepped out of that factory");
             assertTrue(logic.getObjects().contains(one.unit()), "and it is in the world as it is told");
         }
-        assertTrue(released.get(0).factory() != released.get(1).factory());
+        assertTrue(released.getFirst().factory() != released.get(1).factory());
     }
 
     @Test
