@@ -267,8 +267,12 @@ public record EffectLayer(
 
     /** Whether it lasts for a stretch of time rather than for one particle's life. */
     public boolean lasting() {
-        return AURA.equals(type) || MARK.equals(type) || LIGHT.equals(type)
-                || TRAIL.equals(type) && PATH.equals(at);
+        return AURA.equals(type) || MARK.equals(type) || LIGHT.equals(type) || pathTrail();
+    }
+
+    /** Whether it is a trail laid along the path a run or a blink took. */
+    public boolean pathTrail() {
+        return TRAIL.equals(type) && PATH.equals(at);
     }
 
     /** Whether it draws anything at all — a light draws nothing and still counts. */
