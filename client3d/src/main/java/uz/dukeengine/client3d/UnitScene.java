@@ -42,7 +42,7 @@ final class UnitScene {
     private final Visuals visuals;
     private final Bodies bodies;
     private final Looks looks;
-    private final GroundLooks groundLooks;
+    private final GroundMaterials groundLooks;
     private final SceneLight light;
     private final ProjectileEffects effects;
     private final LayeredEffects layered;
@@ -79,7 +79,7 @@ final class UnitScene {
     private final WordTints wordTints = new WordTints();
     private final Flinch.Clock flinches = new Flinch.Clock();
 
-    UnitScene(AssetManager assetManager, Visuals visuals, Bodies bodies, Looks looks, GroundLooks groundLooks,
+    UnitScene(AssetManager assetManager, Visuals visuals, Bodies bodies, Looks looks, GroundMaterials groundLooks,
             SceneLight light, ProjectileEffects effects, LayeredEffects layered, Particles particles,
             HitFlash hitFlash, GroundPictures groundPictures, StealthLook stealthLook, MissingAssets missing,
             FogOfWar fog, Node rootNode, Node unitsNode, Camera cam, com.jme3.system.Timer timer,

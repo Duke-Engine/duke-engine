@@ -19,9 +19,9 @@ import uz.dukeengine.game.DukeGame;
  * and the roads'; and every material that reads the fog kept told where the fog holds, the haze round the camera, the
  * burning lights and the pictures slid over all of it.
  */
-final class GroundLooks {
+final class GroundMaterials {
 
-    private static final Logger LOG = Logger.getLogger(GroundLooks.class.getName());
+    private static final Logger LOG = Logger.getLogger(GroundMaterials.class.getName());
 
     private final AssetManager assetManager;
     private final Visuals visuals;
@@ -42,7 +42,7 @@ final class GroundLooks {
     private final java.util.Map<String, Material> scorchLooks = new java.util.HashMap<>();
     private final java.util.Set<String> missingScorches = new java.util.HashSet<>();
 
-    GroundLooks(AssetManager assetManager, Visuals visuals, SceneLight light, FogMap fogMap, CameraFocus camera,
+    GroundMaterials(AssetManager assetManager, Visuals visuals, SceneLight light, FogMap fogMap, CameraFocus camera,
             Supplier<DukeGame> game, Supplier<PathGrid> builtFrom, Supplier<WorldSnapshot> snapshot) {
         this.assetManager = assetManager;
         this.visuals = visuals;

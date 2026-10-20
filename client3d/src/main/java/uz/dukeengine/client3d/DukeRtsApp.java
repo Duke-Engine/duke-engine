@@ -116,8 +116,8 @@ final class DukeRtsApp extends SimpleApplication {
     private final Looks looks;
     /** What the player has seen, and the dark over the rest — see {@link FogOfWar}. */
     private FogOfWar fog;
-    /** How the ground and what lies on it are drawn, and every material that reads the fog — see {@link GroundLooks}. */
-    private GroundLooks groundLooks;
+    /** How the ground and what lies on it are drawn, and every material that reads the fog — see {@link GroundMaterials}. */
+    private GroundMaterials groundLooks;
     /** The sun, the ambient and the sun's shadows the scene is lit by — see {@link SceneLight}. */
     private final SceneLight light;
     /**
@@ -509,7 +509,7 @@ final class DukeRtsApp extends SimpleApplication {
         // The dark, as a picture of the map that the ground's materials read by world position; none for a game that
         // never asked to be discovered, and then the ground is drawn plainly.
         var fogMap = visuals.drawsFog() ? new FogMap(visuals.getFog()) : null;
-        groundLooks = new GroundLooks(assetManager, visuals, light, fogMap, camera, () -> game,
+        groundLooks = new GroundMaterials(assetManager, visuals, light, fogMap, camera, () -> game,
                 () -> ground == null ? null : ground.builtFrom(), () -> snapshot);
         fog = new FogOfWar(visuals, fogMap, groundLooks, looks, camera, viewPort, renderer, () -> game,
                 () -> snapshot);

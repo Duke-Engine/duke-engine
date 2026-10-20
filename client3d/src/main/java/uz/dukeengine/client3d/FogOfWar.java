@@ -29,7 +29,7 @@ final class FogOfWar {
     private final Visuals visuals;
     /** The dark, as a picture the materials read; null for a game that never asked to be discovered. */
     private final FogMap fogMap;
-    private final GroundLooks groundLooks;
+    private final GroundMaterials groundLooks;
     private final Looks looks;
     private final CameraFocus camera;
     private final ViewPort viewPort;
@@ -57,7 +57,7 @@ final class FogOfWar {
     private ColorRGBA hazeWanted;
     private float hazeSeconds;
 
-    FogOfWar(Visuals visuals, FogMap fogMap, GroundLooks groundLooks, Looks looks, CameraFocus camera,
+    FogOfWar(Visuals visuals, FogMap fogMap, GroundMaterials groundLooks, Looks looks, CameraFocus camera,
             ViewPort viewPort, Renderer renderer, Supplier<DukeGame> game, Supplier<WorldSnapshot> snapshot) {
         this.visuals = visuals;
         this.fogMap = fogMap;

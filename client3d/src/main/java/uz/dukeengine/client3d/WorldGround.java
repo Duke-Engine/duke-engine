@@ -18,7 +18,7 @@ import uz.dukeengine.game.DukeGame;
 final class WorldGround {
 
     private final Visuals visuals;
-    private final GroundLooks groundLooks;
+    private final GroundMaterials groundLooks;
     private final Looks looks;
     private final Supplier<DukeGame> game;
     /** Every noise the game makes, once there are any; footsteps are told the ground under them. */
@@ -48,7 +48,7 @@ final class WorldGround {
      * @param terrainNode where the terrain hangs, alone, so a new world can replace it wholesale
      * @param listNode    where what lies on the ground hangs, beside the effects
      */
-    WorldGround(AssetManager assetManager, Node terrainNode, Node listNode, Visuals visuals, GroundLooks groundLooks,
+    WorldGround(AssetManager assetManager, Node terrainNode, Node listNode, Visuals visuals, GroundMaterials groundLooks,
             Looks looks, TileSource kitTiles, Supplier<DukeGame> game, Supplier<GameSounds> noises,
             WorldMoments.Floor floor) {
         this.visuals = visuals;

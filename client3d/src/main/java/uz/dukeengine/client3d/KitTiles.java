@@ -35,12 +35,12 @@ final class KitTiles implements TileSource {
 
     private final AssetManager assetManager;
     private final MissingAssets missing;
-    private final GroundLooks looks;
+    private final GroundMaterials looks;
     private final SceneLight light;
     /** The kit in force: the theme's, or the one the game started with. */
     private final Supplier<Tileset> activeKit;
 
-    KitTiles(AssetManager assetManager, MissingAssets missing, GroundLooks looks, SceneLight light,
+    KitTiles(AssetManager assetManager, MissingAssets missing, GroundMaterials looks, SceneLight light,
             Supplier<Tileset> activeKit) {
         this.assetManager = assetManager;
         this.missing = missing;
