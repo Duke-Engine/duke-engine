@@ -123,7 +123,7 @@ final class Scorches {
                 int first = j * across + i;
                 int[] corner = {first, first + 1, first + 1 + across, first + across};
                 var cut = cell > 0f ? ground.diagonal(fromX + i, fromZ + j) : HeightMap.Diagonal.MAIN;
-                for (int k : TerrainScene.cellTriangles(cut)) {
+                for (int k : PaintedGround.cellTriangles(cut)) {
                     indices.put(corner[k]);
                 }
             }
