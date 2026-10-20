@@ -363,6 +363,6 @@ final class PanelBrush {
     }
 
     static float fraction(float part, float whole) {
-        return whole <= 0f ? 0f : Math.max(0f, Math.min(1f, part / whole));
+        return whole <= 0f ? 0f : Math.clamp(part / whole, 0f, 1f);
     }
 }

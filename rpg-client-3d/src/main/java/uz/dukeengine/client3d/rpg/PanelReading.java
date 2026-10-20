@@ -317,7 +317,7 @@ record PanelReading(String name, String title, String face, String rank,
         }
         try {
             return new float[] {Float.parseFloat(halves[0]), Float.parseFloat(halves[1])};
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return null;
         }
     }
@@ -351,7 +351,7 @@ record PanelReading(String name, String title, String face, String rank,
                         Integer.parseInt(parts[3]), Integer.parseInt(parts[4]));
                 default -> null;
             };
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return null;
         }
     }
@@ -373,7 +373,7 @@ record PanelReading(String name, String title, String face, String rank,
         }
         try {
             return new ItemReading(parts[0], Integer.parseInt(parts[1]));
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return null;
         }
     }

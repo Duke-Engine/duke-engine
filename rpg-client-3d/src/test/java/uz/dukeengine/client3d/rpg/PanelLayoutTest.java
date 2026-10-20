@@ -611,7 +611,7 @@ class PanelLayoutTest {
                 }
             }
             // Built left to right: the two figures, his primary, then the list.
-            float figuresEnd = Math.max(right(sockets.get(0)), right(sockets.get(1)));
+            float figuresEnd = Math.max(right(sockets.getFirst()), right(sockets.get(1)));
             float listStart = Float.MAX_VALUE;
             for (int i = 3; i < sockets.size(); i++) {
                 listStart = Math.min(listStart, left(sockets.get(i)));

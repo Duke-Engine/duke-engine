@@ -72,7 +72,7 @@ class RpgHudTest {
         var facts = new RpgHud().pauseFacts(saying("name=Erika|rank=7-daraja|depth=III|depthWord=CHUQURLIK"));
 
         assertEquals(2, facts.size());
-        assertArrayEquals(new String[] {"CHUQURLIK", "III"}, facts.get(0));
+        assertArrayEquals(new String[] {"CHUQURLIK", "III"}, facts.getFirst());
         assertArrayEquals(new String[] {"RANK", "7-daraja"}, facts.get(1));
         assertEquals(List.of(), new RpgHud().pauseFacts(saying("$ 500")));
     }

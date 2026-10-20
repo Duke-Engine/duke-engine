@@ -55,8 +55,8 @@ class HeroPanelTest {
     void eachSkillStateIsRead() {
         var skills = PanelReading.parse(LINE).skills();
 
-        assertEquals(PanelReading.State.READY, skills.get(0).state());
-        assertEquals('Q', skills.get(0).key());
+        assertEquals(PanelReading.State.READY, skills.getFirst().state());
+        assertEquals('Q', skills.getFirst().key());
 
         var cooling = skills.get(1);
         assertEquals(PanelReading.State.COOLING, cooling.state());
@@ -79,7 +79,7 @@ class HeroPanelTest {
         var skills = PanelReading.parse(
                 "name=E|rank=1|hp=1/1|xp=0/1|depth=I|depthWord=D|skill=R,,cool,820,900").skills();
 
-        assertEquals("27", skills.get(0).label());
+        assertEquals("27", skills.getFirst().label());
     }
 
     /** Anything that is not this format leaves the panel out of it. */
@@ -129,7 +129,7 @@ class HeroPanelTest {
 
         assertNotNull(reading);
         assertEquals(2, reading.ranks().size());
-        var q = reading.ranks().get(0);
+        var q = reading.ranks().getFirst();
         assertEquals('Q', q.key());
         assertEquals(2, q.rank());
         assertEquals(4, q.max());
@@ -155,7 +155,7 @@ class HeroPanelTest {
 
         assertNotNull(reading, "the bar went dark on an unbought skill");
         assertEquals(2, reading.skills().size());
-        assertEquals("", reading.skills().get(0).label());
+        assertEquals("", reading.skills().getFirst().label());
         assertEquals("4-daraja", reading.skills().get(1).label());
     }
 
@@ -215,7 +215,7 @@ class HeroPanelTest {
     void thePictureForASlotComesDownTheLine() {
         var skills = PanelReading.parse(LINE).skills();
 
-        assertEquals("icons/skills/arrowhead.png", skills.get(0).icon());
+        assertEquals("icons/skills/arrowhead.png", skills.getFirst().icon());
         assertEquals("icons/skills/arrow_cluster.png", skills.get(1).icon(),
                 "a slot on cooldown still knows what it is a picture of");
         assertEquals("icons/skills/hood.png", skills.get(3).icon(),
@@ -223,7 +223,7 @@ class HeroPanelTest {
 
         var renamed = PanelReading.parse(
                 LINE.replace("icons/skills/arrowhead.png", "Some/Other/picture.png")).skills();
-        assertEquals("Some/Other/picture.png", renamed.get(0).icon(),
+        assertEquals("Some/Other/picture.png", renamed.getFirst().icon(),
                 "the file said a different picture, so the slot gets a different picture");
     }
 
@@ -239,8 +239,8 @@ class HeroPanelTest {
                 "name=E|rank=1|hp=1/1|xp=0/1|depth=I|depthWord=D|skill=Q,,ready").skills();
 
         assertEquals(1, skills.size());
-        assertEquals("", skills.get(0).icon());
-        assertEquals(PanelReading.State.READY, skills.get(0).state());
+        assertEquals("", skills.getFirst().icon());
+        assertEquals(PanelReading.State.READY, skills.getFirst().state());
     }
 
     /**
@@ -292,8 +292,8 @@ class HeroPanelTest {
         var stats = PanelReading.parse(FULL).stats();
 
         assertEquals(3, stats.size());
-        assertEquals("Zarba", stats.get(0).word());
-        assertEquals("34", stats.get(0).value());
+        assertEquals("Zarba", stats.getFirst().word());
+        assertEquals("34", stats.getFirst().value());
         assertEquals("Tezlik", stats.get(2).word());
     }
 
@@ -381,8 +381,8 @@ class HeroPanelTest {
                 + "|stat=Zirh,12,,icons/stats/stat_armor.png").stats();
 
         assertEquals(2, stats.size());
-        assertEquals("icons/stats/stat_attack.png", stats.get(0).icon());
-        assertEquals("+6", stats.get(0).bonus());
+        assertEquals("icons/stats/stat_attack.png", stats.getFirst().icon());
+        assertEquals("+6", stats.getFirst().bonus());
         assertEquals("icons/stats/stat_armor.png", stats.get(1).icon());
         assertEquals("", stats.get(1).bonus(), "a figure that lends nothing still leaves the gap");
     }
@@ -393,7 +393,7 @@ class HeroPanelTest {
         var stats = PanelReading.parse(LINE + "|stat=Wave,4").stats();
 
         assertEquals(1, stats.size());
-        assertEquals("", stats.get(0).icon());
+        assertEquals("", stats.getFirst().icon());
     }
 
     /** His attributes are read apart from the figures, and his primary is marked. */
@@ -407,13 +407,13 @@ class HeroPanelTest {
         assertNotNull(reading, "a line with attributes on it was refused as somebody else's");
         var attributes = reading.attributes();
         assertEquals(2, attributes.size());
-        assertTrue(attributes.get(0).primary(), "the mark was lost");
+        assertTrue(attributes.getFirst().primary(), "the mark was lost");
         assertFalse(attributes.get(1).primary(), "an attribute with no mark is not his primary");
-        assertEquals("icons/stats/stat_strength.png", attributes.get(0).icon(),
+        assertEquals("icons/stats/stat_strength.png", attributes.getFirst().icon(),
                 "and the picture is still where it was");
         assertEquals("+2", attributes.get(1).bonus(), "what he found, beside it");
         assertEquals(1, reading.stats().size(), "and a figure is not taken for an attribute");
-        assertEquals("Zarba", reading.stats().get(0).word());
+        assertEquals("Zarba", reading.stats().getFirst().word());
     }
 
     /** An attribute's card is read by its place in the list, footer and all. */
@@ -431,10 +431,10 @@ class HeroPanelTest {
         assertEquals("Kuch", strength.name());
         assertEquals("Asosiy atribut", strength.at());
         assertEquals(2, strength.rows().size());
-        assertEquals("+12", strength.rows().get(0).now());
+        assertEquals("+12", strength.rows().getFirst().now());
         assertEquals("", strength.foot(), "a card with nothing under it has no footer");
         var agility = reading.attributeTips().get(1);
-        assertEquals("+0.15", agility.rows().get(0).now(), "a decimal survives the line");
+        assertEquals("+0.15", agility.rows().getFirst().now(), "a decimal survives the line");
         assertEquals("Hozirgi tezlik: 29", agility.foot(), "and how fast he is now, under it");
         assertTrue(agility.canRaise(), "a footer that tells him something is drawn lit, not refused");
         assertTrue(reading.tips().isEmpty(), "and none of it was taken for a skill's card");
@@ -475,9 +475,9 @@ class HeroPanelTest {
         assertEquals(48f, reading.mana(), 0.001f);
         assertEquals(120f, reading.maxMana(), 0.001f);
         assertEquals(2, reading.costs().size());
-        assertEquals('Q', reading.costs().get(0).key());
-        assertEquals(22, reading.costs().get(0).cost());
-        assertTrue(reading.costs().get(0).affordable(), "he has forty-eight and it costs twenty-two");
+        assertEquals('Q', reading.costs().getFirst().key());
+        assertEquals(22, reading.costs().getFirst().cost());
+        assertTrue(reading.costs().getFirst().affordable(), "he has forty-eight and it costs twenty-two");
         assertFalse(reading.costs().get(1).affordable(), "and the ultimate is out of reach");
     }
 
