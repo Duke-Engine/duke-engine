@@ -59,7 +59,7 @@ public record PanelPlace(PanelBlock block, PanelAnchor anchor, float x, float y)
         }
         try {
             return Float.parseFloat(words[at]);
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             throw new IllegalArgumentException("'" + line + "' ends in how far in it stands, which is a number");
         }
     }

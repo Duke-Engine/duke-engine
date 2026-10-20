@@ -63,9 +63,9 @@ class SkillTipTest {
         assertEquals("Og'ir o'q", card.name());
         assertTrue(card.blurb().startsWith("Kamonni"), "the sentence: " + card.blurb());
         assertEquals(3, card.rows().size(), "three rows of figures");
-        assertEquals("Zarar", card.rows().get(0).label());
-        assertEquals("", card.rows().get(0).now(), "unbought, so nothing in the left column");
-        assertEquals("45", card.rows().get(0).next());
+        assertEquals("Zarar", card.rows().getFirst().label());
+        assertEquals("", card.rows().getFirst().now(), "unbought, so nothing in the left column");
+        assertEquals("45", card.rows().getFirst().next());
         assertTrue(card.canRaise(), "its slot says a point may go there, so the foot offers");
     }
 

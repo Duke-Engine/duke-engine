@@ -260,7 +260,7 @@ public final class BagScreen implements Painter, CanvasInput {
         }
         try {
             return Integer.parseInt(id.substring(kind.length()));
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return -1;
         }
     }

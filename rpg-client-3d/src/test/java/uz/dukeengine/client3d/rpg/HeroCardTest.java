@@ -98,9 +98,9 @@ class HeroCardTest {
 
         assertNotNull(read);
         assertEquals(2, read.skills().size());
-        assertEquals(PanelReading.State.READY, read.skills().get(0).state(), "a point in it: ready");
+        assertEquals(PanelReading.State.READY, read.skills().getFirst().state(), "a point in it: ready");
         assertEquals(PanelReading.State.LOCKED, read.skills().get(1).state(), "none: locked");
         assertEquals("Zarba", read.tips().get('Q').name());
-        assertEquals(new PanelReading.CostReading('Q', 12, true), read.costs().get(0));
+        assertEquals(new PanelReading.CostReading('Q', 12, true), read.costs().getFirst());
     }
 }
