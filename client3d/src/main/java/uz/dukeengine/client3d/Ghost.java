@@ -80,8 +80,7 @@ final class Ghost {
             return;
         }
         var refused = look.refused();
-        tint.setColor(fits || refused == null ? ColorRGBA.Black.clone()
-                : new ColorRGBA(refused.getRed() / 255f, refused.getGreen() / 255f, refused.getBlue() / 255f, 1f));
+        tint.setColor(fits || refused == null ? ColorRGBA.Black.clone() : Materials.colour(refused));
         int laid = 0;
         if (look.marks() != null) {
             for (var rectangle : rectangles) {

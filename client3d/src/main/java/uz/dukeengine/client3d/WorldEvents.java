@@ -162,7 +162,7 @@ final class WorldEvents {
             playTheRunsMoments(now);
         }
         burstWhatStruck(changes);
-        // Read once. handleEvents runs earlier in the frame and fills this; a
+        // Read once. read runs earlier in the frame and fills this; a
         // second reading would throw the finishing blow twice.
         killedThisFrame.clear();
         criticalThisFrame.clear();

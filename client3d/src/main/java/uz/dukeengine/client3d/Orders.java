@@ -64,11 +64,9 @@ final class Orders {
      * Where the left button went down, or {@code null} when it is not down.
      */
     private Vector2f dragFrom;
-    /**
-     * The unit the game was last told about, so it is only told when it changes.
-     * Whether a new world is still waiting for its hero to be picked out.
-     */
+    /** Whether a new world is still waiting for its hero to be picked out. */
     private boolean findHimInTheNewWorld;
+    /** The unit the game was last told about, so it is only told when it changes. */
     private int watching = -1;
     /** Who his orders went to when the game was last told, so it is told only when that changes. */
     private List<Integer> orderedTold = List.of();
@@ -111,7 +109,6 @@ final class Orders {
     boolean dragging() {
         return dragFrom != null;
     }
-
 
     /** A selection answered as a click's is: with the select voice of {@code unit}, a thing it took in. */
     void answerSelection(int unit) {

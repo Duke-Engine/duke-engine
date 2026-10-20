@@ -4,7 +4,6 @@ import com.jme3.asset.AssetManager;
 import com.jme3.light.PointLight;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState;
-import com.jme3.math.ColorRGBA;
 import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
@@ -94,7 +93,7 @@ final class ProjectileEffects {
                 return;
             }
             var material = new Material(assets, "Common/MatDefs/Misc/Unshaded.j3md");
-            material.setColor("Color", toColour(recipe.glowColour));
+            material.setColor("Color", Materials.colour(recipe.glowColour));
             material.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.AlphaAdditive);
             geometry.setMaterial(material);
             geometry.setQueueBucket(RenderQueue.Bucket.Transparent);
@@ -118,9 +117,5 @@ final class ProjectileEffects {
     /** Every light goes back in the box — a new world gets a clean one. */
     void clear() {
         pool.clear();
-    }
-
-    private static ColorRGBA toColour(java.awt.Color colour) {
-        return new ColorRGBA(colour.getRed() / 255f, colour.getGreen() / 255f, colour.getBlue() / 255f, 1f);
     }
 }

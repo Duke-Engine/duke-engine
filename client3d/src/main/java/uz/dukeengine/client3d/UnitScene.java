@@ -184,7 +184,7 @@ final class UnitScene {
      * The bar over each creature that is being drawn.
      *
      * <p>Off the nodes rather than off the snapshot, so that whatever is not on
-     * screen has already been left out once: {@code syncUnits} drops anything
+     * screen has already been left out once: {@link #sync} drops anything
      * behind a wall, and the snapshot itself was built from what the player can
      * see. What is left is filtered again by the edge of the screen inside
      * {@link UnitBars}, which is the one of the three that the camera decides.
