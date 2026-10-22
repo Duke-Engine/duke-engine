@@ -1,5 +1,7 @@
 package uz.dukeengine.rts.module;
 
+import java.util.EnumSet;
+import java.util.Set;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.DamageType;
 import uz.dukeengine.core.module.Death;
@@ -53,9 +55,14 @@ public final class ToppleUpdate extends UpdateModule implements KeepsDead {
      * @param bounceShare   the share of its speed it bounces back with as it lands — 30%
      * @param sinkDepth     how far it sinks into the ground once it lies still
      * @param sinkFrames    over how many frames, then gone
+     * @param killWhenStartToppling dead the moment it is pushed, and never falls — the reference's {@code
+     *                      KillWhenStartToppling}
+     * @param leftOrRightOnly falling only to one side of its facing or the other, whichever is nearer the push, and
+     *                      keeping its facing — a fence, the reference's {@code ToppleLeftOrRightOnly}
      */
     public record Data(int crushedAbove, float reach, float toppleSpeed, float velocityShare, float accelerationShare,
-            float bounceShare, float sinkDepth, int sinkFrames) implements ModuleData {
+            float bounceShare, float sinkDepth, int sinkFrames, boolean killWhenStartToppling,
+            boolean leftOrRightOnly) implements ModuleData {
 
         static final Data DEFAULTS = new Data(1, 7f, 0.2f, 0.2f, 0.01f, 0.3f, 10f, 150);
 
@@ -63,6 +70,19 @@ public final class ToppleUpdate extends UpdateModule implements KeepsDead {
             reach = Math.clamp(reach, 0f, MOST_REACH);
             sinkFrames = Math.max(1, sinkFrames);
         }
+
+        /** Falling whichever way it is pushed, and dying once it lies still. */
+        public Data(int crushedAbove, float reach, float toppleSpeed, float velocityShare, float accelerationShare,
+                float bounceShare, float sinkDepth, int sinkFrames) {
+            this(crushedAbove, reach, toppleSpeed, velocityShare, accelerationShare, bounceShare, sinkDepth,
+                    sinkFrames, false, false);
+        }
+    }
+
+    /** How a push is to fall, as the reference's {@code ToppleOptions}. */
+    public enum Option {
+        /** Lies still the first time it reaches the ground — {@code TOPPLE_OPTIONS_NO_BOUNCE}. */
+        NO_BOUNCE
     }
 
     private enum State {
@@ -73,6 +93,8 @@ public final class ToppleUpdate extends UpdateModule implements KeepsDead {
 
     private final Data data;
     private State state = State.UPRIGHT;
+    private boolean noBounce;
+    private float side;
     private float velocity;
     private float acceleration;
     private float fallen;
@@ -96,22 +118,44 @@ public final class ToppleUpdate extends UpdateModule implements KeepsDead {
         return data.reach();
     }
 
-    /**
-     * Pushed over by {@code by}, standing at {@code from}: turned to face away from it — as the reference turns a
-     * toppling thing square to its fall — and falling that way from the next frame.
-     */
+    /** Pushed over by {@code by}, standing at {@code from}, as hard as its template says, as the other form. */
     public void topple(GameObject by, Coord3D from) {
-        if (state != State.UPRIGHT) {
+        topple(by, from, data.toppleSpeed(), EnumSet.noneOf(Option.class));
+    }
+
+    /**
+     * Pushed over by {@code by}, standing at {@code from}, {@code speed} radians a frame hard — the reference's {@code
+     * applyTopplingForce}: turned to face away from it — as the reference turns a toppling thing square to its fall —
+     * and falling that way from the next frame; one that falls {@link Data#leftOrRightOnly} keeps its facing and falls
+     * to whichever side of it is nearer away, and one {@link Data#killWhenStartToppling} dies now instead. A thing
+     * dead, or already pushed, is not pushed again.
+     */
+    public void topple(GameObject by, Coord3D from, float speed, Set<Option> options) {
+        var owner = getOwner();
+        if (state != State.UPRIGHT || owner.isEffectivelyDead()) {
             return;
         }
-        var owner = getOwner();
-        var here = owner.getPosition();
-        float away = (float) StrictMath.atan2(here.y() - from.y(), here.x() - from.x());
-        owner.setOrientation(away);
-        velocity = data.toppleSpeed() * data.velocityShare();
-        acceleration = data.toppleSpeed() * data.accelerationShare();
         pushedBy = by == null ? null : by.getId();
         pushedByPlayer = by == null ? -1 : by.getPlayerIndex();
+        if (data.killWhenStartToppling()) {
+            // Object::kill, as the reference's: the plain death, not TOPPLED
+            if (owner.getBody() != null) {
+                owner.getBody().damage(HUGE_DAMAGE, TOPPLE, new Death(DeathType.NORMAL, pushedBy, pushedByPlayer));
+            }
+            return;
+        }
+        var here = owner.getPosition();
+        float dx = here.x() - from.x();
+        float dy = here.y() - from.y();
+        if (data.leftOrRightOnly()) {
+            // angleClosestTo(facing + PI/2, facing - PI/2, push): to the left only where the push is nearer it
+            side = dx * -owner.getFacingSin() + dy * owner.getFacingCos() > 0f ? -1f : 1f;
+        } else {
+            owner.setOrientation((float) StrictMath.atan2(dy, dx));
+        }
+        noBounce = options.contains(Option.NO_BOUNCE);
+        velocity = speed * data.velocityShare();
+        acceleration = speed * data.accelerationShare();
         state = State.FALLING;
     }
 
@@ -130,10 +174,15 @@ public final class ToppleUpdate extends UpdateModule implements KeepsDead {
     private void fall() {
         float step = Math.min(velocity, LIMIT - fallen);
         fallen += step;
-        getOwner().setPitch(-fallen);
+        if (side == 0f) {
+            getOwner().setPitch(-fallen);
+        } else {
+            getOwner().setRoll(side * fallen);
+        }
         if (fallen >= LIMIT && velocity > 0f) {
             velocity *= -data.bounceShare();
-            if (Math.abs(velocity) < STILL) {
+            if (noBounce || Math.abs(velocity) < STILL) {
+                velocity = 0f;
                 liesStill();
             }
         } else {
