@@ -2235,6 +2235,10 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         var over = whatThePointerIsOver();
+        if (over.scrolling() == null && !over.overPanel() && buttons.refusesTheThingPointedAt(over.overUnit())) {
+            cursors.showFirst(java.util.List.of(Cursors.DENY)); // the game will not take this thing for the armed button
+            return;
+        }
         var aimPointer = buttons.aimPointer();
         if (aimPointer != null && over.scrolling() == null && !over.overPanel()) {
             cursors.show(aimPointer); // the pointer the game named for this aim, over the world

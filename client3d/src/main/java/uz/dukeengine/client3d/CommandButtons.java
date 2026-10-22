@@ -246,6 +246,20 @@ final class CommandButtons {
         forgetTheAim();
     }
 
+    /** Whether the game takes the thing the pointer was last on for the armed button — its word of the last frame. */
+    private boolean takesThePointed() {
+        var snapshot = this.snapshot.get();
+        return snapshot == null || snapshot.aimFits();
+    }
+
+    /**
+     * Whether the armed button is aimed at a thing and the game will not take the one the pointer is on, so that the
+     * pointer shows its refusal and a click does nothing.
+     */
+    boolean refusesTheThingPointedAt(boolean overAThing) {
+        return overAThing && aiming.isArmed() && Aiming.aimsAtAThing(aiming.button()) && !takesThePointed();
+    }
+
     /** Take down what an aim put up: the ghost, the circle, and the game's question about the place. */
     private void forgetTheAim() {
         game.get().setAim(null, null, 0f);
@@ -267,16 +281,24 @@ final class CommandButtons {
      */
     void aimArmedButton() {
         var button = aiming.button();
-        if (button.aim() == uz.dukeengine.core.view.CommandButton.Aim.UNIT) {
+        if (Aiming.aimsAtAThing(button)) {
             var unit = pointer.pickUnit();
-            if (unit == null) {
-                return; // it had to be a thing, and the click found none
+            var ground = unit == null ? pointer.pickGround() : null;
+            var press = aiming.clickedOn(unit == null ? -1 : unit.view.id(), takesThePointed(),
+                    ground == null ? null : new Coord3D(ground.x, ground.z, 0f));
+            if (press == null) {
+                return; // nothing to press: no thing where one was wanted, or one the game will not take
             }
-            var press = aiming.target(unit.view.id());
             forgetTheAim();
-            game.get().pressCommand(press.button().id(), null, 0f, press.target());
+            game.get().pressCommand(press.button().id(), press.place(), press.facing(), press.target());
+            if (unit == null) {
+                orders.answerOrder(press.button().id(), orders.selectedIds());
+                orders.markOrder(press.place().x(), press.place().y(), -1, OrderMarkers.Kind.MOVE);
+                return;
+            }
             orders.answer(ThingAnswer.toThePress(button, visuals,
-                    AnswerTarget.of(unit.view, game.get().getLocalPlayerIndex())), unit.view, orders.selectedIds());
+                    AnswerTarget.of(unit.view, game.get().getLocalPlayerIndex()),
+                    AnswerSelection.of(orders.selectedOwn())), unit.view, orders.selectedIds());
             return;
         }
         var ground = pointer.pickGround();
@@ -339,6 +361,9 @@ final class CommandButtons {
     void followTheAim() {
         var snapshot = this.snapshot.get();
         var placement = aiming.placement();
+        if (aiming.isArmed() && Aiming.aimsAtAThing(aiming.button())) {
+            game.get().setAim(aiming.button().id(), null, 0f); // armed for a thing: the game is asked of the one pointed at
+        }
         if (!aiming.isArmed() || placement == null) {
             return;
         }

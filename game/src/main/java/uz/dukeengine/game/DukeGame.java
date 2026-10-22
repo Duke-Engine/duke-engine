@@ -1410,9 +1410,21 @@ public final class DukeGame {
     }
 
     /**
+     * Whether a thing would do for an armed button that aims at one, asked while the cursor is over it: the button's id
+     * and the thing's. False shows the pointer's refusal ({@code Deny}) and a click there does nothing; the button stays
+     * armed. Absent, every thing is accepted. Asked on the simulation thread as the snapshot is built, as {@link
+     * #aimAnswer} is, and answered through {@code WorldSnapshot.aimFits}.
+     */
+    public DukeGame aimThing(java.util.function.BiPredicate<String, Integer> takes) {
+        pointer.aimThing(takes);
+        return this;
+    }
+
+    /**
      * Thread-safe: the button the window has armed, where its cursor stands and which way the ghost faces —
      * or a null button when none is armed. One write of one value, so the simulation never reads a place
-     * from one moment with a facing from another.
+     * from one moment with a facing from another. A button armed for a thing has no place: a null place is asked
+     * of {@link #aimThing} with the thing the pointer is on ({@link #setPointedAt}), not of {@link #aimAnswer}.
      */
     public void setAim(String buttonId, Coord3D place, float facing) {
         pointer.setAim(buttonId, place, facing);

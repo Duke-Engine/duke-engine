@@ -80,4 +80,37 @@ class ThingAnswerTest {
         assertEquals("attack", ThingAnswer.toTheWord("attack", visuals, tank).voice());
         assertEquals("attack", visuals.orderAnswerFor("attack", null), "on the ground");
     }
+
+    /** The reference's VoiceMoveUpgraded, and VoiceClearBuilding against VoiceSubdue: the same word, read two ways. */
+    @Test
+    void aWordIsAnsweredByWhatTheSelectionHoldsAndWhatTheTargetHolds() {
+        var visuals = Visuals.create()
+                .orderAnswerBy("move", (_, selection) -> selection != null
+                        && selection.conditions().contains("upgraded") ? "moveupgraded" : null)
+                .orderAnswerBy("enter", (target, _) -> target == null || !target.structure() ? null
+                        : target.conditions().contains("occupied") ? "clear" : "subdue");
+        var upgraded = new AnswerSelection("Ranger", java.util.Set.of("upgraded"));
+        var plain = new AnswerSelection("Ranger", java.util.Set.of());
+        var occupied = new AnswerTarget("Barracks", AnswerTarget.Relation.HOSTILE, false,
+                java.util.Set.of("occupied"), true);
+        var empty = new AnswerTarget("Barracks", AnswerTarget.Relation.HOSTILE, false, java.util.Set.of(), true);
+
+        assertEquals("moveupgraded", ThingAnswer.toTheWord("move", visuals, null, upgraded).voice());
+        assertEquals("move", ThingAnswer.toTheWord("move", visuals, null, plain).voice());
+        assertEquals("move", ThingAnswer.toTheWord("move", visuals, null).voice(), "none selected: the word's own");
+        assertEquals("clear", ThingAnswer.toTheWord("enter", visuals, occupied, plain).voice());
+        assertEquals("subdue", ThingAnswer.toTheWord("enter", visuals, empty, plain).voice());
+    }
+
+    @Test
+    void theFormThatReadsBothComesFirstAndTheOldFormIsTheFallback() {
+        var visuals = Visuals.create()
+                .orderAnswerBy("attack", target -> target != null && target.airborne() ? "attackair" : null)
+                .orderAnswerBy("attack", (target, _) -> target != null && target.structure() ? "bombard" : null);
+        var helicopter = new AnswerTarget("Comanche", AnswerTarget.Relation.HOSTILE, true);
+        var bunker = new AnswerTarget("Bunker", AnswerTarget.Relation.HOSTILE, false, java.util.Set.of(), true);
+
+        assertEquals("bombard", ThingAnswer.toTheWord("attack", visuals, bunker, null).voice());
+        assertEquals("attackair", ThingAnswer.toTheWord("attack", visuals, helicopter, null).voice());
+    }
 }

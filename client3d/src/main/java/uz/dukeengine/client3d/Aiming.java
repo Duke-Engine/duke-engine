@@ -104,6 +104,24 @@ final class Aiming {
         return new Press(button, place, facing, -1);
     }
 
+    /** Whether {@code button} is aimed at a thing, and so asks the game about the one under the cursor. */
+    static boolean aimsAtAThing(CommandButton button) {
+        return button.aim() == CommandButton.Aim.UNIT || button.aim() == CommandButton.Aim.UNIT_OR_GROUND;
+    }
+
+    /**
+     * A click for a button aimed at a thing, or at a thing or the ground: on thing {@code unitId} (-1 for none), which
+     * the game {@code takes} or not, or on the open {@code ground}. The press to send and the aim used — a thing as the
+     * target, the ground as the place, facing the button's way — or null with the aim still armed: a click that found
+     * nothing, a thing the game refuses, or ground for a button that wants a thing.
+     */
+    Press clickedOn(int unitId, boolean takes, Coord3D ground) {
+        if (unitId >= 0) {
+            return takes ? target(unitId) : null;
+        }
+        return armed.aim() == CommandButton.Aim.UNIT_OR_GROUND && ground != null ? useAt(ground) : null;
+    }
+
     /** A thing clicked, for a button that aims at one: the press to send, and the aim used. */
     Press target(int unitId) {
         var button = armed;

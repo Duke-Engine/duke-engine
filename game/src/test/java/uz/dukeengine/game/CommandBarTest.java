@@ -192,4 +192,47 @@ class CommandBarTest {
         assertEquals("use", used.withProgress(0.75f).answeredAs(), "kept as its progress moves");
         assertEquals(key, used.answeredAs(null));
     }
+
+    @Test
+    void aButtonArmedForAThingAsksTheGameOfTheThingThePointerIsOn() {
+        var asked = new java.util.ArrayList<String>();
+        var game = headless().aimThing((button, unit) -> {
+            asked.add(button + ":" + unit);
+            return unit != 7;
+        });
+        game.addPlayer("Me", java.awt.Color.CYAN);
+        game.runHeadless(1);
+
+        game.setAim("use:3", null, 0f);
+        game.setPointedAt(7);
+        game.runHeadless(1);
+        assertFalse(game.getSnapshot().aimFits(), "the game refuses that thing");
+        assertEquals(List.of("use:3:7"), asked.subList(0, 1));
+
+        game.setPointedAt(8);
+        game.runHeadless(1);
+        assertTrue(game.getSnapshot().aimFits(), "and takes another");
+
+        game.setPointedAt(-1, new uz.dukeengine.core.math.Coord3D(1f, 1f, 0f));
+        game.runHeadless(1);
+        assertTrue(game.getSnapshot().aimFits(), "open ground is no thing to ask of");
+
+        game.setAim(null, null, 0f);
+        game.setPointedAt(7);
+        game.runHeadless(1);
+        assertTrue(game.getSnapshot().aimFits(), "nothing armed");
+    }
+
+    @Test
+    void withNoRuleEveryThingIsTaken() {
+        var game = headless();
+        game.addPlayer("Me", java.awt.Color.CYAN);
+        game.runHeadless(1);
+
+        game.setAim("use:3", null, 0f);
+        game.setPointedAt(7);
+        game.runHeadless(1);
+
+        assertTrue(game.getSnapshot().aimFits());
+    }
 }

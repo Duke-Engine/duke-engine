@@ -3,6 +3,7 @@ package uz.dukeengine.client3d;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /**
@@ -22,6 +23,7 @@ final class ControlLooks {
     OrderMark orderMark = OrderMark.DEFAULTS;
     final Map<String, String> orderAnswers = new HashMap<>();
     final Map<String, Function<AnswerTarget, String>> aimedAnswers = new HashMap<>();
+    final Map<String, BiFunction<AnswerTarget, AnswerSelection, String>> selectedAnswers = new HashMap<>();
     Visuals.SelectionFlashLook selectionFlash;
     final Map<String, Visuals.WordMark> wordMarks = new HashMap<>();
     BarColours barColours = BarColours.REFERENCE;
@@ -43,6 +45,16 @@ final class ControlLooks {
         var aimed = word == null ? null : aimedAnswers.get(word);
         var moment = aimed == null ? null : aimed.apply(target);
         return moment != null ? moment : orderAnswerFor(word);
+    }
+
+    /**
+     * The moment that answers a click giving {@code word} on {@code target} (null for the ground) by the selection
+     * {@code selection} (null for none): the rule that reads both, else the one that reads the target, else the word's.
+     */
+    String orderAnswerFor(String word, AnswerTarget target, AnswerSelection selection) {
+        var both = word == null ? null : selectedAnswers.get(word);
+        var moment = both == null ? null : both.apply(target, selection);
+        return moment != null ? moment : orderAnswerFor(word, target);
     }
 
     Visuals.WordMark wordMarkFor(String word) {

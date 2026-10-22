@@ -137,4 +137,41 @@ class AimingTest {
         assertNull(press.place());
         assertEquals(List.of(AimOutcome.USED), heard);
     }
+
+    private static final CommandButton KEY =
+            new CommandButton("use:3", null, "Key", "K", true, CommandButton.Aim.UNIT, null);
+    private static final CommandButton STRIKE =
+            new CommandButton("power:strike", null, "Strike", "S", true, CommandButton.Aim.UNIT_OR_GROUND, null, 30f);
+
+    @Test
+    void aClickOnAThingTheGameRefusesPressesNothingAndLeavesTheButtonArmed() {
+        aiming.arm(KEY, true, 0f, null, heard::add);
+
+        assertNull(aiming.clickedOn(7, false, null), "refused");
+        assertTrue(aiming.isArmed());
+        assertTrue(heard.isEmpty());
+        assertEquals(new Aiming.Press(KEY, null, 0f, 7), aiming.clickedOn(7, true, null), "taken: the thing is the target");
+        assertEquals(List.of(AimOutcome.USED), heard);
+    }
+
+    @Test
+    void aButtonForAThingTakesNoGround() {
+        aiming.arm(KEY, true, 0f, null, heard::add);
+
+        assertNull(aiming.clickedOn(-1, true, new Coord3D(5f, 6f, 0f)));
+        assertTrue(aiming.isArmed());
+    }
+
+    @Test
+    void aButtonForAThingOrTheGroundSendsAThingOnAThingAndAPlaceOnTheGround() {
+        aiming.arm(STRIKE, true, 0f, null, heard::add);
+
+        assertNull(aiming.clickedOn(7, false, null), "a thing refused is refused");
+        assertEquals(new Aiming.Press(STRIKE, null, 0f, 7), aiming.clickedOn(7, true, null));
+
+        aiming.arm(STRIKE, true, 0f, null, heard::add);
+        assertEquals(new Aiming.Press(STRIKE, new Coord3D(5f, 6f, 0f), 30f, -1),
+                aiming.clickedOn(-1, true, new Coord3D(5f, 6f, 0f)), "the place, facing the button's way");
+        assertFalse(aiming.isArmed());
+    }
 }
