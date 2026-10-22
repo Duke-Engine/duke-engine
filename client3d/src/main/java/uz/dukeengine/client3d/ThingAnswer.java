@@ -19,7 +19,12 @@ record ThingAnswer(OrderMarkers.Kind mark, boolean flash, String voice) {
      * nothing — and voiced as {@link Visuals#orderAnswer} says.
      */
     static ThingAnswer toTheWord(String word, Visuals visuals, AnswerTarget target) {
-        var voice = visuals.orderAnswerFor(word, target);
+        return toTheWord(word, visuals, target, null);
+    }
+
+    /** The same, the voice chosen by what the selection holds as well — see {@link AnswerSelection}. */
+    static ThingAnswer toTheWord(String word, Visuals visuals, AnswerTarget target, AnswerSelection selection) {
+        var voice = visuals.orderAnswerFor(word, target, selection);
         return switch (visuals.wordMarkFor(word)) {
             case MARK -> new ThingAnswer(visuals.getOrderMark().ringsContextOrders()
                     ? OrderMarkers.Kind.CONTEXT : OrderMarkers.Kind.MOVE, false, voice);
@@ -34,8 +39,14 @@ record ThingAnswer(OrderMarkers.Kind mark, boolean flash, String voice) {
      * and the button's own name voiced.
      */
     static ThingAnswer toThePress(CommandButton button, Visuals visuals, AnswerTarget target) {
+        return toThePress(button, visuals, target, null);
+    }
+
+    /** The same, the voice chosen by what the selection holds as well — see {@link AnswerSelection}. */
+    static ThingAnswer toThePress(CommandButton button, Visuals visuals, AnswerTarget target,
+            AnswerSelection selection) {
         return button.answeredAs() == null
                 ? new ThingAnswer(OrderMarkers.Kind.ATTACK, false, button.id())
-                : toTheWord(button.answeredAs(), visuals, target);
+                : toTheWord(button.answeredAs(), visuals, target, selection);
     }
 }

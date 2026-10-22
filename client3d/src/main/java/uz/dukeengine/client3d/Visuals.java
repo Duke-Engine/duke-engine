@@ -2693,6 +2693,25 @@ public final class Visuals {
     }
 
     /**
+     * The same, the rule reading besides the target what the selection holds — {@code (target, selection) ->
+     * selection != null && selection.conditions().contains("upgraded") ? "moveupgraded" : "move"}, the reference's
+     * {@code VoiceMoveUpgraded} — and the target's words and whether it is a structure ({@link AnswerTarget#conditions},
+     * {@link AnswerTarget#structure}): an occupied building cleared, an empty one subdued. Either may be null, the
+     * target for the ground and the selection for none. Asked first; where it gives null, {@link
+     * #orderAnswerBy(String, java.util.function.Function) the form that reads the target} answers, then the word's own.
+     */
+    public Visuals orderAnswerBy(String word,
+            java.util.function.BiFunction<AnswerTarget, AnswerSelection, String> moment) {
+        controls.selectedAnswers.put(word, moment);
+        return this;
+    }
+
+    /** The moment that answers a click giving {@code word} on {@code target} by what {@code selection} holds. */
+    String orderAnswerFor(String word, AnswerTarget target, AnswerSelection selection) {
+        return controls.orderAnswerFor(word, target, selection);
+    }
+
+    /**
      * How a thing flashes as it is selected — the reference's {@code Drawable::flashAsSelected}: white, or the colour
      * it is drawn in where {@code ownersColour} ({@code SelectionFlashHouseColor}), saturated as the reference
      * saturates it — each channel times {@code saturation} ({@code SelectionFlashSaturationFactor}) less half of it —

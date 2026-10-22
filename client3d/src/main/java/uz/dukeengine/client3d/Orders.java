@@ -289,7 +289,7 @@ final class Orders {
 
     /** A click that gave the game's word answered as the game names: its moment, none, or a move's. */
     void answerWord(String word, List<ObjectId> units) {
-        var answer = visuals.orderAnswerFor(word, null);
+        var answer = visuals.orderAnswerFor(word, null, AnswerSelection.of(selectedOwn()));
         if (answer != null) {
             answerOrder(answer, units);
         }
@@ -375,8 +375,8 @@ final class Orders {
             // The order the game said a click on this thing gives — see DukeGame.contextOrder.
             game.get().postCommand(new uz.dukeengine.combat.message.GameOrder(local, snapshot.get().contextOrder(), units,
                     new Coord3D(enemy.view.x(), enemy.view.y(), 0f), new ObjectId(enemy.view.id()), 0));
-            answer(ThingAnswer.toTheWord(snapshot.get().contextOrder(), visuals, AnswerTarget.of(enemy.view, local)),
-                    enemy.view, units);
+            answer(ThingAnswer.toTheWord(snapshot.get().contextOrder(), visuals, AnswerTarget.of(enemy.view, local),
+                    AnswerSelection.of(selectedOwn())), enemy.view, units);
             return;
         }
         // With the force-attack key held, any thing is fired on — his own and an ally's too, as the reference's
