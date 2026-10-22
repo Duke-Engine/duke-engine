@@ -1,6 +1,9 @@
 package uz.dukeengine.rts.construction;
 
+import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.MoveUpdate;
+import uz.dukeengine.core.thing.GameObject;
+import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.rts.Buildable;
 import uz.dukeengine.rts.RtsSimulation;
 import uz.dukeengine.rts.message.GameMessage;
@@ -47,14 +50,7 @@ public final class Construction {
         if (player == null || !player.withdraw(cost)) {
             return false;
         }
-        // One errand at a time. Given up before the new one is added — and the old ones taken off, which is
-        // safe here, between frames of the builder's own updates, where it would not be during them.
-        for (var module : java.util.List.copyOf(builder.getModules())) {
-            if (module instanceof BuildOrder earlier) {
-                earlier.giveUp();
-                builder.removeModule(earlier);
-            }
-        }
+        giveUpErrands(builder);
         // Put down now, where the rules say so, and the builder then goes to it; otherwise when it arrives.
         var site = rules.siteAtOrder()
                 ? BuildOrder.putDown(builder, template, order.place(), order.facing(), cost, rules) : null;
@@ -62,6 +58,45 @@ public final class Construction {
         builder.addModule(errand);
         errand.begin();
         return true;
+    }
+
+    /**
+     * Raise {@code template} again for the builder's side at {@code place}, facing {@code facing} degrees — the
+     * reference's rebuild ({@code DozerAIUpdate::construct} with {@code isRebuild}), which asks none of what a
+     * player's order is asked: not whether the side may build it, not whether the place fits, and not its price. The
+     * site is put down now, as the reference's always is, at no cost, and the builder sent to it. Simulation code's
+     * alone: no order on the wire asks it. Refused only if the builder is gone or cannot walk, or nothing of that name
+     * exists.
+     *
+     * @return whether it was raised
+     */
+    public static boolean rebuild(RtsSimulation world, ObjectId builderId, String templateName, Coord3D place,
+            float facing, PlacementRules rules) {
+        var builder = world.findObject(builderId);
+        var template = world.findTemplate(templateName);
+        if (builder == null || builder.isEffectivelyDead() || builder.findModule(MoveUpdate.class) == null
+                || template == null) {
+            return false;
+        }
+        giveUpErrands(builder);
+        var site = BuildOrder.putDown(builder, template, place, facing, 0, rules);
+        var errand = new BuildOrder(builder, template, place, facing, 0, rules, site);
+        builder.addModule(errand);
+        errand.begin();
+        return true;
+    }
+
+    /**
+     * One errand at a time. Given up before the new one is added — and the old ones taken off, which is safe here,
+     * between frames of the builder's own updates, where it would not be during them.
+     */
+    private static void giveUpErrands(GameObject builder) {
+        for (var module : java.util.List.copyOf(builder.getModules())) {
+            if (module instanceof BuildOrder earlier) {
+                earlier.giveUp();
+                builder.removeModule(earlier);
+            }
+        }
     }
 
     /**
@@ -85,12 +120,7 @@ public final class Construction {
         if (building == null || building.isFinished() || !building.takeUp(builder)) {
             return false;
         }
-        for (var module : java.util.List.copyOf(builder.getModules())) {
-            if (module instanceof BuildOrder earlier) {
-                earlier.giveUp();
-                builder.removeModule(earlier);
-            }
-        }
+        giveUpErrands(builder);
         var errand = new BuildOrder(builder, site.getTemplate(), site.getPosition(),
                 (float) Math.toDegrees(site.getOrientation()), 0, rules, site);
         builder.addModule(errand);
