@@ -147,7 +147,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
     private static final int WAYS = 16;
 
     private final int slots;
-    private final String sharedBy;
+    private String sharedBy;
     private final String riderBone;
     private final boolean passengersVanish;
     private final String exitBone;
@@ -176,6 +176,22 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         this.showsPassengers = data.showsPassengers();
         this.riderTurret = data.riderTurret();
         this.damageToPassengers = data.damageToPassengers();
+    }
+
+    /**
+     * Share the hold of another network of its side from now — {@code null} for a hold of its own again — as the
+     * reference's script gives a cave its own network ({@code SET_CAVE_INDEX}, {@code CaveContain::tryToSetCaveIndex}).
+     * What is in it stays where it is: those in the network it leaves stay in that network, to come out at any other
+     * hold of it, and the network it joins holds what it held already. Where the reference lets a cave switch only
+     * while both networks are empty, a game that wants that asks {@link #getPassengerCount} first.
+     */
+    public void shareWith(String network) {
+        this.sharedBy = network;
+    }
+
+    /** The network whose hold it shares, or null for a hold of its own. */
+    public String sharedBy() {
+        return sharedBy;
     }
 
     /** Let its passengers fire from inside, or hold them idle — the reference's PassengersFireUpgrade. */
