@@ -78,6 +78,11 @@ final class WorldMoments {
                 new Quaternion().fromAngleAxis(-death.orientation(), Vector3f.UNIT_Y), thing, null, 0f);
     }
 
+    /** A thing going into or out of a hold: at the hold, where it stands, riding it. */
+    static EffectLists.Cue passage(Coord3D where, Spatial hold, Floor floor) {
+        return new EffectLists.Cue(standing(where, floor), null, hold, null, 0f);
+    }
+
     /**
      * An effect the simulation played: on the thing it rides, where the thing is drawn now, or at its point; turned
      * the way it says.

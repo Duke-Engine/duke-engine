@@ -169,6 +169,25 @@ class SoundVoicingTest {
     }
 
     @Test
+    void aCueInOrderPlaysAllItsFilesOneAfterAnotherAndALoopStartsEachPassAtTheFirst() {
+        var sink = new Timed(Map.of("a.wav", 1f, "b.wav", 1f, "c.wav", 1f));
+        var sounds = sounds(sink, cue("chain", List.of("a.wav", "b.wav", "c.wav"),
+                new SoundBank.Voicing(1f, 1f, 1f, List.of(), List.of(), 0f, 0f, false, true)));
+        sounds.play("chain", new Vector3f(), 0f);
+        pass(sounds, sink, 5f);
+        assertEquals(List.of("a.wav", "b.wav", "c.wav"), sink.files(), "all three, in order, once");
+        assertEquals(sink.started.getFirst().at() + 1f, sink.started.get(1).at(), 0.11f, "back to back");
+
+        var looped = new Timed(Map.of("a.wav", 1f, "b.wav", 1f, "c.wav", 1f));
+        var again = sounds(looped, cue("chain", List.of("a.wav", "b.wav", "c.wav"),
+                new SoundBank.Voicing(1f, 1f, 1f, List.of(), List.of(), 0f, 0f, false, true)));
+        again.loop("chain", new Vector3f(), true);
+        pass(again, looped, 6.5f);
+        assertEquals(List.of("a.wav", "b.wav", "c.wav", "a.wav", "b.wav", "c.wav"),
+                looped.files().subList(0, 6), "each pass from the first");
+    }
+
+    @Test
     void aVoiceAboutAThingIsNotPlayedWhileOneAboutItIsPlaying() {
         var sink = new Timed(Map.of("line.wav", 2f));
         var sounds = sounds(sink, cue("vo", List.of("line.wav"),

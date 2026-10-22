@@ -110,6 +110,59 @@ class ContainTest {
         assertFalse(a.isContained(), "and out");
     }
 
+    /** Going in and coming out are told: one ObjectEntered on a load, one ObjectLeft beside ObjectCreated on each way out. */
+    @Test
+    void goingInAndComingOutAreTold() {
+        var apc = logic.createObject(transport);
+        var hold = apc.findModule(ContainModule.class);
+        var a = logic.createObject(infantry);
+        var b = logic.createObject(infantry);
+        logic.drainEvents();
+
+        hold.load(a);
+        hold.load(b);
+        var loaded = logic.drainEvents();
+        assertEquals(java.util.List.of(uz.dukeengine.core.event.Passage.BOARDED, uz.dukeengine.core.event.Passage.BOARDED),
+                loaded.stream().filter(uz.dukeengine.core.event.ObjectEntered.class::isInstance)
+                        .map(e -> ((uz.dukeengine.core.event.ObjectEntered) e).how()).toList());
+        var entered = (uz.dukeengine.core.event.ObjectEntered) loaded.getFirst();
+        assertEquals(a.getId(), entered.passenger());
+        assertEquals(apc.getId(), entered.hold());
+
+        hold.unload(a);
+        var out = logic.drainEvents();
+        assertEquals(1, out.stream().filter(uz.dukeengine.core.event.ObjectLeft.class::isInstance).count());
+        assertEquals(1, out.stream().filter(uz.dukeengine.core.event.ObjectCreated.class::isInstance).count());
+        assertEquals(uz.dukeengine.core.event.Passage.EJECTED,
+                ((uz.dukeengine.core.event.ObjectLeft) out.stream()
+                        .filter(uz.dukeengine.core.event.ObjectLeft.class::isInstance).findFirst().orElseThrow()).how());
+
+        ContainModule.evacuate(logic, new GameMessage.Evacuate(apc.getPlayerIndex(), apc.getId()));
+        var evacuated = logic.drainEvents().stream().filter(uz.dukeengine.core.event.ObjectLeft.class::isInstance)
+                .map(e -> (uz.dukeengine.core.event.ObjectLeft) e).toList();
+        assertEquals(1, evacuated.size());
+        assertEquals(b.getId(), evacuated.getFirst().passenger());
+        assertEquals(uz.dukeengine.core.event.Passage.EVACUATED, evacuated.getFirst().how());
+    }
+
+    /** A holder that dies lets its passengers out as they fell. */
+    @Test
+    void aDyingHolderLetsOutWhatFell() {
+        var apc = logic.createObject(transport);
+        var a = logic.createObject(infantry);
+        apc.findModule(ContainModule.class).load(a);
+        logic.update();
+        logic.drainEvents();
+
+        apc.getBody().setHealth(0f);
+        logic.update();
+
+        var left = logic.drainEvents().stream().filter(uz.dukeengine.core.event.ObjectLeft.class::isInstance)
+                .map(e -> (uz.dukeengine.core.event.ObjectLeft) e).toList();
+        assertEquals(1, left.size());
+        assertEquals(uz.dukeengine.core.event.Passage.FELL, left.getFirst().how());
+    }
+
     @Test
     void loadsUpToCapacityThenRejects() {
         var apc = logic.createObject(transport);

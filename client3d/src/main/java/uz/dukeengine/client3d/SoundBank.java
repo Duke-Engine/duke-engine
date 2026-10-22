@@ -84,12 +84,20 @@ public final class SoundBank {
      *                   of its files, and when stopped ends the pass it is in and plays its decay
      * @param voice      a voice: one about a thing is not played while one about that thing is playing — the
      *                   reference's {@code isObjectPlayingVoice}
+     * @param inOrder    every file of the cue plays, one after another and each pass starting at the first, rather than
+     *                   one picked per play — the reference's {@code Control = all}
      */
     public record Voicing(float slowest, float fastest, float quietest, List<String> attack, List<String> decay,
-            float leastPause, float mostPause, boolean voice) {
+            float leastPause, float mostPause, boolean voice, boolean inOrder) {
 
         /** As recorded, whole, at once. */
         public static final Voicing PLAIN = new Voicing(1f, 1f, 1f, List.of(), List.of(), 0f, 0f, false);
+
+        /** One file picked a play, as every voicing was before a cue could play them all. */
+        public Voicing(float slowest, float fastest, float quietest, List<String> attack, List<String> decay,
+                float leastPause, float mostPause, boolean voice) {
+            this(slowest, fastest, quietest, attack, decay, leastPause, mostPause, voice, false);
+        }
 
         public Voicing {
             slowest = slowest <= 0f ? 1f : slowest;
@@ -101,9 +109,9 @@ public final class SoundBank {
             mostPause = Math.max(leastPause, mostPause);
         }
 
-        /** Whether it is played in parts over time — an attack, a decay or a pause — rather than a file at once. */
+        /** Whether it is played in parts over time — an attack, a decay, a pause, every file — rather than a file. */
         public boolean inParts() {
-            return !attack.isEmpty() || !decay.isEmpty() || mostPause > 0f;
+            return !attack.isEmpty() || !decay.isEmpty() || mostPause > 0f || inOrder;
         }
     }
 

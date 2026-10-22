@@ -406,13 +406,26 @@ public interface World {
      * of the checksum.
      */
     default void sound(String cue, GameObject thing, int hold) {
-        post(new uz.dukeengine.core.event.SoundPlayed(getFrame(), cue, thing.getPosition(), thing.getId(),
-                Math.max(0, hold)));
+        sound(cue, thing, hold, 1f);
     }
 
     /** The same at a point of the world. */
     default void sound(String cue, uz.dukeengine.core.math.Coord3D where, int hold) {
-        post(new uz.dukeengine.core.event.SoundPlayed(getFrame(), cue, where, null, Math.max(0, hold)));
+        sound(cue, where, hold, 1f);
+    }
+
+    /**
+     * The same at {@code pitch} times the cue's rate, this play alone and after the cue's own variation — an engine
+     * heard faster as its vehicle speeds up.
+     */
+    default void sound(String cue, GameObject thing, int hold, float pitch) {
+        post(new uz.dukeengine.core.event.SoundPlayed(getFrame(), cue, thing.getPosition(), thing.getId(),
+                Math.max(0, hold), pitch));
+    }
+
+    /** The same at a point of the world. */
+    default void sound(String cue, uz.dukeengine.core.math.Coord3D where, int hold, float pitch) {
+        post(new uz.dukeengine.core.event.SoundPlayed(getFrame(), cue, where, null, Math.max(0, hold), pitch));
     }
 
     /** Play the effect of that name riding {@code thing}, from where it stands and turned the way it faces. */

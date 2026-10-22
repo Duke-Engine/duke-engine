@@ -142,6 +142,60 @@ class RtsMomentsTest {
         assertEquals(List.of("hum.ogg"), heard.stopped, "the plain one stopped for it");
     }
 
+    /** A ruin holding the word "rubble" loops what the game wrote for it, deepest hurt word first, plain as the last. */
+    @Test
+    void anAmbientLoopTakesTheLoopOfAWordTheThingHolds() {
+        var heard = new Heard();
+        var bank = effect(effect(effect(SoundBank.create(), "ambient.Ruin", "hum.ogg"),
+                "ambient.Ruin.rubble", "dust.ogg"), "ambient.Ruin.really_damaged", "crackle.ogg").build();
+        var noises = noises(bank, heard);
+
+        noises.frame(frame(List.of(ruin(100f, "rubble"))), ME, 0f);
+        assertEquals(List.of("dust.ogg"), heard.looping, "the word it holds");
+
+        noises.frame(frame(List.of(ruin(30f, "rubble"))), ME, 0.1f);
+        assertEquals(List.of("dust.ogg", "crackle.ogg"), heard.looping, "the deepest hurt word still first");
+
+        noises.frame(frame(List.of(ruin(100f, "other"))), ME, 0.2f);
+        assertEquals(List.of("dust.ogg", "crackle.ogg", "hum.ogg"), heard.looping, "a word it has no loop for: plain");
+    }
+
+    private static UnitView ruin(float health, String... words) {
+        return new UnitView(5, "Ruin", ME, 50f, 0f, 0f, health, 100f, true, true, false, false, -1, 0f, 0f, 0f, false,
+                0, List.of(), List.of(words), 1f, -1, true, null, false);
+    }
+
+    /** Going into and out of a hold is heard once each, as the hold's own word and failing that the plain one. */
+    @Test
+    void goingIntoAndOutOfAHoldIsHeardOnceEach() {
+        var heard = new Heard();
+        var bank = effect(effect(SoundBank.create(), "entered.Bunker", "in.ogg"), "left.Bunker", "out.ogg").build();
+        var noises = noises(bank, heard);
+        var bunker = unit(4, "Bunker", ME, 100f, false);
+        var tank = unit(5, "Tank", ME, 100f, false);
+        var where = new Coord3D(40f, 0f, 0f);
+
+        noises.frame(frame(List.of(bunker, tank), new uz.dukeengine.core.event.ObjectEntered(1, new ObjectId(5),
+                new ObjectId(4), uz.dukeengine.core.event.Passage.BOARDED, where)), ME, 0f);
+        assertEquals(List.of("in.ogg"), heard.played);
+
+        noises.frame(frame(List.of(bunker, tank), new uz.dukeengine.core.event.ObjectLeft(2, new ObjectId(5),
+                new ObjectId(4), uz.dukeengine.core.event.Passage.EJECTED, where)), ME, 1f);
+        assertEquals(List.of("in.ogg", "out.ogg"), heard.played);
+
+        var other = new Heard();
+        var plain = noises(effect(SoundBank.create(), "left", "plain_out.ogg").build(), other);
+        plain.frame(frame(List.of(bunker), new uz.dukeengine.core.event.ObjectLeft(2, new ObjectId(5),
+                new ObjectId(4), uz.dukeengine.core.event.Passage.FELL, where)), ME, 0f);
+        assertEquals(List.of("plain_out.ogg"), other.played, "a game with the plain word hears it");
+
+        var silent = new Heard();
+        noises(SoundBank.create().build(), silent).frame(frame(List.of(bunker),
+                new uz.dukeengine.core.event.ObjectLeft(2, new ObjectId(5), new ObjectId(4),
+                        uz.dukeengine.core.event.Passage.FELL, where)), ME, 0f);
+        assertTrue(silent.played.isEmpty(), "and one with none hears nothing new");
+    }
+
     /** Falling under 70% sounds damaged once — not again as it falls further, nor on the frame it is first seen. */
     @Test
     void fallingUnderSeventyPercentSoundsDamagedOnce() {

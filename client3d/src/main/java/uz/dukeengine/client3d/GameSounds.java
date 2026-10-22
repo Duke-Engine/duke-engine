@@ -189,6 +189,10 @@ final class GameSounds {
                     sounds.play("vo.kill", now);
                 }
                 stopLoop(died.object().value());
+            } else if (event instanceof uz.dukeengine.core.event.ObjectEntered entered) {
+                passage("entered", entered.hold().value(), entered.where(), after, hidden, now, localPlayer);
+            } else if (event instanceof uz.dukeengine.core.event.ObjectLeft left) {
+                passage("left", left.hold().value(), left.where(), after, hidden, now, localPlayer);
             } else if (event instanceof WeaponFired fired) {
                 var shooter = after.get(fired.shooter().value());
                 fired(fired.weapon() == null || fired.rank() <= 0 ? fired.weapon() : fired.weapon() + "." + fired.rank(),
@@ -273,6 +277,21 @@ final class GameSounds {
         before = after;
     }
 
+    /**
+     * A thing gone into or out of a hold: {@code entered.<hold template>} or {@code left.<hold template>}, heard at the
+     * hold — a hold gone this frame (it died, letting them out) is read from the frame before — falling back to the
+     * plain word. The reference's {@code EnterSound} and {@code ExitSound}.
+     */
+    private void passage(String moment, int hold, Coord3D where, Map<Integer, UnitView> after,
+            Map<Integer, UnitView> hidden, float now, int localPlayer) {
+        var view = after.getOrDefault(hold, hidden.getOrDefault(hold, before.get(hold)));
+        if (view == null) {
+            sounds.play(moment, at(where), now, true);
+            return;
+        }
+        sounds.play(heardAs(moment, view), at(where), now, view.playerIndex() == localPlayer);
+    }
+
     /** A moment where the viewer does not see: heard only where fog does not hide its cue, and shown nowhere. */
     private void heardUnseen(String cue, Vector3f at, float now, boolean owned) {
         if (sounds.throughFog(cue)) {
@@ -287,10 +306,15 @@ final class GameSounds {
      * thing} its id, -1 for none), following it while it stands and the sound lasts. Whether anything played.
      */
     boolean played(String cue, Vector3f at, int thing, boolean owned, float now) {
+        return played(cue, at, thing, owned, now, 1f);
+    }
+
+    /** The same at {@code pitch} times the cue's rate, this play alone. */
+    boolean played(String cue, Vector3f at, int thing, boolean owned, float now, float pitch) {
         if (thing < 0) {
-            return sounds.play(cue, at, now, owned);
+            return sounds.playAtRate(cue, at, now, owned, pitch);
         }
-        var playing = sounds.held(cue, at, now, owned);
+        var playing = sounds.held(cue, at, now, owned, pitch);
         if (playing != null && playing != SoundSink.Playing.NONE) {
             riding.add(new Riding(thing, playing));
         }
@@ -305,7 +329,7 @@ final class GameSounds {
     void sound(uz.dukeengine.core.event.SoundPlayed sound, Vector3f at, boolean owned, float now) {
         int thing = sound.riding() == null ? -1 : sound.riding().value();
         if (sound.hold() <= 0) {
-            played(sound.cue(), at, thing, owned, now);
+            played(sound.cue(), at, thing, owned, now, sound.pitch());
             return;
         }
         var key = sound.cue() + (thing >= 0 ? "@" + thing
@@ -315,7 +339,7 @@ final class GameSounds {
             going.until = sound.frame() + sound.hold();
             return;
         }
-        var playing = sounds.loop(sound.cue(), at, owned);
+        var playing = sounds.loop(sound.cue(), at, owned, sound.pitch());
         if (playing != null && playing != SoundSink.Playing.NONE) {
             held.put(key, new Held(thing, playing, sounds.gainOfCue(sound.cue()), sound.frame() + sound.hold()));
         }
@@ -375,9 +399,7 @@ final class GameSounds {
      * keeps only a loop fog does not hide.
      */
     private void keepLooping(UnitView view, String deepest, boolean owned, boolean fogged) {
-        var name = "ambient." + view.templateName()
-                + (deepest == null ? "" : "." + deepest.toLowerCase(java.util.Locale.ROOT));
-        var wanted = sounds.resolved(name);
+        var wanted = ambientFor(view, deepest);
         if (fogged && !sounds.throughFog(wanted)) {
             wanted = null;
         }
@@ -398,6 +420,28 @@ final class GameSounds {
         if (playing != null) {
             loops.put(view.id(), new Loop(wanted, playing));
         }
+    }
+
+    /**
+     * The loop a thing wants: {@code ambient.<template>.<word>} for the deepest hurt word, else for the first of its own
+     * words (sorted) the game wrote a loop for, else {@code ambient.<template>}. A word the game wrote nothing under
+     * does not count, so it falls through rather than to the plain loop early.
+     */
+    private String ambientFor(UnitView view, String deepest) {
+        var plain = "ambient." + view.templateName();
+        if (deepest != null) {
+            var hurtLoop = plain + "." + deepest.toLowerCase(java.util.Locale.ROOT);
+            if (hurtLoop.equals(sounds.resolved(hurtLoop))) {
+                return hurtLoop;
+            }
+        }
+        for (var word : view.conditions()) {
+            var wordLoop = plain + "." + word.toLowerCase(java.util.Locale.ROOT);
+            if (wordLoop.equals(sounds.resolved(wordLoop))) {
+                return wordLoop;
+            }
+        }
+        return sounds.resolved(plain);
     }
 
     private void stopLoop(int id) {
