@@ -36,4 +36,22 @@ public final class SupplyDepot extends Module {
     Docking docking() {
         return docking;
     }
+
+    /**
+     * Close its dock, or open it again: see {@link Dock}. Closed, the one in finishes, those waiting by it keep their
+     * places, and no harvester new to it is taken until it opens. One that names no dock has none to close.
+     */
+    public void setDockClosed(boolean closed) {
+        if (docking == null) {
+            java.util.logging.Logger.getLogger(SupplyDepot.class.getName()).warning(
+                    () -> getOwner().getTemplate().name() + " names no Dock to close");
+            return;
+        }
+        docking.setClosed(closed);
+    }
+
+    /** Whether its dock is closed. */
+    public boolean isDockClosed() {
+        return docking != null && docking.isClosed();
+    }
 }

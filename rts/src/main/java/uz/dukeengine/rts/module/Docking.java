@@ -21,6 +21,8 @@ final class Docking {
     private final List<ObjectId> places = new ArrayList<>();
     /** Those that have come to their places. */
     private final Set<ObjectId> come = new HashSet<>();
+    /** Closed: nobody new takes a place, and nobody is let in. */
+    private boolean closed;
 
     Docking(GameObject owner, Dock dock) {
         this.owner = owner;
@@ -38,11 +40,24 @@ final class Docking {
         return dock.actAt() == null ? null : dock.actAt().in(owner);
     }
 
-    /** Whether {@code harvester} is in, has a place by it, or may have one: a place free, or any number. */
+    /**
+     * Close it, or open it again — the reference's {@code DockUpdate::setDockCrippled}, which grants nobody enter: the
+     * one in finishes, those waiting keep their places, and nobody new takes one, so a harvester looking for a pile or
+     * a depot looks past it. Opened, the lowest place come is let in as ever.
+     */
+    void setClosed(boolean closed) {
+        this.closed = closed;
+    }
+
+    boolean isClosed() {
+        return closed;
+    }
+
+    /** Whether {@code harvester} is in, has a place by it, or may have one: open, and a place free or any number. */
     boolean hasRoomFor(GameObject harvester) {
         tidy();
         var id = harvester.getId();
-        return id.equals(in) || places.contains(id) || waitingPlaces == 0 || waiting() < waitingPlaces;
+        return id.equals(in) || places.contains(id) || !closed && (waitingPlaces == 0 || waiting() < waitingPlaces);
     }
 
     /**
@@ -57,6 +72,9 @@ final class Docking {
         }
         int place = places.indexOf(id);
         if (place < 0) {
+            if (closed) {
+                return false; // closed to newcomers: it looks for another
+            }
             int free = places.indexOf(null);
             if (free >= 0) {
                 places.set(free, id);
@@ -69,7 +87,7 @@ final class Docking {
             }
         }
         come.add(id);
-        if (in != null || frame < freeFrom) {
+        if (closed || in != null || frame < freeFrom) {
             return false;
         }
         for (int lower = 0; lower < place; lower++) {

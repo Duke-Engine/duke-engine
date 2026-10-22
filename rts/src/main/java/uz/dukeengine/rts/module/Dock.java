@@ -13,6 +13,10 @@ import uz.dukeengine.core.thing.GameObject;
  * one kept waiting 900 frames, the reference's 30 seconds, gives up and looks again. With none named, any number act
  * at once, as always.
  *
+ * <p>A dock may be closed while the game runs ({@link SupplyModule#setDockClosed}, {@link SupplyDepot#setDockClosed}),
+ * the reference's crippled dock ({@code DockUpdate::setDockCrippled}): the one in finishes, those waiting keep their
+ * places but none is let in, and a harvester new to it looks for another, until it is opened again.
+ *
  * <p>Where they wait and act, where it names a place: {@code waitAt}, the place its harvesters wait at, and {@code
  * actAt}, the place the one let in goes to and loads or banks at — the reference's DockWaiting and DockAction bones.
  * Each is left out for where the harvester stands beside it; one let in with no place to act at acts where it waited.
