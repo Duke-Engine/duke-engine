@@ -142,6 +142,37 @@ class RtsMomentsTest {
         assertEquals(List.of("hum.ogg"), heard.stopped, "the plain one stopped for it");
     }
 
+    /** Going into and out of a hold is heard once each, as the hold's own word and failing that the plain one. */
+    @Test
+    void goingIntoAndOutOfAHoldIsHeardOnceEach() {
+        var heard = new Heard();
+        var bank = effect(effect(SoundBank.create(), "entered.Bunker", "in.ogg"), "left.Bunker", "out.ogg").build();
+        var noises = noises(bank, heard);
+        var bunker = unit(4, "Bunker", ME, 100f, false);
+        var tank = unit(5, "Tank", ME, 100f, false);
+        var where = new Coord3D(40f, 0f, 0f);
+
+        noises.frame(frame(List.of(bunker, tank), new uz.dukeengine.core.event.ObjectEntered(1, new ObjectId(5),
+                new ObjectId(4), uz.dukeengine.core.event.Passage.BOARDED, where)), ME, 0f);
+        assertEquals(List.of("in.ogg"), heard.played);
+
+        noises.frame(frame(List.of(bunker, tank), new uz.dukeengine.core.event.ObjectLeft(2, new ObjectId(5),
+                new ObjectId(4), uz.dukeengine.core.event.Passage.EJECTED, where)), ME, 1f);
+        assertEquals(List.of("in.ogg", "out.ogg"), heard.played);
+
+        var other = new Heard();
+        var plain = noises(effect(SoundBank.create(), "left", "plain_out.ogg").build(), other);
+        plain.frame(frame(List.of(bunker), new uz.dukeengine.core.event.ObjectLeft(2, new ObjectId(5),
+                new ObjectId(4), uz.dukeengine.core.event.Passage.FELL, where)), ME, 0f);
+        assertEquals(List.of("plain_out.ogg"), other.played, "a game with the plain word hears it");
+
+        var silent = new Heard();
+        noises(SoundBank.create().build(), silent).frame(frame(List.of(bunker),
+                new uz.dukeengine.core.event.ObjectLeft(2, new ObjectId(5), new ObjectId(4),
+                        uz.dukeengine.core.event.Passage.FELL, where)), ME, 0f);
+        assertTrue(silent.played.isEmpty(), "and one with none hears nothing new");
+    }
+
     /** Falling under 70% sounds damaged once — not again as it falls further, nor on the frame it is first seen. */
     @Test
     void fallingUnderSeventyPercentSoundsDamagedOnce() {

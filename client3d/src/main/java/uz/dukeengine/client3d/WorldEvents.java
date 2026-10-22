@@ -315,6 +315,13 @@ final class WorldEvents {
         }
     }
 
+    /** A thing gone into or out of a hold: {@code entered.<hold template>} or {@code left.<hold template>}, at the hold. */
+    private void passage(String moment, int hold, uz.dukeengine.core.math.Coord3D where) {
+        var node = unitScene.node(hold);
+        var name = node == null || node.view == null ? moment : moment + "." + node.view.templateName();
+        moment(name, WorldMoments.passage(where, node == null ? null : node.root, floor::at), hold);
+    }
+
     /** This frame's events, read once: the world's moments drawn and heard where they happened. */
     void read() {
         var snapshot = this.snapshot.get();
@@ -404,6 +411,10 @@ final class WorldEvents {
                 floatingTexts.add(text, text.frame());
             } else if (event instanceof uz.dukeengine.core.event.StripPlayed strip) {
                 pictureStrips.add(strip, strip.frame());
+            } else if (event instanceof uz.dukeengine.core.event.ObjectEntered entered) {
+                passage("entered", entered.hold().value(), entered.where());
+            } else if (event instanceof uz.dukeengine.core.event.ObjectLeft left) {
+                passage("left", left.hold().value(), left.where());
             } else if (event instanceof uz.dukeengine.core.event.SoundPlayed sound) {
                 heard(sound);
             } else if (event instanceof uz.dukeengine.core.event.EffectPlayed played) {

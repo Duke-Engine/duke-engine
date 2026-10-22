@@ -189,6 +189,10 @@ final class GameSounds {
                     sounds.play("vo.kill", now);
                 }
                 stopLoop(died.object().value());
+            } else if (event instanceof uz.dukeengine.core.event.ObjectEntered entered) {
+                passage("entered", entered.hold().value(), entered.where(), after, hidden, now, localPlayer);
+            } else if (event instanceof uz.dukeengine.core.event.ObjectLeft left) {
+                passage("left", left.hold().value(), left.where(), after, hidden, now, localPlayer);
             } else if (event instanceof WeaponFired fired) {
                 var shooter = after.get(fired.shooter().value());
                 fired(fired.weapon() == null || fired.rank() <= 0 ? fired.weapon() : fired.weapon() + "." + fired.rank(),
@@ -271,6 +275,21 @@ final class GameSounds {
             return false;
         });
         before = after;
+    }
+
+    /**
+     * A thing gone into or out of a hold: {@code entered.<hold template>} or {@code left.<hold template>}, heard at the
+     * hold — a hold gone this frame (it died, letting them out) is read from the frame before — falling back to the
+     * plain word. The reference's {@code EnterSound} and {@code ExitSound}.
+     */
+    private void passage(String moment, int hold, Coord3D where, Map<Integer, UnitView> after,
+            Map<Integer, UnitView> hidden, float now, int localPlayer) {
+        var view = after.getOrDefault(hold, hidden.getOrDefault(hold, before.get(hold)));
+        if (view == null) {
+            sounds.play(moment, at(where), now, true);
+            return;
+        }
+        sounds.play(heardAs(moment, view), at(where), now, view.playerIndex() == localPlayer);
     }
 
     /** A moment where the viewer does not see: heard only where fog does not hide its cue, and shown nowhere. */

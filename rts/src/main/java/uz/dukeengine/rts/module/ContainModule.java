@@ -2,6 +2,9 @@ package uz.dukeengine.rts.module;
 
 import java.util.ArrayList;
 import java.util.List;
+import uz.dukeengine.core.event.ObjectEntered;
+import uz.dukeengine.core.event.ObjectLeft;
+import uz.dukeengine.core.event.Passage;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.module.ModuleData;
@@ -316,6 +319,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         }
         hold().add(passenger.getId());
         passenger.setContained(true);
+        told(passenger, true, Passage.BOARDED);
         passenger.setSeesOut(passengersSeeOut && sharedBy == null);
         if (passengersSeeOut && sharedBy == null) {
             passenger.setPosition(getOwner().getPosition()); // it looks from where it is held, wherever it got in
@@ -344,7 +348,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
             }
             hold.remove(id);
             if (passenger != null) {
-                letOut(passenger);
+                letOut(passenger, Passage.EVACUATED);
                 any = true;
             }
         }
@@ -407,16 +411,33 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         if (!hold().remove(passenger.getId())) {
             return;
         }
-        letOut(passenger);
+        letOut(passenger, Passage.EJECTED);
     }
 
-    private void letOut(GameObject passenger) {
+    /**
+     * A passenger gone in or out is told — {@link ObjectEntered}, {@link ObjectLeft} — the reference's {@code
+     * OpenContain::onContaining} and {@code onRemoving}. A passenger lost with its holder, dead or taken out of the
+     * world, leaves by no door and is told by its death or not at all.
+     */
+    private void told(GameObject passenger, boolean in, Passage how) {
+        var world = passenger.getWorld();
+        if (world == null) {
+            return;
+        }
+        var owner = getOwner();
+        world.post(in
+                ? new ObjectEntered(world.getFrame(), passenger.getId(), owner.getId(), how, owner.getPosition())
+                : new ObjectLeft(world.getFrame(), passenger.getId(), owner.getId(), how, owner.getPosition()));
+    }
+
+    private void letOut(GameObject passenger, Passage how) {
         passenger.setSeesOut(false);
         var world = passenger.getWorld();
         if (world != null) {
             world.post(new uz.dukeengine.core.event.ObjectCreated(world.getFrame(), passenger.getId(),
                     uz.dukeengine.core.event.ObjectCreated.How.UNLOADED));
         }
+        told(passenger, false, how);
         if (outAlongThePath(passenger)) {
             return;
         }
@@ -451,6 +472,10 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
 
     /** Every passenger back into the world beside it, each on ground the one before left clear. */
     public void unloadAll() {
+        unloadAll(Passage.EJECTED);
+    }
+
+    private void unloadAll(Passage how) {
         var world = getOwner().getWorld();
         if (world == null) {
             return;
@@ -459,7 +484,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         for (var id : List.copyOf(hold)) {
             var passenger = world.findObject(id);
             if (passenger != null) {
-                letOut(passenger);
+                letOut(passenger, how);
             }
         }
         hold.clear();
@@ -547,7 +572,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
             }
             passengers.removeAll(riders);
             lose(world, riders); // riders die with what they ride
-            unloadAll();
+            unloadAll(Passage.FELL);
             return;
         }
         if (!(world instanceof uz.dukeengine.rts.RtsSimulation rts) || anotherHoldsTheNetwork()) {
