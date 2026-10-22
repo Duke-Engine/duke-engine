@@ -61,6 +61,17 @@ public interface Locomotor {
         moveTo(place);
     }
 
+    /**
+     * Turn where it stands to face {@code point}, at its own turn rate — the reference's {@code NeedToFaceTarget}, a unit
+     * turned to its target before a special power is used — giving up any walk it was on. True while it is still
+     * turning, so a module asks again each frame and acts once it reads false; asked again for the same point, it goes
+     * on with the same turn. Any order to move ends the turn. False at once for a mover that cannot turn in place, and
+     * for one already facing the point.
+     */
+    default boolean faceToward(Coord3D point) {
+        return false;
+    }
+
     /** Stop where it is — or, for a thing that cannot stop in the air, circle there. */
     default void stop() {
     }
