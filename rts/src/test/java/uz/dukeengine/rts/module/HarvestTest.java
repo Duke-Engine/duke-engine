@@ -831,6 +831,51 @@ class HarvestTest {
         assertEquals(999, farPile.findModule(SupplyModule.class).getRemaining(), "and the third at the far one");
     }
 
+    /**
+     * A closed dock — the reference's crippled one: the harvester in finishes, the one waiting keeps its place but is
+     * not let in, and is let in once it opens; a harvester new to it takes another pile.
+     */
+    @Test
+    void aClosedDockLetsItsOneInFinishKeepsItsWaiterOutsideAndTakesItInOpened() {
+        var pile = kind("Pile", new SupplyModule.Data(100_000, new Dock(0)));
+        var worker = kind("Worker", new ActiveBody.Data(100f),
+                new HarvestUpdate.Data(1, 1, 0f, 0, 5, 1, false, java.util.List.of(), 33, 33));
+        var supplies = spawnAt(pile, 100f, 100f).findModule(SupplyModule.class);
+        spawnAt(worker, 100f, 100f);
+        spawnAt(worker, 100f, 100f);
+
+        logic.update(); // the first let in, the second waiting
+        supplies.setDockClosed(true);
+        for (int frame = 0; frame < 200; frame++) {
+            logic.update();
+        }
+        assertEquals(99_999, supplies.getRemaining(), "the one in finished, and nobody since");
+
+        supplies.setDockClosed(false);
+        for (int frame = 0; frame < 60; frame++) {
+            logic.update();
+        }
+        assertTrue(supplies.getRemaining() < 99_999, "opened, it takes them in");
+    }
+
+    @Test
+    void aHarvesterNewToAClosedDockTakesAnotherPile() {
+        var near = kind("NearPile", new SupplyModule.Data(1000, new Dock(0)));
+        var far = kind("FarPile", new SupplyModule.Data(1000));
+        var worker = kind("Worker", new ActiveBody.Data(100f),
+                new HarvestUpdate.Data(1, 1, 0f, 0, 5, 1, false, java.util.List.of(), 33, 33));
+        var nearPile = spawnAt(near, 100f, 100f).findModule(SupplyModule.class);
+        var farPile = spawnAt(far, 300f, 100f).findModule(SupplyModule.class);
+        nearPile.setDockClosed(true);
+        spawnAt(worker, 100f, 100f);
+
+        for (int frame = 0; frame < 60; frame++) {
+            logic.update();
+        }
+        assertEquals(1000, nearPile.getRemaining(), "closed to it");
+        assertEquals(999, farPile.getRemaining(), "it took the other");
+    }
+
     // ---- where it waits and acts ----
 
     /**

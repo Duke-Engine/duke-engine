@@ -321,6 +321,24 @@ public abstract class RtsSimulation extends GameLogic implements uz.dukeengine.c
     }
 
     /**
+     * Raise {@code template} again at {@code place} for {@code builder}'s side, facing {@code facing} degrees, skipping
+     * what an order checks — see {@link uz.dukeengine.rts.construction.Construction#rebuild}. For the simulation's own
+     * code, on its thread: a rebuilt hole, a script. One raised is told to the builder's {@link
+     * uz.dukeengine.rts.module.OrderListener}s as a {@code Construct} order, as an order is.
+     */
+    public final boolean rebuild(uz.dukeengine.core.thing.ObjectId builder, String template,
+            uz.dukeengine.core.math.Coord3D place, float facing) {
+        boolean raised = uz.dukeengine.rts.construction.Construction.rebuild(this, builder, template, place, facing,
+                placementRules);
+        if (raised) {
+            int side = findObject(builder).getPlayerIndex();
+            tellOrder(new GameMessage.Construct(side, builder, template, place, facing), java.util.List.of(builder),
+                    side);
+        }
+        return raised;
+    }
+
+    /**
      * Apply a {@code ResumeConstruction} order; see {@link uz.dukeengine.rts.construction.Construction#resume}. One
      * taken is told to the builder's {@link uz.dukeengine.rts.module.OrderListener}s after.
      */

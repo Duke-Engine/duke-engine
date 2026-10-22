@@ -164,4 +164,27 @@ class SharedHoldTest {
                 .map(uz.dukeengine.core.event.ObjectDied.class::cast).map(e -> e.object()).toList();
         assertEquals(List.of(tunnel.getId()), died, "the tunnel's death told, and none for the one inside");
     }
+
+    @Test
+    void twoTunnelsOfOneTemplateSetToDifferentNetworksKeepSeparateListsAndSetToOneShareIt() {
+        world();
+        hold(tunnelA).shareWith("Cave1");
+        hold(tunnelB).shareWith("Cave2");
+        assertTrue(hold(tunnelA).load(rebels.get(0)));
+        assertTrue(hold(tunnelB).load(rebels.get(1)));
+        assertEquals(List.of(rebels.get(0).getId()), hold(tunnelA).getPassengers(), "its own network's");
+        assertEquals(List.of(rebels.get(1).getId()), hold(tunnelB).getPassengers(), "and the other its");
+
+        hold(tunnelB).shareWith("Cave1");
+        assertEquals(List.of(rebels.get(0).getId()), hold(tunnelB).getPassengers(), "one network: A's list seen from B");
+        assertTrue(hold(tunnelB).load(rebels.get(2)));
+        assertEquals(2, hold(tunnelA).getPassengerCount(), "and filled from B");
+
+        assertEquals(List.of(rebels.get(1).getId()), logic.sharedHold(tunnelB.getPlayerIndex(), "Cave2"),
+                "the one in Cave2 stayed in Cave2");
+
+        hold(tunnelA).shareWith(null);
+        assertEquals(List.of(), hold(tunnelA).getPassengers(), "a hold of its own again, empty");
+        assertEquals(2, hold(tunnelB).getPassengerCount(), "Cave1 keeps its two");
+    }
 }

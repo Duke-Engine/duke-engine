@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,12 @@ class ToppleTest {
         factory.addTemplate(RtsTemplate.named("Tree").geometry(new Geometry.Cylinder(2f, 20f))
                 .module(new ActiveBody.Data(100f))
                 .module(new ToppleUpdate.Data(1, 7f, 0.2f, 0.2f, 0.01f, 0.3f, 10f, 30)).build());
+        factory.addTemplate(RtsTemplate.named("Fence").geometry(new Geometry.Cylinder(2f, 5f))
+                .module(new ActiveBody.Data(100f))
+                .module(new ToppleUpdate.Data(1, 7f, 0.2f, 0.2f, 0.01f, 0.3f, 10f, 30, false, true)).build());
+        factory.addTemplate(RtsTemplate.named("Pole").geometry(new Geometry.Cylinder(1f, 10f))
+                .module(new ActiveBody.Data(100f))
+                .module(new ToppleUpdate.Data(1, 7f, 0.2f, 0.2f, 0.01f, 0.3f, 10f, 30, true, false)).build());
         logic = new CombatTest.CombatLogic(factory);
         logic.init();
         player = logic.getPlayerList().addPlayer("Red").getIndex();
@@ -102,5 +109,55 @@ class ToppleTest {
         run(150);
 
         assertFalse(tree.findModule(ToppleUpdate.class).toppled(), "a truck of 1 pushes over nothing of 1");
+    }
+
+    @Test
+    void aFenceFallsOnlyToOneSideOfItsFacingKeepingIt() {
+        var fence = spawn("Fence", 0f, 0f);
+        fence.setOrientation(0f); // along x: its sides are +y (left) and -y (right)
+        var topple = fence.findModule(ToppleUpdate.class);
+
+        topple.topple(null, new Coord3D(-10f, 3f, 0f)); // pushed mostly along its facing, a little from the left
+        run(10);
+
+        assertEquals(0f, fence.getOrientation(), "kept its facing");
+        assertEquals(0f, fence.getPitch(), "not along its facing");
+        assertTrue(fence.getRoll() > 0f, "banked to its right, away from the push's side");
+    }
+
+    @Test
+    void aPushWithNoBounceLiesStillTheFirstTimeItLands() {
+        var bouncing = spawn("Tree", 0f, 0f);
+        var still = spawn("Tree", 100f, 0f);
+        bouncing.findModule(ToppleUpdate.class).topple(null, new Coord3D(-10f, 0f, 0f));
+        still.findModule(ToppleUpdate.class).topple(null, new Coord3D(90f, 0f, 0f), 0.2f,
+                EnumSet.of(ToppleUpdate.Option.NO_BOUNCE));
+
+        float limit = -(float) (Math.PI / 2 - Math.PI / 64);
+        int frames = 0;
+        while (still.getPitch() > limit + 1e-4f) {
+            run(1);
+            frames++;
+        }
+        assertTrue(still.isEffectivelyDead(), "dead the frame it landed");
+        assertFalse(bouncing.isEffectivelyDead(), "the other bounces");
+        run(3);
+        assertEquals(limit, still.getPitch(), 1e-4f, "and lies still at once");
+        assertTrue(bouncing.getPitch() > limit, "bounced up");
+        assertTrue(frames > 1);
+    }
+
+    @Test
+    void aPoleKilledWhenItStartsTopplingDiesTheFrameItIsPushed() {
+        var pole = spawn("Pole", 0f, 0f);
+        var topple = pole.findModule(ToppleUpdate.class);
+
+        topple.topple(null, new Coord3D(-10f, 0f, 0f));
+
+        assertTrue(pole.isEffectivelyDead(), "dead at once");
+        assertFalse(topple.toppled(), "and never falls");
+        run(1);
+        assertEquals(1, died.size());
+        assertEquals(0f, pole.getPitch());
     }
 }
