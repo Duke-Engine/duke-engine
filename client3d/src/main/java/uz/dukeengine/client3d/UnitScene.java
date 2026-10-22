@@ -862,6 +862,7 @@ final class UnitScene {
             node.boneSystems.choose(visual.particlesFor(holding != null ? holding
                     : visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions())),
                     node.body);
+            node.boneSystems.drive(view, timer.getTimePerFrame() / Particles.FRAME_SECONDS);
         }
         node.root.setLocalTranslation(UnitPlacement.where(view, floor::at));
         node.root.setLocalRotation(UnitPlacement.turn(view));

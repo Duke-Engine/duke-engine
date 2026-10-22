@@ -398,7 +398,10 @@ public final class Visuals {
         }
 
         /** A particle system at a bone of its model while its words choose a look — see {@link #particles}. */
-        record BoneParticles(java.util.SortedSet<String> words, String bone, String system) {
+        record BoneParticles(java.util.SortedSet<String> words, String bone, String system, ParticleDrive drive) {
+            BoneParticles(java.util.SortedSet<String> words, String bone, String system) {
+                this(words, bone, system, null);
+            }
         }
 
         final java.util.List<BoneParticles> boneParticles = new java.util.ArrayList<>();
@@ -412,6 +415,17 @@ public final class Visuals {
          */
         public UnitVisual particles(java.util.Set<String> conditions, String bone, String system) {
             boneParticles.add(new BoneParticles(new java.util.TreeSet<>(conditions), bone, system));
+            return this;
+        }
+
+        /**
+         * {@link #particles} whose size and rate follow how the thing moves: {@code drive} is asked each time it is
+         * drawn what to multiply them by — the reference's {@code DirtSpray} and {@code PowerslideSpray}, a puff scaled
+         * by velocity, turn and acceleration. Drawing only.
+         */
+        public UnitVisual particlesScaled(java.util.Set<String> conditions, String bone, String system,
+                ParticleDrive drive) {
+            boneParticles.add(new BoneParticles(new java.util.TreeSet<>(conditions), bone, system, drive));
             return this;
         }
 

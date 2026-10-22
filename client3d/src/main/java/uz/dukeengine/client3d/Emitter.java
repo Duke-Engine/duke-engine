@@ -52,6 +52,11 @@ final class Emitter {
     private final boolean forever;
     private boolean destroyed;
     private float sizeBonus;
+    /** What a thing's motion makes of its particles' size and how many it lets out — see {@link #drive}. */
+    private float sizeScale = 1f;
+    private float rateScale = 1f;
+    /** The part of a particle its rate has owed and not yet let out. */
+    private float owed;
 
     private final List<Particle> particles = new ArrayList<>();
 
@@ -99,6 +104,15 @@ final class Emitter {
                 place(at.x(), at.y(), at.z(), at.rotation());
             }
         }
+    }
+
+    /**
+     * Scale what it lets out from now on: its particles born {@code size} times as large, and {@code rate} times as many
+     * — none at 0, the part of one owed carried to the next burst.
+     */
+    void drive(float size, float rate) {
+        sizeScale = Math.max(0f, size);
+        rateScale = Math.max(0f, rate);
     }
 
     /** Wait this many frames before anything happens, instead of the delay its data draws. */
@@ -265,6 +279,11 @@ final class Emitter {
     /** A burst: its count of particles at once, each with a slave and a rider where the system has them. */
     private void burst() {
         int count = (int) world.draw(data.burstCount());
+        if (rateScale != 1f) {
+            owed += count * rateScale;
+            count = (int) owed;
+            owed -= count;
+        }
         for (int number = 0; number < count; number++) {
             var born = born(number, count);
             if (data.isEmitAboveGroundOnly() && born.z() < world.groundAt(born.x(), born.y())) {
@@ -313,8 +332,8 @@ final class Emitter {
         float angle = world.draw(data.angle());
         float angularRate = world.draw(data.angularRate());
         int lifetime = (int) world.draw(data.lifetime());
-        float size = world.draw(data.size()) + sizeBonus;
-        float sizeRate = world.draw(data.sizeRate());
+        float size = (world.draw(data.size()) + sizeBonus) * sizeScale;
+        float sizeRate = world.draw(data.sizeRate()) * sizeScale;
         float sizeRateDamping = world.draw(data.sizeRateDamping());
         sizeBonus += world.draw(data.startSizeRate());
         if (sizeBonus != 0f) {

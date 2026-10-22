@@ -118,6 +118,55 @@ class BoneSystemsTest {
         assertTrue(systems.emitters().stream().anyMatch(e -> close(e.where(), 200f, -80f, 0f)), "and following it");
     }
 
+
+    private static final Map<String, ParticleSystem> PUFFS = Map.of("Puff", new Binder().bind(DukeText.parse("""
+            ParticleSystem
+              Name = Puff
+              BurstCount = [4]
+              BurstDelay = [0]
+              Lifetime = [100]
+              Size = [3]
+              SystemLifetime = 0
+            End
+            """, "fx.duke").getFirst(), ParticleSystem.class));
+
+    /** Dirt at a rear bone: bigger and thicker with speed, thicker still with the turn. */
+    private static final Visuals.UnitVisual SPRAYER = Visuals.create().unit("Truck", look -> look
+            .particlesScaled(Set.of(), "REAR", "Puff", motion -> new ParticleDrive.Scales(
+                    1f + motion.speed() / 10f, (motion.speed() + Math.abs(motion.turn())) / 10f))).of("Truck");
+
+    private static uz.dukeengine.core.view.UnitView truck(float facing, float speed) {
+        return new uz.dukeengine.core.view.UnitView(1, "Truck", 1, 0f, 0f, facing, 100f, 100f, false, true, true,
+                false, -1, 0f, 0f, 0f, false, 0, java.util.List.of(), java.util.List.of(), 1f, -1, true, null, true,
+                null, 1, 1f, false, speed);
+    }
+
+    /** Eight frames of a truck at {@code speed}, turning {@code turnPerFrame} each; what its dirt let out. */
+    private static Emitter sprayed(float speed, float turnPerFrame) {
+        var scene = new Node("scene");
+        var model = new Node("truck");
+        scene.attachChild(model);
+        scene.updateGeometricState();
+        var particles = new Particles(PUFFS::get, 7L, Particles.Ground.FLAT, Integer.MAX_VALUE, Integer.MAX_VALUE);
+        var systems = new BoneSystems(particles, scene);
+        systems.choose(SPRAYER.particlesFor(Set.of()), model);
+        for (int frame = 0; frame < 8; frame++) {
+            systems.drive(truck(frame * turnPerFrame, speed), 1f);
+            particles.update();
+        }
+        return systems.emitters().getFirst();
+    }
+
+    @Test
+    void dirtLetOutFollowsHowTheThingMoves() {
+        assertEquals(0, sprayed(0f, 0f).particles().size(), "at rest, nothing");
+
+        var driving = sprayed(10f, 0f);
+        assertEquals(32, driving.particles().size(), "full speed lets out its data's four a frame");
+        assertEquals(6f, driving.particles().getFirst().size, 1e-4f, "twice the size, 3 as its data has it");
+
+        assertTrue(sprayed(10f, 0.3f).particles().size() > driving.particles().size(), "and more in a hard turn");
+    }
     private static boolean close(float[] at, float x, float y, float z) {
         return Math.abs(at[0] - x) < 1e-3f && Math.abs(at[1] - y) < 1e-3f && Math.abs(at[2] - z) < 1e-3f;
     }

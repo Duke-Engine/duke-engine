@@ -16,6 +16,11 @@ final class BoneSystems {
     private final Node scene;
     private List<Visuals.UnitVisual.BoneParticles> running = List.of();
     private final List<Emitter> emitters = new ArrayList<>();
+    /** The running systems that follow the thing's motion, each with the drive that says how. */
+    private final java.util.Map<Emitter, ParticleDrive> driven = new java.util.LinkedHashMap<>();
+    private boolean seen;
+    private float lastFacing;
+    private float lastSpeed;
     private Spatial on;
 
     /**
@@ -49,14 +54,43 @@ final class BoneSystems {
                     : LayeredEffects.placementAt(thing.getWorldTranslation(), 0f));
             if (emitter != null) {
                 emitters.add(emitter);
+                if (one.drive() != null) {
+                    driven.put(emitter, one.drive());
+                }
             }
         }
+    }
+
+    /**
+     * The thing drawn again, {@code frames} of the game's after the last time: the systems that follow its motion are
+     * told how fast it moved, turned and sped up or slowed since, and scaled as their drives say. Pure presentation, so
+     * {@code Math} will do.
+     */
+    void drive(uz.dukeengine.core.view.UnitView view, float frames) {
+        float facing = view.orientation() + view.yaw();
+        float seconds = frames * Particles.FRAME_SECONDS;
+        float turn = 0f;
+        float acceleration = 0f;
+        if (seen && seconds > 0f) {
+            float change = facing - lastFacing;
+            turn = (change - (float) (2 * Math.PI * Math.rint(change / (2 * Math.PI)))) / seconds;
+            acceleration = (view.speed() - lastSpeed) / seconds;
+        }
+        seen = true;
+        lastFacing = facing;
+        lastSpeed = view.speed();
+        var motion = new ParticleDrive.Motion(view, view.speed(), turn, acceleration);
+        driven.forEach((emitter, drive) -> {
+            var scales = drive.scales(motion);
+            emitter.drive(scales.size(), scales.rate());
+        });
     }
 
     /** Every one let go. */
     void stop() {
         emitters.forEach(Emitter::destroy);
         emitters.clear();
+        driven.clear();
         running = List.of();
         on = null;
     }
