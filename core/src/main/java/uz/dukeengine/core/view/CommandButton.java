@@ -61,7 +61,12 @@ public record CommandButton(String id, String picture, String label, String hotk
         /** Pressing arms the cursor; the next click on the ground is the place — dragged, the facing too. */
         GROUND,
         /** Pressing arms the cursor; the next click on a thing is the target. */
-        UNIT
+        UNIT,
+        /**
+         * Pressing arms the cursor; the next click on a thing is the target, and on open ground the place, pressed at
+         * once with no drag to turn it.
+         */
+        UNIT_OR_GROUND
     }
 
     public CommandButton {

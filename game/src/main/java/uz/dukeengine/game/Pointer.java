@@ -33,6 +33,7 @@ final class Pointer {
 
     private volatile Aim aim;
     private DukeGame.AimAnswering aimAnswering;
+    private java.util.function.BiPredicate<String, Integer> aimThing;
     private volatile Pointed pointed = new Pointed(-1, null, true);
     private DukeGame.ContextOrder contextOrder;
     private DukeGame.SeenGroundOrder groundOrder;
@@ -48,14 +49,25 @@ final class Pointer {
         this.aimAnswering = answering;
     }
 
+    void aimThing(java.util.function.BiPredicate<String, Integer> takes) {
+        this.aimThing = takes;
+    }
+
     void setAim(String buttonId, Coord3D place, float facing) {
-        this.aim = buttonId == null || place == null ? null : new Aim(buttonId, place, facing);
+        this.aim = buttonId == null ? null : new Aim(buttonId, place, facing);
     }
 
     AimAnswer aimAnswerNow() {
         var now = aim;
-        return now == null || aimAnswering == null ? AimAnswer.YES
-                : aimAnswering.answer(now.button(), now.place(), now.facing());
+        if (now == null) {
+            return AimAnswer.YES;
+        }
+        if (now.place() == null) { // armed for a thing: whether the one the pointer is on would do
+            int at = pointed.unit();
+            return at < 0 || aimThing == null || aimThing.test(now.button(), at) ? AimAnswer.YES
+                    : new AimAnswer(false, List.of());
+        }
+        return aimAnswering == null ? AimAnswer.YES : aimAnswering.answer(now.button(), now.place(), now.facing());
     }
 
     void setPointedAt(int unitId, Coord3D ground, boolean seen) {
