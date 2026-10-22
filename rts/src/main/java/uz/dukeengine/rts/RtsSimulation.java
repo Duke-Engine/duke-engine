@@ -81,7 +81,7 @@ public abstract class RtsSimulation extends GameLogic implements uz.dukeengine.c
         var crushable = other.findModule(uz.dukeengine.rts.module.Crushable.class);
         return crusher != null && crushable != null && crushable.getLevel() < crusher.getLevel()
                 && mover.getPlayerIndex() != other.getPlayerIndex()
-                && getRelationship(mover.getPlayerIndex(), other.getPlayerIndex())
+                && getRelationship(mover, other)
                         != uz.dukeengine.core.player.Relationship.ALLIES;
     }
 

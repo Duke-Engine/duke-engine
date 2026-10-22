@@ -172,7 +172,7 @@ public final class AuraUpdate extends UpdateModule implements DieModule {
         }
         var world = owner.getWorld();
         var relationship = candidate.getPlayerIndex() == owner.getPlayerIndex() ? Relationship.ALLIES
-                : world.getRelationship(owner.getPlayerIndex(), candidate.getPlayerIndex());
+                : world.getRelationship(owner, candidate);
         if (affects.contains(Weapon.Affects.NOT_SIMILAR) && relationship == Relationship.ALLIES
                 && candidate.getTemplate().name().equals(owner.getTemplate().name())) {
             return false;

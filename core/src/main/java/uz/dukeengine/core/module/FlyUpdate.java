@@ -72,6 +72,8 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
 
     private static final float DT = GameConstants.SECONDS_PER_LOGICFRAME;
     private static final float PI = (float) Math.PI;
+    /** Within this of a heading, in radians, it already faces it. */
+    private static final float FACING = 1e-5f;
 
     private final Data data;
     private float speed;
@@ -84,6 +86,8 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
     private boolean arrived = true;
     /** A winged thing flying straight on, out wide of a place inside its turning circle, to come back over it. */
     private boolean goingWide;
+    /** The point a hovering thing turns where it hangs to face, or null — see {@link #faceToward}. */
+    private Coord3D facing;
 
     public FlyUpdate(GameObject owner, Data data) {
         super(owner);
@@ -99,6 +103,7 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
         this.following = null;
         this.arrived = false;
         this.goingWide = false;
+        this.facing = null;
     }
 
     /** Follow {@code target} wherever it goes, until told otherwise or it is gone. */
@@ -106,6 +111,7 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
         this.following = target;
         this.goal = null;
         this.arrived = false;
+        this.facing = null;
     }
 
     /** Stop where it is — a winged thing cannot, and circles there. */
@@ -115,6 +121,32 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
         following = null;
         arrived = true;
         circling = getOwner().getPosition();
+        facing = null;
+    }
+
+    /**
+     * Turned where it hangs toward {@code point} at its turn rate, as a hovering thing turns before setting off behind
+     * it; a winged thing, which cannot stop, cannot turn in place.
+     */
+    @Override
+    public boolean faceToward(Coord3D point) {
+        var here = getOwner().getPosition();
+        if (data.kind() != Kind.HOVERING || point.x() == here.x() && point.y() == here.y()) {
+            return false;
+        }
+        if (Math.abs(angleBetween(getOwner().getOrientation(), headingTo(here, point))) < FACING) {
+            facing = null;
+            return false;
+        }
+        if (!point.equals(facing)) {
+            stop();
+            facing = point;
+        }
+        return true;
+    }
+
+    private static float headingTo(Coord3D from, Coord3D to) {
+        return (float) StrictMath.atan2(to.y() - from.y(), to.x() - from.x());
     }
 
     @Override
@@ -185,6 +217,8 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
                     wantedSpeed = 0f;
                 }
             }
+        } else if (facing != null) {
+            wantedHeading = headingTo(here, facing);
         } else if (data.kind() == Kind.WINGED) {
             if (circling == null) {
                 circling = here; // never sent anywhere: it circles where it first had nothing to do
@@ -209,6 +243,10 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
             turn = Math.clamp(turn, -turnPerFrame, turnPerFrame);
         }
         heading = normalised(heading + turn);
+        if (facing != null && target == null && Math.abs(angleBetween(heading, wantedHeading)) < FACING) {
+            heading = wantedHeading; // faced: on the heading exactly, and the turn is over
+            facing = null;
+        }
 
         float change = wantedSpeed - velocity;
         float mostGain = data.acceleration() > 0f ? data.acceleration() * DT : Float.MAX_VALUE;

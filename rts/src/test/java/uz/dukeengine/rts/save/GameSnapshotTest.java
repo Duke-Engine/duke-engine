@@ -131,6 +131,20 @@ class GameSnapshotTest {
         assertEquals(orig.checksum(), restored.checksum());
     }
 
+    /** How a thing is set to stand toward other players is saved with it, and the world sums the same. */
+    @Test
+    void aThingsRelationOverridesAreSavedWithIt() {
+        var orig = newLogic();
+        var tank = orig.createObject(orig.getThingFactory().findTemplate("Tank"));
+        tank.setRelationOverride(2, uz.dukeengine.core.player.Relationship.ALLIES);
+        tank.setRelationOverride(1, uz.dukeengine.core.player.Relationship.NEUTRAL);
+
+        var restored = newLogic();
+        GameSnapshot.load(GameSnapshot.save(orig), restored);
+        assertEquals(tank.getRelationOverrides(), restored.getObjects().getFirst().getRelationOverrides());
+        assertEquals(orig.checksum(), restored.checksum());
+    }
+
     /** A map revealed to a player stays revealed through a save, and the world sums the same. */
     @Test
     void aMapRevealedToAPlayerIsSavedWithTheWorld() {

@@ -52,7 +52,7 @@ public interface PartitionFilter {
 
     /** Accepts objects the given player regards as {@code relationship}. */
     static PartitionFilter withRelationship(World world, int fromPlayer, Relationship relationship) {
-        return candidate -> world.getRelationship(fromPlayer, candidate.getPlayerIndex()) == relationship;
+        return candidate -> world.getRelationship(fromPlayer, candidate) == relationship;
     }
 
     /** Accepts objects that are enemies of the given player. */

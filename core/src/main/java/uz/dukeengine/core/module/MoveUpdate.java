@@ -167,6 +167,9 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         }
     }
 
+    /** Within this of a heading, in radians, it already faces it: a facing a turn of 2 pi from it is the same one. */
+    private static final float FACING = 1e-5f;
+
     /** How often, in frames, a still mover looks whether it may keep the ground it stands on. */
     private static final int STILL_LOOK_FRAMES = 8;
 
@@ -197,6 +200,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     private Coord3D throughTo;
     /** What it walks by in place of a route, or null — see {@link #steerBy}. */
     private Steering steering;
+    /** The point it turns where it stands to face, or null — see {@link #faceToward}. */
+    private Coord3D facing;
 
     // ---- the ground's cells ----
     /** Whether it is going to a place — a block of the ground's cells of its own — rather than into something. */
@@ -359,6 +364,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     private void head(Coord3D destination, boolean place, Band band) {
         this.steering = null;
+        this.facing = null;
         links.forgetUnlessTo(destination);
         this.band = band;
         this.exactly = false;
@@ -538,6 +544,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     /** Cancel any current move: it holds the block it stands on from now. */
     public void stop() {
         this.steering = null;
+        this.facing = null;
         this.band = null;
         gaits.stop();
         this.then = null;
@@ -551,6 +558,49 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         this.toPlace = false;
         this.exactly = false;
         holdWhereItStands();
+    }
+
+    /**
+     * Turned where it stands toward {@code point} at its turn rate, a frame at a time, or at once where it turns at once
+     * — through {@link GivingWay#turn}, so a box waits rather than turn into another.
+     */
+    @Override
+    public boolean faceToward(Coord3D point) {
+        var owner = getOwner();
+        var here = owner.getPosition();
+        if (point.x() == here.x() && point.y() == here.y()) {
+            return false;
+        }
+        if (Math.abs(Steps.angleBetween(owner.getOrientation(), headingTo(here, point))) < FACING) {
+            facing = null;
+            return false;
+        }
+        if (!point.equals(facing)) {
+            stop();
+            facing = point;
+            if (turnPerFrame <= 0f) {
+                turnToFace(owner);
+            }
+        }
+        return facing != null;
+    }
+
+    /** A frame of its turn toward the point it faces, if it is turning and free to: done once it faces it. */
+    private void turnToFace(GameObject owner) {
+        if (facing == null || owner.isEffectivelyDead() || owner.isContained()
+                || owner.hasStatus(ObjectStatus.DISABLED) || owner.hasStatus(ObjectStatus.HELD)) {
+            return; // keeps the turn for when it may
+        }
+        float wanted = headingTo(owner.getPosition(), facing);
+        giving.turn(owner, turnPerFrame <= 0f ? wanted
+                : Steps.rotateToward(owner.getOrientation(), wanted, turnPerFrame));
+        if (owner.getOrientation() == wanted) {
+            facing = null;
+        }
+    }
+
+    private static float headingTo(Coord3D from, Coord3D to) {
+        return (float) StrictMath.atan2(to.y() - from.y(), to.x() - from.x());
     }
 
     /** Stopped where it is, short of where it was sent: as close as it is ever going to get. */
@@ -672,6 +722,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         if (!isMoving()) {
             gaits.stand();
             giving.notHeld();
+            turnToFace(owner);
             standStill(owner, world);
             return;
         }

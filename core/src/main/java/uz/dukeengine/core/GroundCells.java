@@ -312,7 +312,7 @@ final class GroundCells {
     /** Whether two things are on one side: the same player, or allies. */
     boolean allied(GameObject a, GameObject b) {
         return a.getPlayerIndex() == b.getPlayerIndex()
-                || world.getRelationship(a.getPlayerIndex(), b.getPlayerIndex()) == Relationship.ALLIES;
+                || world.getRelationship(a, b) == Relationship.ALLIES;
     }
 
     /**

@@ -847,6 +847,63 @@ public final class GameObject {
         died = true;
     }
 
+    /**
+     * Bring it back with {@code health} from a death it lies in, kept in the world ({@link
+     * uz.dukeengine.core.module.KeepsDead}) — a fallen bridge raised again, the reference's {@code
+     * BridgeScaffoldBehavior} and {@code BridgeTowerBehavior}: alive as the engine reads life again — a target, hurt
+     * by blows, in the way of movers, looking with its eyes — told to its world ({@code GameLogic.onRevived}) and drawn
+     * whole ({@link uz.dukeengine.core.event.ObjectRevived}). Only the state of being dead is undone: its die modules,
+     * already run, are not run backwards, so whatever they left stays; its {@code ObjectDied} and any kill it counted
+     * stand; and a module that kept it decides for itself what it makes of life again. Killed again, it dies again,
+     * told as the first time. False, and nothing changed, for one not lying dead, already destroyed, or {@code health}
+     * of none.
+     */
+    public boolean revive(float health) {
+        if (!died || destroyed || body == null || health <= 0f) {
+            return false;
+        }
+        died = false;
+        body.setHealth(health);
+        if (world != null) {
+            world.revived(this);
+        }
+        return true;
+    }
+
+    /** How it stands toward each player it is set apart for, by player — see {@link #setRelationOverride}. */
+    private final java.util.TreeMap<Integer, uz.dukeengine.core.player.Relationship> relationOverrides =
+            new java.util.TreeMap<>();
+
+    /**
+     * Stand toward {@code otherPlayer} as {@code relation}, whatever its own player does — the reference's {@code
+     * TEAM_SET_OVERRIDE_RELATION_TO_TEAM}, a convoy a script makes friendly to one side while the rest of its own stays
+     * hostile. Read both ways round wherever a thing and a player, or two things, are asked how they stand ({@link
+     * World#getRelationship(GameObject, GameObject)}), before the players' own relation; null clears it. In the checksum
+     * and a save.
+     */
+    public void setRelationOverride(int otherPlayer, uz.dukeengine.core.player.Relationship relation) {
+        if (relation == null) {
+            relationOverrides.remove(otherPlayer);
+        } else {
+            relationOverrides.put(otherPlayer, relation);
+        }
+    }
+
+    /** Stand toward {@code otherPlayer} as its own player does again. */
+    public void clearRelationOverride(int otherPlayer) {
+        relationOverrides.remove(otherPlayer);
+    }
+
+    /** How it is set to stand toward {@code otherPlayer}, or null where its player's relation holds. */
+    public uz.dukeengine.core.player.Relationship getRelationOverride(int otherPlayer) {
+        return relationOverrides.isEmpty() ? null : relationOverrides.get(otherPlayer);
+    }
+
+    /** Every override it holds, by player in order: what the checksum mixes in and a save carries. */
+    public java.util.SortedMap<Integer, uz.dukeengine.core.player.Relationship> getRelationOverrides() {
+        return java.util.Collections.unmodifiableSortedMap(relationOverrides);
+    }
+
     /** A thing brought back from a save: it was made long ago, and its modules are not told again. */
     public void restored() {
         announced = true;

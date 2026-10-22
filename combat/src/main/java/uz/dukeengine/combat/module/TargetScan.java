@@ -84,7 +84,7 @@ final class TargetScan {
                         && !candidate.isContained()
                         && candidate.getBody() != null
                         && !candidate.isEffectivelyDead()
-                        && world.getRelationship(owner.getPlayerIndex(), candidate.getPlayerIndex())
+                        && world.getRelationship(owner, candidate)
                                 == Relationship.ENEMIES
                         && mayPickFor(armed, candidate));
         return enemy == null ? null : enemy.getId();
