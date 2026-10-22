@@ -77,6 +77,8 @@ final class UnitScene {
     private final DrivenBones drivenBones = new DrivenBones();
     /** The colours added to things by their words — see {@link WordTints}. */
     private final WordTints wordTints = new WordTints();
+    /** The colours the simulation flashes things in — see {@link DrawnFlash}. */
+    private final DrawnFlash drawnFlash = new DrawnFlash();
     private final Flinch.Clock flinches = new Flinch.Clock();
 
     UnitScene(AssetManager assetManager, Visuals visuals, Bodies bodies, Looks looks, GroundMaterials groundLooks,
@@ -158,6 +160,7 @@ final class UnitScene {
     void newWorld() {
         groundPictures.clear();
         wordTints.clear();
+        drawnFlash.clear();
         stealthLook.clear();
         selectionFlash.clear();
     }
@@ -309,6 +312,7 @@ final class UnitScene {
             drivenBones.forget(entry.getKey());
             groundPictures.forget(entry.getKey());
             wordTints.forget(entry.getKey());
+            drawnFlash.forget(entry.getKey());
             stealthLook.forget(entry.getKey());
             selectionFlash.forget(entry.getKey());
             var node = entry.getValue();
@@ -474,6 +478,7 @@ final class UnitScene {
             body.root().removeFromParent();
             groundPictures.forget(body.id());
             wordTints.forget(body.id());
+            drawnFlash.forget(body.id());
             return true;
         });
     }
@@ -860,6 +865,8 @@ final class UnitScene {
         }
         node.root.setLocalTranslation(UnitPlacement.where(view, floor::at));
         node.root.setLocalRotation(UnitPlacement.turn(view));
+        node.root.setLocalScale(UnitPlacement.scale(view));
+        drawnFlash.see(view.id(), node.root, view.flash());
         if (visual.sway != null && view.pitch() == 0f && view.roll() == 0f) {
             node.root.setLocalRotation(visual.sway.tiltAt(view.id(), snapshot.get().gameTimeSeconds())
                     .mult(node.root.getLocalRotation()));

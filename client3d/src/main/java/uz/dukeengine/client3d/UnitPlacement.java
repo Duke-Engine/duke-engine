@@ -24,6 +24,12 @@ final class UnitPlacement {
         return new Vector3f(view.x(), height + view.lift(), view.y());
     }
 
+    /** How large it is drawn, as the simulation sets it: never quite nothing, which no scene can invert. */
+    static Vector3f scale(UnitView view) {
+        float scale = Math.max(view.scale(), 1e-4f);
+        return new Vector3f(scale, scale, scale);
+    }
+
     /**
      * How far a model {@code top} high is sunk into the ground when {@code built} of it is built: all of it at 0, its top
      * at the ground; half at a half; none once it is whole; more than all as a sold building goes below nothing.

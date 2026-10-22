@@ -75,6 +75,12 @@ public final class GameObject {
     private int wearsColoursOf = -1;
     /** How opaque it is drawn, 0 to 1. */
     private float drawnOpacity = 1f;
+    /** How large it is drawn, about its middle, as a share of its look's size. */
+    private float drawnScale = 1f;
+    /** The colour it is flashed in, with the strength it starts at as its alpha, and the frames it lasts from the one it began. */
+    private int flashColour;
+    private int flashFrames;
+    private int flashFrom;
     /** The floor it is on: 0 the ground, n the n-th deck laid over it — see {@link #getFloor}. */
     private int floor;
     /** The line it is drawn along, or null — see {@link #setSpan}. */
@@ -380,6 +386,45 @@ public final class GameObject {
 
     public float getDrawnOpacity() {
         return drawnOpacity;
+    }
+
+    public float getDrawnScale() {
+        return drawnScale;
+    }
+
+    /**
+     * How large it is drawn, about its middle, as a share of its look's size — an EMP sphere growing, set again each
+     * frame by the game. Drawing only, as {@link #setDrawnOpacity}: out of the checksum and not saved.
+     */
+    public void setDrawnScale(float scale) {
+        this.drawnScale = Math.max(0f, scale);
+    }
+
+    /**
+     * Flash it in {@code argb}, its alpha the strength it starts at, easing out over {@code frames} of the game's —
+     * a structure being captured flashing in the capturer's colour, the reference's {@code
+     * Drawable::flashAsSelected}. A flash again begins it over. Drawing only, as {@link #setDrawnOpacity}.
+     */
+    public void flash(int argb, int frames) {
+        flashColour = argb;
+        flashFrames = frames;
+        flashFrom = world == null ? 0 : world.getFrame();
+    }
+
+    /**
+     * The flash it is drawn with now: its colour, the alpha how strongly — easing out over the frames it was given,
+     * a square, as the reference's hit flash — and 0 once it is over.
+     */
+    public int getFlash() {
+        if (flashFrames <= 0 || world == null) {
+            return 0;
+        }
+        float left = 1f - (float) (world.getFrame() - flashFrom) / flashFrames;
+        if (left <= 0f) {
+            return 0;
+        }
+        int alpha = Math.round(((flashColour >>> 24) & 0xFF) * left * left);
+        return alpha << 24 | flashColour & 0xFFFFFF;
     }
 
     /**

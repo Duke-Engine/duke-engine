@@ -358,7 +358,9 @@ final class MatchClient extends GameClient {
                 turretsOf(object),
                 object.getLift(),
                 object.getYaw(),
-                object.getCorners());
+                object.getCorners(),
+                object.getDrawnScale(),
+                object.getFlash());
     }
 
     /**
