@@ -741,6 +741,51 @@ What a game coming from its own copies changes:
 | `QuestLogScreen(settings)` | `QuestLogScreen(look, words, lore, state, onTheMap)`; where a quest is on the map stays the game's |
 | `story.Cutscene` | `client3d.rpg.Cutscene` |
 
+### Engine asks, round 23 (duke-generals)
+
+1. **An answer by the target's words and the selection's**: `AnswerTarget` carries the target's `conditions` and
+   whether it is a `structure` (the three-part constructor kept), and `Visuals.orderAnswerBy(word, (target,
+   selection) -> …)` reads an `AnswerSelection(template, conditions)` of the first selected unit as well — the
+   reference's VoiceMoveUpgraded, VoiceGarrison and VoiceSubdue. Asked first; null falls back to the one-argument rule.
+2. **An armed button that asks of a thing, or takes a thing or the ground**: `CommandButton.Aim.UNIT_OR_GROUND` — a
+   click on a thing presses it with that thing, on open ground with the place and the button's facing.
+   `DukeGame.aimThing((button, unit) -> …)`, asked on the simulation thread of the thing under the pointer while a
+   thing-aimed button is armed: refused, the pointer is `Deny` and a click sends nothing (`WorldSnapshot.aimFits`,
+   a frame behind the pointer as the ghost's colour is). None, every thing taken. `DukeGame.setAim(button, null, …)`
+   now means armed for a thing; a null button disarms.
+3. **Going into and out of a hold, told**: `ObjectEntered` and `ObjectLeft` (core) — passenger, hold, a `Passage`
+   (`BOARDED`, `EJECTED`, `FELL`, `EVACUATED`) and the hold's place — posted by `ContainModule` on a load and on
+   every way out (a dying hold letting out is `FELL`; passengers lost with their hold post none). Heard as
+   `entered.<hold>` and `left.<hold>`, else `entered` and `left`, and played as the moments of the same names.
+4. **Sound modes**: `SoundBank.Voicing`'s `inOrder` — every file of the cue one after another, a loop starting each
+   pass at the first (the reference's `Control = all`); an ambient loop by `ambient.<template>.<word>` for each word
+   the thing holds, after the deepest hurt word's; and `World.sound(cue, thing|where, hold, pitch)` with
+   `SoundPlayed.pitch`, a rate on that play after the cue's own variation (the old forms 1).
+5. **A size and a flash the simulation sets**: `GameObject.setDrawnScale(scale)` and `flash(argb, frames)` — drawn
+   about its place (its ring with it), the flash's alpha its strength, easing out over the frames; in `UnitView`
+   (`scale`, `flash`; the old constructor kept), neither in the checksum nor a save.
+6. **Dust by how a thing moves**: `UnitVisual.particlesScaled(conditions, bone, system, ParticleDrive)` — asked each
+   draw with its `Motion` (speed, turn, acceleration), answering a size and a rate multiplier (`Scales.OFF` none).
+7. **A fall as the game chooses**: `ToppleUpdate.topple(by, from, speed, options)` with `Option.NO_BOUNCE`, and the
+   template's `KillWhenStartToppling` (dies at the push, never falls) and `LeftOrRightOnly` (falls to the nearer side
+   of its facing) — the reference's `applyTopplingForce`. No `NO_FX`: a topple plays no effect to switch off.
+8. **A rebuild**: `RtsSimulation.rebuild(builder, template, place, facing)` — a site at the place whatever stands there,
+   at no cost, with no prerequisite, the builder sent to it. Simulation code only: it is no message, so no player can
+   send one.
+9. **A kept dead thing brought back**: `GameObject.revive(health)` — a thing lying dead (`KeepsDead`) living again, its
+   obstacles laid again, `ObjectRevived` posted and `GameLogic.onRevived` told, where a game reopens its bridge's deck;
+   false for one living or gone. Die modules that ran are not undone.
+10. **A network per hold**: `ContainModule.shareWith(network)` (null, a hold of its own) and `sharedBy()` — passengers
+   stay where they were; a game wanting the reference's both-empty rule checks `getPassengerCount()` first.
+11. **A closed dock**: `setDockClosed(boolean)` on `SupplyModule` and `SupplyDepot` — the one docked finishes, those
+   waiting keep their places, a newcomer is turned away to another pile or depot.
+12. **A turn on the spot**: `Locomotor.faceToward(point)` — true while turning at its own rate, in place; a move or a
+   stop ends it. Walkers and hovering flyers; a winged flyer cannot (false).
+13. **A thing's own relation**: `GameObject.setRelationOverride(player, relation)`, `clearRelationOverride` — read by
+   `World.getRelationship(thing, thing)` and `(player, thing)` before the sides' own, by acquiring, keeping a target,
+   auras, blasts, crushing and giving way; in the checksum and the save. The reference's
+   `TEAM_SET_OVERRIDE_RELATION_TO_TEAM`, for one thing at a time.
+
 ### Engine asks, round 22 (duke-generals)
 
 1. **A site kept from a heap**: `PlacementRules.keepClear(template, border, from)` — a site of that template refused
