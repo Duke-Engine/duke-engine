@@ -408,7 +408,12 @@ final class Sounds {
      * @param owned whether the thing it is about is the listening player's
      */
     boolean play(String cueName, Vector3f at, float now, boolean owned) {
-        return start(cueName, at, now, owned, false, -1) != null;
+        return start(cueName, at, now, owned, false, -1, 1f) != null;
+    }
+
+    /** The same at {@code rate} times the rate the cue draws for the play — see {@link #start}. */
+    boolean playAtRate(String cueName, Vector3f at, float now, boolean owned, float rate) {
+        return start(cueName, at, now, owned, false, -1, rate) != null;
     }
 
     /**
@@ -416,7 +421,7 @@ final class Sounds {
      * {@link SoundBank.Voicing#voice}.
      */
     boolean play(String cueName, Vector3f at, float now, boolean owned, int about) {
-        return start(cueName, at, now, owned, false, about) != null;
+        return start(cueName, at, now, owned, false, about, 1f) != null;
     }
 
     /**
@@ -424,14 +429,21 @@ final class Sounds {
      * {@link SoundSink.Playing#NONE} where the sink cannot keep hold of a sound.
      */
     SoundSink.Playing held(String cueName, Vector3f at, float now, boolean owned) {
-        return start(cueName, at, now, owned, true, -1);
+        return held(cueName, at, now, owned, 1f);
+    }
+
+    /** The same at {@code rate} times the rate the cue draws for the play — see {@link #start}. */
+    SoundSink.Playing held(String cueName, Vector3f at, float now, boolean owned, float rate) {
+        return start(cueName, at, now, owned, true, -1, rate);
     }
 
     /**
      * Raise a moment, the cue's every rule kept: null where nothing played, else what plays — held on to where
-     * {@code keep} asks or the cue cuts off the last of itself, {@link SoundSink.Playing#NONE} otherwise.
+     * {@code keep} asks or the cue cuts off the last of itself, {@link SoundSink.Playing#NONE} otherwise. The play's
+     * rate is the cue's own variation times {@code rate}, kept to what the device plays.
      */
-    private SoundSink.Playing start(String cueName, Vector3f at, float now, boolean owned, boolean keep, int about) {
+    private SoundSink.Playing start(String cueName, Vector3f at, float now, boolean owned, boolean keep, int about,
+            float rate) {
         var cue = bank.find(cueName);
         if (cue == null || cue.files().isEmpty()) {
             return null;
@@ -473,7 +485,7 @@ final class Sounds {
             }
         }
         float gain = gainOf(cue) * (where != null ? zoom() : 1f) * loudness(cue.voicing());
-        float pitch = pitch(cue.voicing());
+        float pitch = Math.clamp(pitch(cue.voicing()) * rate, LEAST_PITCH, MOST_PITCH);
         boolean reached = where != null && (farOf(cue) > 0f || bank.hearing().floor() > 0f);
         SoundSink.Playing playing;
         if (cue.voicing().inParts()) {
@@ -587,7 +599,7 @@ final class Sounds {
             ended.run();
             return false;
         }
-        var sound = start(cueName, null, now, true, true, -1);
+        var sound = start(cueName, null, now, true, true, -1, 1f);
         if (sound == null || sound == SoundSink.Playing.NONE) {
             ended.run();
             return sound != null;
@@ -601,6 +613,11 @@ final class Sounds {
      * named no such cue, or keeps it for another player's ears, or has it turned off.
      */
     SoundSink.Playing loop(String cueName, Vector3f at, boolean owned) {
+        return loop(cueName, at, owned, 1f);
+    }
+
+    /** The same at {@code rate} times the rate the cue draws for the play. */
+    SoundSink.Playing loop(String cueName, Vector3f at, boolean owned, float rate) {
         var cue = bank.find(cueName);
         if (cue == null || cue.audience() == SoundBank.Audience.OWNER && !owned || gainOf(cue) <= 0f) {
             return null;
@@ -611,12 +628,13 @@ final class Sounds {
         }
         float gain = gainOf(cue) * (where != null ? zoom() : 1f) * loudness(cue.voicing());
         if (cue.voicing().inParts()) {
-            var parts = new Parts(cue, true, where, gain, pitch(cue.voicing()));
+            var parts = new Parts(cue, true, where, gain, Math.clamp(pitch(cue.voicing()) * rate, LEAST_PITCH, MOST_PITCH));
             sequences.add(parts);
             parts.advance();
             return parts;
         }
-        return sink.loop(pick(cue), gain, pitch(cue.voicing()), where, rangeOf(cue));
+        return sink.loop(pick(cue), gain, Math.clamp(pitch(cue.voicing()) * rate, LEAST_PITCH, MOST_PITCH), where,
+                rangeOf(cue));
     }
 
     /** The name of the cue {@code cueName} would play — itself, or what it falls back to — or null for none. */
@@ -697,6 +715,8 @@ final class Sounds {
         private Step step = Step.PAUSE;
         private float until;
         private boolean stopping;
+        /** The file of the cue the pass in progress plays next, for a cue that plays them all in order. */
+        private int fileNo;
         private SoundSink.Playing part = SoundSink.Playing.NONE;
 
         Parts(SoundBank.Cue cue, boolean looping, Vector3f at, float gain, float pitch) {
@@ -736,7 +756,10 @@ final class Sounds {
                         if (!Sounds.ended(part)) {
                             return;
                         }
-                        if (looping && !stopping) {
+                        if (cue.voicing().inOrder() && !stopping && fileNo < cue.files().size()) {
+                            begin(Step.PASS, cue.files(), true); // the next file of the cue
+                        } else if (looping && !stopping) {
+                            fileNo = 0; // each pass starts at the first
                             step = Step.REST;
                             until = clock + pause(cue.voicing());
                         } else {
@@ -777,7 +800,8 @@ final class Sounds {
             if (files.isEmpty()) {
                 return false;
             }
-            var file = own ? pick(cue) : files.get(files.size() == 1 ? 0 : random.nextInt(files.size()));
+            var file = own ? cue.voicing().inOrder() ? files.get(fileNo++) : pick(cue)
+                    : files.get(files.size() == 1 ? 0 : random.nextInt(files.size()));
             part = sink.playStoppable(file, gain, pitch, at, rangeOf(cue));
             step = next;
             return true;

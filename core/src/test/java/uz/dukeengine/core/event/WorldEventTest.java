@@ -154,5 +154,20 @@ class WorldEventTest {
         assertEquals(new Coord3D(40f, 50f, 0f), told.getFirst().where());
         assertNull(told.get(1).riding());
         assertEquals(5, told.get(1).hold());
+        assertEquals(1f, told.getFirst().pitch(), "at the cue's own rate unless asked");
+    }
+
+    /** A sound asked at a pitch carries it, at a thing or a place. */
+    @Test
+    void aSoundPlayedAtAPitchCarriesIt() {
+        var logic = newLogic();
+        var soldier = logic.createObject(SOLDIER);
+        logic.sound("Engine", soldier, 3, 2f);
+        logic.sound("Engine", new Coord3D(1f, 2f, 0f), 3, 0.5f);
+
+        var told = logic.drainEvents().stream().filter(event -> event instanceof SoundPlayed)
+                .map(event -> (SoundPlayed) event).toList();
+        assertEquals(2f, told.getFirst().pitch());
+        assertEquals(0.5f, told.get(1).pitch());
     }
 }

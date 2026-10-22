@@ -87,6 +87,33 @@ class SoundPlayedTest {
         assertEquals(List.of(new Vector3f(55f, 0f, 60f)), heard.moves, "and after it as it goes");
     }
 
+    /** A play asked at pitch 2 goes to the sink at double the rate, and the cue's own variation is under it. */
+    @Test
+    void aSoundAskedAtPitchTwoPlaysAtDoubleRate() {
+        var rates = new ArrayList<Float>();
+        var sink = new SoundSink() {
+            @Override
+            public void play(String assetPath, float gain, Vector3f at) {
+                rates.add(1f);
+            }
+
+            @Override
+            public void play(String assetPath, float gain, float pitch, Vector3f at, Range range) {
+                rates.add(pitch);
+            }
+
+            @Override
+            public Playing music(String assetPath, float gain) {
+                return Playing.NONE;
+            }
+        };
+        var noises = new GameSounds(new Sounds(BANK, sink), 5f);
+        var at = new Vector3f(50f, 0f, 60f);
+        noises.sound(new SoundPlayed(1, "GattlingLoop", new Coord3D(50f, 60f, 0f), null, 0, 2f), at, true, 0f);
+        noises.sound(new SoundPlayed(2, "GattlingLoop", new Coord3D(50f, 60f, 0f), null, 0), at, true, 1f);
+        assertEquals(List.of(2f, 1f), rates, "double, and the old form as ever");
+    }
+
     @Test
     void askedAgainWithinItsHoldItPlaysOnAndNotAskedItStops() {
         var heard = new Heard();

@@ -142,6 +142,29 @@ class RtsMomentsTest {
         assertEquals(List.of("hum.ogg"), heard.stopped, "the plain one stopped for it");
     }
 
+    /** A ruin holding the word "rubble" loops what the game wrote for it, deepest hurt word first, plain as the last. */
+    @Test
+    void anAmbientLoopTakesTheLoopOfAWordTheThingHolds() {
+        var heard = new Heard();
+        var bank = effect(effect(effect(SoundBank.create(), "ambient.Ruin", "hum.ogg"),
+                "ambient.Ruin.rubble", "dust.ogg"), "ambient.Ruin.really_damaged", "crackle.ogg").build();
+        var noises = noises(bank, heard);
+
+        noises.frame(frame(List.of(ruin(100f, "rubble"))), ME, 0f);
+        assertEquals(List.of("dust.ogg"), heard.looping, "the word it holds");
+
+        noises.frame(frame(List.of(ruin(30f, "rubble"))), ME, 0.1f);
+        assertEquals(List.of("dust.ogg", "crackle.ogg"), heard.looping, "the deepest hurt word still first");
+
+        noises.frame(frame(List.of(ruin(100f, "other"))), ME, 0.2f);
+        assertEquals(List.of("dust.ogg", "crackle.ogg", "hum.ogg"), heard.looping, "a word it has no loop for: plain");
+    }
+
+    private static UnitView ruin(float health, String... words) {
+        return new UnitView(5, "Ruin", ME, 50f, 0f, 0f, health, 100f, true, true, false, false, -1, 0f, 0f, 0f, false,
+                0, List.of(), List.of(words), 1f, -1, true, null, false);
+    }
+
     /** Going into and out of a hold is heard once each, as the hold's own word and failing that the plain one. */
     @Test
     void goingIntoAndOutOfAHoldIsHeardOnceEach() {

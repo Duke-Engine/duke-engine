@@ -13,6 +13,18 @@ import uz.dukeengine.core.thing.ObjectId;
  * @param riding the thing it follows, or null for a point of the world
  * @param hold   frames it plays on for: asked again within them it goes on, not asked it stops — a weapon's fire loop
  *               ({@code FireSoundLoopTime}), kept going while the next shot comes within its time. 0 plays it once
+ * @param pitch  a rate this play alone is multiplied by, after the cue's own variation: 2 plays twice as fast, 1 as the
+ *               cue says
  */
-public record SoundPlayed(int frame, String cue, Coord3D where, ObjectId riding, int hold) implements WorldEvent {
+public record SoundPlayed(int frame, String cue, Coord3D where, ObjectId riding, int hold, float pitch)
+        implements WorldEvent {
+
+    public SoundPlayed {
+        pitch = pitch > 0f ? pitch : 1f;
+    }
+
+    /** Played at the cue's own rate. */
+    public SoundPlayed(int frame, String cue, Coord3D where, ObjectId riding, int hold) {
+        this(frame, cue, where, riding, hold, 1f);
+    }
 }
