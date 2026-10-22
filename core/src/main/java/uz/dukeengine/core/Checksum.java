@@ -58,6 +58,10 @@ final class Checksum {
         if (object.getFloor() != 0) {
             mix(object.getFloor());
         }
+        for (var override : object.getRelationOverrides().entrySet()) {
+            mix(override.getKey()); // none sums as it always did
+            mix(override.getValue().ordinal());
+        }
         int statuses = object.statusBits();
         if (statuses != 0) {
             mix(statuses);

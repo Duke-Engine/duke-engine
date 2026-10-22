@@ -676,7 +676,7 @@ public final class WeaponUpdate extends UpdateModule {
             holdFire();
             return null;
         }
-        if (world.getRelationship(owner.getPlayerIndex(), victim.getPlayerIndex()) == Relationship.ALLIES
+        if (world.getRelationship(owner, victim) == Relationship.ALLIES
                 && !(engagement.forced() && engagement.source() == OrderSource.PLAYER)) {
             holdFire(); // never on its own side or an ally's, but by a player's own forced order
             return null;

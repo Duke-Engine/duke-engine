@@ -89,7 +89,7 @@ public abstract class UnitScript {
                 candidate != unit
                         && candidate.getBody() != null
                         && !candidate.isEffectivelyDead()
-                        && world.getRelationship(unit.getPlayerIndex(), candidate.getPlayerIndex())
+                        && world.getRelationship(unit, candidate)
                                 == Relationship.ENEMIES);
     }
 

@@ -317,7 +317,7 @@ final class MatchClient extends GameClient {
         var weapon = object.findModule(uz.dukeengine.combat.module.WeaponUpdate.class);
         var regard = everything || object.getPlayerIndex() == viewerPlayer
                 ? uz.dukeengine.core.player.Relationship.ALLIES
-                : logic.getRelationship(viewerPlayer, object.getPlayerIndex());
+                : logic.getRelationship(viewerPlayer, object);
         boolean allied = regard == uz.dukeengine.core.player.Relationship.ALLIES;
         return new UnitView(
                 object.getId().value(),

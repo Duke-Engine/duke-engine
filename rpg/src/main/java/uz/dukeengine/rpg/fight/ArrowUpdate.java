@@ -232,8 +232,7 @@ public final class ArrowUpdate extends UpdateModule {
                         && candidate.getBody() != null
                         && !candidate.isEffectivelyDead()
                         && !candidate.isContained()
-                        && world.getRelationship(owner.getPlayerIndex(),
-                                candidate.getPlayerIndex()) == Relationship.ENEMIES);
+                        && world.getRelationship(owner, candidate) == Relationship.ENEMIES);
         if (hit != null) {
             strike(world, hit);
             return;
@@ -310,7 +309,7 @@ public final class ArrowUpdate extends UpdateModule {
                                 && !candidate.isEffectivelyDead()
                                 && !candidate.isContained()
                                 && !struck.contains(candidate.getId())
-                                && world.getRelationship(owner.getPlayerIndex(), candidate.getPlayerIndex())
+                                && world.getRelationship(owner, candidate)
                                         == Relationship.ENEMIES
                                 && !seal.parts(world, loosedFrom, candidate.getPosition())));
         over.sort(java.util.Comparator.comparingInt(thing -> thing.getId().value()));
@@ -350,7 +349,7 @@ public final class ArrowUpdate extends UpdateModule {
                 candidate != struck
                         && candidate.getBody() != null
                         && !candidate.isEffectivelyDead()
-                        && world.getRelationship(side, candidate.getPlayerIndex())
+                        && world.getRelationship(side, candidate)
                                 == Relationship.ENEMIES
                         && !seal.parts(world, burst, candidate.getPosition()))) {
             caught.getBody().damage(damage, damageType, blow());

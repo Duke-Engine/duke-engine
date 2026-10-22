@@ -28,6 +28,25 @@ public interface World {
     /** The diplomatic stance player {@code a} holds toward player {@code b}. */
     Relationship getRelationship(int a, int b);
 
+    /**
+     * How thing {@code from} stands toward thing {@code to}: an override one of them holds for the other's player
+     * ({@link GameObject#setRelationOverride}) — {@code from}'s own first — else their players' relation. What every
+     * question of whom a thing may fire on, hurt, help or pass is asked by.
+     */
+    default Relationship getRelationship(GameObject from, GameObject to) {
+        var own = from.getRelationOverride(to.getPlayerIndex());
+        if (own != null) {
+            return own;
+        }
+        return getRelationship(from.getPlayerIndex(), to);
+    }
+
+    /** How {@code player} stands toward {@code thing}: the thing's override for that player, else the players' relation. */
+    default Relationship getRelationship(int player, GameObject thing) {
+        var theirs = thing.getRelationOverride(player);
+        return theirs != null ? theirs : getRelationship(player, thing.getPlayerIndex());
+    }
+
     /** The player at this index, or {@code null} if none. */
     Player getPlayer(int index);
 

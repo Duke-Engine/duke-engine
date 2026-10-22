@@ -825,6 +825,40 @@ public final class GameObject {
         return true;
     }
 
+    /** How it stands toward each player it is set apart for, by player — see {@link #setRelationOverride}. */
+    private final java.util.TreeMap<Integer, uz.dukeengine.core.player.Relationship> relationOverrides =
+            new java.util.TreeMap<>();
+
+    /**
+     * Stand toward {@code otherPlayer} as {@code relation}, whatever its own player does — the reference's {@code
+     * TEAM_SET_OVERRIDE_RELATION_TO_TEAM}, a convoy a script makes friendly to one side while the rest of its own stays
+     * hostile. Read both ways round wherever a thing and a player, or two things, are asked how they stand ({@link
+     * World#getRelationship(GameObject, GameObject)}), before the players' own relation; null clears it. In the checksum
+     * and a save.
+     */
+    public void setRelationOverride(int otherPlayer, uz.dukeengine.core.player.Relationship relation) {
+        if (relation == null) {
+            relationOverrides.remove(otherPlayer);
+        } else {
+            relationOverrides.put(otherPlayer, relation);
+        }
+    }
+
+    /** Stand toward {@code otherPlayer} as its own player does again. */
+    public void clearRelationOverride(int otherPlayer) {
+        relationOverrides.remove(otherPlayer);
+    }
+
+    /** How it is set to stand toward {@code otherPlayer}, or null where its player's relation holds. */
+    public uz.dukeengine.core.player.Relationship getRelationOverride(int otherPlayer) {
+        return relationOverrides.isEmpty() ? null : relationOverrides.get(otherPlayer);
+    }
+
+    /** Every override it holds, by player in order: what the checksum mixes in and a save carries. */
+    public java.util.SortedMap<Integer, uz.dukeengine.core.player.Relationship> getRelationOverrides() {
+        return java.util.Collections.unmodifiableSortedMap(relationOverrides);
+    }
+
     /** A thing brought back from a save: it was made long ago, and its modules are not told again. */
     public void restored() {
         announced = true;

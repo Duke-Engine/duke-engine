@@ -65,7 +65,7 @@ public final class SpecialPowerModule extends UpdateModule {
         var victims = world.objectsInRange(target, radius, candidate ->
                 candidate.getBody() != null
                         && !candidate.isEffectivelyDead()
-                        && world.getRelationship(ownerPlayer, candidate.getPlayerIndex()) == Relationship.ENEMIES);
+                        && world.getRelationship(ownerPlayer, candidate) == Relationship.ENEMIES);
         for (var victim : victims) {
             victim.getBody().damage(damage, DamageType.NORMAL, new Death(DeathType.NORMAL, owner.getId(), ownerPlayer),
                     WeaponUpdate.nearestOf(victim, target), target);

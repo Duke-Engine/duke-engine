@@ -25,7 +25,7 @@ public final class Engaging {
         float nearest = Float.MAX_VALUE;
         for (var other : world.objectsInRange(around, within, candidate -> true)) {
             if (other == unit || other.isEffectivelyDead() || other.isContained()
-                    || world.getRelationship(unit.getPlayerIndex(), other.getPlayerIndex()) != Relationship.ENEMIES
+                    || world.getRelationship(unit, other) != Relationship.ENEMIES
                     || airborneOnly && !other.hasStatus(ObjectStatus.AIRBORNE)
                     || !weapon.canFireAt(other) || inRange && !weapon.isInRange(other)) {
                 continue;

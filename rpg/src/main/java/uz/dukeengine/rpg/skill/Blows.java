@@ -110,7 +110,7 @@ final class Blows {
         return world.objectsInRange(centre, radius, candidate ->
                 candidate.getBody() != null
                         && !candidate.isEffectivelyDead()
-                        && world.getRelationship(player, candidate.getPlayerIndex()) == Relationship.ENEMIES
+                        && world.getRelationship(player, candidate) == Relationship.ENEMIES
                         && !seal.parts(world, casterAt, candidate.getPosition()));
     }
 
@@ -144,7 +144,7 @@ final class Blows {
         if (victim == null || victim.getBody() == null || victim.isEffectivelyDead()) {
             return null;
         }
-        if (world.getRelationship(owner.getPlayerIndex(), victim.getPlayerIndex()) != Relationship.ENEMIES
+        if (world.getRelationship(owner, victim) != Relationship.ENEMIES
                 || seal.parts(world, owner.getPosition(), victim.getPosition())) {
             return null;
         }

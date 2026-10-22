@@ -80,7 +80,7 @@ public final class CrushUpdate extends UpdateModule {
                         && !candidate.isContained()
                         && !candidate.hasStatus(ObjectStatus.AIRBORNE)
                         && crushableBelow(candidate)
-                        && world.getRelationship(owner.getPlayerIndex(), candidate.getPlayerIndex())
+                        && world.getRelationship(owner, candidate)
                                 != Relationship.ALLIES);
         for (var victim : victims) {
             var there = victim.getPosition();

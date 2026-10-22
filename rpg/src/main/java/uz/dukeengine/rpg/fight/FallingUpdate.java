@@ -104,7 +104,7 @@ public final class FallingUpdate extends UpdateModule {
         for (var victim : world.objectsInRange(owner.getPosition(), radius, candidate ->
                 candidate.getBody() != null
                         && !candidate.isEffectivelyDead()
-                        && world.getRelationship(side, candidate.getPlayerIndex())
+                        && world.getRelationship(side, candidate)
                                 == Relationship.ENEMIES
                         && !seal.parts(world, calledFrom, candidate.getPosition()))) {
             victim.getBody().damage(damage, DamageType.EXPLOSION, new uz.dukeengine.core.module.Death(

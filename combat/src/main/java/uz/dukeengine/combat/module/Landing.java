@@ -166,7 +166,7 @@ final class Landing {
             return false; // nobody's target yet, a blast's no more than a gun's; or not there to be caught
         }
         var relationship = candidate.getPlayerIndex() == shot.side() ? Relationship.ALLIES
-                : world.getRelationship(shot.side(), candidate.getPlayerIndex());
+                : world.getRelationship(shot.side(), candidate);
         if (affects.isEmpty()) {
             return relationship == Relationship.ENEMIES;
         }
