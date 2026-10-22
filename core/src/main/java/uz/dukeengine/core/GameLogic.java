@@ -859,6 +859,18 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         deathWatchers.add(watcher);
     }
 
+    /** Told every thing brought back from a death it lay in — see {@link #onRevived}. */
+    private final List<Consumer<GameObject>> revivalWatchers = new ArrayList<>();
+
+    /**
+     * Told every thing brought back from a death it was kept in the world through ({@link GameObject#revive}), on the
+     * simulation thread, as it is brought back: what a game undid at its death it does again here — the deck a bridge
+     * took with it when it fell opened again as it is raised.
+     */
+    public final void onRevived(Consumer<GameObject> watcher) {
+        revivalWatchers.add(watcher);
+    }
+
     @Override
     public final void post(WorldEvent event) {
         if (pendingEvents.size() >= MAX_PENDING_EVENTS) {
@@ -1389,6 +1401,15 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     @Override
     public final void mobilityChanged(GameObject thing) {
         roster.mobilityChanged(thing);
+    }
+
+    @Override
+    public final void revived(GameObject thing) {
+        obstacles.changed(); // alive, it stands in the way again
+        post(new uz.dukeengine.core.event.ObjectRevived(frame, thing.getId()));
+        for (var watcher : revivalWatchers) {
+            watcher.accept(thing);
+        }
     }
 
     @Override

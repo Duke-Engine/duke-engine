@@ -465,6 +465,19 @@ final class UnitScene {
      */
     private static final float CORPSE_LINGER = 1.5f;
 
+    /** A body the world brought back to life: let go, so the next sync draws the thing afresh, whole and alive. */
+    void raise(int unitId) {
+        var corpse = corpseOf(unitId);
+        if (corpse == null) {
+            return;
+        }
+        dying.remove(corpse);
+        lyingDead.remove(unitId);
+        corpse.root().removeFromParent();
+        groundPictures.forget(unitId);
+        wordTints.forget(unitId);
+    }
+
     void reapTheDead() {
         float now = (float) timer.getTimeInSeconds();
         dying.removeIf(body -> {

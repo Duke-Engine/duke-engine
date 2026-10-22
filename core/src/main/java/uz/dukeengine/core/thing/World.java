@@ -99,6 +99,10 @@ public interface World {
     default void mobilityChanged(GameObject thing) {
     }
 
+    /** {@code thing}, lying dead, was brought back ({@link GameObject#revive}) — for the world to have it alive again. */
+    default void revived(GameObject thing) {
+    }
+
     /** {@code thing} was marked destroyed — for the world to reap it without looking at every thing. */
     default void destroyMarked(GameObject thing) {
     }

@@ -802,6 +802,29 @@ public final class GameObject {
         died = true;
     }
 
+    /**
+     * Bring it back with {@code health} from a death it lies in, kept in the world ({@link
+     * uz.dukeengine.core.module.KeepsDead}) — a fallen bridge raised again, the reference's {@code
+     * BridgeScaffoldBehavior} and {@code BridgeTowerBehavior}: alive as the engine reads life again — a target, hurt
+     * by blows, in the way of movers, looking with its eyes — told to its world ({@code GameLogic.onRevived}) and drawn
+     * whole ({@link uz.dukeengine.core.event.ObjectRevived}). Only the state of being dead is undone: its die modules,
+     * already run, are not run backwards, so whatever they left stays; its {@code ObjectDied} and any kill it counted
+     * stand; and a module that kept it decides for itself what it makes of life again. Killed again, it dies again,
+     * told as the first time. False, and nothing changed, for one not lying dead, already destroyed, or {@code health}
+     * of none.
+     */
+    public boolean revive(float health) {
+        if (!died || destroyed || body == null || health <= 0f) {
+            return false;
+        }
+        died = false;
+        body.setHealth(health);
+        if (world != null) {
+            world.revived(this);
+        }
+        return true;
+    }
+
     /** A thing brought back from a save: it was made long ago, and its modules are not told again. */
     public void restored() {
         announced = true;

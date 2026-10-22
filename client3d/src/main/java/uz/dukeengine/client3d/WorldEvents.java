@@ -398,6 +398,8 @@ final class WorldEvents {
                                 hurt.playerIndex() == game.getLocalPlayerIndex());
                     }
                 }
+            } else if (event instanceof uz.dukeengine.core.event.ObjectRevived revived) {
+                unitScene.raise(revived.object().value());
             } else if (event instanceof uz.dukeengine.core.event.SceneryChanged changed) {
                 ground.showScenery(changed.index(), !changed.removed());
             } else if (event instanceof uz.dukeengine.core.event.TextFloated text) {
