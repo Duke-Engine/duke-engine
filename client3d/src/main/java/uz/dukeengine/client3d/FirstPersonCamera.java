@@ -8,6 +8,7 @@ import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
+import com.jme3.scene.Spatial;
 import java.util.Optional;
 
 /**
@@ -126,6 +127,8 @@ public final class FirstPersonCamera implements ControlScheme {
         }
         boolean playing = context.playing();
         context.holdMouse(playing && !frozen);
+        // Frozen, the mouse is free and is its own pointer: a cross in the middle would point at nothing.
+        crosshair.setCullHint(frozen ? Spatial.CullHint.Always : Spatial.CullHint.Inherit);
         if (!playing) {
             return;
         }
