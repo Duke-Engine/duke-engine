@@ -3,6 +3,10 @@
 Versions are `major.minor.patch`. While the major is 0, a minor may break what came before — and
 when it does, this page says exactly what to change and how.
 
+## Unreleased
+
+- `client3d`: a game's own scene in the world (`Duke3D.scene`, `SceneLayer`), and the player's own eyes in place of the RTS camera — WASD, a held mouse, a cross and what is under it within reach (`Duke3D.firstPerson`, `FirstPersonCamera`).
+
 ## 0.8.0
 
 The release after 0.6.0: 0.7.0 is never published, and what its section below lists ships in this one, so a

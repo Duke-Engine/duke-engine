@@ -87,6 +87,13 @@ final class CameraRig {
         this.floor = floor;
     }
 
+    /** The player's own eyes in place of the rig, or null for the rig — see {@link Duke3D#firstPerson}. */
+    private FirstPersonCamera firstPerson;
+
+    void firstPerson(FirstPersonCamera eyes) {
+        this.firstPerson = eyes;
+    }
+
     /** The player's own scroll speed — see {@link Duke3D#scrollSpeed}. */
     void scrollSpeed(float share) {
         this.scrollSpeed = Math.max(0f, share);
@@ -140,7 +147,9 @@ final class CameraRig {
         var game = this.game.get();
         scheme.frame(tpf); // a scene the game directs or not: a key let go is always told
         var directed = snapshot.camera();
-        if (directed != null) {
+        if (firstPerson != null) {
+            scrolling = null; // its own eyes: no rig, no pan keys, no edges
+        } else if (directed != null) {
             // The game has the camera: it goes where the game's code put it, and the player's controls wait.
             camera.restore(new CameraFocus.View(directed.x(), directed.y(), directed.angle(),
                     Float.isNaN(directed.zoom()) ? camera.distance() : directed.zoom()));
@@ -153,7 +162,11 @@ final class CameraRig {
             cameraPitch = camera.pitch();
             game.setCameraSeen(camera.targetX(), camera.targetZ(), camera.yaw(), camera.pitch(), camera.distance());
         }
-        placeTheCamera(tpf);
+        if (firstPerson != null) {
+            firstPerson.place(cam);
+        } else {
+            placeTheCamera(tpf);
+        }
         veil.show(game.camera().screen(), cam.getWidth(), cam.getHeight());
     }
 

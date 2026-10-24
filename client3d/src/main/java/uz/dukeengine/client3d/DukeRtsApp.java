@@ -750,6 +750,12 @@ final class DukeRtsApp extends SimpleApplication {
         sceneSlot.attach(layer, assetManager, cam, inputManager);
     }
 
+    /** The player's own eyes in place of the RTS camera — see {@link Duke3D#firstPerson}. */
+    void firstPerson(FirstPersonCamera eyes) {
+        controls(eyes);
+        cameraRig.firstPerson(eyes);
+    }
+
     /** How far the unit's weapon reaches, read off the world. */
     private float reachOf(uz.dukeengine.core.thing.ObjectId id) {
         var logic = game.getLogic();

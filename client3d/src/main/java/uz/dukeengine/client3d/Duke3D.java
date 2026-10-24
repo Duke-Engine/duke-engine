@@ -484,6 +484,16 @@ public final class Duke3D {
         return this;
     }
 
+    /**
+     * The player's own eyes, standing in the world, in place of the RTS camera — see {@link FirstPersonCamera}. They
+     * are the controls too ({@link #controls}): the game keeps the same object to ask what is pointed at and to freeze
+     * it.
+     */
+    public Duke3D firstPerson(FirstPersonCamera eyes) {
+        later(client -> client.firstPerson(eyes));
+        return this;
+    }
+
     /** A scene of the game's own in the world, put up once the window is open — see {@link SceneLayer}. */
     public Duke3D scene(SceneLayer layer) {
         later(client -> client.scene(layer));
