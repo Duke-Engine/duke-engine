@@ -464,6 +464,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         // Before the application goes, because it owns the render manager a part's viewport may stand in.
         parts.forEach(HudPart::close);
+        sceneSlot.detach();
         super.destroy();
         stopped.countDown();
     }
@@ -740,6 +741,13 @@ final class DukeRtsApp extends SimpleApplication {
     void controls(ControlScheme controls) {
         this.scheme = controls == null ? ControlScheme.CLASSIC : controls;
         scheme.attach(schemeContext);
+    }
+
+    /** The game's own scene in the world — see {@link Duke3D#scene}. */
+    private final SceneSlot sceneSlot = new SceneSlot(rootNode);
+
+    void scene(SceneLayer layer) {
+        sceneSlot.attach(layer, assetManager, cam, inputManager);
     }
 
     /** How far the unit's weapon reaches, read off the world. */
@@ -2097,6 +2105,7 @@ final class DukeRtsApp extends SimpleApplication {
         fog.followTheLookUnderTheCamera(tpf);
         camera.focusOnOwnUnit(snapshot.units(), game.getLocalPlayerIndex());
         cameraRig.frame(tpf);
+        sceneSlot.update(tpf);
         game.setViewRays(worldRegion.raysThrough(cam));
         // Before the units, not after: a death has to take the body out of the
         // live list before anything decides it merely vanished. It also means a
