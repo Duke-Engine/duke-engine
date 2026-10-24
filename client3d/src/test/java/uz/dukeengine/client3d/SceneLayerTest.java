@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.jme3.asset.AssetManager;
 import com.jme3.input.InputManager;
 import com.jme3.renderer.Camera;
+import com.jme3.renderer.RenderManager;
 import com.jme3.scene.Node;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +22,7 @@ class SceneLayerTest {
     private final List<Float> steps = new ArrayList<>();
     private final SceneLayer layer = new SceneLayer() {
         @Override
-        public void attach(Node root, AssetManager assets, Camera cam, InputManager input) {
+        public void attach(Node root, AssetManager assets, Camera cam, InputManager input, RenderManager views) {
             root.attachChild(bench);
         }
 
@@ -33,14 +34,14 @@ class SceneLayerTest {
 
     @Test
     void whatTheLayerPutsUpHangsUnderTheWorld() {
-        slot.attach(layer, null, null, null);
+        slot.attach(layer, null, null, null, null);
 
         assertTrue(bench.hasAncestor(world));
     }
 
     @Test
     void itIsSteppedWithTheFramesTime() {
-        slot.attach(layer, null, null, null);
+        slot.attach(layer, null, null, null, null);
 
         slot.update(0.016f);
 
@@ -49,7 +50,7 @@ class SceneLayerTest {
 
     @Test
     void takenOffItsNodeIsGoneAndItIsSteppedNoMore() {
-        slot.attach(layer, null, null, null);
+        slot.attach(layer, null, null, null, null);
 
         slot.detach();
         slot.update(0.016f);

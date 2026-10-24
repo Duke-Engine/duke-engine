@@ -747,7 +747,7 @@ final class DukeRtsApp extends SimpleApplication {
     private final SceneSlot sceneSlot = new SceneSlot(rootNode);
 
     void scene(SceneLayer layer) {
-        sceneSlot.attach(layer, assetManager, cam, inputManager);
+        sceneSlot.attach(layer, assetManager, cam, inputManager, renderManager);
     }
 
     /** The player's own eyes in place of the RTS camera — see {@link Duke3D#firstPerson}. */
