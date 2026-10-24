@@ -32,6 +32,17 @@ class FirstPersonCameraTest {
     }
 
     @Test
+    void moveToPutsTheEyeAndItsLookWhereTheGameSaysAndStillClampsThePitch() {
+        var camera = new FirstPersonCamera(ROOM);
+
+        camera.moveTo(new Vector3f(-2.4f, 1.15f, 1.9f), FastMath.PI, 2f);
+
+        assertEquals(new Vector3f(-2.4f, 1.15f, 1.9f), camera.eye());
+        assertEquals(FastMath.PI, camera.yaw(), 1e-6f);
+        assertEquals(89f * FastMath.DEG_TO_RAD, camera.pitch(), 1e-6f);
+    }
+
+    @Test
     void itLooksNoHigherThanEightyNineDegrees() {
         assertEquals(89f * FastMath.DEG_TO_RAD, FirstPersonCamera.clampPitch(2f), 1e-6f);
     }

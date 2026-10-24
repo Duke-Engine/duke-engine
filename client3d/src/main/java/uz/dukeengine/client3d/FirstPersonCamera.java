@@ -60,6 +60,13 @@ public final class FirstPersonCamera implements ControlScheme {
         this.frozen = frozen;
     }
 
+    /** Puts the eye at {@code eye} looking {@code yaw} across and {@code pitch} up: sitting down, a cut scene. */
+    public void moveTo(Vector3f eye, float yaw, float pitch) {
+        this.eye = eye.clone();
+        this.yaw = yaw;
+        this.pitch = clampPitch(pitch);
+    }
+
     /** The nearest thing under the cross, within reach. */
     public Optional<Geometry> pointed(Node under) {
         var hits = new CollisionResults();
