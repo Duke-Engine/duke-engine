@@ -79,7 +79,7 @@ public final class FirstPersonCamera implements ControlScheme {
         return Optional.of(nearest.getGeometry());
     }
 
-    /** Where a walk of {@code tpf} seconds takes the eye, kept within the walls. */
+    /** Where a walk of {@code tpf} seconds takes the eye, kept within the walls and off the blocked footprints. */
     public static Vector3f step(Vector3f eye, float yaw, boolean fwd, boolean back, boolean left, boolean right,
             float speed, float tpf, FirstPerson bounds) {
         float sin = FastMath.sin(yaw);
@@ -104,8 +104,33 @@ public final class FirstPersonCamera implements ControlScheme {
         }
         float length = FastMath.sqrt(x * x + z * z);
         float d = length == 0f ? 0f : speed * tpf / length;
-        return new Vector3f(FastMath.clamp(eye.x + x * d, bounds.minX(), bounds.maxX()), eye.y,
-                FastMath.clamp(eye.z + z * d, bounds.minZ(), bounds.maxZ()));
+        // An axis at a time: a blocked x still lets z through, so a slanting walk slides along the footprint.
+        float r = bounds.radius();
+        float toX = FastMath.clamp(eye.x + x * d, bounds.minX(), bounds.maxX());
+        for (var f : bounds.blocked()) {
+            if (f.acrossZ(eye.z, r)) {
+                toX = stop(eye.x, toX, f.minX() - r, f.maxX() + r);
+            }
+        }
+        float toZ = FastMath.clamp(eye.z + z * d, bounds.minZ(), bounds.maxZ());
+        for (var f : bounds.blocked()) {
+            if (f.acrossX(toX, r)) {
+                toZ = stop(eye.z, toZ, f.minZ() - r, f.maxZ() + r);
+            }
+        }
+        return new Vector3f(toX, eye.y, toZ);
+    }
+
+    /** A walk from {@code from} to {@code to} on one axis, stopped at the edge of {@code [min, max]} it would cross. */
+    private static float stop(float from, float to, float min, float max) {
+        if (from <= min && to > min) {
+            return min;
+        }
+        if (from >= max && to < max) {
+            return max;
+        }
+        // Already inside — stood up there, or put there — it walks out freely.
+        return to;
     }
 
     public static float clampPitch(float pitch) {
