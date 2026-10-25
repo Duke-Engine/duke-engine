@@ -750,6 +750,11 @@ final class DukeRtsApp extends SimpleApplication {
         sceneSlot.attach(layer, assetManager, cam, inputManager, renderManager);
     }
 
+    /** The world's ground hidden — see {@link Duke3D#noGround}; rebuilds fill the same node, so it stays hidden. */
+    void noGround() {
+        terrainNode.setCullHint(Spatial.CullHint.Always);
+    }
+
     /** The player's own eyes in place of the RTS camera — see {@link Duke3D#firstPerson}. */
     void firstPerson(FirstPersonCamera eyes) {
         controls(eyes);

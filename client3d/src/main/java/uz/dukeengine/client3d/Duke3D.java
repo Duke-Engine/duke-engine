@@ -500,6 +500,12 @@ public final class Duke3D {
         return this;
     }
 
+    /** No ground drawn for the world, for a game whose {@link #scene} lays its own floor. */
+    public Duke3D noGround() {
+        later(DukeRtsApp::noGround);
+        return this;
+    }
+
     /**
      * The player's own scroll speed, as a share of the pan speed the game framed ({@link CameraFrame}) — an options
      * screen's slider: 1 as framed, 0.5 half as fast. The pan keys and the window's edges take it. From any thread,
