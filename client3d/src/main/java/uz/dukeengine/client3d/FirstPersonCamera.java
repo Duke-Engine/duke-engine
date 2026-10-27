@@ -9,6 +9,7 @@ import com.jme3.renderer.Camera;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -24,7 +25,7 @@ public final class FirstPersonCamera implements ControlScheme {
     private static final float NEAR = 0.05f;
     private static final float FAR = 200f;
 
-    private final FirstPerson config;
+    private FirstPerson config;
     private Vector3f eye;
     private float yaw;
     private float pitch;
@@ -59,6 +60,11 @@ public final class FirstPersonCamera implements ControlScheme {
 
     public void setFrozen(boolean frozen) {
         this.frozen = frozen;
+    }
+
+    /** Walks round these footprints from now on in place of the ones it had: a door shut or opened, a thing moved. */
+    public void setBlocked(List<FirstPerson.Footprint> footprints) {
+        config = config.blocking(footprints);
     }
 
     /** Puts the eye at {@code eye} looking {@code yaw} across and {@code pitch} up: sitting down, a cut scene. */

@@ -120,6 +120,19 @@ class FirstPersonCameraTest {
     }
 
     @Test
+    void footprintsSetLaterBlockTheWalkAndClearedFreeIt() {
+        var camera = new FirstPersonCamera(ROOM);
+        camera.moveTo(new Vector3f(0f, 1.65f, 0f), -FastMath.HALF_PI, 0f);
+        camera.setBlocked(BENCHED.blocked());
+        camera.move(true, false, false, false, 0f, 0f, 1f);
+        assertEquals(0.7f, camera.eye().x, 1e-5f);
+
+        camera.setBlocked(List.of());
+        camera.move(true, false, false, false, 0f, 0f, 1f);
+        assertEquals(3.7f, camera.eye().x, 1e-5f);
+    }
+
+    @Test
     void noFootprintsWalkAsBefore() {
         assertEquals(List.of(), ROOM.blocked());
         var to = FirstPersonCamera.step(new Vector3f(0f, 1.65f, 0f), -FastMath.HALF_PI, true, false, false, false, 3f,
