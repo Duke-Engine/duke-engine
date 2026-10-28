@@ -79,6 +79,24 @@ class ScorchesTest {
         assertEquals(1, indices.get(2), "cut from its second corner to its third, as that cell is drawn");
     }
 
+    /** The simulation's scorch: laid the size it said, in the game's first scorch picture, and none with no picture. */
+    @Test
+    void aScorchTheSimulationLaysLiesWhereItSaidAsLargeAsItSaid() {
+        var marks = scorches(new Node("marks"), DrawnGround.NONE);
+        var laid = new uz.dukeengine.core.event.ScorchLaid(7, new uz.dukeengine.core.math.Coord3D(50f, 80f, 0f), 12f);
+
+        marks.laid(laid, java.util.List.of());
+        assertEquals(0, marks.count(), "a game with no scorch picture lays none");
+
+        marks.laid(laid, java.util.List.of("textures/scorch_1.png", "textures/scorch_2.png"));
+        assertEquals(1, marks.count());
+        var bound = (com.jme3.bounding.BoundingBox) marks.newest().getMesh().getBound();
+        assertEquals(50f, bound.getCenter().x, 1e-5f);
+        assertEquals(80f, bound.getCenter().z, 1e-5f, "the map's y the scene's z");
+        assertEquals(12f, bound.getXExtent(), 1e-5f, "its radius each way");
+        assertEquals(12f, bound.getZExtent(), 1e-5f);
+    }
+
     @Test
     void theFiveHundredAndFirstMarkLetsTheFirstGo() {
         var node = new Node("marks");

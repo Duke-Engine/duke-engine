@@ -413,6 +413,8 @@ final class WorldEvents {
                 floatingTexts.add(text, text.frame());
             } else if (event instanceof uz.dukeengine.core.event.StripPlayed strip) {
                 pictureStrips.add(strip, strip.frame());
+            } else if (event instanceof uz.dukeengine.core.event.ScorchLaid scorch) {
+                ground.scorches().laid(scorch, visuals.scorchPictures());
             } else if (event instanceof uz.dukeengine.core.event.ObjectEntered entered) {
                 passage("entered", entered.hold().value(), entered.where());
             } else if (event instanceof uz.dukeengine.core.event.ObjectLeft left) {

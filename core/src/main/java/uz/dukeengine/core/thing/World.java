@@ -423,6 +423,14 @@ public interface World {
     }
 
     /**
+     * Burn a mark into the ground round {@code where}, reaching {@code radius} from it — see {@link
+     * uz.dukeengine.core.event.ScorchLaid}: laid where its player sees the point. An event, so out of the checksum.
+     */
+    default void scorch(uz.dukeengine.core.math.Coord3D where, float radius) {
+        post(new uz.dukeengine.core.event.ScorchLaid(getFrame(), where, radius));
+    }
+
+    /**
      * Play the sound cue of that name at {@code thing}, following it — see {@link
      * uz.dukeengine.core.event.SoundPlayed}: heard by every machine's client from this frame where its player sees the
      * thing; asked again within {@code hold} frames it goes on, not asked it stops; 0 plays it once. An event, so out

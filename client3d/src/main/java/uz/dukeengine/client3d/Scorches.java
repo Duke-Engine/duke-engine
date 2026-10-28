@@ -75,6 +75,16 @@ final class Scorches {
     }
 
     /**
+     * A mark the simulation burnt into the ground ({@link uz.dukeengine.core.event.ScorchLaid}) in the first of the
+     * game's scorch {@code pictures}, as the reference lays its first kind ({@code SCORCH_1}); none where it has none.
+     */
+    void laid(uz.dukeengine.core.event.ScorchLaid scorch, java.util.List<String> pictures) {
+        if (!pictures.isEmpty()) {
+            lay(scorch.where().x(), scorch.where().y(), scorch.radius(), pictures.getFirst());
+        }
+    }
+
+    /**
      * {@code updateScorches}: the corners of the cells from the one under the mark's near edge to one past its far
      * edge, each at the ground's height and {@link #LIFT} over it, its picture laid by its offset from the middle — the
      * whole picture across the mark's diameter, {@code v} growing with the map's y as the reference's does with its.

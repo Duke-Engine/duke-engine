@@ -189,4 +189,19 @@ class WorldEventTest {
         assertEquals(0.25f, told.get(1).volume());
         assertEquals(2f, told.get(1).pitch());
     }
+
+    /** A scorch the simulation burns into the ground: told where and how large, out of the checksum. */
+    @Test
+    void aScorchIsToldWhereAndHowLarge() {
+        var logic = newLogic();
+        long before = logic.checksum();
+        logic.scorch(new Coord3D(30f, 40f, 0f), 25f);
+        assertEquals(before, logic.checksum(), "nothing the simulation decides");
+
+        var told = logic.drainEvents().stream().filter(event -> event instanceof ScorchLaid)
+                .map(event -> (ScorchLaid) event).toList();
+        assertEquals(1, told.size());
+        assertEquals(new Coord3D(30f, 40f, 0f), told.getFirst().where());
+        assertEquals(25f, told.getFirst().radius());
+    }
 }
