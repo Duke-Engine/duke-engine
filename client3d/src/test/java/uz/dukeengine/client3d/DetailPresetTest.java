@@ -98,7 +98,7 @@ class DetailPresetTest {
         var visuals = Visuals.create().world("SNOW", "NIGHT").nightWords("NIGHT");
 
         assertEquals(Set.of("NIGHT"), visuals.getNightWords());
-        assertEquals(Set.of("SNOW"), UnitScene.withoutNight(visuals.getWorldConditions(), visuals.getNightWords()));
+        assertEquals(Set.of("SNOW"), UnitScene.without(visuals.getWorldConditions(), visuals.getNightWords()));
         assertTrue(Visuals.create().getNightWords().isEmpty(), "none unless the game names them");
     }
 

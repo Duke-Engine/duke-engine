@@ -83,6 +83,8 @@ public final class GameObject {
     private int flashFrom;
     /** The words drawn over it, or null for none — see {@link #setCaption}. */
     private String caption;
+    /** The words of the world it is drawn without — see {@link #setWithoutWorld}. */
+    private java.util.Set<String> withoutWorld = java.util.Set.of();
     /** The floor it is on: 0 the ground, n the n-th deck laid over it — see {@link #getFloor}. */
     private int floor;
     /** The line it is drawn along, or null — see {@link #setSpan}. */
@@ -412,6 +414,19 @@ public final class GameObject {
 
     public String getCaption() {
         return caption;
+    }
+
+    /**
+     * The words of the world ({@code Visuals.world}) it is drawn as though it did not hold — a night map's object that
+     * stays as it is by day, the reference's {@code objectTime}. Empty for none. Drawing only, as {@link
+     * #setDrawnOpacity}: out of the checksum and not saved.
+     */
+    public void setWithoutWorld(java.util.Set<String> words) {
+        this.withoutWorld = words == null ? java.util.Set.of() : java.util.Set.copyOf(words);
+    }
+
+    public java.util.Set<String> getWithoutWorld() {
+        return withoutWorld;
     }
 
     /**

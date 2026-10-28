@@ -131,26 +131,26 @@ final class UnitScene {
 
     /**
      * The words of the world a thing is drawn in: the game's, less the night's where the preset draws no emissive night
-     * materials ({@link DetailPreset}).
+     * materials ({@link DetailPreset}), less any the thing is drawn without ({@code GameObject.setWithoutWorld}).
      */
     private java.util.Set<String> world(UnitView view) {
         var world = visuals.getWorldConditions();
         var night = visuals.getNightWords();
-        if (preset.get().emissiveNightMaterials() || night.isEmpty()) {
-            return world;
+        if (!preset.get().emissiveNightMaterials() && !night.isEmpty()) {
+            if (world != shownFrom || night != shownNight) {
+                shownWorld = without(world, night);
+                shownFrom = world;
+                shownNight = night;
+            }
+            world = shownWorld;
         }
-        if (world != shownFrom || night != shownNight) {
-            shownWorld = withoutNight(world, night);
-            shownFrom = world;
-            shownNight = night;
-        }
-        return shownWorld;
+        return view.withoutWorld().isEmpty() ? world : without(world, view.withoutWorld());
     }
 
-    /** {@code world} less the words of the night. */
-    static java.util.Set<String> withoutNight(java.util.Set<String> world, java.util.Set<String> night) {
+    /** {@code world} less {@code words}. */
+    static java.util.Set<String> without(java.util.Set<String> world, java.util.Set<String> words) {
         var kept = new java.util.HashSet<>(world);
-        kept.removeAll(night);
+        kept.removeAll(words);
         return kept;
     }
 
