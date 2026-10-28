@@ -719,6 +719,18 @@ public final class Duke3D {
         return this;
     }
 
+    /**
+     * Whether the window fills the screen now, as of its last frame — so an Exit that is asked in a window can quit at
+     * once. False before the window is open. From any thread.
+     */
+    public boolean isFullscreen() {
+        DukeRtsApp running;
+        synchronized (waiting) {
+            running = app;
+        }
+        return running != null && running.isFullscreen();
+    }
+
     /** Do this on the client's own thread: at its next frame, or once it is launched. */
     private void later(Consumer<DukeRtsApp> task) {
         DukeRtsApp running;

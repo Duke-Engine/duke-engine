@@ -37,6 +37,16 @@ final class WindowDisplay {
                 == org.lwjgl.glfw.GLFW.GLFW_TRUE;
     }
 
+    /** Whether the window fills the screen: the window's own monitor, or the settings' word where there is no window. */
+    boolean fullscreen() {
+        long window = windowHandle();
+        if (window != 0L) {
+            return org.lwjgl.glfw.GLFW.glfwGetWindowMonitor(window) != 0L;
+        }
+        var set = settings.get();
+        return set != null && set.isFullscreen();
+    }
+
     /** Whether a mouse button is held, as the window says: true where there is no window to ask. */
     boolean buttonHeld(int glfwButton) {
         long window = windowHandle();

@@ -2096,6 +2096,18 @@ final class DukeRtsApp extends SimpleApplication {
         this.interfaceHidden = hidden == null ? () -> false : hidden;
     }
 
+    private volatile boolean fullscreen;
+
+    /** Read on the window's thread, where GLFW may be asked, so {@link #isFullscreen} can be asked from any. */
+    void refreshFullscreen() {
+        fullscreen = windowDisplay.fullscreen();
+    }
+
+    /** See {@link Duke3D#isFullscreen}. */
+    boolean isFullscreen() {
+        return fullscreen;
+    }
+
     /** One frame of the window. */
     private void frameOf(float tpf) {
         noises.sounds().update(tpf);
@@ -2104,6 +2116,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void frame(float tpf) {
+        refreshFullscreen();
         keepTheBackdropGoing();
         rootNode.setCullHint(worldShown() ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
         followTheWindowSize();
