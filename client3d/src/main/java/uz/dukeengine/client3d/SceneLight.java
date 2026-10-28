@@ -42,6 +42,8 @@ final class SceneLight {
     private com.jme3.material.MatParamOverride sunDirectionOverride;
     private com.jme3.material.MatParamOverride ambientShiftOverride;
     private com.jme3.material.MatParamOverride sunShiftOverride;
+    /** The scene's lights scaled for the groups of things lit more or less brightly; see {@link LightScales}. */
+    private final LightScales scales = new LightScales();
 
     SceneLight(Sunlight light, Node rootNode) {
         this.rootNode = rootNode;
@@ -63,6 +65,10 @@ final class SceneLight {
         return ambientColour;
     }
 
+    LightScales scales() {
+        return scales;
+    }
+
     /** The sun's shadows, or null before the scene is lit. */
     SunShadows shadows() {
         return sunShadows;
@@ -79,9 +85,13 @@ final class SceneLight {
         sunShadows.colour(shadowColour);
         rootNode.addLight(sun);
         rootNode.addLight(ambient);
+        var thingLights = new java.util.ArrayList<DirectionalLight>();
         for (var more : thingSuns) {
-            rootNode.addLight(new DirectionalLight(more.direction(), more.light())); // the things', not the ground's
+            var thingLight = new DirectionalLight(more.direction(), more.light()); // the things', not the ground's
+            thingLights.add(thingLight);
+            rootNode.addLight(thingLight);
         }
+        scales.follow(sun, ambient, thingLights);
     }
 
     /**
@@ -115,6 +125,7 @@ final class SceneLight {
             ambient.setColor(ambientColour);
         }
         lightTheHour(); // a world built anew keeps the game's hour over its own sun
+        scales.refresh();
     }
 
     void shadows(boolean on) {
@@ -162,6 +173,7 @@ final class SceneLight {
         if (ambient != null) {
             ambient.setColor(now.ambient());
         }
+        scales.refresh();
         if (sunShadows != null) {
             sunShadows.sun(now.direction());
         }

@@ -977,6 +977,10 @@ final class DukeRtsApp extends SimpleApplication {
         light.shadows(on);
     }
 
+    void lightGroup(String group, float times) {
+        light.scales().times(group, times);
+    }
+
     void shadowColour(java.awt.Color colour) {
         light.shadowColour(colour);
     }

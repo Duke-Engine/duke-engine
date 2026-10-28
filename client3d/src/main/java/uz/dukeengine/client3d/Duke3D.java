@@ -583,6 +583,15 @@ public final class Duke3D {
         later(client -> client.lightScale(times));
     }
 
+    /**
+     * Every thing whose look is in {@code group} ({@code Visuals.UnitVisual.lightGroup}) lit {@code times} as brightly
+     * by the scene's suns and ambient, each channel held to 1 — the reference's {@code InfantryLight*Scale}, which the
+     * game moves with the hour; 1 as the scene is lit. Drawing only; from any thread, before launch or while it runs.
+     */
+    public void lightGroup(String group, float times) {
+        later(client -> client.lightGroup(group, times));
+    }
+
     /** A colour over the world alone, under the panel, the bars and the numbers; alpha 0 for none. */
     public void worldTint(int argb) {
         later(client -> client.worldTint(argb));

@@ -13,6 +13,8 @@ import uz.dukeengine.core.view.UnitView;
  */
 final class UnitNode {
     Node root;
+    /** The extra lights it wears for its group's scale, or null — see {@link LightScales}. */
+    LightScales.Extra litBy;
     /** The clip it was busy with last frame, so a new one is seen starting. */
     String lastBusy;
     /** Whether its swing began with a wind-up, so the shot that ends it does not swing again. */

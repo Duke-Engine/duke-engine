@@ -249,6 +249,20 @@ public final class Visuals {
             return layers.computeIfAbsent(name, _ -> new UnitVisual());
         }
 
+        /** The group of things it is lit as; see {@link #lightGroup}. */
+        String lightGroup;
+
+        /**
+         * It is lit as one of a group of things whose light the game scales — {@code Duke3D.lightGroup(group, times)}:
+         * the reference's infantry, lit {@code InfantryLight*Scale} times as brightly by the same sun, each channel held
+         * to 1, so a soldier is seen at evening and night where a tank is not made brighter. Lit as the scene is until
+         * the game scales its group. Drawing only.
+         */
+        public UnitVisual lightGroup(String group) {
+            this.lightGroup = group;
+            return this;
+        }
+
         /** Whether it casts a shadow from the sun; see {@link #castsShadow}. */
         boolean castsShadow;
         /** The least height of sun, in degrees, its shadow is cast from. */

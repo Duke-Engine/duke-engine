@@ -946,6 +946,7 @@ final class UnitScene {
         node.root.setLocalTranslation(UnitPlacement.where(view, floor::at));
         node.root.setLocalRotation(UnitPlacement.turn(view));
         node.root.setLocalScale(UnitPlacement.scale(view));
+        node.litBy = light.scales().dress(node.root, node.litBy, visual.lightGroup);
         drawnFlash.see(view.id(), node.root, view.flash());
         if (visual.sway != null && view.pitch() == 0f && view.roll() == 0f) {
             node.root.setLocalRotation(visual.sway.tiltAt(view.id(), snapshot.get().gameTimeSeconds())
