@@ -43,8 +43,10 @@ public final class MapPackage {
     private final Path file;
     private final List<Path> extras;
     private final Path preview;
+    private final MapSource source;
 
-    private MapPackage(String name, Path file, List<Path> extras, Path preview) {
+    private MapPackage(String name, Path file, List<Path> extras, Path preview, MapSource source) {
+        this.source = source;
         this.name = name;
         this.file = file;
         this.extras = List.copyOf(extras);
@@ -80,7 +82,7 @@ public final class MapPackage {
         } catch (IOException e) {
             throw new UncheckedIOException("could not read the map folder " + folder, e);
         }
-        return new MapPackage(name, file, extras, preview);
+        return new MapPackage(name, file, extras, preview, MapSource.in(folder));
     }
 
     /**
@@ -106,7 +108,9 @@ public final class MapPackage {
         }
         var called = fileName(fileOrFolder);
         int dot = called.lastIndexOf('.');
-        return new MapPackage(dot > 0 ? called.substring(0, dot) : called, fileOrFolder, List.of(), null);
+        var beside = fileOrFolder.getParent() == null ? Path.of("") : fileOrFolder.getParent();
+        return new MapPackage(dot > 0 ? called.substring(0, dot) : called, fileOrFolder, List.of(), null,
+                MapSource.in(beside));
     }
 
     /** The name of its folder and of its file, which is what a map is asked for by. */
@@ -199,9 +203,9 @@ public final class MapPackage {
         return head;
     }
 
-    private static String read(Path path) {
+    private String read(Path path) {
         try {
-            return new String(Files.readAllBytes(path), StandardCharsets.UTF_8)
+            return new String(source.read(fileName(path)), StandardCharsets.UTF_8)
                     .replace("\r\n", "\n").replace("\r", "\n");
         } catch (IOException e) {
             throw new UncheckedIOException("could not read the map file " + path, e);
