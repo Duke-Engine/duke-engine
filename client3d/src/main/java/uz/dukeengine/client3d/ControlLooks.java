@@ -37,14 +37,22 @@ final class ControlLooks {
 
     /** The moment that answers a click giving {@code word}: the game's, none (null), or a move's. */
     String orderAnswerFor(String word) {
-        return word != null && orderAnswers.containsKey(word) ? orderAnswers.get(word) : "move";
+        return named(word, "move");
+    }
+
+    private String named(String word, String plain) {
+        return word != null && orderAnswers.containsKey(word) ? orderAnswers.get(word) : plain;
     }
 
     /** The moment that answers a click giving {@code word} on {@code target} (null for the ground). */
     String orderAnswerFor(String word, AnswerTarget target) {
+        return orderAnswerFor(word, target, "move");
+    }
+
+    private String orderAnswerFor(String word, AnswerTarget target, String plain) {
         var aimed = word == null ? null : aimedAnswers.get(word);
         var moment = aimed == null ? null : aimed.apply(target);
-        return moment != null ? moment : orderAnswerFor(word);
+        return moment != null ? moment : named(word, plain);
     }
 
     /**
@@ -52,9 +60,14 @@ final class ControlLooks {
      * {@code selection} (null for none): the rule that reads both, else the one that reads the target, else the word's.
      */
     String orderAnswerFor(String word, AnswerTarget target, AnswerSelection selection) {
+        return orderAnswerFor(word, target, selection, "move");
+    }
+
+    /** The same, {@code plain} answering where the game named nothing for the word. */
+    String orderAnswerFor(String word, AnswerTarget target, AnswerSelection selection, String plain) {
         var both = word == null ? null : selectedAnswers.get(word);
         var moment = both == null ? null : both.apply(target, selection);
-        return moment != null ? moment : orderAnswerFor(word, target);
+        return moment != null ? moment : orderAnswerFor(word, target, plain);
     }
 
     Visuals.WordMark wordMarkFor(String word) {

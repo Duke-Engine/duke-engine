@@ -2894,6 +2894,13 @@ public final class Visuals {
      * ({@code DukeGame.contextOrder}) or on the ground ({@code DukeGame.groundOrder}): {@code supply} plays {@code
      * ordered.supply.<template>}, as the reference answers a dock with {@code VoiceSupply}; null plays nothing, as its
      * power steered says nothing on the click. A word it names nothing for is answered as a move, as always.
+     *
+     * <p>The client's own orders are words here too, each answered as it always was where the game names nothing
+     * for it: {@code Attack} (a click or a forced click on a thing to fire on, {@code attack}), {@code AttackGround}
+     * (a forced click on open ground, {@code attack}), {@code Move} (a click on open ground or on a thing walked to,
+     * {@code move}) and {@code ForceMove} (the same with {@code KeyMap.Control.FORCE_MOVE} held, the thing under the
+     * pointer its target though the move goes to the ground, {@code move}) — so {@code orderAnswerBy("Attack", …)}
+     * answers an aircraft with {@code attackair}, as the reference's {@code VoiceAttackAir}.
      */
     public Visuals orderAnswer(String word, String moment) {
         controls.orderAnswers.put(word, moment == null || moment.isBlank() ? null : moment);
@@ -2938,6 +2945,11 @@ public final class Visuals {
     /** The moment that answers a click giving {@code word} on {@code target} by what {@code selection} holds. */
     String orderAnswerFor(String word, AnswerTarget target, AnswerSelection selection) {
         return controls.orderAnswerFor(word, target, selection);
+    }
+
+    /** The same, {@code plain} answering where the game named nothing for the word. */
+    String orderAnswerFor(String word, AnswerTarget target, AnswerSelection selection, String plain) {
+        return controls.orderAnswerFor(word, target, selection, plain);
     }
 
     /**

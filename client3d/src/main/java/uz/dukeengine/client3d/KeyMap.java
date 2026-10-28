@@ -58,6 +58,11 @@ public final class KeyMap {
         FORCE_ATTACK,
         /** Held: a move given while it is, waits for the one before it. */
         QUEUE_WAYPOINTS,
+        /**
+         * Held: a click is a move to the ground under the pointer, whatever thing stands there — the reference's
+         * {@code MSG_DO_FORCEMOVETO}, run over rather than fired on. On no key unless the game puts it on one.
+         */
+        FORCE_MOVE,
         /** Held: what is picked is added to the selection rather than replacing it. */
         ADD_TO_SELECTION,
         /** Every one of the player's units, but his buildings and the kinds the game leaves out. */
@@ -79,7 +84,7 @@ public final class KeyMap {
         public boolean isHeld() {
             return switch (this) {
                 case PAN_UP, PAN_LEFT, PAN_DOWN, PAN_RIGHT, TURN_LEFT, TURN_RIGHT, ZOOM_IN, ZOOM_OUT, FORCE_ATTACK,
-                        QUEUE_WAYPOINTS, ADD_TO_SELECTION, FREE_POINTER -> true;
+                        QUEUE_WAYPOINTS, FORCE_MOVE, ADD_TO_SELECTION, FREE_POINTER -> true;
                 default -> false;
             };
         }

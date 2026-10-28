@@ -309,6 +309,28 @@ final class Orders {
         }
     }
 
+    /** The client's own orders, as words the game may answer — see {@link Visuals#orderAnswer}. */
+    static final String ATTACK = "Attack";
+    static final String ATTACK_GROUND = "AttackGround";
+    static final String MOVE = "Move";
+    static final String FORCE_MOVE = "ForceMove";
+
+    /**
+     * The moment that answers one of the client's own orders given on {@code target} (null for the ground): the game's,
+     * none (null), or, where it named nothing, the plain one it always had — an attack's or a move's.
+     */
+    static String plainAnswer(Visuals visuals, String word, AnswerTarget target, AnswerSelection selection) {
+        return visuals.orderAnswerFor(word, target, selection,
+                ATTACK.equals(word) || ATTACK_GROUND.equals(word) ? "attack" : "move");
+    }
+
+    private void answerPlain(String word, AnswerTarget target, List<ObjectId> units) {
+        var answer = plainAnswer(visuals, word, target, AnswerSelection.of(selectedOwn()));
+        if (answer != null) {
+            answerOrder(answer, units);
+        }
+    }
+
     /** An order the player gave the selection: {@code ordered.<order>.<template>} for the first of it. */
     void answerOrder(String order, List<ObjectId> units) {
         if (!units.isEmpty()) {
@@ -371,6 +393,11 @@ final class Orders {
         }
         int local = game.get().getLocalPlayerIndex();
         var enemy = pointer.pickUnit();
+        var target = enemy == null ? null : AnswerTarget.of(enemy.view, local);
+        boolean forceMove = controls.isHeld(KeyMap.Control.FORCE_MOVE);
+        if (forceMove) {
+            enemy = null; // the ground under the thing, the thing only voiced (CommandXlat: isInForceMoveToMode)
+        }
         if (enemy != null && snapshot.get().contextOrder() != null) {
             // The order the game said a click on this thing gives — see DukeGame.contextOrder.
             game.get().postCommand(new uz.dukeengine.combat.message.GameOrder(local, snapshot.get().contextOrder(), units,
@@ -381,13 +408,13 @@ final class Orders {
         }
         // With the force-attack key held, any thing is fired on — his own and an ally's too, as the reference's
         // MSG_DO_FORCE_ATTACK_OBJECT — and open ground is shelled (MSG_DO_FORCE_ATTACK_GROUND).
-        boolean forced = controls.isHeld(KeyMap.Control.FORCE_ATTACK);
+        boolean forced = controls.isHeld(KeyMap.Control.FORCE_ATTACK) && !forceMove;
         if (forced && enemy == null) {
             var place = pointer.pickGround();
             if (place != null) {
                 game.get().postCommand(new CombatOrder.AttackGround(local, units, new Coord3D(place.x, place.z, place.y),
                         true));
-                answerOrder("attack", units);
+                answerPlain(ATTACK_GROUND, null, units);
                 markOrder(place.x, place.z, OrderMarkers.Kind.ATTACK);
                 return;
             }
@@ -397,7 +424,7 @@ final class Orders {
                 return;
             }
             game.get().postCommand(new CombatOrder.AttackObject(local, units, new ObjectId(enemy.view.id()), true));
-            answerOrder("attack", units);
+            answerPlain(ATTACK, target, units);
             markOrder(enemy.view.x(), enemy.view.y(), enemy.view.id(), OrderMarkers.Kind.ATTACK);
             noises.get().moment("vo.attack", timer.getTimeInSeconds());
             return;
@@ -407,7 +434,7 @@ final class Orders {
                 return; // nothing selected may be fired at it: refused, as the pointer already said
             }
             game.get().postCommand(new CombatOrder.AttackObject(local, units, new ObjectId(enemy.view.id()), forced));
-            answerOrder("attack", units);
+            answerPlain(ATTACK, target, units);
             markOrder(enemy.view.x(), enemy.view.y(), enemy.view.id(), OrderMarkers.Kind.ATTACK);
             // His own orders only. In a game with more than one player at it,
             // each hears his own hero answer and nobody hears anyone else's.
@@ -418,7 +445,8 @@ final class Orders {
         if (ground == null) {
             return;
         }
-        var click = groundClick(local, selectedOwn(), enemy == null ? snapshot.get().contextOrder() : null,
+        // A forced move takes no word: the pointer's word was the thing's under it, not the ground's.
+        var click = groundClick(local, selectedOwn(), enemy == null && !forceMove ? snapshot.get().contextOrder() : null,
                 game.get().namesGroundOrders(), ground, parts);
         if (click instanceof CombatOrder.MoveTo plain && controls.isHeld(KeyMap.Control.QUEUE_WAYPOINTS)) {
             click = plain.appended(); // the waypoint key held: a place added to the walk (MSG_ADD_WAYPOINT)
@@ -451,7 +479,7 @@ final class Orders {
                 // hears anyone else's.
                 if (!move.units().isEmpty()) {
                     noises.get().moment("vo.move", timer.getTimeInSeconds());
-                    answerOrder("move", move.units());
+                    answerPlain(forceMove ? FORCE_MOVE : MOVE, target, move.units());
                 }
             }
             default -> {
