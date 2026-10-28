@@ -52,6 +52,20 @@ subprojects {
         }
     }
 
+    // The logic modules' tests run twice: on the written shapes, and on reflection alone, so the two are held
+    // to binding every data test the same.
+    if (name in setOf("core", "combat", "rts", "rpg")) {
+        val test = the<SourceSetContainer>()["test"]
+        val reflectionTest = tasks.register<Test>("reflectionTest") {
+            description = "Runs the tests with the Binder reading types by reflection only."
+            group = "verification"
+            testClassesDirs = test.output.classesDirs
+            classpath = test.runtimeClasspath
+            systemProperty("duke.shapes", "reflection")
+        }
+        tasks.named("check") { dependsOn(reflectionTest) }
+    }
+
     dependencies {
         "testImplementation"(platform("org.junit:junit-bom:5.11.3"))
         "testImplementation"("org.junit.jupiter:junit-jupiter")
