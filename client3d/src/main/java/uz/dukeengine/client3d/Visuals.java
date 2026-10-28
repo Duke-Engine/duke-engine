@@ -2101,6 +2101,26 @@ public final class Visuals {
     }
 
     /**
+     * One level of particle detail the client falls to as its frame rate drops — the reference's
+     * {@code DynamicGameLOD}: chosen while the average of the last 30 frames is over {@code minFps}, the highest such
+     * level, else the lowest. At it a particle below {@code minPriority} is not made, and one below
+     * {@code minSkipPriority} only where its count since the level was chosen, ANDed with {@code skipMask}, is the
+     * mask — 1 making every other one, 3 every fourth, 0 all of them.
+     */
+    public record ParticleLod(int minFps, int skipMask, int minPriority, int minSkipPriority) {
+    }
+
+    /** The levels of particle detail by frame rate; left unset, every particle is made at any rate. */
+    public Visuals particleLod(java.util.List<ParticleLod> levels) {
+        fx.particleLod = java.util.List.copyOf(levels);
+        return this;
+    }
+
+    public java.util.List<ParticleLod> getParticleLod() {
+        return fx.particleLod;
+    }
+
+    /**
      * What the client may spend on things in flight.
      *
      * <p>Ceilings rather than targets, and the reason they exist at all is that a

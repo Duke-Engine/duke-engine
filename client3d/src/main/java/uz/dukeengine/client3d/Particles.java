@@ -30,7 +30,9 @@ import uz.dukeengine.core.content.ParticleSystem;
  *
  * <p><b>A budget.</b> Past its most, making a particle first lets go of the oldest of a lower priority, the
  * lowest first; one that cannot make room is not made, and one at or above the highest priority is never
- * refused. Left unset there is no most, and nothing is let go of.
+ * refused. Left unset there is no most, and nothing is let go of. Before it, the level of detail the client's
+ * frame rate calls for ({@link #lod}) and the cap on ground-aligned fields ({@link #fieldCap}), where the game
+ * gives them.
  */
 final class Particles {
 
@@ -41,6 +43,10 @@ final class Particles {
 
     /** The most frames run for one of the client's: a longer stall is let go rather than run all at once. */
     private static final int MOST_FRAMES_AT_ONCE = 8;
+
+    /** The client's frames the frame rate is averaged over, and the longest counted — the reference's 30 and 0.5. */
+    private static final int FPS_HISTORY = 30;
+    private static final float LONGEST_FRAME = 0.5f;
 
     /**
      * Where a system stands, in its own Z-up frame, and how it is turned: about up by {@code turn}, in radians —
@@ -87,6 +93,14 @@ final class Particles {
     private int fieldPriority = Integer.MIN_VALUE;
     private int fieldMost = Integer.MAX_VALUE;
     private int fieldCount;
+    /** The levels of detail by frame rate, the highest first; the one in use; and what it has counted since. */
+    private List<Visuals.ParticleLod> lods = List.of();
+    private Visuals.ParticleLod lod;
+    private int generations;
+    /** The client's last frame rates — the reference's {@code W3DDisplay::updateAverageFPS}. */
+    private final float[] rates = new float[FPS_HISTORY];
+    private int rateAt;
+    private int rateCount;
     private long made;
     private int frame;
     private float owed;
@@ -115,6 +129,45 @@ final class Particles {
     void fieldCap(int priority, int most) {
         fieldPriority = priority;
         fieldMost = Math.max(0, most);
+    }
+
+    /** The levels of detail it falls to as the client's frame rate drops — see {@link Visuals.ParticleLod}. */
+    void lod(List<Visuals.ParticleLod> levels) {
+        lods = levels.stream()
+                .sorted(java.util.Comparator.comparingInt(Visuals.ParticleLod::minFps).reversed()).toList();
+        lod = null;
+    }
+
+    /** A frame of the client's this long: the level its average rate now calls for ({@code findDynamicLODLevel}). */
+    private void measure(float seconds) {
+        if (lods.isEmpty() || seconds <= 0f || seconds > LONGEST_FRAME) {
+            return; // a stall is a spike, not a rate
+        }
+        rates[rateAt] = 1f / seconds;
+        rateAt = (rateAt + 1) % FPS_HISTORY;
+        rateCount = Math.min(rateCount + 1, FPS_HISTORY);
+        float sum = 0f;
+        for (int at = 0; at < rateCount; at++) {
+            sum += rates[at];
+        }
+        int average = (int) (sum / rateCount);
+        var level = lods.getLast();
+        for (var each : lods) {
+            if (each.minFps() < average) {
+                level = each;
+                break;
+            }
+        }
+        if (!level.equals(lod)) {
+            lod = level;
+            generations = 0;
+        }
+    }
+
+    /** Whether the level in use refuses a particle of this priority ({@code ParticleSystem::createParticle}). */
+    private boolean belowTheLevel(int priority) {
+        return lod != null && (priority < lod.minPriority()
+                || priority < lod.minSkipPriority() && (++generations & lod.skipMask()) != lod.skipMask());
     }
 
     private boolean field(Emitter emitter) {
@@ -190,6 +243,7 @@ final class Particles {
 
     /** The client's time passing: as many of the game's frames as it holds, and the rest kept for the next. */
     void step(float seconds) {
+        measure(seconds);
         owed += Math.max(0f, seconds);
         int run = 0;
         while (owed >= FRAME_SECONDS && run < MOST_FRAMES_AT_ONCE) {
@@ -234,6 +288,9 @@ final class Particles {
     /** A particle made for {@code emitter}, or null where the budget has no room for it. */
     Particle make(Emitter emitter, Particle.Born born) {
         int priority = emitter.data().priority();
+        if (belowTheLevel(priority)) {
+            return null;
+        }
         boolean field = field(emitter);
         if (field && fieldCount > fieldMost && !emitter.particles().isEmpty()) {
             return null;

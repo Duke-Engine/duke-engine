@@ -22,6 +22,7 @@ final class EffectLooks {
     int particleSystemNeverRefusedFrom = Integer.MAX_VALUE;
     int particleFieldPriority = Integer.MIN_VALUE;
     int particleFieldMost = Integer.MAX_VALUE;
+    List<Visuals.ParticleLod> particleLod = List.of();
     final Map<String, EffectList> lists = new LinkedHashMap<>();
     final Map<String, Laser> lasers = new LinkedHashMap<>();
     Visuals.EffectBudget budget = new Visuals.EffectBudget(4, 0f);

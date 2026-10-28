@@ -602,6 +602,43 @@ class ParticlesTest {
         assertEquals(25, unheld.particles().size(), "no cap, five a frame");
     }
 
+    /** How many particles a system of one a frame has let out after two seconds drawn at {@code fps}. */
+    private static int madeAt(int fps, List<Visuals.ParticleLod> levels) {
+        var world = world(library("""
+                ParticleSystem
+                  Name = Sparks
+                  Priority = 5
+                  Blend = ALPHA_TEST
+                  BurstCount = [1]
+                  BurstDelay = [0]
+                  Lifetime = [1000]
+                End
+                """), 1L);
+        world.lod(levels);
+        var sparks = world.startAt("Sparks", HERE);
+        for (int frame = 0; frame < 2 * fps; frame++) {
+            world.step(1f / fps);
+        }
+        return sparks.particles().size();
+    }
+
+    /**
+     * Below a level's frame rate its mask skips particles under its skip priority, and none under its least is made
+     * at all — the reference's dynamic LOD; a level over the rate, or none, makes them all.
+     */
+    @Test
+    void aLowFrameRateMakesFewerParticles() {
+        var levels = List.of(new Visuals.ParticleLod(25, 0, 0, 0), new Visuals.ParticleLod(0, 1, 0, 13));
+        int fast = madeAt(60, levels);
+        int slow = madeAt(10, levels);
+        assertEquals(madeAt(60, List.of()), fast, "fast enough: every one");
+        assertTrue(fast > 50, "a frame each: " + fast);
+        assertEquals(fast / 2f, slow, 2f, "at 10 a second, every other one: " + slow + " of " + fast);
+
+        var none = List.of(new Visuals.ParticleLod(25, 0, 0, 0), new Visuals.ParticleLod(0, 0, 6, 0));
+        assertEquals(0, madeAt(10, none), "under the slow level's least priority: none");
+    }
+
     /** A system the game never described draws nothing, and says so once. */
     @Test
     void aSystemNobodyDescribedStartsNothing() {
