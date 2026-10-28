@@ -385,6 +385,41 @@ class CursorsTest {
                 Cursors.situationsFor(withATank(false, false, "Steer")));
     }
 
+    /**
+     * The waypoint key held over open ground a click would walk to shows the Waypoint pointer, Move and the arrow
+     * standing in where the game drew none; anywhere a click would not add a place, the pointer is as it was.
+     */
+    @Test
+    void theWaypointKeyHeldOverOpenGroundShowsTheWaypointPointer() {
+        var ground = new Cursors.Over(true, null, true, false, false, false, true, true, null, null, true, false, true);
+        assertEquals(java.util.List.of(Cursors.WAYPOINT, Cursors.MOVE, Cursors.POINT), Cursors.situationsFor(ground));
+        assertEquals(java.util.List.of(Cursors.MOVE, Cursors.POINT), Cursors.situationsFor(withATank(false, false, null)),
+                "the key not held: the walk it always was");
+
+        assertEquals(java.util.List.of(Cursors.DENY), Cursors.situationsFor(
+                new Cursors.Over(true, null, false, false, false, false, true, true, null, null, true, false, true)),
+                "stone refuses a place as it refuses a walk");
+        assertEquals(java.util.List.of(Cursors.POINT), Cursors.situationsFor(
+                new Cursors.Over(true, null, true, false, false, false, true, false, null, null, true, false, true)),
+                "nothing of his selected: no order to add a place to");
+        assertEquals(java.util.List.of(Cursors.DENY), Cursors.situationsFor(
+                new Cursors.Over(true, null, true, false, false, false, true, true, null, null, false, false, true)),
+                "a lone structure that takes the click as no walk");
+        assertEquals(java.util.List.of(Cursors.ATTACK), Cursors.situationsFor(
+                new Cursors.Over(true, null, true, false, true, false, true, true, null, null, true, false, true)),
+                "over a thing the click is the thing's, not a place");
+        assertEquals(java.util.List.of("Steer", Cursors.MOVE, Cursors.POINT), Cursors.situationsFor(
+                new Cursors.Over(true, null, true, false, false, false, true, true, "Steer", null, true, false, true)),
+                "the game's word for the ground is not a place added to a walk");
+        assertEquals(java.util.List.of(Cursors.FORCE_ATTACK_GROUND, Cursors.ATTACK), Cursors.situationsFor(
+                new Cursors.Over(true, null, true, false, false, false, true, true, null, null, true, true, true)),
+                "force-attack outranks it");
+        assertEquals(java.util.List.of(Cursors.AIM), Cursors.situationsFor(
+                new Cursors.Over(true, Hotkeys.Aim.GROUND, true, false, false, false, true, true, null, null, true,
+                        false, true)),
+                "an armed skill outranks it");
+    }
+
     /** A click on the ground with the game's word for it is that order, at the place; with none, no order of its own. */
     @Test
     void aClickOnTheGroundWithTheGamesWordSendsItsOrderThere() {

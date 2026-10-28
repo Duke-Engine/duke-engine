@@ -2348,7 +2348,7 @@ final class DukeRtsApp extends SimpleApplication {
                 snapshot.attackable(), !own.isEmpty(), snapshot.contextOrder(), // a thing's, or the ground's
                 cameraRig.scrolling(),
                 Orders.groundTakes(game.getLocalPlayerIndex(), own, game.namesGroundOrders(), parts),
-                controls.isHeld(KeyMap.Control.FORCE_ATTACK));
+                controls.isHeld(KeyMap.Control.FORCE_ATTACK), controls.isHeld(KeyMap.Control.QUEUE_WAYPOINTS));
     }
 
     /**

@@ -62,6 +62,9 @@ final class Cursors {
     /** The force-attack key held over open ground — the reference's {@code ForceAttackGround}. */
     static final String FORCE_ATTACK_GROUND = "ForceAttackGround";
 
+    /** The waypoint key held over open ground a click would be sent to walk to — the reference's {@code Waypoint}. */
+    static final String WAYPOINT = "Waypoint";
+
     /** A skill is armed and this is somewhere it can go. */
     static final String AIM = "Aim";
 
@@ -130,10 +133,20 @@ final class Cursors {
      * @param scrolling  which way the view is being scrolled — {@code N}, {@code NE} … — or {@code null}
      * @param groundTakes whether a click on open ground with no word of the game's is taken: anything he has selected
      *                   but one structure alone that takes it as no rally point
+     * @param forcing    whether the force-attack key is held
+     * @param queuing    whether the waypoint key is held: a click on open ground adds a place to the walk
      */
     record Over(boolean playing, Hotkeys.Aim armed, boolean canReach, boolean overPanel,
             boolean overUnit, boolean ownUnit, boolean canAttack, boolean ordering, String order, String scrolling,
-            boolean groundTakes, boolean forcing) {
+            boolean groundTakes, boolean forcing, boolean queuing) {
+
+        /** Everything but whether the waypoint key is held, which it then is not. */
+        Over(boolean playing, Hotkeys.Aim armed, boolean canReach, boolean overPanel, boolean overUnit,
+                boolean ownUnit, boolean canAttack, boolean ordering, String order, String scrolling,
+                boolean groundTakes, boolean forcing) {
+            this(playing, armed, canReach, overPanel, overUnit, ownUnit, canAttack, ordering, order, scrolling,
+                    groundTakes, forcing, false);
+        }
 
         /** Everything but whether the force-attack key is held, which it then is not. */
         Over(boolean playing, Hotkeys.Aim armed, boolean canReach, boolean overPanel, boolean overUnit,
@@ -238,6 +251,10 @@ final class Cursors {
         }
         if (!over.ordering()) {
             return java.util.List.of(POINT);
+        }
+        // The waypoint key held where a click would walk: it adds the place to the walk (the reference's Waypoint).
+        if (over.queuing() && over.groundTakes()) {
+            return java.util.List.of(WAYPOINT, MOVE, POINT);
         }
         // One structure selected alone, which takes the click as no rally point: a click there orders nothing.
         return over.groundTakes() ? java.util.List.of(MOVE, POINT) : java.util.List.of(DENY);
