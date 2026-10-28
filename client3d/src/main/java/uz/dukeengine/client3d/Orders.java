@@ -386,6 +386,20 @@ final class Orders {
         dragRectangle.lay(dragFrom.x, dragFrom.y, cursor.x, cursor.y);
     }
 
+    /**
+     * Whether a plain click on {@code view} attacks it: another side's — the neutral side's only where the game made it
+     * a target ({@link uz.dukeengine.core.thing.ObjectStatus#TARGETABLE}) and it is no ally's, as the reference's
+     * {@code WeaponSet::getAbleToAttackSpecificObject} lets a player's order through.
+     */
+    static boolean attackedOnAClick(uz.dukeengine.core.view.UnitView view, int local) {
+        if (view.playerIndex() == local) {
+            return false;
+        }
+        boolean targetable = (view.statuses() & 1 << uz.dukeengine.core.thing.ObjectStatus.TARGETABLE.ordinal()) != 0;
+        return view.playerIndex() != uz.dukeengine.core.player.PlayerList.NEUTRAL_INDEX
+                || targetable && !view.allied();
+    }
+
     void order() {
         var units = selectedIds();
         if (units.isEmpty()) {
@@ -429,7 +443,7 @@ final class Orders {
             noises.get().moment("vo.attack", timer.getTimeInSeconds());
             return;
         }
-        if (enemy != null && enemy.view.playerIndex() != local && enemy.view.playerIndex() != 0) {
+        if (enemy != null && attackedOnAClick(enemy.view, local)) {
             if (!snapshot.get().attackable()) {
                 return; // nothing selected may be fired at it: refused, as the pointer already said
             }

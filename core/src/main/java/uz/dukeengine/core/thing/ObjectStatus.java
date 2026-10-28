@@ -55,5 +55,11 @@ public enum ObjectStatus {
      * Not to be harmed for now — a dodge's roll: no blow takes health from it, nor is told as one, and no stun or slow
      * takes hold of it while it lasts.
      */
-    INVULNERABLE
+    INVULNERABLE,
+    /**
+     * A target a player may order attacked though it is nobody's enemy — a neutral side's fuel barrel, the reference's
+     * {@code OBJECT_STATUS_SCRIPT_TARGETABLE} ({@code objectTargetable}): a plain click on it attacks, where a click on
+     * any other neutral's thing does not; nothing acquires it by itself, and an ally's is no target for it.
+     */
+    TARGETABLE
 }
