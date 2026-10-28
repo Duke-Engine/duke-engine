@@ -48,6 +48,9 @@ final class ParticleDrawing {
 
     private static final float TURN = FastMath.TWO_PI;
 
+    /** The copies a volume particle is drawn as — the reference's {@code OPTIMUM_VOLUME_PARTICLE_DEPTH}. */
+    static final int VOLUME_LAYERS = 6;
+
     /** What a system's particles are drawn as this frame, before it reaches a buffer. */
     record Shape(float[] positions, float[] colours, float[] uvs, int[] indices) {
 
@@ -136,7 +139,9 @@ final class ParticleDrawing {
         var data = emitter.data();
         return switch (data.type()) {
             case STREAK -> streak(emitter.particles(), eye);
-            case PARTICLE, VOLUME_PARTICLE -> squares(emitter.particles(), data.isGroundAligned(), left, up);
+            case PARTICLE -> squares(emitter.particles(), data.isGroundAligned(), left, up, eye, 1);
+            case VOLUME_PARTICLE -> squares(emitter.particles(), data.isGroundAligned(), left, up, eye,
+                    data.isGroundAligned() ? 1 : VOLUME_LAYERS);
             case DRAWABLE -> {
                 if (undrawable.add(data.name())) {
                     LOG.warning(() -> "the particle system '" + data.name() + "' draws a model a particle, which"
@@ -195,25 +200,22 @@ final class ParticleDrawing {
 
     /**
      * Squares, one a particle still alive: facing the camera — {@code left} and {@code up} are its — or lying flat
-     * on the ground, turned by the particle's angle either way.
+     * on the ground, turned by the particle's angle either way. Drawn {@code layers} times, each copy a tenth of the
+     * particle's size over the layers nearer the camera at {@code eye} than the one before — the reference's volume
+     * particle ({@code PointGroupClass::RenderVolumeParticle}, which steps by the first particle's size).
      */
-    static Shape squares(List<Particle> particles, boolean flat, Vector3f left, Vector3f up) {
-        int count = 0;
-        for (var particle : particles) {
-            if (!particle.gone) {
-                count++;
-            }
-        }
+    static Shape squares(List<Particle> particles, boolean flat, Vector3f left, Vector3f up, Vector3f eye,
+            int layers) {
+        var alive = particles.stream().filter(particle -> !particle.gone).toList();
+        int count = alive.size() * layers;
         var positions = new float[count * 12];
         var colours = new float[count * 16];
         var uvs = new float[count * 8];
         var indices = new int[count * 6];
         var right = left.negate();
-        int at = 0;
-        for (var particle : particles) {
-            if (particle.gone) {
-                continue;
-            }
+        for (int at = 0; at < count; at++) {
+            var particle = alive.get(at % alive.size());
+            int layer = at / alive.size();
             float half = particle.size / 2f;
             float angle = quantised(particle.angle);
             float cos = FastMath.cos(angle);
@@ -230,6 +232,10 @@ final class ParticleDrawing {
                 }
             } else {
                 var centre = toClient(particle.x, particle.y, particle.z);
+                if (layer > 0) {
+                    centre.addLocal(eye.subtract(centre).normalizeLocal()
+                            .multLocal(layer * particle.size * 0.1f / layers));
+                }
                 var across = right.mult(cos).addLocal(up.mult(sin)).multLocal(half);
                 var upward = up.mult(cos).subtractLocal(right.mult(sin)).multLocal(half);
                 corners = new Vector3f[] {
@@ -250,7 +256,6 @@ final class ParticleDrawing {
             int first = at * 4;
             System.arraycopy(new int[] {first, first + 1, first + 2, first, first + 2, first + 3}, 0,
                     indices, at * 6, 6);
-            at++;
         }
         return new Shape(positions, colours, uvs, indices);
     }

@@ -63,7 +63,7 @@ class ParticleDrawingTest {
                 """);
         var left = new Vector3f(-1f, 0f, 0f);
         var up = new Vector3f(0f, 1f, 0f);
-        var shape = ParticleDrawing.squares(emitter.particles(), false, left, up);
+        var shape = ParticleDrawing.squares(emitter.particles(), false, left, up, new Vector3f(0f, 0f, 50f), 1);
 
         assertEquals(4, shape.vertices());
         var p = shape.positions();
@@ -89,13 +89,38 @@ class ParticleDrawingTest {
                 End
                 """);
         var shape = ParticleDrawing.squares(emitter.particles(), true, new Vector3f(-1f, 0f, 0f),
-                new Vector3f(0f, 0f, -1f));
+                new Vector3f(0f, 0f, -1f), new Vector3f(0f, 50f, 0f), 1);
         var p = shape.positions();
         for (int corner = 0; corner < 4; corner++) {
             assertEquals(0f, p[corner * 3 + 1], 1e-6f, "corner " + corner + " on the ground");
         }
         float side = new Vector3f(p[0], p[1], p[2]).distance(new Vector3f(p[3], p[4], p[5]));
         assertEquals(6f, side, 1e-4f, "six on a side, turned or not");
+    }
+
+    /** A volume particle is six squares, each a tenth of its size over six nearer the camera than the last. */
+    @Test
+    void aVolumeParticleIsLayeredTowardTheCamera() {
+        var emitter = burning("""
+                ParticleSystem
+                  Name = It
+                  Type = VOLUME_PARTICLE
+                  Blend = ALPHA_TEST
+                  Size = [6]
+                  BurstCount = [1]
+                  BurstDelay = [1000]
+                  Lifetime = [100]
+                End
+                """);
+        var eye = new Vector3f(0f, 0f, 50f);
+        var shape = ParticleDrawing.squares(emitter.particles(), false, new Vector3f(-1f, 0f, 0f),
+                new Vector3f(0f, 1f, 0f), eye, ParticleDrawing.VOLUME_LAYERS);
+
+        assertEquals(24, shape.vertices(), "six squares");
+        var p = shape.positions();
+        for (int layer = 0; layer < 6; layer++) {
+            assertEquals(layer * 6f * 0.1f / 6f, p[layer * 12 + 2], 1e-5f, "layer " + layer + " toward the eye");
+        }
     }
 
     /** A streak joins its particles in the order they were born, and its trailing end is drawn clear. */

@@ -105,7 +105,7 @@ public record ParticleSystem(String name, int priority, Blend blend, Type type, 
         PARTICLE,
         /** The system's particles joined, in order, into one strip — a tracer. */
         STREAK,
-        /** Drawn as a {@code PARTICLE}; the reference layers it in depth, which this client does not. */
+        /** A {@code PARTICLE} drawn six times over, each copy a little nearer the camera, so it reads as having depth. */
         VOLUME_PARTICLE,
         /** A model a particle — not drawn by this client, and said so once. */
         DRAWABLE
