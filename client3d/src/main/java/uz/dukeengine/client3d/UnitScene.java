@@ -65,6 +65,8 @@ final class UnitScene {
     private final IntPredicate critical;
     /** Told each shot that ended this frame, for whether it struck — see {@link Landing}. */
     private final Consumer<Landing.Gone> ended;
+    /** Which parts of the drawing the player's detail preset keeps; see {@link DetailPreset}. */
+    private final Supplier<DetailPreset> preset;
     private final Map<Integer, UnitNode> unitNodes = new HashMap<>();
     private final SelectionFlash selectionFlash = new SelectionFlash();
     /** What was selected the frame before: a thing new to the selection flashes. */
@@ -86,7 +88,7 @@ final class UnitScene {
             HitFlash hitFlash, GroundPictures groundPictures, StealthLook stealthLook, MissingAssets missing,
             FogOfWar fog, Node rootNode, Node unitsNode, Camera cam, com.jme3.system.Timer timer,
             Supplier<DukeGame> game, Supplier<WorldSnapshot> snapshot, Set<Integer> selected, WorldMoments.Floor floor,
-            IntPredicate critical, Consumer<Landing.Gone> ended) {
+            IntPredicate critical, Consumer<Landing.Gone> ended, Supplier<DetailPreset> preset) {
         this.assetManager = assetManager;
         this.visuals = visuals;
         this.bodies = bodies;
@@ -111,6 +113,45 @@ final class UnitScene {
         this.floor = floor;
         this.critical = critical;
         this.ended = ended;
+        this.preset = preset;
+    }
+
+    /** A layer the preset draws none of — a scaffold without {@code buildupScaffolds} — taken off its thing. */
+    private boolean hides(ModelLayer layer) {
+        if (!layer.scaffold() || preset.get().buildupScaffolds()) {
+            return false;
+        }
+        layer.away();
+        return true;
+    }
+
+    private java.util.Set<String> shownWorld = java.util.Set.of();
+    private java.util.Set<String> shownFrom;
+    private java.util.Set<String> shownNight;
+
+    /**
+     * The words of the world a thing is drawn in: the game's, less the night's where the preset draws no emissive night
+     * materials ({@link DetailPreset}).
+     */
+    private java.util.Set<String> world(UnitView view) {
+        var world = visuals.getWorldConditions();
+        var night = visuals.getNightWords();
+        if (preset.get().emissiveNightMaterials() || night.isEmpty()) {
+            return world;
+        }
+        if (world != shownFrom || night != shownNight) {
+            shownWorld = withoutNight(world, night);
+            shownFrom = world;
+            shownNight = night;
+        }
+        return shownWorld;
+    }
+
+    /** {@code world} less the words of the night. */
+    static java.util.Set<String> withoutNight(java.util.Set<String> world, java.util.Set<String> night) {
+        var kept = new java.util.HashSet<>(world);
+        kept.removeAll(night);
+        return kept;
     }
 
     /** The node of a thing drawn now, or null. */
@@ -243,7 +284,7 @@ final class UnitScene {
             if (visual.wordLights.isEmpty()) {
                 continue;
             }
-            var light = visual.lightFor(visual.holding(view.healthFraction(), visuals.getWorldConditions(),
+            var light = visual.lightFor(visual.holding(view.healthFraction(), world(view),
                     view.conditions()));
             if (light != null) {
                 lines.add(new UnitLights.Line(view.id(), light, node.root.getWorldTranslation()));
@@ -264,7 +305,7 @@ final class UnitScene {
             if (visual.wordRopes.isEmpty()) {
                 continue;
             }
-            var rope = visual.ropeFor(visual.holding(view.healthFraction(), visuals.getWorldConditions(),
+            var rope = visual.ropeFor(visual.holding(view.healthFraction(), world(view),
                     view.conditions()));
             var bone = rope == null ? null : boneOf(node, null, rope.bone());
             if (bone != null) {
@@ -312,7 +353,7 @@ final class UnitScene {
         if (look.marks.isEmpty()) {
             return java.util.List.of();
         }
-        var shown = look.marksFor(look.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()));
+        var shown = look.marksFor(look.holding(view.healthFraction(), world(view), view.conditions()));
         node.markSince.keySet().retainAll(shown);
         float now = timer.getTimeInSeconds();
         var badges = new java.util.ArrayList<UnitBars.Badge>(shown.size());
@@ -571,7 +612,7 @@ final class UnitScene {
     private void lookDead(UnitNode node, UnitView view) {
         node.view = view;
         var visual = looks.visualFor(view);
-        var world = visuals.getWorldConditions();
+        var world = world(view);
         var holding = visual.holding(view.healthFraction(), world, view.conditions());
         var wanted = visual.modelFor(view.healthFraction(), world, view.conditions());
         if (node.body != null && wanted != null && !wanted.equals(node.modelPath)) {
@@ -594,6 +635,9 @@ final class UnitScene {
             wordTints.see(view.id(), node.root, visual, holding, frames);
         }
         for (var layer : node.layers) {
+            if (hides(layer)) {
+                continue;
+            }
             layer.wear(node.root, view, world, snapshot.get().frame(), body -> paintHouseColour(body, view),
                     clip -> missing.warn(view.templateName() + "/" + clip, "animation"),
                     bone -> boneOf(node, layer, bone));
@@ -615,7 +659,7 @@ final class UnitScene {
         node.root.setUserData("unitId", view.id());
         node.root.setUserData("wears", view.wears()); // for what it throws once it is gone from the snapshot
 
-        node.modelPath = visual.modelFor(view.healthFraction(), visuals.getWorldConditions(), view.conditions());
+        node.modelPath = visual.modelFor(view.healthFraction(), world(view), view.conditions());
         Spatial body = visual.shapeless ? new Node("no-shape") : bodies.buildBody(visual, java.util.List.of(), node.modelPath);
         if (body != null && visual.line != null && view.span() != null) {
             body = layAlong(body, view, visual, node);
@@ -927,8 +971,8 @@ final class UnitScene {
         var visual = looks.visualFor(view);
         // Its own words too — an upgrade's weapon set, a rank — for a look that chooses anything by them.
         var holding = visual.choosesByWords()
-                ? visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()) : null;
-        var wanted = visual.modelFor(view.healthFraction(), visuals.getWorldConditions(), view.conditions());
+                ? visual.holding(view.healthFraction(), world(view), view.conditions()) : null;
+        var wanted = visual.modelFor(view.healthFraction(), world(view), view.conditions());
         if (node.body != null && wanted != null && !wanted.equals(node.modelPath)) {
             swapBody(node, view, visual, wanted);
         } else if (visual.line != null && view.span() != null && !view.span().equals(node.laidSpan)) {
@@ -939,7 +983,7 @@ final class UnitScene {
         }
         if (!visual.boneParticles.isEmpty() && node.boneSystems != null) {
             node.boneSystems.choose(visual.particlesFor(holding != null ? holding
-                    : visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions())),
+                    : visual.holding(view.healthFraction(), world(view), view.conditions())),
                     node.body);
             node.boneSystems.drive(view, timer.getTimePerFrame() / Particles.FRAME_SECONDS);
         }
@@ -948,7 +992,7 @@ final class UnitScene {
         node.root.setLocalScale(UnitPlacement.scale(view));
         node.litBy = light.scales().dress(node.root, node.litBy, visual.lightGroup);
         drawnFlash.see(view.id(), node.root, view.flash());
-        if (visual.sway != null && view.pitch() == 0f && view.roll() == 0f) {
+        if (visual.sway != null && preset.get().treeSway() && view.pitch() == 0f && view.roll() == 0f) {
             node.root.setLocalRotation(visual.sway.tiltAt(view.id(), snapshot.get().gameTimeSeconds())
                     .mult(node.root.getLocalRotation()));
         }
@@ -962,7 +1006,7 @@ final class UnitScene {
         }
         if (!visual.groundPictures.isEmpty()) {
             groundPictures.see(view.id(), visual,
-                    visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()),
+                    visual.holding(view.healthFraction(), world(view), view.conditions()),
                     view.hostile(), node.body, new Coord3D(view.x(), view.y(), 0f), view.orientation(),
                     timer.getTimePerFrame() / Particles.FRAME_SECONDS, floor::at);
         }
@@ -973,14 +1017,17 @@ final class UnitScene {
         }
         if (!visual.wordTints.isEmpty()) {
             wordTints.see(view.id(), node.root, visual,
-                    visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()),
+                    visual.holding(view.healthFraction(), world(view), view.conditions()),
                     timer.getTimePerFrame() / Particles.FRAME_SECONDS);
         }
         if (visual.risesAsBuilt && node.body != null) {
             node.body.setLocalTranslation(0f, visual.yOffset - UnitPlacement.sunk(view.built(), node.bodyTop), 0f);
         }
         for (var layer : node.layers) {
-            layer.wear(node.root, view, visuals.getWorldConditions(), snapshot.get().frame(),
+            if (hides(layer)) {
+                continue;
+            }
+            layer.wear(node.root, view, world(view), snapshot.get().frame(),
                     body -> paintHouseColour(body, view),
                     clip -> missing.warn(view.templateName() + "/" + clip, "animation"),
                     bone -> boneOf(node, layer, bone));
@@ -1127,7 +1174,7 @@ final class UnitScene {
         if (visual.clipStates.isEmpty() || node.composer == null) {
             return false;
         }
-        var holding = visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions());
+        var holding = visual.holding(view.healthFraction(), world(view), view.conditions());
         boolean had = node.wordClip.chosen();
         var chosen = WordClip.playOn(node.composer, node.wordClip, node.currentAnim, visual, holding, snapshot.get().frame(),
                 view.id(), view.speed(), clip -> missing.warn(view.templateName() + "/" + clip, "animation"));

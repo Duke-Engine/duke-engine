@@ -53,10 +53,36 @@ final class Water {
         this.looks = looks;
     }
 
+    /** What the water was last laid from, so a change of {@link #softEdge} lays it again. */
+    private List<? extends MapArea> areas = List.of();
+    private DrawnGround drawn;
+    private boolean softEdge = true;
+
+    /**
+     * Standing water as clear at the shore as the ground under it is shallow, or whole to its edge — the reference's
+     * {@code ShowSoftWaterEdge} — laid again at once where there is water.
+     */
+    void softEdge(boolean on) {
+        if (on == softEdge) {
+            return;
+        }
+        softEdge = on;
+        if (drawn != null) {
+            rebuild(areas, drawn, look);
+        }
+    }
+
+    /** How deep standing water is clear to: the look's, or none where the edge is hard. */
+    float fadeDepthOf(Visuals.WaterLook with) {
+        return softEdge ? with.fadeDepth() : 0f;
+    }
+
     /** The water of a map laid again, as {@code look} draws it: every area its map says is water. */
     void rebuild(List<? extends MapArea> areas, DrawnGround ground, Visuals.WaterLook with) {
         clear();
         this.look = with;
+        this.areas = areas;
+        this.drawn = ground;
         if (with == null || ground.cellSize() <= 0f) {
             return;
         }
@@ -64,7 +90,7 @@ final class Water {
             if (!area.water() || area.points().size() < 6) {
                 continue;
             }
-            var mesh = area.river() ? river(area, ground) : standing(area, ground, with.fadeDepth());
+            var mesh = area.river() ? river(area, ground) : standing(area, ground, fadeDepthOf(with));
             if (mesh.getVertexCount() == 0) {
                 continue;
             }

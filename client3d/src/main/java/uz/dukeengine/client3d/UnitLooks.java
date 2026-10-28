@@ -19,6 +19,7 @@ final class UnitLooks {
     Tileset tileset;
     String houseColour;
     Set<String> worldConditions = Set.of();
+    Set<String> nightWords = Set.of();
     String seeThroughWord;
     String glowWord;
     String ownGlowWord;

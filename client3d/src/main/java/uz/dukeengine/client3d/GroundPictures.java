@@ -52,9 +52,17 @@ final class GroundPictures {
     /** How far over its shadow a picture its words chose is laid, so that it is drawn over it. */
     private static final float OVER_THE_SHADOW = 0.02f;
 
+    /** Whether the pictures a look gives as its shadow are laid — see {@link DetailPreset}. */
+    private boolean shadowDecals = true;
+
     GroundPictures(AssetManager assets, Node node) {
         this.assets = assets;
         this.node = node;
+    }
+
+    /** Lay shadow decals or not; those laid are taken up on the next frame each thing is seen. */
+    void shadowDecals(boolean on) {
+        this.shadowDecals = on;
     }
 
     /**
@@ -142,9 +150,10 @@ final class GroundPictures {
         };
     }
 
-    private static Visuals.UnitVisual.GroundPicture shownTo(Visuals.UnitVisual.GroundPicture picture,
+    private Visuals.UnitVisual.GroundPicture shownTo(Visuals.UnitVisual.GroundPicture picture,
             boolean hostile) {
-        return picture == null || hostile && picture.hiddenFromEnemies() ? null : picture;
+        return picture == null || hostile && picture.hiddenFromEnemies() || picture.shadow() && !shadowDecals ? null
+                : picture;
     }
 
     /** A thing gone, or out of sight: what lay under it goes with it. */

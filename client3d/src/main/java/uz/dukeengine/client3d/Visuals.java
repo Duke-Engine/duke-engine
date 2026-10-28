@@ -632,9 +632,10 @@ public final class Visuals {
          * @param width             along the way it faces; 0, as long as its thing's model
          * @param depth             across it; 0, as wide as its thing's model
          * @param hiddenFromEnemies drawn only to viewers allied or neutral to its owner
+         * @param shadow            a shadow decal, which a {@link DetailPreset} without {@code shadowDecals} lays none of
          */
         record GroundPicture(java.util.SortedSet<String> words, String picture, float width, float depth,
-                int fadeFrames, boolean hiddenFromEnemies) {
+                int fadeFrames, boolean hiddenFromEnemies, boolean shadow) {
         }
 
         final java.util.List<GroundPicture> groundPictures = new java.util.ArrayList<>();
@@ -660,7 +661,29 @@ public final class Visuals {
         public UnitVisual groundPicture(java.util.Set<String> conditions, String picture, float width, float depth,
                 int fadeFrames, boolean hiddenFromEnemies) {
             groundPictures.add(new GroundPicture(new java.util.TreeSet<>(conditions), picture, width, depth,
-                    Math.max(0, fadeFrames), hiddenFromEnemies));
+                    Math.max(0, fadeFrames), hiddenFromEnemies, false));
+            return this;
+        }
+
+        /**
+         * A shadow decal: a picture of no words kept under it whatever its words choose, as {@link #groundPicture} lays
+         * one, only that a {@link DetailPreset} without {@code shadowDecals} lays none, and takes back one it laid —
+         * the reference's {@code UseShadowDecals}.
+         */
+        public UnitVisual shadowDecal(String picture, float width, float depth) {
+            groundPictures.add(new GroundPicture(new java.util.TreeSet<>(), picture, width, depth, 0, false, true));
+            return this;
+        }
+
+        /** Whether it is a scaffold; see {@link #scaffold}. */
+        boolean scaffold;
+
+        /**
+         * This layer ({@link #layer}) is its thing's scaffold, which a {@link DetailPreset} without {@code
+         * buildupScaffolds} does not draw — the reference's {@code UseBuildupScaffolds}.
+         */
+        public UnitVisual scaffold() {
+            this.scaffold = true;
             return this;
         }
 
@@ -1844,6 +1867,20 @@ public final class Visuals {
     /** The conditions the world is in; empty for a game that never named any. */
     public java.util.Set<String> getWorldConditions() {
         return templates.worldConditions;
+    }
+
+    /**
+     * The words of {@link #world} that bring the night's emissive materials — the models a look picks for them, lit
+     * windows and the like. A {@link DetailPreset} that turns {@code emissiveNightMaterials} off draws every thing as
+     * though the world held none of them. None unless the game names them.
+     */
+    public Visuals nightWords(String... words) {
+        templates.nightWords = words == null ? java.util.Set.of() : java.util.Set.copyOf(java.util.Arrays.asList(words));
+        return this;
+    }
+
+    public java.util.Set<String> getNightWords() {
+        return templates.nightWords;
     }
 
     public Visuals unit(String templateName, Consumer<UnitVisual> config) {

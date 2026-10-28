@@ -535,6 +535,16 @@ public final class Duke3D {
     }
 
     /**
+     * The detail preset's switches ({@link DetailPreset}) — shadow decals, the night's emissive materials, the water's
+     * soft edge, scaffolds and tree sway — applied to what is drawn at once and to what is drawn next, so a preset
+     * changed in the middle of a match takes away the shadows and the sway already there. {@link DetailPreset#ALL}
+     * until set; null for that. From any thread, before launch or while it runs.
+     */
+    public void preset(DetailPreset preset) {
+        later(client -> client.preset(preset));
+    }
+
+    /**
      * A weather of flakes falling round the player's camera — snow, rain — as {@link WeatherLook} says; null for none,
      * as there is unless set. Drawn by each machine for itself, nothing of it in the simulation. From any thread,
      * before launch or while it runs.

@@ -67,6 +67,11 @@ final class WorldGround {
         this.shoreWaves = new ShoreWaves(listNode, groundLooks::flatPicture);
     }
 
+    /** The water's edge soft or hard from now — see {@link DetailPreset}. */
+    void softWaterEdge(boolean on) {
+        water.softEdge(on);
+    }
+
     /** The grid the ground was last built from, or null before there was one. */
     PathGrid builtFrom() {
         return builtFrom;

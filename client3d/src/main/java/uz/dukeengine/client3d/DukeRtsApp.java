@@ -112,6 +112,9 @@ final class DukeRtsApp extends SimpleApplication {
     private final Node terrainNode = new Node("terrain");
     /** The world's ground as it is drawn, and what lies on it — see {@link WorldGround}. */
     private WorldGround ground;
+    /** The detail preset in force and the shadow decals it governs; see {@link DetailPreset}. */
+    private volatile DetailPreset preset = DetailPreset.ALL;
+    private GroundPictures groundPictures;
     /** The looks in force, the floor's and its cells' — see {@link Looks}. */
     private final Looks looks;
     /** What the player has seen, and the dark over the rest — see {@link FogOfWar}. */
@@ -560,14 +563,14 @@ final class DukeRtsApp extends SimpleApplication {
         lasers = new Lasers(assetManager, listNode, visuals::laserNamed, this::floorHeightAt);
         ridingEffects = new RidingEffects(particles, rootNode);
         rallyMarks = new RallyMarks(assetManager, listNode, path -> bodies.asFiled(path, "order mark"));
-        var groundPictures = new GroundPictures(assetManager, listNode);
+        groundPictures = new GroundPictures(assetManager, listNode);
         var stealthLook = new StealthLook(assetManager);
         layered.drawsListsWith(lists);
         hitFlash = new HitFlash(visuals.getHitFlash());
         unitScene = new UnitScene(assetManager, visuals, bodies, looks, groundLooks, light, effects, layered, particles,
                 hitFlash, groundPictures, stealthLook, missing, fog, rootNode, unitsNode, cam, timer, () -> game,
                 () -> snapshot, selected, this::floorHeightAt, id -> events.criticalThisFrame(id),
-                shot -> events.shotEnded(shot));
+                shot -> events.shotEnded(shot), () -> preset);
         pointer = new WorldPointer(cam, inputManager, unitScene, () -> game, () -> scheme, () -> worldRegion,
                 this::discovery, this::floorHeightAt);
 
@@ -975,6 +978,12 @@ final class DukeRtsApp extends SimpleApplication {
 
     void shadows(boolean on) {
         light.shadows(on);
+    }
+
+    void preset(DetailPreset set) {
+        this.preset = set == null ? DetailPreset.ALL : set;
+        groundPictures.shadowDecals(preset.shadowDecals());
+        ground.softWaterEdge(preset.softWaterEdge());
     }
 
     void lightGroup(String group, float times) {

@@ -233,6 +233,28 @@ final class ModelLayer {
         return bone != null && bone.getParent() != null ? bone.getParent() : parent;
     }
 
+    /** Whether it is its thing's scaffold — see {@link Visuals.UnitVisual#scaffold}. */
+    boolean scaffold() {
+        return look.scaffold;
+    }
+
+    /** Taken off its thing and its systems stopped, as for words that name no model; worn anew by the next {@link #wear}. */
+    void away() {
+        end();
+        if (body != null) {
+            body.removeFromParent();
+            body = null;
+        }
+        modelPath = null;
+        composer = null;
+        playing = "";
+        lastLook = null;
+        worn = null;
+        if (systems != null) {
+            systems.stop();
+        }
+    }
+
     /** Whether its look lets its owner's colour be laid on its model. */
     boolean ownerColoured() {
         return look.ownerColoured;
