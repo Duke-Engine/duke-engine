@@ -123,6 +123,47 @@ class ParticleDrawingTest {
         }
     }
 
+    /** A DRAWABLE system's particles are each a copy of its model, at the particle, gone with it. */
+    @Test
+    void aDrawableParticleIsAModel() {
+        var systems = Map.of("Glass", new Binder().bind(DukeText.parse("""
+                ParticleSystem
+                  Name = Glass
+                  Type = DRAWABLE
+                  Texture = models/glass_shard.glb
+                  BurstCount = [2]
+                  BurstDelay = [1000]
+                  Lifetime = [3]
+                  VelocityType = ORTHO
+                  VelOrthoX = [1]
+                End
+                """, "it.duke").getFirst(), ParticleSystem.class));
+        var world = new Particles(systems::get, 1L, Particles.Ground.FLAT, Integer.MAX_VALUE, Integer.MAX_VALUE);
+        var asked = new java.util.ArrayList<String>();
+        var drawing = new ParticleDrawing(world, _ -> null, path -> {
+            asked.add(path);
+            return new com.jme3.scene.Node("shard");
+        });
+        world.startAt("Glass", new Particles.Placement(0f, 0f, 0f, 0f));
+        var camera = new com.jme3.renderer.Camera(640, 480);
+
+        world.update();
+        drawing.draw(camera);
+        assertEquals(List.of("models/glass_shard.glb", "models/glass_shard.glb"), asked, "a model a particle");
+        assertEquals(2, drawing.node().getQuantity());
+        assertEquals(0f, drawing.node().getChild(0).getLocalTranslation().distance(new Vector3f(1f, 0f, 0f)), 1e-6f,
+                "at its particle");
+
+        world.update();
+        drawing.draw(camera);
+        assertEquals(2, asked.size(), "kept, not made again");
+        assertEquals(2f, drawing.node().getChild(0).getLocalTranslation().x, 1e-6f, "and moving with it");
+
+        world.update();
+        drawing.draw(camera);
+        assertEquals(0, drawing.node().getQuantity(), "gone when its particles' lifetime is");
+    }
+
     /** A streak joins its particles in the order they were born, and its trailing end is drawn clear. */
     @Test
     void aStreakJoinsItsParticlesInOrder() {

@@ -179,6 +179,9 @@ final class Particle {
      * white — r × g × b over 0.95 — once past its last.
      */
     private boolean unseen() {
+        if (system.data().type() == ParticleSystem.Type.DRAWABLE) {
+            return false; // a model is never unseen
+        }
         boolean pastItsKeys = colourTarget >= system.colourFrames().length;
         return switch (system.data().blend()) {
             case ADDITIVE -> pastItsKeys && red + green + blue <= 0.06f;

@@ -2,6 +2,7 @@ package uz.dukeengine.client3d;
 
 import com.jme3.material.Material;
 import com.jme3.math.FastMath;
+import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.queue.RenderQueue;
@@ -19,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.logging.Logger;
 import uz.dukeengine.core.content.ParticleSystem;
 
 /**
@@ -31,6 +31,8 @@ import uz.dukeengine.core.content.ParticleSystem;
  *       coloured by its colour and alpha; a ground-aligned system's lie flat instead.
  *   <li>A {@code STREAK} joins its system's particles, in the order they were born, into one strip as wide as
  *       each is big — a tracer.
+ *   <li>A {@code VOLUME_PARTICLE} is its square six times over, each a little nearer the camera.
+ *   <li>A {@code DRAWABLE} system's particles are each a copy of the model its {@code texture} names.
  *   <li>Blended as the system says: added, by alpha, by an alpha test, or multiplied — which the materials
  *       handed in carry.
  * </ul>
@@ -43,8 +45,6 @@ import uz.dukeengine.core.content.ParticleSystem;
  * without one; the buffers it is copied into are kept and grown, not made again every frame.
  */
 final class ParticleDrawing {
-
-    private static final Logger LOG = Logger.getLogger(ParticleDrawing.class.getName());
 
     private static final float TURN = FastMath.TWO_PI;
 
@@ -80,12 +80,21 @@ final class ParticleDrawing {
     private final Node node = new Node("particle systems");
     private final Particles particles;
     private final Function<ParticleSystem, Material> materials;
+    private final Function<String, Spatial> models;
     private final Map<Emitter, Drawn> drawn = new IdentityHashMap<>();
+    /** The model each particle of a {@code DRAWABLE} system is drawn as. */
+    private final Map<Particle, Spatial> modelled = new IdentityHashMap<>();
     private final Set<String> undrawable = new HashSet<>();
 
-    ParticleDrawing(Particles particles, Function<ParticleSystem, Material> materials) {
+    /**
+     * @param models a fresh copy of the model at a path, or null where it will not load — what a {@code DRAWABLE}
+     *               system's particles are drawn as
+     */
+    ParticleDrawing(Particles particles, Function<ParticleSystem, Material> materials,
+            Function<String, Spatial> models) {
         this.particles = particles;
         this.materials = materials;
+        this.models = models;
     }
 
     Node node() {
@@ -98,7 +107,12 @@ final class ParticleDrawing {
         var up = camera.getUp();
         var eye = camera.getLocation();
         var live = java.util.Collections.newSetFromMap(new IdentityHashMap<Emitter, Boolean>());
+        var seen = java.util.Collections.newSetFromMap(new IdentityHashMap<Particle, Boolean>());
         for (var emitter : particles.emitters()) {
+            if (emitter.data().type() == ParticleSystem.Type.DRAWABLE) {
+                model(emitter, seen);
+                continue;
+            }
             live.add(emitter);
             var shape = shapeOf(emitter, left, up, eye);
             var one = drawn.get(emitter);
@@ -127,12 +141,50 @@ final class ParticleDrawing {
                 gone.remove();
             }
         }
+        var over = modelled.entrySet().iterator();
+        while (over.hasNext()) {
+            var entry = over.next();
+            if (!seen.contains(entry.getKey())) {
+                entry.getValue().removeFromParent();
+                over.remove();
+            }
+        }
+    }
+
+    /**
+     * A {@code DRAWABLE} system's particles, each the model its {@code texture} names, at the particle and turned
+     * about up by its angle — base Generals' {@code Particle::update} with a drawable; unscaled, as it is there.
+     */
+    private void model(Emitter emitter, Set<Particle> seen) {
+        var path = emitter.data().texture();
+        if (path == null || undrawable.contains(path)) {
+            return;
+        }
+        for (var particle : emitter.particles()) {
+            if (particle.gone) {
+                continue;
+            }
+            var model = modelled.get(particle);
+            if (model == null) {
+                model = models.apply(path);
+                if (model == null) {
+                    undrawable.add(path); // said once by whatever failed to load it; not tried again
+                    return;
+                }
+                node.attachChild(model);
+                modelled.put(particle, model);
+            }
+            seen.add(particle);
+            model.setLocalTranslation(toClient(particle.x, particle.y, particle.z));
+            model.setLocalRotation(new Quaternion().fromAngleAxis(particle.angle, Vector3f.UNIT_Y));
+        }
     }
 
     /** Nothing drawn: a new world. */
     void clear() {
         node.detachAllChildren();
         drawn.clear();
+        modelled.clear();
     }
 
     private Shape shapeOf(Emitter emitter, Vector3f left, Vector3f up, Vector3f eye) {
@@ -142,13 +194,7 @@ final class ParticleDrawing {
             case PARTICLE -> squares(emitter.particles(), data.isGroundAligned(), left, up, eye, 1);
             case VOLUME_PARTICLE -> squares(emitter.particles(), data.isGroundAligned(), left, up, eye,
                     data.isGroundAligned() ? 1 : VOLUME_LAYERS);
-            case DRAWABLE -> {
-                if (undrawable.add(data.name())) {
-                    LOG.warning(() -> "the particle system '" + data.name() + "' draws a model a particle, which"
-                            + " this client does not; nothing is drawn for it");
-                }
-                yield Shape.NOTHING;
-            }
+            case DRAWABLE -> Shape.NOTHING; // drawn as models, by model()
         };
     }
 

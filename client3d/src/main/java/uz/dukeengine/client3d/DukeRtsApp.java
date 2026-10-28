@@ -541,7 +541,8 @@ final class DukeRtsApp extends SimpleApplication {
         particles = new Particles(visuals::particleSystemNamed, new java.util.Random().nextLong(),
                 (x, y) -> floorHeightAt(x, -y), visuals.getParticleSystemMost(),
                 visuals.getParticleSystemNeverRefusedFrom());
-        particleDrawing = new ParticleDrawing(particles, this::particleMaterial);
+        particleDrawing = new ParticleDrawing(particles, this::particleMaterial,
+                path -> bodies.asFiled(path, "particle model"));
         rootNode.attachChild(particleDrawing.node());
         layered.drawsSystemsWith(particles);
         hangTheSky();

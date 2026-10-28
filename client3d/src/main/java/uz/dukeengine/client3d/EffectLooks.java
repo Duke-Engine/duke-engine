@@ -78,8 +78,8 @@ final class EffectLooks {
     }
 
     List<String> particleSystemTextures() {
-        return particleSystems.values().stream().map(ParticleSystem::texture).filter(Objects::nonNull).distinct()
-                .toList();
+        return particleSystems.values().stream().filter(system -> system.type() != ParticleSystem.Type.DRAWABLE)
+                .map(ParticleSystem::texture).filter(Objects::nonNull).distinct().toList();
     }
 
     Collection<Visuals.EffectVisual> all() {

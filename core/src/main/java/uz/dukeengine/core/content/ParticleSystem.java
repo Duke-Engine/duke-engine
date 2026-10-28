@@ -30,7 +30,8 @@ import uz.dukeengine.core.data.Link;
  *                         highest is never refused
  * @param blend            how it is drawn over what is behind it
  * @param type             what each particle is drawn as
- * @param texture          the picture each particle is drawn with, a path as the game's art is laid out
+ * @param texture          the picture each particle is drawn with, a path as the game's art is laid out — or for a
+ *                         {@code DRAWABLE} system, the model
  * @param angle            its turn about the view axis at birth, in radians
  * @param angularRate      how much that turn changes each frame
  * @param angularDamping   what the rate is multiplied by each frame; 1 keeps it
@@ -107,7 +108,10 @@ public record ParticleSystem(String name, int priority, Blend blend, Type type, 
         STREAK,
         /** A {@code PARTICLE} drawn six times over, each copy a little nearer the camera, so it reads as having depth. */
         VOLUME_PARTICLE,
-        /** A model a particle — not drawn by this client, and said so once. */
+        /**
+         * A model a particle: {@code texture} names the model, drawn at the particle unscaled and turned about up by
+         * its angle; never unseen, so it lives out its lifetime (base Generals' {@code Particle::isInvisible}).
+         */
         DRAWABLE
     }
 
