@@ -776,6 +776,33 @@ public final class Visuals {
             return best < 0 ? null : wordLights.get(best).light();
         }
 
+        /** A rope of its own, chosen by its words — see {@link #rope(java.util.Set, Rope)}. */
+        record WordRope(java.util.SortedSet<String> words, Rope rope) {
+        }
+
+        final java.util.List<WordRope> wordRopes = new java.util.ArrayList<>();
+
+        /** A rope hung from a bone of its model whatever it holds. */
+        public UnitVisual rope(Rope rope) {
+            return rope(java.util.Set.of(), rope);
+        }
+
+        /**
+         * A rope hung from a bone of its model down to the ground while its words best fit {@code conditions} — a
+         * Chinook's {@code RopeStart}, let down only while it unloads. It reaches the ground under the bone, so it is as
+         * long as the bone is high. Drawing only: the simulation never reads it.
+         */
+        public UnitVisual rope(java.util.Set<String> conditions, Rope rope) {
+            wordRopes.add(new WordRope(new java.util.TreeSet<>(conditions), rope));
+            return this;
+        }
+
+        /** Which rope its words best fit, or null for none. */
+        Rope ropeFor(java.util.Set<String> holding) {
+            int best = bestOf(wordRopes, WordRope::words, holding);
+            return best < 0 ? null : wordRopes.get(best).rope();
+        }
+
         /**
          * How it is drawn along a line — see {@link #alongALine}.
          *
@@ -2246,6 +2273,23 @@ public final class Visuals {
 
     public Sunlight getSunlight() {
         return ground.sunlight;
+    }
+
+    /**
+     * A rope that hangs from the bone of a thing's model called {@code bone} straight down to the ground: {@code colour}
+     * packed {@code 0xRRGGBB}, drawn {@code width} pixels wide (the reference's {@code RopeStart} is the bone, and its
+     * rope runs from it to the ground).
+     */
+    public record Rope(String bone, int colour, float width) {
+
+        public Rope {
+            width = Math.max(1f, width);
+        }
+
+        /** A rope of the usual width. */
+        public Rope(String bone, int colour) {
+            this(bone, colour, 2f);
+        }
     }
 
     /**

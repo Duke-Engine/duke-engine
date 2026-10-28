@@ -252,6 +252,28 @@ final class UnitScene {
         lights.update(lines, timer.getTimeInSeconds());
     }
 
+    /** The rope each thing that is being drawn lets down from a bone of its model — {@code UnitVisual.rope}. */
+    void showRopes(Ropes ropes) {
+        var lines = new ArrayList<Ropes.Line>();
+        for (var node : unitNodes.values()) {
+            var view = node.view;
+            if (view == null || view.remembered()) {
+                continue;
+            }
+            var visual = looks.visualFor(view);
+            if (visual.wordRopes.isEmpty()) {
+                continue;
+            }
+            var rope = visual.ropeFor(visual.holding(view.healthFraction(), visuals.getWorldConditions(),
+                    view.conditions()));
+            var bone = rope == null ? null : boneOf(node, null, rope.bone());
+            if (bone != null) {
+                lines.add(new Ropes.Line(view.id(), rope, bone.getWorldTranslation().clone()));
+            }
+        }
+        ropes.update(lines, floor);
+    }
+
     /**
      * The world height a thing's bar floats at: over its feet where they stand this frame — up a hill, in a jump — by
      * its model's height, or by its shape's and the plain bar's lift.
