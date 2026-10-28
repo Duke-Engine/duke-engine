@@ -1,11 +1,11 @@
 package uz.dukeengine.core.map;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.RecordComponent;
 import java.util.List;
 import uz.dukeengine.core.data.Grid;
 import uz.dukeengine.core.data.Relief;
+import uz.dukeengine.core.data.Shape;
+import uz.dukeengine.core.data.Shapes;
 import uz.dukeengine.core.pathfind.HeightMap;
 import uz.dukeengine.core.pathfind.MapLoader;
 import uz.dukeengine.core.pathfind.PathGrid;
@@ -49,7 +49,7 @@ public final class MapTerrain {
         var relief = rows(map, Relief.class, "relief");
         if (!relief.isEmpty()) {
             grid.setRelief(HeightMap.parse(relief)
-                    .withDiagonal(markedWith(map, Relief.class).getAnnotation(Relief.class).diagonal()));
+                    .withDiagonal(markOf(componentsOf(map), markedWith(map, Relief.class), Relief.class).diagonal()));
         }
         return grid;
     }
@@ -66,8 +66,8 @@ public final class MapTerrain {
 
     /** The rows of the component that carries this mark, or none where the record has no such component. */
     public static List<String> rows(Object map, Class<? extends Annotation> mark, String what) {
-        var component = markedWith(map, mark);
-        return component == null ? List.of() : read(map, component, what);
+        int component = markedWith(map, mark);
+        return component < 0 ? List.of() : read(map, component, what);
     }
 
     /**
@@ -80,52 +80,62 @@ public final class MapTerrain {
      * the same n on every machine and in every reading.
      */
     public static List<List<String>> rowsOfEach(Object map, Class<? extends Annotation> mark, String what) {
-        if (map == null || !map.getClass().isRecord()) {
+        var components = componentsOf(map);
+        if (components == null) {
             return List.of();
         }
         var each = new java.util.ArrayList<List<String>>();
-        for (var component : map.getClass().getRecordComponents()) {
-            if (component.getAnnotation(mark) != null) {
-                each.add(read(map, component, what));
+        for (int i = 0; i < components.marks().size(); i++) {
+            if (markOf(components, i, mark) != null) {
+                each.add(read(map, i, what));
             }
         }
         return List.copyOf(each);
     }
 
-    private static List<String> read(Object map, RecordComponent component, String what) {
-        try {
-            // As the Binder reads a record's components. A game's map record need not be public to be a
-            // map: it is named by its own file and built by reflection, and nothing outside its game ever
-            // holds one by its type.
-            var accessor = component.getAccessor();
-            accessor.setAccessible(true);
-            var read = accessor.invoke(map);
-            if (!(read instanceof List<?> rows)) {
-                throw new IllegalArgumentException(named(map) + "'s " + what + " is written as rows of text");
-            }
-            return rows.stream().map(String::valueOf).toList();
-        } catch (IllegalAccessException | InvocationTargetException e) {
-            throw new IllegalStateException("could not read the " + what + " of " + named(map), e);
+    private static List<String> read(Object map, int component, String what) {
+        // As the Binder reads a record's components, through its shape. A game's map record need not be public
+        // to be a map: it is named by its own file, and nothing outside its game ever holds one by its type.
+        var read = componentsOf(map).read().apply(map)[component];
+        if (!(read instanceof List<?> rows)) {
+            throw new IllegalArgumentException(named(map) + "'s " + what + " is written as rows of text");
         }
+        return rows.stream().map(String::valueOf).toList();
     }
 
     /** The characters this map's cells call rock; everything else is walked on. */
     public static String solidOf(Object map) {
-        var component = markedWith(map, Grid.class);
-        var mark = component == null ? null : component.getAnnotation(Grid.class);
+        int component = markedWith(map, Grid.class);
+        var mark = component < 0 ? null : markOf(componentsOf(map), component, Grid.class);
         return mark == null || mark.solid().isEmpty() ? "#" : mark.solid();
     }
 
-    private static RecordComponent markedWith(Object map, Class<? extends Annotation> mark) {
-        if (map == null || !map.getClass().isRecord()) {
-            return null;
+    /** The first component that carries this mark, or -1. */
+    private static int markedWith(Object map, Class<? extends Annotation> mark) {
+        var components = componentsOf(map);
+        if (components == null) {
+            return -1;
         }
-        for (var component : map.getClass().getRecordComponents()) {
-            if (component.getAnnotation(mark) != null) {
-                return component;
+        for (int i = 0; i < components.marks().size(); i++) {
+            if (markOf(components, i, mark) != null) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static <A extends Annotation> A markOf(Shape.Components components, int component, Class<A> mark) {
+        for (var each : components.marks().get(component)) {
+            if (each.annotationType() == mark) {
+                return mark.cast(each);
             }
         }
         return null;
+    }
+
+    /** What the map record is made of, or {@code null} where the map is no record. */
+    private static Shape.Components componentsOf(Object map) {
+        return map == null ? null : Shapes.of(map.getClass()).components();
     }
 
     /**
