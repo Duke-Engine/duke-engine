@@ -56,6 +56,8 @@ final class Particle {
     private final float colourScale;
 
     private int lifetimeLeft;
+    /** Its own share of its system's wind, 0.7 to 1.3 — the reference's {@code m_windRandomness}. */
+    float windShare;
     private final float emitterX;
     private final float emitterY;
 
@@ -114,6 +116,7 @@ final class Particle {
         x += vx + driftX;
         y += vy + driftY;
         z += vz + driftZ;
+        system.blow(this);
 
         angle += angularRate;
         angularRate *= angularDamping;

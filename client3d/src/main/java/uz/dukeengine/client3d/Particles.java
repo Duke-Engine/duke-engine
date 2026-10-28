@@ -225,6 +225,9 @@ final class Particles {
             }
         }
         var particle = new Particle(emitter, made++, frame, born);
+        if (emitter.data().windMotion() != ParticleSystem.WindMotion.NONE) {
+            particle.windShare = between(0.7f, 1.3f);
+        }
         emitter.particles().add(particle);
         living.computeIfAbsent(priority, _ -> new LinkedHashSet<>()).add(particle);
         count++;

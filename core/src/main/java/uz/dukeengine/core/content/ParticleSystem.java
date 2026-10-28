@@ -64,6 +64,13 @@ import uz.dukeengine.core.data.Link;
  * @param isEmitAboveGroundOnly a particle that would be born under the ground is not born
  * @param isParticleUpTowardsEmitter turned each frame so its top points back at where the system emits from,
  *                         instead of turning by its angular rate
+ * @param windMotion       how the system's wind turns; while it blows, every particle within 200 of the system is
+ *                         pushed 2 a frame along it, times a share of its own between 0.7 and 1.3, the push easing
+ *                         off from 75 out ({@code Particle::doWindMotion})
+ * @param windAngleChange  how far the wind turns a frame, drawn again each time a swing turns back; the first
+ *                         swing turns 0.15, as the reference's never reads it from the data
+ * @param windPingPongStartAngle where a swing turns back at its start, in radians, drawn each swing
+ * @param windPingPongEndAngle   where it turns back at its end; above the start
  */
 public record ParticleSystem(String name, int priority, Blend blend, Type type, String texture,
         List<Float> angle, List<Float> angularRate, List<Float> angularDamping, List<Float> velocityDamping,
@@ -77,7 +84,8 @@ public record ParticleSystem(String name, int priority, Blend blend, Type type, 
         List<Float> velOutward, List<Float> velOutwardOther, VolumeType volumeType, List<Float> volLineStart,
         List<Float> volLineEnd, List<Float> volBoxHalfSize, float volSphereRadius, float volCylinderRadius,
         float volCylinderLength, boolean isHollow, boolean isGroundAligned, boolean isEmitAboveGroundOnly,
-        boolean isParticleUpTowardsEmitter) {
+        boolean isParticleUpTowardsEmitter, WindMotion windMotion, List<Float> windAngleChange,
+        List<Float> windPingPongStartAngle, List<Float> windPingPongEndAngle) {
 
     /** How it is drawn over what is behind it — the reference's four shaders. */
     public enum Blend {
@@ -135,6 +143,19 @@ public record ParticleSystem(String name, int priority, Blend blend, Type type, 
         CYLINDER
     }
 
+    /** How a system's wind turns — the reference's {@code WindMotion} ({@code ParticleSystem::updateWindMotion}). */
+    public enum WindMotion {
+        /** No wind. */
+        NONE,
+        /**
+         * Swinging between its start and end angles and back, fastest midway and never slower than 0.005 a frame,
+         * new angles and a new rate drawn at each end.
+         */
+        PING_PONG,
+        /** Turning round and round at its rate. */
+        CIRCULAR
+    }
+
     /**
      * One alpha key: the particle draws its own value between {@code min} and {@code max}, and has it on
      * {@code frame}.
@@ -152,10 +173,12 @@ public record ParticleSystem(String name, int priority, Blend blend, Type type, 
             List.of(1f), List.of(), List.of(), List.of(), List.of(), List.of(1f), List.of(), List.of(), null,
             List.of(), null, VelocityType.ORTHO, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
             List.of(), List.of(), List.of(), VolumeType.POINT, List.of(), List.of(), List.of(), 0f, 0f, 0f, false,
-            false, false, false);
+            false, false, false, WindMotion.NONE, List.of(0.15f, 0.45f), List.of(0f, (float) (Math.PI / 4)),
+            List.of((float) (2 * Math.PI - Math.PI / 4), (float) (2 * Math.PI)));
 
     public ParticleSystem {
         blend = blend == null ? Blend.ALPHA : blend;
+        windMotion = windMotion == null ? WindMotion.NONE : windMotion;
         type = type == null ? Type.PARTICLE : type;
         velocityType = velocityType == null ? VelocityType.ORTHO : velocityType;
         volumeType = volumeType == null ? VolumeType.POINT : volumeType;

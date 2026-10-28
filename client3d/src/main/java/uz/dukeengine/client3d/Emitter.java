@@ -58,6 +58,15 @@ final class Emitter {
     /** The part of a particle its rate has owed and not yet let out. */
     private float owed;
 
+    /** Its wind, where it has one — the reference's {@code m_windAngle} and the swing it is on. */
+    private final boolean windy;
+    private float windAngle;
+    /** The reference starts from its template's 0.15, which no data sets. */
+    private float windAngleChange = 0.15f;
+    private float windStart;
+    private float windEnd;
+    private boolean windToEnd = true;
+
     private final List<Particle> particles = new ArrayList<>();
 
     Emitter(Particles world, ParticleSystem data, Supplier<Particles.Placement> follows, Particle control) {
@@ -92,6 +101,13 @@ final class Emitter {
         }
 
         this.delayLeft = (int) world.draw(data.initialDelay());
+        // Drawn only for a windy system, so a still one draws exactly the numbers it always did.
+        this.windy = data.windMotion() != ParticleSystem.WindMotion.NONE;
+        if (windy) {
+            windStart = world.draw(data.windPingPongStartAngle());
+            windEnd = world.draw(data.windPingPongEndAngle());
+            windAngle = world.between(windStart, windEnd);
+        }
         this.lifetimeLeft = data.systemLifetime();
         this.forever = data.systemLifetime() == 0;
         if (control != null) {
@@ -204,6 +220,9 @@ final class Emitter {
             delayLeft--; // nothing at all happens until its delay has passed
             return true;
         }
+        if (windy) {
+            turnTheWind();
+        }
         follow();
         if (!destroyed && (forever || lifetimeLeft > 0) && master == null) {
             if (burstDelayLeft == 0) {
@@ -245,6 +264,57 @@ final class Emitter {
             return lifetimeLeft != 0;
         }
         return true;
+    }
+
+    /** The reference's {@code ParticleSystem::updateWindMotion}, once a frame. */
+    private void turnTheWind() {
+        if (data.windMotion() == ParticleSystem.WindMotion.CIRCULAR) {
+            if (windAngleChange == 0f) {
+                windAngleChange = world.draw(data.windAngleChange());
+            }
+            windAngle += windAngleChange;
+            float turn = (float) (2 * Math.PI);
+            if (windAngle > turn) {
+                windAngle -= turn;
+            } else if (windAngle < 0f) {
+                windAngle += turn;
+            }
+            return;
+        }
+        float half = (windEnd - windStart) / 2f;
+        float fromMiddle = Math.abs(half - windAngle + windStart);
+        // Fastest midway, slowest at the ends, and never stopped; a swing with no width only creeps.
+        float change = Math.max(0.005f, half > 0f ? (1f - fromMiddle / half) * windAngleChange : 0f);
+        windAngle += windToEnd ? change : -change;
+        if (windToEnd ? windAngle >= windEnd : windAngle <= windStart) {
+            windToEnd = !windToEnd;
+            windAngleChange = world.draw(data.windAngleChange());
+            windStart = world.draw(data.windPingPongStartAngle());
+            windEnd = world.draw(data.windPingPongEndAngle());
+        }
+    }
+
+    /**
+     * Blow a particle along the wind, as the reference's {@code Particle::doWindMotion} does after it has moved: 2 a
+     * frame times its own share within 75 of the system, easing to nothing at 200.
+     */
+    void blow(Particle particle) {
+        if (!windy) {
+            return;
+        }
+        float dx = particle.x - x;
+        float dy = particle.y - y;
+        float dz = particle.z - z;
+        float distance = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (distance >= 200f) {
+            return;
+        }
+        float strength = 2f * particle.windShare;
+        if (distance > 75f) {
+            strength *= 1f - (distance - 75f) / (200f - 75f);
+        }
+        particle.x += (float) Math.cos(windAngle) * strength;
+        particle.y += (float) Math.sin(windAngle) * strength;
     }
 
     /** Where it stands this frame: on the particle it rides, or where what it rides says it is. */

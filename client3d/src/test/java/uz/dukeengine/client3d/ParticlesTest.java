@@ -514,6 +514,55 @@ class ParticlesTest {
         }
     }
 
+    /** Where a particle born still has been blown after ten frames of the wind its lines give. */
+    private static Particle blown(String wind) {
+        var world = world(library("""
+                ParticleSystem
+                  Name = Smoke
+                  Blend = ALPHA_TEST
+                """ + wind + ONE + "End\n"), 1L);
+        var emitter = world.startAt("Smoke", new Particles.Placement(0f, 0f, 0f, 0f));
+        for (int frame = 0; frame < 10; frame++) {
+            world.update();
+        }
+        return only(emitter);
+    }
+
+    /** The wind pushes 2 a frame, times the particle's 0.7 to 1.3, along its angle; no wind, no push. */
+    @Test
+    void theWindBlowsAParticleAlongItsAngle() {
+        var still = blown("");
+        assertEquals(0f, still.x, 0f, "no wind");
+        assertEquals(0f, still.y, 0f);
+
+        var east = blown("""
+                  WindMotion = PING_PONG
+                  WindPingPongStartAngle = [0]
+                  WindPingPongEndAngle = [0.2]
+                """);
+        assertTrue(east.x > 10f * 2f * 0.7f * 0.97f && east.x < 10f * 2f * 1.3f, "along x: " + east.x);
+        assertTrue(Math.abs(east.y) < east.x * 0.25f, "and hardly across: " + east.y);
+
+        var west = blown("""
+                  WindMotion = PING_PONG
+                  WindPingPongStartAngle = [3.1416]
+                  WindPingPongEndAngle = [3.3416]
+                """);
+        assertTrue(west.x < -10f * 2f * 0.7f * 0.97f, "a wind the other way blows it the other way: " + west.x);
+    }
+
+    /** A circular wind turns 0.15 a frame, as the reference's does, so it swings the particle round. */
+    @Test
+    void aCircularWindTurnsRound() {
+        var round = blown("""
+                  WindMotion = CIRCULAR
+                  WindPingPongStartAngle = [0]
+                  WindPingPongEndAngle = [0]
+                """);
+        // Ten frames turning from 0.15 to 1.5: the pushes sum along roughly 0.8 radians.
+        assertTrue(round.y > 0f && round.x > 0f, "blown up and across as the wind turns: " + round.x + ", " + round.y);
+    }
+
     /** A system the game never described draws nothing, and says so once. */
     @Test
     void aSystemNobodyDescribedStartsNothing() {
