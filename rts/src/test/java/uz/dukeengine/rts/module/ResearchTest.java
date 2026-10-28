@@ -114,6 +114,51 @@ class ResearchTest {
         return logic.getRtsPlayer(red).getMoney();
     }
 
+    /** A game's cap on its line — the reference's {@code MaxQueueEntries} — of one job. */
+    private static final class OneJob extends Module implements ProductionReservation {
+        OneJob(GameObject owner) {
+            super(owner);
+        }
+
+        private boolean full() {
+            return getOwner().findModule(ProductionUpdate.class).getQueueSize() >= 1;
+        }
+
+        @Override
+        public Object reserve(ThingTemplate unit) {
+            return full() ? null : Boolean.TRUE;
+        }
+
+        @Override
+        public boolean admits(Upgrade research) {
+            return !full();
+        }
+
+        @Override
+        public void release(Object token) {
+        }
+
+        @Override
+        public void place(GameObject unit, Object token) {
+        }
+    }
+
+    /** A full line refuses an upgrade before charging for it, as it refuses a unit; an empty one takes it. */
+    @Test
+    void aBusyLineItsReservationsDoNotAdmitResearchToRefusesItAndChargesNothing() {
+        lab.addModule(new OneJob(lab));
+        assertTrue(line(lab).queue(soldier));
+        int before = money();
+
+        assertFalse(line(lab).queueResearch(ROOF), "the line holds its one job");
+        assertEquals(before, money(), "nothing charged");
+        assertEquals(1, line(lab).getQueueSize());
+
+        assertTrue(line(otherLab).queueResearch(ROOF), "a line with no cap takes it, as ever");
+        run(5);
+        assertTrue(line(lab).queueResearch(ROOF), "its job done, the line takes it");
+    }
+
     /** Game code told the frame research finishes, with who researched what — not for research bought or called off. */
     @Test
     void watchersAreToldOnceTheFrameResearchFinishesAndNotForAPurchaseOrACancel() {

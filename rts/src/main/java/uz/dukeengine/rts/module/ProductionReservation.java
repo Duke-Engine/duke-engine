@@ -2,6 +2,7 @@ package uz.dukeengine.rts.module;
 
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingTemplate;
+import uz.dukeengine.rts.player.Upgrade;
 
 /**
  * A module of a factory that takes part in queueing — the reference's airfield, four parking spaces, refusing a fifth
@@ -26,5 +27,14 @@ public interface ProductionReservation {
      */
     default int door(Object token) {
         return -1;
+    }
+
+    /**
+     * Whether {@code research}, about to be queued, may be — false refuses it before anything is charged, as a full
+     * queue refuses an upgrade ({@code ProductionUpdate::canQueueUpgrade}, {@code CANMAKE_QUEUE_FULL}). Every one
+     * takes it unless it says otherwise.
+     */
+    default boolean admits(Upgrade research) {
+        return true;
     }
 }

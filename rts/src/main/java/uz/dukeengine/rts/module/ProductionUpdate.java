@@ -414,12 +414,18 @@ public final class ProductionUpdate extends UpdateModule {
     /**
      * Charge the owner and enqueue research of {@code upgrade}. Refused — nothing charged, nothing queued —
      * where it cannot be afforded, where the side already has an upgrade of the side's or has it queued at any
-     * building, or where this building already has, or has queued, an upgrade of its own.
+     * building, where this building already has, or has queued, an upgrade of its own, or where one of its {@link
+     * ProductionReservation}s does not admit it.
      */
     public boolean queueResearch(Upgrade upgrade) {
         var player = owner();
         if (player == null || upgrade == null || getOwner().hasStatus(ObjectStatus.SOLD)) {
             return false;
+        }
+        for (var module : getOwner().getModules()) {
+            if (module instanceof ProductionReservation reservation && !reservation.admits(upgrade)) {
+                return false; // no room for it here: refused before anything is charged
+            }
         }
         boolean taken = upgrade.scope() == Upgrade.Scope.PLAYER
                 ? getOwner().getWorld() instanceof RtsSimulation rts
