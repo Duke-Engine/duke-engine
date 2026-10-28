@@ -943,6 +943,19 @@ public final class Visuals {
             return this;
         }
 
+        /** Whether its models take their owner's colour — see {@link #okToChangeModelColour}. */
+        boolean ownerColoured = true;
+
+        /**
+         * Whether the parts of its models that the game's {@link Visuals#houseColour} prefix marks are painted in
+         * their owner's colour: the reference's {@code OkToChangeModelColor}. A look that says {@code false} is drawn
+         * as its file is, whoever owns it, its layers and ghost too; one that never says is painted as it always was.
+         */
+        public UnitVisual okToChangeModelColour(boolean ok) {
+            ownerColoured = ok;
+            return this;
+        }
+
         /** Whether it is kept from its owner's enemies — see {@link #hiddenFromEnemies}. */
         boolean hidesFromEnemies;
 

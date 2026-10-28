@@ -346,7 +346,7 @@ final class CommandButtons {
             }
         }
         var ghostLook = visuals.getGhostLook();
-        if (ghostLook != null && visuals.getHouseColour() != null) {
+        if (ghostLook != null && visuals.getHouseColour() != null && (look == null || look.ownerColoured)) {
             var game = this.game.get();
             Bodies.paintOwner(body, visuals.getHouseColour(),
                     Materials.colour(game.getColor(game.getLocalPlayerIndex())));

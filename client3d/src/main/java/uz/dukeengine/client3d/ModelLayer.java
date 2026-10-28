@@ -68,8 +68,9 @@ final class ModelLayer {
      * The same, hung — where its look says so ({@link Visuals.UnitVisual#hungOn}) — at the bone {@code bones} finds by
      * name in the thing's other models, and at the thing's place where it finds none.
      */
-    void wear(Node parent, UnitView view, Set<String> world, int frame, Consumer<Spatial> paint,
+    void wear(Node parent, UnitView view, Set<String> world, int frame, Consumer<Spatial> ownerPaint,
             Consumer<String> missing, Function<String, Spatial> bones) {
+        Consumer<Spatial> paint = look.ownerColoured ? ownerPaint : _ -> { };
         var holding = look.holding(view.healthFraction(), world, view.conditions());
         if (worn != null && look.waits() && clip.holdsBack(frame)
                 && look.waitsFor(look.lookFor(worn), look.lookFor(holding))) {
@@ -230,6 +231,11 @@ final class ModelLayer {
             return node;
         }
         return bone != null && bone.getParent() != null ? bone.getParent() : parent;
+    }
+
+    /** Whether its look lets its owner's colour be laid on its model. */
+    boolean ownerColoured() {
+        return look.ownerColoured;
     }
 
     /** What it draws now — the transition's model while one plays — or null for nothing. */

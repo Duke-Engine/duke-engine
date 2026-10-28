@@ -87,4 +87,33 @@ class HouseColourTest {
         assertEquals(new com.jme3.math.ColorRGBA(0f, 0f, 0.5f, 1f), material.getParamValue("Diffuse"),
                 "grey times blue: the red is gone");
     }
+
+    /** The flag is the look's: a look that never says is painted as it always was, one that says no is not. */
+    @Test
+    void onlyALookThatIsOkToChangeItsModelColourIsPainted() {
+        var visuals = Visuals.create().unit("Plain", look -> look.model("models/plain.glb"))
+                .unit("Kept", look -> look.model("models/kept.glb").okToChangeModelColour(false))
+                .unit("Marked", look -> look.model("models/marked.glb").okToChangeModelColour(true));
+
+        assertTrue(visuals.of("Plain").ownerColoured, "no flag given: the old behaviour");
+        assertFalse(visuals.of("Kept").ownerColoured);
+        assertTrue(visuals.of("Marked").ownerColoured);
+    }
+
+    @Test
+    void aLayerIsPaintedOnlyWhereItsLookIsOkToChangeItsColour() {
+        var visuals = Visuals.create().unit("Thing", look -> {
+            look.layer("kept").model("models/kept.glb").okToChangeModelColour(false);
+            look.layer("owned").model("models/owned.glb");
+        });
+        var painted = new java.util.ArrayList<String>();
+        var view = new uz.dukeengine.core.view.UnitView(1, "Thing", 0, 0f, 0f, 0f, 100f, 100f, true, true, false,
+                false, 0, 0f, 0f, 0f, false, 0, java.util.List.of(), java.util.List.of());
+        for (var look : visuals.of("Thing").layers.values()) {
+            var layer = new ModelLayer(look, path -> new Node(path));
+            layer.wear(new Node("unit"), view, java.util.Set.of(), 0, body -> painted.add(body.getName()), _ -> { });
+            assertEquals(look.ownerColoured, layer.ownerColoured());
+        }
+        assertEquals(java.util.List.of("models/owned.glb"), painted);
+    }
 }

@@ -782,8 +782,8 @@ final class UnitScene {
      */
     private void paintHouseColour(Spatial body, UnitView view) {
         var prefix = visuals.getHouseColour();
-        if (prefix == null || body == null) {
-            return; // a game that names none is drawn as it always was
+        if (prefix == null || body == null || !looks.visualFor(view).ownerColoured) {
+            return; // a game that names none, or a look that says no, is drawn as its file is
         }
         Bodies.paintOwner(body, prefix, Materials.colour(game.get().getColor(view.wears()))); // a disguise's to those it fools
     }
@@ -912,7 +912,8 @@ final class UnitScene {
             // Its owner changed, however it did, or the colours it wears to this viewer: drawn in the new ones.
             node.root.setUserData("wears", view.wears());
             paintHouseColour(node.body, view);
-            node.layers.forEach(layer -> paintHouseColour(layer.body(), view));
+            node.layers.stream().filter(ModelLayer::ownerColoured)
+                    .forEach(layer -> paintHouseColour(layer.body(), view));
         }
         if (handedOver) {
             selected.remove(view.id()); // out of the old owner's hands
