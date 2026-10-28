@@ -59,16 +59,27 @@ public final class ToppleUpdate extends UpdateModule implements KeepsDead {
      *                      KillWhenStartToppling}
      * @param leftOrRightOnly falling only to one side of its facing or the other, whichever is nearer the push, and
      *                      keeping its facing — a fence, the reference's {@code ToppleLeftOrRightOnly}
+     * @param toppleEffect  what the world plays riding it as it starts to fall, anything it plays by name, or null —
+     *                      the reference's {@code ToppleFX}
+     * @param bounceEffect  the same as it bounces hard enough to be heard, {@code BounceFX}
      */
     public record Data(int crushedAbove, float reach, float toppleSpeed, float velocityShare, float accelerationShare,
             float bounceShare, float sinkDepth, int sinkFrames, boolean killWhenStartToppling,
-            boolean leftOrRightOnly) implements ModuleData {
+            boolean leftOrRightOnly, String toppleEffect, String bounceEffect) implements ModuleData {
 
         static final Data DEFAULTS = new Data(1, 7f, 0.2f, 0.2f, 0.01f, 0.3f, 10f, 150);
 
         public Data {
             reach = Math.clamp(reach, 0f, MOST_REACH);
             sinkFrames = Math.max(1, sinkFrames);
+        }
+
+        /** Playing nothing as it falls or bounces. */
+        public Data(int crushedAbove, float reach, float toppleSpeed, float velocityShare, float accelerationShare,
+                float bounceShare, float sinkDepth, int sinkFrames, boolean killWhenStartToppling,
+                boolean leftOrRightOnly) {
+            this(crushedAbove, reach, toppleSpeed, velocityShare, accelerationShare, bounceShare, sinkDepth,
+                    sinkFrames, killWhenStartToppling, leftOrRightOnly, null, null);
         }
 
         /** Falling whichever way it is pushed, and dying once it lies still. */
@@ -82,8 +93,13 @@ public final class ToppleUpdate extends UpdateModule implements KeepsDead {
     /** How a push is to fall, as the reference's {@code ToppleOptions}. */
     public enum Option {
         /** Lies still the first time it reaches the ground — {@code TOPPLE_OPTIONS_NO_BOUNCE}. */
-        NO_BOUNCE
+        NO_BOUNCE,
+        /** Plays nothing as it bounces — {@code TOPPLE_OPTIONS_NO_FX}; its fall's start plays as ever, as there. */
+        NO_FX
     }
+
+    /** {@code VELOCITY_BOUNCE_SOUND_LIMIT}: a bounce slower than this plays nothing. */
+    private static final float HEARD = 0.03f;
 
     private enum State {
         UPRIGHT,
@@ -94,6 +110,7 @@ public final class ToppleUpdate extends UpdateModule implements KeepsDead {
     private final Data data;
     private State state = State.UPRIGHT;
     private boolean noBounce;
+    private boolean noEffects;
     private float side;
     private float velocity;
     private float acceleration;
@@ -154,9 +171,18 @@ public final class ToppleUpdate extends UpdateModule implements KeepsDead {
             owner.setOrientation((float) StrictMath.atan2(dy, dx));
         }
         noBounce = options.contains(Option.NO_BOUNCE);
+        noEffects = options.contains(Option.NO_FX);
         velocity = speed * data.velocityShare();
         acceleration = speed * data.accelerationShare();
         state = State.FALLING;
+        play(data.toppleEffect());
+    }
+
+    private void play(String effect) {
+        var world = getOwner().getWorld();
+        if (effect != null && !effect.isBlank() && world != null) {
+            world.effect(effect, getOwner());
+        }
     }
 
     @Override
@@ -184,6 +210,8 @@ public final class ToppleUpdate extends UpdateModule implements KeepsDead {
             if (noBounce || Math.abs(velocity) < STILL) {
                 velocity = 0f;
                 liesStill();
+            } else if (Math.abs(velocity) >= HEARD && !noEffects) {
+                play(data.bounceEffect());
             }
         } else {
             velocity += acceleration;

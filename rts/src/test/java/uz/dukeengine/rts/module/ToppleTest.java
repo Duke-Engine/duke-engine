@@ -48,6 +48,10 @@ class ToppleTest {
         factory.addTemplate(RtsTemplate.named("Pole").geometry(new Geometry.Cylinder(1f, 10f))
                 .module(new ActiveBody.Data(100f))
                 .module(new ToppleUpdate.Data(1, 7f, 0.2f, 0.2f, 0.01f, 0.3f, 10f, 30, true, false)).build());
+        factory.addTemplate(RtsTemplate.named("Lamp").geometry(new Geometry.Cylinder(1f, 10f))
+                .module(new ActiveBody.Data(100f))
+                .module(new ToppleUpdate.Data(1, 7f, 0.2f, 0.2f, 0.01f, 0.5f, 10f, 30, false, false,
+                        "FX_ToppleLampPost", "FX_LampPostBounce")).build());
         logic = new CombatTest.CombatLogic(factory);
         logic.init();
         player = logic.getPlayerList().addPlayer("Red").getIndex();
@@ -60,12 +64,37 @@ class ToppleTest {
         return thing;
     }
 
+    private final List<String> played = new ArrayList<>();
+
     private void run(int frames) {
         for (int frame = 0; frame < frames; frame++) {
             logic.update();
-            logic.drainEvents().stream().filter(ObjectDied.class::isInstance).map(ObjectDied.class::cast)
-                    .forEach(died::add);
+            for (var event : logic.drainEvents()) {
+                switch (event) {
+                    case ObjectDied death -> died.add(death);
+                    case uz.dukeengine.core.event.EffectPlayed effect -> played.add(effect.name());
+                    default -> {
+                    }
+                }
+            }
         }
+    }
+
+    /** A lamp post plays its fall's start and its bounce; pushed with NO_FX, its start and no bounce. */
+    @Test
+    void aFallPlaysItsStartAndItsBounceAndNoFxSilencesTheBounceAlone() {
+        var lamp = spawn("Lamp", 0f, 0f);
+        lamp.findModule(ToppleUpdate.class).topple(null, new Coord3D(-10f, 0f, 0f));
+        run(120);
+        assertEquals("FX_ToppleLampPost", played.getFirst(), "as it starts to fall");
+        assertTrue(played.contains("FX_LampPostBounce"), "and as it bounces");
+
+        played.clear();
+        var quiet = spawn("Lamp", 100f, 0f);
+        quiet.findModule(ToppleUpdate.class).topple(null, new Coord3D(90f, 0f, 0f), 0.2f,
+                EnumSet.of(ToppleUpdate.Option.NO_FX));
+        run(120);
+        assertEquals(List.of("FX_ToppleLampPost"), played, "its start as ever, its bounce silent");
     }
 
     @Test
