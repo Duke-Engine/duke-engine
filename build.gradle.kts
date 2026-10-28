@@ -32,10 +32,24 @@ subprojects {
 
     tasks.withType<JavaCompile>().configureEach {
         options.compilerArgs.add("-Xlint:all")
+        // The shape processor reads every type and claims no annotation, which javac would warn of in each module.
+        options.compilerArgs.add("-Xlint:-processing")
     }
 
     tasks.withType<Test>().configureEach {
         useJUnitPlatform()
+    }
+
+    // Every module writes the shapes of its records, so the Binder can read data where reflection cannot. A
+    // module's tests share its packages, so theirs are written under another class name.
+    if (name != "processor") {
+        dependencies {
+            "annotationProcessor"(project(":processor"))
+            "testAnnotationProcessor"(project(":processor"))
+        }
+        tasks.named<JavaCompile>("compileTestJava") {
+            options.compilerArgs.add("-Aduke.shapes.class=DukeShapesTest")
+        }
     }
 
     dependencies {
@@ -66,6 +80,8 @@ subprojects {
 val published = mapOf(
     "bom" to "Every module of the engine at one version, so a game writes the version once and cannot mix "
         + "a client from one release with a core from another.",
+    "processor" to "The annotation processor a game adds beside the engine: it writes the shape of every record a "
+        + "module declares, so the .duke binder reads data without reflection where a platform has none.",
     "core" to "The genre-neutral engine: subsystems, the fixed-rate deterministic loop, objects and modules, "
         + "the .duke data layer, pathfinding, fog of war and lock-step networking.",
     "combat" to "What every side that fights shares, on top of core: weapons and their bonuses, shots, statuses, "

@@ -12,6 +12,7 @@ plugins {
 // mistake a multi-module library makes easy and a BOM makes impossible.
 dependencies {
     constraints {
+        api(project(":processor"))
         api(project(":core"))
         api(project(":combat"))
         api(project(":rts"))
