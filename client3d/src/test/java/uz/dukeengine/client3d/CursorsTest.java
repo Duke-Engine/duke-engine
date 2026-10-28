@@ -1,6 +1,7 @@
 package uz.dukeengine.client3d;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -474,5 +475,13 @@ class CursorsTest {
         assertEquals(java.util.List.of("Strike"), Cursors.armed("Strike", null, false, true),
                 "a place refused, none named: the armed pointer, as ever");
         assertEquals(null, Cursors.armed(null, null, false, false), "nothing named: the client's own choice");
+    }
+
+    @Test
+    void aHiddenPointerIsGoneOffPlayAndAlwaysBackInPlay() {
+        assertFalse(Cursors.shownWhen(true, false), "the first menu waiting for a key");
+        assertTrue(Cursors.shownWhen(true, true), "in play the camera and the aim own it");
+        assertTrue(Cursors.shownWhen(false, false), "not hidden: as every game had it");
+        assertTrue(Cursors.shownWhen(false, true));
     }
 }

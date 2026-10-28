@@ -176,6 +176,14 @@ final class Cursors {
     }
 
     /**
+     * Whether the pointer is drawn at all: always in play, where the camera and the aim own it, and off play (the front
+     * end, the load screen) unless the game hid it — a first menu that waits for a key rather than a click.
+     */
+    static boolean shownWhen(boolean hiddenByTheGame, boolean inPlay) {
+        return inPlay || !hiddenByTheGame;
+    }
+
+    /**
      * Which pointer belongs over that.
      *
      * <p>Pulled out as arithmetic on six facts because the alternative is finding

@@ -693,6 +693,16 @@ public final class Duke3D {
         return this;
     }
 
+    /**
+     * The pointer hidden, or shown again, wherever no match is in play — the front end and the load screen — for a first
+     * menu that waits for a key: the ground under it is still read ({@link DukeGame#getPointedGround}) while the
+     * front end's world runs behind it. In play the pointer is always the client's own. Shown unless said, from any
+     * thread, before launch or while it runs.
+     */
+    public void hideCursorOffPlay(boolean hidden) {
+        later(client -> client.hideCursorOffPlay(hidden));
+    }
+
     /** The window's sample count — 0, 2, 4 or 8 — kept with the player's settings and taken by the next window made. */
     public Duke3D samples(int samples) {
         later(client -> client.samplesNextLaunch(samples));

@@ -2100,7 +2100,7 @@ final class DukeRtsApp extends SimpleApplication {
         showOnlyWhilePlaying();
         snapshot = game.getSnapshot();
         // What the pointer is on, so the next snapshot says whether an attack on it would be taken.
-        boolean pointing = inPlay();
+        boolean pointing = inPlay() || backdropShown(); // the front end's world is pointed at too, for the game to read
         var pointedAt = pointing ? pointer.pickUnit() : null;
         var pointedGround = pointing && pointedAt == null ? pointer.pickGround() : null;
         game.setPointedAt(pointedAt == null || pointedAt.view == null ? -1 : pointedAt.view.id(),
@@ -2111,6 +2111,11 @@ final class DukeRtsApp extends SimpleApplication {
         // the world does leaves the player clicking Play with the operating
         // system's arrow -- which is the first thing he sees of the game.
         showTheRightPointer();
+        boolean cursorNow = Cursors.shownWhen(cursorHiddenOffPlay, inPlay());
+        if (cursorNow != cursorShown) {
+            cursorShown = cursorNow;
+            inputManager.setCursorVisible(cursorNow);
+        }
         if (screens.menu().isVisible()) {
             // A held slider follows the hand every frame; nothing else does, and
             // it makes no noise about it — a knob being pulled would be forty
@@ -2275,6 +2280,13 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private Cursors cursors;
+    private volatile boolean cursorHiddenOffPlay;
+    private boolean cursorShown = true;
+
+    /** See {@link Duke3D#hideCursorOffPlay}. */
+    void hideCursorOffPlay(boolean hidden) {
+        this.cursorHiddenOffPlay = hidden;
+    }
 
     /**
      * Say what the pointer is over, by changing what it looks like.

@@ -1466,6 +1466,15 @@ public final class DukeGame {
         return pointer.pointedAt();
     }
 
+    /**
+     * The point of the ground the window last said its pointer is on ({@link #setPointedAt}), or null where it is on a
+     * thing, on no ground, or has said nothing yet — for a game's own canvas, as {@link #getPointedAt} is. From any
+     * thread.
+     */
+    public Coord3D getPointedGround() {
+        return pointer.pointedGround();
+    }
+
     // ---- the order a click would give ----
 
     /** The word of the order a click on a thing would give what is selected — see {@link #contextOrder}. */

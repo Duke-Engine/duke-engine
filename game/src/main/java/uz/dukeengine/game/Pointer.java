@@ -78,6 +78,10 @@ final class Pointer {
         return pointed.unit();
     }
 
+    Coord3D pointedGround() {
+        return pointed.ground();
+    }
+
     void contextOrder(DukeGame.ContextOrder rule) {
         this.contextOrder = rule;
     }
