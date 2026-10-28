@@ -385,6 +385,8 @@ final class DukeRtsApp extends SimpleApplication {
     private FloatingTexts floatingTexts;
     /** The words the game puts over things — see {@link Captions}. */
     private Captions captions;
+    /** The lights things carry, lent from the effects' pool — see {@link UnitLights}. */
+    private UnitLights unitLights;
     private PictureStrips pictureStrips;
 
     /**
@@ -574,6 +576,7 @@ final class DukeRtsApp extends SimpleApplication {
         hitNumbers = new FloatingNumbers(guiFont, guiNode, visuals.getHitNumbers());
         floatingTexts = new FloatingTexts(guiFont, guiNode, visuals.getFloatingText());
         captions = new Captions(guiFont, guiNode);
+        unitLights = new UnitLights(effects.lights());
         pictureStrips = new PictureStrips(guiNode, this::stripPicture, visuals::stripNamed,
                 picture -> Materials.picture(assetManager, picture));
         // The display face a boss's name is set in is the one the game already
@@ -1748,6 +1751,7 @@ final class DukeRtsApp extends SimpleApplication {
         unitScene.newWorld();
         unitBars.clear();
         captions.clear();
+        unitLights.clear();
         camera.requestOwnUnit(); // his units are somewhere else entirely now
         // And the hero he had selected is not this floor's hero: his skills need him picked out.
         orders.newWorld();
@@ -2155,6 +2159,7 @@ final class DukeRtsApp extends SimpleApplication {
         } else {
             unitScene.showCaptions(captions);
         }
+        unitScene.showLights(unitLights);
         // After the units, because a burst lit this frame has to reach the stone
         // this frame — the terrain reads its lights off a material parameter, not
         // out of the scene, so nothing tells it but this.

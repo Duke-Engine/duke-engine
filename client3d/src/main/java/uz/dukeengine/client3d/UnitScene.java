@@ -231,6 +231,27 @@ final class UnitScene {
         captions.update(cam, lines);
     }
 
+    /** The light each thing that is being drawn carries, by the words it holds — {@code UnitVisual.light}. */
+    void showLights(UnitLights lights) {
+        var lines = new ArrayList<UnitLights.Line>();
+        for (var node : unitNodes.values()) {
+            var view = node.view;
+            if (view == null || view.remembered()) {
+                continue;
+            }
+            var visual = looks.visualFor(view);
+            if (visual.wordLights.isEmpty()) {
+                continue;
+            }
+            var light = visual.lightFor(visual.holding(view.healthFraction(), visuals.getWorldConditions(),
+                    view.conditions()));
+            if (light != null) {
+                lines.add(new UnitLights.Line(view.id(), light, node.root.getWorldTranslation()));
+            }
+        }
+        lights.update(lines, timer.getTimeInSeconds());
+    }
+
     /**
      * The world height a thing's bar floats at: over its feet where they stand this frame — up a hill, in a jump — by
      * its model's height, or by its shape's and the plain bar's lift.

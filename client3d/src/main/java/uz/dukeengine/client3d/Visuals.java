@@ -749,6 +749,33 @@ public final class Visuals {
             return bestOf(wordTints, WordTint::words, holding);
         }
 
+        /** A light of its own, chosen by its words — see {@link #light(java.util.Set, ThingLight)}. */
+        record WordLight(java.util.SortedSet<String> words, ThingLight light) {
+        }
+
+        final java.util.List<WordLight> wordLights = new java.util.ArrayList<>();
+
+        /** A light of its own that burns whatever it holds. */
+        public UnitVisual light(ThingLight light) {
+            return light(java.util.Set.of(), light);
+        }
+
+        /**
+         * A light of its own while its words best fit {@code conditions} — a police car's flasher, lit only with its
+         * siren on. Unlike {@link Visuals#thingSuns} it reaches only what lies within its radius of the thing, so it
+         * lights the road beside it and nothing farther. Drawing only: the simulation never reads it.
+         */
+        public UnitVisual light(java.util.Set<String> conditions, ThingLight light) {
+            wordLights.add(new WordLight(new java.util.TreeSet<>(conditions), light));
+            return this;
+        }
+
+        /** Which light its words best fit, or null for none. */
+        ThingLight lightFor(java.util.Set<String> holding) {
+            int best = bestOf(wordLights, WordLight::words, holding);
+            return best < 0 ? null : wordLights.get(best).light();
+        }
+
         /**
          * How it is drawn along a line — see {@link #alongALine}.
          *
@@ -2222,7 +2249,25 @@ public final class Visuals {
     }
 
     /**
-     * A light shining one way — see {@link #groundLight} and {@link #thingSuns}: {@code pitch} degrees above the
+     * A light that belongs to one thing and goes where it goes: {@code colour} packed {@code 0xRRGGBB}, shining on what
+     * lies within {@code radius} of a point {@code height} over its feet (a radius of 0 or less is no light — jME reads
+     * it as reaching everything), and dimming and brightening {@code hertz} times a second by up to {@code flicker}
+     * of its strength (0 burns steadily, 1 goes right out between). Each thing's flicker starts at a phase of its own.
+     */
+    public record ThingLight(int colour, float radius, float height, float flicker, float hertz) {
+
+        public ThingLight {
+            flicker = Math.clamp(flicker, 0f, 1f);
+        }
+
+        /** A steady light at the thing's feet. */
+        public ThingLight(int colour, float radius) {
+            this(colour, radius, 0f, 0f, 0f);
+        }
+    }
+
+    /**
+     * A light shining one way — see {@link #groundLight} and {@link #thingSuns}:{@code pitch} degrees above the
      * horizon, from -90 to 90 in fractions of a degree, and {@code yaw} round, as a {@link Sunlight}'s, in {@code
      * colour}, packed {@code 0xRRGGBB}. One level with the horizon or below it lights flat ground not at all, and a
      * face turned toward it by the cosine — the reference's lights by their own direction ({@code doTheLight}), 17 of
