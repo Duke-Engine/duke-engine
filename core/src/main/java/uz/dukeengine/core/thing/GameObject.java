@@ -81,6 +81,8 @@ public final class GameObject {
     private int flashColour;
     private int flashFrames;
     private int flashFrom;
+    /** The words drawn over it, or null for none — see {@link #setCaption}. */
+    private String caption;
     /** The floor it is on: 0 the ground, n the n-th deck laid over it — see {@link #getFloor}. */
     private int floor;
     /** The line it is drawn along, or null — see {@link #setSpan}. */
@@ -398,6 +400,18 @@ public final class GameObject {
      */
     public void setDrawnScale(float scale) {
         this.drawnScale = Math.max(0f, scale);
+    }
+
+    /**
+     * The words drawn over it, null or empty for none — a beacon's label, the reference's {@code
+     * Drawable::setCaptionText}. Drawing only, as {@link #setDrawnOpacity}: out of the checksum and not saved.
+     */
+    public void setCaption(String text) {
+        this.caption = text == null || text.isEmpty() ? null : text;
+    }
+
+    public String getCaption() {
+        return caption;
     }
 
     /**

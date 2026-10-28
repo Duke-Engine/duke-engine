@@ -40,6 +40,11 @@ final class Controls {
         /** Whether a unit is on the screen now: in the part of the window the world is drawn in. */
         boolean onScreen(UnitView unit);
 
+        /** Whether a click or a box may take a unit: it is selectable, has a shape and is shown to the viewer. */
+        default boolean pickable(UnitView unit) {
+            return unit.selectable();
+        }
+
         /** Whether a unit's template has this kind. */
         boolean hasKind(UnitView unit, String kind);
 
@@ -310,7 +315,7 @@ final class Controls {
      */
     private void selectAll(Scene scene, String kind) {
         Predicate<UnitView> selects = unit -> unit.playerIndex() == scene.localPlayer() && !unit.structure()
-                && unit.selectable() && (kind == null || scene.hasKind(unit, kind))
+                && scene.pickable(unit) && (kind == null || scene.hasKind(unit, kind))
                 && map.leftOutOfSelectAll().stream().noneMatch(out -> scene.hasKind(unit, out));
         if (map.screenFirst() != null) {
             var taken = screenFirst(scene, selects);
@@ -415,7 +420,7 @@ final class Controls {
     /** The next of his units, or the one before, selected and looked at. */
     private void cycle(Scene scene, int step) {
         var his = scene.units().stream()
-                .filter(unit -> unit.playerIndex() == scene.localPlayer() && !unit.structure() && unit.selectable())
+                .filter(unit -> unit.playerIndex() == scene.localPlayer() && !unit.structure() && scene.pickable(unit))
                 .toList();
         if (his.isEmpty()) {
             return;

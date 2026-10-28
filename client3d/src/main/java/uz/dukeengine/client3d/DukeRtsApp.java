@@ -383,6 +383,8 @@ final class DukeRtsApp extends SimpleApplication {
     private FloatingNumbers hitNumbers;
     /** Texts floated up from points of the world — see {@link FloatingTexts}. */
     private FloatingTexts floatingTexts;
+    /** The words the game puts over things — see {@link Captions}. */
+    private Captions captions;
     private PictureStrips pictureStrips;
 
     /**
@@ -571,6 +573,7 @@ final class DukeRtsApp extends SimpleApplication {
         modelMarks = new ModelMarks(markerNode, path -> bodies.asFiled(path, "order mark"));
         hitNumbers = new FloatingNumbers(guiFont, guiNode, visuals.getHitNumbers());
         floatingTexts = new FloatingTexts(guiFont, guiNode, visuals.getFloatingText());
+        captions = new Captions(guiFont, guiNode);
         pictureStrips = new PictureStrips(guiNode, this::stripPicture, visuals::stripNamed,
                 picture -> Materials.picture(assetManager, picture));
         // The display face a boss's name is set in is the one the game already
@@ -1744,6 +1747,7 @@ final class DukeRtsApp extends SimpleApplication {
         rallyMarks.clear();
         unitScene.newWorld();
         unitBars.clear();
+        captions.clear();
         camera.requestOwnUnit(); // his units are somewhere else entirely now
         // And the hero he had selected is not this floor's hero: his skills need him picked out.
         orders.newWorld();
@@ -1982,6 +1986,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
 
         @Override
+        public boolean pickable(uz.dukeengine.core.view.UnitView unit) {
+            return unitScene.pickable(unit);
+        }
+
+        @Override
         public boolean hasKind(uz.dukeengine.core.view.UnitView unit, String kind) {
             var template = game.getLogic().getThingFactory().findTemplate(unit.templateName());
             return template != null && uz.dukeengine.core.thing.Classified.of(template)
@@ -2141,6 +2150,11 @@ final class DukeRtsApp extends SimpleApplication {
         unitScene.seatTheRiders();
         unitScene.flashTheNewlySelected(tpf);
         showUnitBars();
+        if (barsHidden(screens.now(), backdropShown())) {
+            captions.clear();
+        } else {
+            unitScene.showCaptions(captions);
+        }
         // After the units, because a burst lit this frame has to reach the stone
         // this frame — the terrain reads its lights off a material parameter, not
         // out of the scene, so nothing tells it but this.

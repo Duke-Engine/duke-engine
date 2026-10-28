@@ -889,6 +889,29 @@ public final class Visuals {
             return this;
         }
 
+        /** Whether it is kept from its owner's enemies — see {@link #hiddenFromEnemies}. */
+        boolean hidesFromEnemies;
+
+        /**
+         * It is drawn, and picked, only for viewers who do not take its owner for an enemy ({@code
+         * UnitView.hostile}): its owner's, an ally's and a neutral's see it, an enemy's scene has no model of it, no
+         * ring and no bar, and nothing there selects it — the reference's {@code BeaconClientUpdate::hideBeacon}.
+         */
+        public UnitVisual hiddenFromEnemies() {
+            hidesFromEnemies = true;
+            return this;
+        }
+
+        /** Whether a viewer who {@code hostile}ly takes its owner for an enemy is shown it at all. */
+        boolean shownTo(boolean hostile) {
+            return !(hostile && hidesFromEnemies);
+        }
+
+        /** Whether a click or a box may take a thing that is {@code selectable} to a viewer {@code hostile} to it. */
+        boolean pickableBy(boolean selectable, boolean hostile) {
+            return selectable && !shapeless && shownTo(hostile);
+        }
+
         public UnitVisual model(String assetPath) {
             chooseAgain();
             this.modelPath = assetPath;

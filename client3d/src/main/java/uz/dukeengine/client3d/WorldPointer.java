@@ -114,7 +114,7 @@ final class WorldPointer {
         float closest = Float.MAX_VALUE;
         for (var node : unitScene.nodes()) {
             var picked = unitScene.pickedAs(node);
-            if (picked == null || !picked.view.selectable() || node.body == null) {
+            if (picked == null || !unitScene.pickable(picked.view) || node.body == null) {
                 continue;
             }
             // The nearest hit along the ray wins, so clicking a monster standing in

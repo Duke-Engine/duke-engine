@@ -328,7 +328,7 @@ final class Orders {
             var screen = cam.getScreenCoordinates(drawnCentre(node == null ? null : node.root.getWorldBound(),
                     view.x(), view.y(), floor.at(view.x(), view.y())));
             candidates.add(new SelectionBox.Candidate(view.id(), screen.x, screen.y,
-                    view.playerIndex() == local, view.selectable(), view.structure()));
+                    view.playerIndex() == local, unitScene.pickable(view), view.structure()));
         }
         return candidates;
     }

@@ -218,6 +218,19 @@ final class UnitScene {
         return barReading;
     }
 
+    /** The words over each thing that is being drawn and has any — {@code GameObject.setCaption}. */
+    void showCaptions(Captions captions) {
+        var lines = new ArrayList<Captions.Line>();
+        for (var node : unitNodes.values()) {
+            if (node.view != null && node.view.caption() != null && !node.view.remembered()) {
+                var at = node.root.getWorldTranslation();
+                lines.add(new Captions.Line(node.view.id(), node.view.caption(),
+                        new Vector3f(at.x, at.y + node.barTop, at.z)));
+            }
+        }
+        captions.update(cam, lines);
+    }
+
     /**
      * The world height a thing's bar floats at: over its feet where they stand this frame — up a hill, in a jump — by
      * its model's height, or by its shape's and the plain bar's lift.
@@ -278,6 +291,10 @@ final class UnitScene {
         for (var view : snapshot.units()) {
             if (outOfSight(view)) {
                 continue; // behind a wall: not drawn, and taken away if it was
+            }
+            if (!looks.visualFor(view).shownTo(view.hostile())) {
+                selected.remove(view.id());
+                continue; // kept from this viewer's side: not drawn either, as behind a wall
             }
             var corpse = corpseOf(view.id());
             if (corpse != null) {
@@ -347,6 +364,11 @@ final class UnitScene {
      * <p>His own things are always drawn — they are his, and an arrow of his own
      * that vanished mid-flight would be a bug rather than a fog.
      */
+    /** Whether a click or a box may take this thing: selectable, with a shape, and shown to this viewer. */
+    boolean pickable(UnitView view) {
+        return looks.visualFor(view).pickableBy(view.selectable(), view.hostile());
+    }
+
     private boolean outOfSight(UnitView view) {
         return view.playerIndex() != game.get().getLocalPlayerIndex() && !fog.canSee(view.x(), view.y());
     }

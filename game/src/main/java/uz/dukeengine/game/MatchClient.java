@@ -360,7 +360,8 @@ final class MatchClient extends GameClient {
                 object.getYaw(),
                 object.getCorners(),
                 object.getDrawnScale(),
-                object.getFlash());
+                object.getFlash(),
+                object.getCaption());
     }
 
     /**
