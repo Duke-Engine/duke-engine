@@ -169,5 +169,24 @@ class WorldEventTest {
                 .map(event -> (SoundPlayed) event).toList();
         assertEquals(2f, told.getFirst().pitch());
         assertEquals(0.5f, told.get(1).pitch());
+        assertEquals(1f, told.getFirst().volume(), "at the cue's own loudness unless asked");
+    }
+
+    /** A sound asked at a volume carries it apart from its pitch, at a thing or a place, out of the checksum. */
+    @Test
+    void aSoundPlayedAtAVolumeCarriesIt() {
+        var logic = newLogic();
+        var soldier = logic.createObject(SOLDIER);
+        long before = logic.checksum();
+        logic.sound("Crash", soldier, 0, 1f, 1.5f);
+        logic.sound("Crash", new Coord3D(1f, 2f, 0f), 0, 2f, 0.25f);
+        assertEquals(before, logic.checksum(), "nothing the simulation decides");
+
+        var told = logic.drainEvents().stream().filter(event -> event instanceof SoundPlayed)
+                .map(event -> (SoundPlayed) event).toList();
+        assertEquals(1.5f, told.getFirst().volume());
+        assertEquals(1f, told.getFirst().pitch());
+        assertEquals(0.25f, told.get(1).volume());
+        assertEquals(2f, told.get(1).pitch());
     }
 }

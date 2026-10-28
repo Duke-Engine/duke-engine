@@ -442,13 +442,27 @@ public interface World {
      * heard faster as its vehicle speeds up.
      */
     default void sound(String cue, GameObject thing, int hold, float pitch) {
-        post(new uz.dukeengine.core.event.SoundPlayed(getFrame(), cue, thing.getPosition(), thing.getId(),
-                Math.max(0, hold), pitch));
+        sound(cue, thing, hold, pitch, 1f);
     }
 
     /** The same at a point of the world. */
     default void sound(String cue, uz.dukeengine.core.math.Coord3D where, int hold, float pitch) {
-        post(new uz.dukeengine.core.event.SoundPlayed(getFrame(), cue, where, null, Math.max(0, hold), pitch));
+        sound(cue, where, hold, pitch, 1f);
+    }
+
+    /**
+     * The same at {@code volume} times the cue's loudness as well, this play alone — a crash heard louder for the mass
+     * that made it, a train's wheels for its speed.
+     */
+    default void sound(String cue, GameObject thing, int hold, float pitch, float volume) {
+        post(new uz.dukeengine.core.event.SoundPlayed(getFrame(), cue, thing.getPosition(), thing.getId(),
+                Math.max(0, hold), pitch, volume));
+    }
+
+    /** The same at a point of the world. */
+    default void sound(String cue, uz.dukeengine.core.math.Coord3D where, int hold, float pitch, float volume) {
+        post(new uz.dukeengine.core.event.SoundPlayed(getFrame(), cue, where, null, Math.max(0, hold), pitch,
+                volume));
     }
 
     /** Play the effect of that name riding {@code thing}, from where it stands and turned the way it faces. */

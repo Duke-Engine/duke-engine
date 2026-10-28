@@ -114,6 +114,35 @@ class SoundPlayedTest {
         assertEquals(List.of(2f, 1f), rates, "double, and the old form as ever");
     }
 
+    /** A play asked at a volume goes to the sink that much louder or quieter, its rate left alone. */
+    @Test
+    void aSoundAskedAtAVolumeChangesItsLoudnessAlone() {
+        var plays = new ArrayList<float[]>();
+        var sink = new SoundSink() {
+            @Override
+            public void play(String assetPath, float gain, Vector3f at) {
+                plays.add(new float[] {gain, 1f});
+            }
+
+            @Override
+            public void play(String assetPath, float gain, float pitch, Vector3f at, Range range) {
+                plays.add(new float[] {gain, pitch});
+            }
+
+            @Override
+            public Playing music(String assetPath, float gain) {
+                return Playing.NONE;
+            }
+        };
+        var noises = new GameSounds(new Sounds(BANK, sink), 5f);
+        var at = new Vector3f(50f, 0f, 60f);
+        noises.sound(new SoundPlayed(1, "GattlingLoop", new Coord3D(50f, 60f, 0f), null, 0), at, true, 0f);
+        noises.sound(new SoundPlayed(2, "GattlingLoop", new Coord3D(50f, 60f, 0f), null, 0, 1f, 0.5f), at, true, 1f);
+
+        assertEquals(plays.getFirst()[0] * 0.5f, plays.get(1)[0], 1e-6f, "half as loud");
+        assertEquals(plays.getFirst()[1], plays.get(1)[1], 1e-6f, "at the same rate");
+    }
+
     @Test
     void askedAgainWithinItsHoldItPlaysOnAndNotAskedItStops() {
         var heard = new Heard();

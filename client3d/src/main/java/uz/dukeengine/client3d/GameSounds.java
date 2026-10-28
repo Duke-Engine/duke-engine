@@ -311,10 +311,15 @@ final class GameSounds {
 
     /** The same at {@code pitch} times the cue's rate, this play alone. */
     boolean played(String cue, Vector3f at, int thing, boolean owned, float now, float pitch) {
+        return played(cue, at, thing, owned, now, pitch, 1f);
+    }
+
+    /** The same at {@code volume} times the cue's loudness as well. */
+    boolean played(String cue, Vector3f at, int thing, boolean owned, float now, float pitch, float volume) {
         if (thing < 0) {
-            return sounds.playAtRate(cue, at, now, owned, pitch);
+            return sounds.playAtRate(cue, at, now, owned, pitch, volume);
         }
-        var playing = sounds.held(cue, at, now, owned, pitch);
+        var playing = sounds.held(cue, at, now, owned, pitch, volume);
         if (playing != null && playing != SoundSink.Playing.NONE) {
             riding.add(new Riding(thing, playing));
         }
@@ -329,7 +334,7 @@ final class GameSounds {
     void sound(uz.dukeengine.core.event.SoundPlayed sound, Vector3f at, boolean owned, float now) {
         int thing = sound.riding() == null ? -1 : sound.riding().value();
         if (sound.hold() <= 0) {
-            played(sound.cue(), at, thing, owned, now, sound.pitch());
+            played(sound.cue(), at, thing, owned, now, sound.pitch(), sound.volume());
             return;
         }
         var key = sound.cue() + (thing >= 0 ? "@" + thing
@@ -339,9 +344,10 @@ final class GameSounds {
             going.until = sound.frame() + sound.hold();
             return;
         }
-        var playing = sounds.loop(sound.cue(), at, owned, sound.pitch());
+        var playing = sounds.loop(sound.cue(), at, owned, sound.pitch(), sound.volume());
         if (playing != null && playing != SoundSink.Playing.NONE) {
-            held.put(key, new Held(thing, playing, sounds.gainOfCue(sound.cue()), sound.frame() + sound.hold()));
+            held.put(key, new Held(thing, playing, sounds.gainOfCue(sound.cue()) * sound.volume(),
+                    sound.frame() + sound.hold()));
         }
     }
 

@@ -408,12 +408,17 @@ final class Sounds {
      * @param owned whether the thing it is about is the listening player's
      */
     boolean play(String cueName, Vector3f at, float now, boolean owned) {
-        return start(cueName, at, now, owned, false, -1, 1f) != null;
+        return start(cueName, at, now, owned, false, -1, 1f, 1f) != null;
     }
 
     /** The same at {@code rate} times the rate the cue draws for the play — see {@link #start}. */
     boolean playAtRate(String cueName, Vector3f at, float now, boolean owned, float rate) {
-        return start(cueName, at, now, owned, false, -1, rate) != null;
+        return playAtRate(cueName, at, now, owned, rate, 1f);
+    }
+
+    /** The same at {@code volume} times the cue's loudness as well, this play alone. */
+    boolean playAtRate(String cueName, Vector3f at, float now, boolean owned, float rate, float volume) {
+        return start(cueName, at, now, owned, false, -1, rate, volume) != null;
     }
 
     /**
@@ -421,7 +426,7 @@ final class Sounds {
      * {@link SoundBank.Voicing#voice}.
      */
     boolean play(String cueName, Vector3f at, float now, boolean owned, int about) {
-        return start(cueName, at, now, owned, false, about, 1f) != null;
+        return start(cueName, at, now, owned, false, about, 1f, 1f) != null;
     }
 
     /**
@@ -434,16 +439,22 @@ final class Sounds {
 
     /** The same at {@code rate} times the rate the cue draws for the play — see {@link #start}. */
     SoundSink.Playing held(String cueName, Vector3f at, float now, boolean owned, float rate) {
-        return start(cueName, at, now, owned, true, -1, rate);
+        return held(cueName, at, now, owned, rate, 1f);
+    }
+
+    /** The same at {@code volume} times the cue's loudness as well, this play alone. */
+    SoundSink.Playing held(String cueName, Vector3f at, float now, boolean owned, float rate, float volume) {
+        return start(cueName, at, now, owned, true, -1, rate, volume);
     }
 
     /**
      * Raise a moment, the cue's every rule kept: null where nothing played, else what plays — held on to where
      * {@code keep} asks or the cue cuts off the last of itself, {@link SoundSink.Playing#NONE} otherwise. The play's
-     * rate is the cue's own variation times {@code rate}, kept to what the device plays.
+     * rate is the cue's own variation times {@code rate}, kept to what the device plays, and its loudness times
+     * {@code volume}.
      */
     private SoundSink.Playing start(String cueName, Vector3f at, float now, boolean owned, boolean keep, int about,
-            float rate) {
+            float rate, float volume) {
         var cue = bank.find(cueName);
         if (cue == null || cue.files().isEmpty()) {
             return null;
@@ -484,7 +495,7 @@ final class Sounds {
                 cutOff.stop();
             }
         }
-        float gain = gainOf(cue) * (where != null ? zoom() : 1f) * loudness(cue.voicing());
+        float gain = gainOf(cue) * (where != null ? zoom() : 1f) * loudness(cue.voicing()) * volume;
         float pitch = Math.clamp(pitch(cue.voicing()) * rate, LEAST_PITCH, MOST_PITCH);
         boolean reached = where != null && (farOf(cue) > 0f || bank.hearing().floor() > 0f);
         SoundSink.Playing playing;
@@ -599,7 +610,7 @@ final class Sounds {
             ended.run();
             return false;
         }
-        var sound = start(cueName, null, now, true, true, -1, 1f);
+        var sound = start(cueName, null, now, true, true, -1, 1f, 1f);
         if (sound == null || sound == SoundSink.Playing.NONE) {
             ended.run();
             return sound != null;
@@ -618,6 +629,11 @@ final class Sounds {
 
     /** The same at {@code rate} times the rate the cue draws for the play. */
     SoundSink.Playing loop(String cueName, Vector3f at, boolean owned, float rate) {
+        return loop(cueName, at, owned, rate, 1f);
+    }
+
+    /** The same at {@code volume} times the cue's loudness as well. */
+    SoundSink.Playing loop(String cueName, Vector3f at, boolean owned, float rate, float volume) {
         var cue = bank.find(cueName);
         if (cue == null || cue.audience() == SoundBank.Audience.OWNER && !owned || gainOf(cue) <= 0f) {
             return null;
@@ -626,7 +642,7 @@ final class Sounds {
         if (!inReach(cue, where)) {
             return null; // out of reach: started again once it is back
         }
-        float gain = gainOf(cue) * (where != null ? zoom() : 1f) * loudness(cue.voicing());
+        float gain = gainOf(cue) * (where != null ? zoom() : 1f) * loudness(cue.voicing()) * volume;
         if (cue.voicing().inParts()) {
             var parts = new Parts(cue, true, where, gain, Math.clamp(pitch(cue.voicing()) * rate, LEAST_PITCH, MOST_PITCH));
             sequences.add(parts);

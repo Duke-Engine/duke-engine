@@ -15,16 +15,24 @@ import uz.dukeengine.core.thing.ObjectId;
  *               ({@code FireSoundLoopTime}), kept going while the next shot comes within its time. 0 plays it once
  * @param pitch  a rate this play alone is multiplied by, after the cue's own variation: 2 plays twice as fast, 1 as the
  *               cue says
+ * @param volume a loudness this play alone is multiplied by, after the cue's own and the player's: a heavy crash
+ *               louder than a light one, as the reference sets an event's volume from its logic. 1 as the cue says
  */
-public record SoundPlayed(int frame, String cue, Coord3D where, ObjectId riding, int hold, float pitch)
+public record SoundPlayed(int frame, String cue, Coord3D where, ObjectId riding, int hold, float pitch, float volume)
         implements WorldEvent {
 
     public SoundPlayed {
         pitch = pitch > 0f ? pitch : 1f;
+        volume = volume >= 0f ? volume : 1f;
     }
 
-    /** Played at the cue's own rate. */
+    /** Played at the cue's own loudness. */
+    public SoundPlayed(int frame, String cue, Coord3D where, ObjectId riding, int hold, float pitch) {
+        this(frame, cue, where, riding, hold, pitch, 1f);
+    }
+
+    /** Played at the cue's own rate and loudness. */
     public SoundPlayed(int frame, String cue, Coord3D where, ObjectId riding, int hold) {
-        this(frame, cue, where, riding, hold, 1f);
+        this(frame, cue, where, riding, hold, 1f, 1f);
     }
 }
