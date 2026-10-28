@@ -18,4 +18,13 @@ public interface ShotListener {
     /** A shot of its thing's dealt {@code damage}, after armour, to {@code victim}. */
     default void onDealt(Shot shot, GameObject victim, float damage) {
     }
+
+    /**
+     * A weapon of its thing counted {@code shot} — at a thing, the ground or a point — and its slot now waits {@code
+     * frames} before it may fire again: its delay between shots, or, where the shot {@code emptied} its clip, the
+     * clip's reload (0 for a clip that does not reload itself), each divided by its rate of fire. What the reference's
+     * {@code ShareWeaponReloadTime} hands every other slot ({@link WeaponUpdate#delaySlots}).
+     */
+    default void onSpent(Shot shot, int frames, boolean emptied) {
+    }
 }

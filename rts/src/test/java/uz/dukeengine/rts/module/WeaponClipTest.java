@@ -263,6 +263,46 @@ class WeaponClipTest {
         assertEquals(-1, shooting.weapon().reloadFramesOf(1));
     }
 
+    /** What a game adds to hear each shot's wait: the frames, and whether the shot emptied the clip. */
+    private static final class Waits extends Module implements uz.dukeengine.combat.module.ShotListener {
+        final List<String> told = new ArrayList<>();
+
+        Waits(GameObject owner) {
+            super(owner);
+        }
+
+        @Override
+        public void onSpent(uz.dukeengine.combat.module.Shot shot, int frames, boolean emptied) {
+            told.add(frames + (emptied ? " emptied" : ""));
+        }
+    }
+
+    /** Two rounds at 0.1 s, a 1.0 s reload: the first shot leaves its delay, the second, emptying it, the reload. */
+    @Test
+    void aListenerIsToldTheWaitEachShotLeaves() {
+        var shooting = shooting(clip(2, 3, 0, 30, true));
+        var waits = new Waits(shooting.shooter());
+        shooting.shooter().addModule(waits);
+        shooting.run(5);
+
+        assertEquals(List.of("3", "30 emptied"), waits.told);
+    }
+
+    /** At most two shots at it ordered: two, and the attack is over. */
+    @Test
+    void anAttackOfAtMostTwoShotsEndsAfterTheSecond() {
+        var shooting = shooting(clip(0, 3, 0, 60, true));
+        var weapon = shooting.weapon();
+        weapon.acquiresNothing(true); // nothing found by itself once the order is over
+        var wall = shooting.logic().getObjects().stream().filter(thing -> thing != shooting.shooter())
+                .findFirst().orElseThrow();
+        assertTrue(weapon.attack(wall.getId(), false, uz.dukeengine.combat.message.OrderSource.PLAYER, 2));
+        shooting.run(30);
+
+        assertEquals(List.of(0, 3), shooting.fromTheFirst());
+        assertTrue(!weapon.isAttacking(), "the attack over");
+    }
+
     /** A shooter with no experience fires as rank 0, its moment the weapon's own. */
     @Test
     void aShotSaysItsShootersRank() {

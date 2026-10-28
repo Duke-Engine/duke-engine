@@ -315,6 +315,15 @@ public final class WeaponUpdate extends UpdateModule {
 
     /** The same, an order of {@code source}'s: the slots it may pick are those the source may ({@link WeaponSlot}). */
     public boolean attack(ObjectId target, boolean forced, OrderSource source) {
+        return attack(target, forced, source, 0);
+    }
+
+    /**
+     * The same, firing at most {@code maxShots} at it, the attack over after them as any attack is over — the
+     * reference's {@code aiAttackObject} with {@code maxShotsToFire}, a Patriot called in by another firing its {@code
+     * AssistingClipSize}. 0 for no limit.
+     */
+    public boolean attack(ObjectId target, boolean forced, OrderSource source, int maxShots) {
         var world = getOwner().getWorld();
         var victim = world == null || target == null ? null : world.findObject(target);
         var by = source == null || source == OrderSource.NONE ? OrderSource.PLAYER : source;
@@ -324,7 +333,7 @@ public final class WeaponUpdate extends UpdateModule {
         if (victim != null && Hands.cannotBackAway(getOwner()) && tooNear(victim, by)) {
             return false; // it cannot move off to where it may fire
         }
-        engagement.order(target, forced, by);
+        engagement.order(target, forced, by, maxShots);
         return true;
     }
 
@@ -396,7 +405,8 @@ public final class WeaponUpdate extends UpdateModule {
 
     /**
      * Every slot in use but {@code fromSlot} kept from firing for at least {@code frames} from now — the reference's
-     * {@code ShareWeaponReloadTime}, all of a thing's weapons reloading when one fires, done by a module told of a shot.
+     * {@code ShareWeaponReloadTime}, all of a thing's weapons reloading when one fires, done by a module told of a shot
+     * and the wait it left ({@link ShotListener#onSpent}).
      */
     public void delaySlots(int fromSlot, int frames) {
         loadout.delaySlots(fromSlot, frames);

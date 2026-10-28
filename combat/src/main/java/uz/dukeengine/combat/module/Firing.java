@@ -154,11 +154,14 @@ final class Firing {
             // scaled by its armour
             Landing.deal(owner, shot, victim, shot.damage(), Landing.middleOf(victim), owner.getPosition());
         }
-        if (spent(world, chosen) && chosen.index() == loadout.lockedSlot()) {
+        if (spent(world, chosen, shot) && chosen.index() == loadout.lockedSlot()) {
             loadout.unlock(WeaponUpdate.Lock.TEMPORARILY); // its clip is empty: a lock until then is over
         }
         told(world, chosen, victim.getId(), owner.getPosition(), Landing.aimPoint(victim),
                 weapon.isContact(world.cellSize()), shot);
+        if (engagement.lastShotAt(victim.getId())) {
+            self.holdFire(); // the most it was ordered to fire at it are fired: the attack is over
+        }
 
         if (inFlight) {
             return; // nothing has been hit yet; the blast and the kill wait for land()
@@ -205,7 +208,7 @@ final class Firing {
         var weapon = chosen.weapon();
         var shot = Hands.shotOf(world, owner, chosen);
         boolean inFlight = launched(launcher -> launcher.launchAt(owner, place, shot));
-        spent(world, chosen);
+        spent(world, chosen, shot);
         told(world, chosen, null, here, place, weapon.isContact(world.cellSize()), shot);
         if (!inFlight) {
             Landing.struck(world, shot, owner, null, place, place, here);
@@ -247,7 +250,7 @@ final class Firing {
         var shot = Hands.shotOf(world, owner, chosen);
         if (launched(launcher -> launcher.launchAt(owner, along, shot))) {
             firedOn.put(chosen.index(), world.getFrame());
-            spent(world, chosen);
+            spent(world, chosen, shot);
             told(world, chosen, null, here, along, false, shot);
         } else {
             var victim = attack.struck(self, reach, (float) facing);
@@ -255,7 +258,7 @@ final class Firing {
                 fire(world, victim, chosen); // struck as a targeted blow is
             } else {
                 firedOn.put(chosen.index(), world.getFrame());
-                spent(world, chosen);
+                spent(world, chosen, shot);
                 told(world, chosen, null, here, along, weapon.isContact(world.cellSize()), shot);
             }
         }
@@ -278,9 +281,13 @@ final class Firing {
         return false;
     }
 
-    /** A shot taken: the clip counts it and the reload runs; whether that emptied the clip. */
-    private boolean spent(World world, Armed chosen) {
-        return chosen.clip().fired(world.random(), Hands.rateOfFire(owner, chosen.weapon()));
+    /** A shot taken: the clip counts it, the reload runs and its listeners are told; whether that emptied the clip. */
+    private boolean spent(World world, Armed chosen, Shot shot) {
+        boolean emptied = chosen.clip().fired(world.random(), Hands.rateOfFire(owner, chosen.weapon()));
+        for (var listener : Landing.shotListeners(owner)) {
+            listener.onSpent(shot, chosen.clip().waitFrames(), emptied);
+        }
+        return emptied;
     }
 
     /** The moment of a shot, told. */

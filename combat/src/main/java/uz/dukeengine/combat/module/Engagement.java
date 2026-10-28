@@ -26,6 +26,8 @@ final class Engagement {
     private boolean leeching;
     /** Whether it never picks a target by itself — see {@link WeaponUpdate#acquiresNothing(boolean)}. */
     private boolean acquiresNothing;
+    /** Shots it may yet fire at its ordered target before the attack is over; 0 for no limit. */
+    private int shotsLeft;
 
     ObjectId target() {
         return target;
@@ -68,14 +70,15 @@ final class Engagement {
         return target != null || groundTarget != null;
     }
 
-    /** An order to engage {@code target} taken. */
-    void order(ObjectId target, boolean forced, OrderSource by) {
+    /** An order to engage {@code target} taken, firing at most {@code maxShots} at it — 0 for no limit. */
+    void order(ObjectId target, boolean forced, OrderSource by, int maxShots) {
         if (target == null || !target.equals(this.target)) {
             leeching = false; // a new attack: a reach kept for the last is not kept for this one
         }
         this.target = target;
         this.source = by;
         this.forced = forced;
+        this.shotsLeft = Math.max(0, maxShots);
     }
 
     /** A target it found for itself. */
@@ -83,6 +86,12 @@ final class Engagement {
         this.target = target;
         this.source = null;
         this.forced = false;
+        this.shotsLeft = 0;
+    }
+
+    /** A shot fired at {@code at}, counted against the most it was ordered to fire at it: whether that was the last. */
+    boolean lastShotAt(ObjectId at) {
+        return shotsLeft > 0 && at.equals(target) && --shotsLeft == 0;
     }
 
     void fireOnGround(Coord3D place) {
@@ -131,6 +140,7 @@ final class Engagement {
         target = null;
         forced = false;
         leeching = false;
+        shotsLeft = 0;
     }
 
     /** The same, but an attack toward a point: a walk goes on swinging. */

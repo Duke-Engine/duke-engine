@@ -52,6 +52,11 @@ final class Clip {
         return leastDelay;
     }
 
+    /** Frames before it may fire again; 0 for ready, or for out. */
+    int waitFrames() {
+        return wait;
+    }
+
     /** A frame has passed where this weapon runs. */
     void tick() {
         if (wait > 0) {
