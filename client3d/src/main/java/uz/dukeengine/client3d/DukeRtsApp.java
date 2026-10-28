@@ -286,7 +286,13 @@ final class DukeRtsApp extends SimpleApplication {
     /** Shift and Alt down, beside Ctrl: a key means one thing with them and another without. */
     private boolean shiftDown;
     private boolean altDown;
-    private com.jme3.app.state.ScreenshotAppState screenshots;
+    private Screenshots screenshots;
+    private volatile java.util.function.Consumer<String> screenshotSaved;
+
+    /** See {@link Duke3D#onScreenshot}. */
+    void onScreenshot(java.util.function.Consumer<String> saved) {
+        this.screenshotSaved = saved;
+    }
     private BitmapText hud;
     private SceneVeil veil;
 
@@ -1971,7 +1977,12 @@ final class DukeRtsApp extends SimpleApplication {
             case CHAT_ALLIES -> hotkeys.chat(game, false);
             case SCREENSHOT -> {
                 if (screenshots == null) {
-                    screenshots = new com.jme3.app.state.ScreenshotAppState("", "screenshot");
+                    screenshots = new Screenshots("", "screenshot", name -> {
+                        var told = screenshotSaved;
+                        if (told != null) {
+                            told.accept(name);
+                        }
+                    });
                     stateManager.attach(screenshots);
                 }
                 screenshots.takeScreenshot();

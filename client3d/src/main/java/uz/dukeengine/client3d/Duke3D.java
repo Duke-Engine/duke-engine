@@ -703,6 +703,16 @@ public final class Duke3D {
         later(client -> client.hideCursorOffPlay(hidden));
     }
 
+    /**
+     * Told the name of the file — {@code screenshot3.png}, in the folder the game runs from — each time the screenshot
+     * key has had a picture written, on the window's thread, for a line like the reference's "Screenshot saved". Not
+     * told where the write failed. Null for none, as there is unless set.
+     */
+    public Duke3D onScreenshot(Consumer<String> saved) {
+        later(client -> client.onScreenshot(saved));
+        return this;
+    }
+
     /** The window's sample count — 0, 2, 4 or 8 — kept with the player's settings and taken by the next window made. */
     public Duke3D samples(int samples) {
         later(client -> client.samplesNextLaunch(samples));
