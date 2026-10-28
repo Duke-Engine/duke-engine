@@ -1,12 +1,5 @@
 package uz.dukeengine.core.data;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.RecordComponent;
-import java.lang.reflect.Type;
-import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -17,6 +10,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Builds records from blocks. A block is the record its word names, and each line in it one of that
@@ -44,86 +38,20 @@ import java.util.Set;
  */
 public final class Binder {
 
-    private static final ClassValue<Optional<Object>> DEFAULTS = new ClassValue<>() {
-        @Override
-        protected Optional<Object> computeValue(Class<?> type) {
-            try {
-                var field = type.getDeclaredField("DEFAULTS");
-                if (!Modifier.isStatic(field.getModifiers()) || field.getType() != type) {
-                    return Optional.empty();
-                }
-                field.setAccessible(true);
-                return Optional.ofNullable(field.get(null));
-            } catch (NoSuchFieldException _) {
-                return Optional.empty();
-            } catch (IllegalAccessException e) {
-                throw new IllegalStateException(e);
-            }
-        }
-    };
-
     /**
-     * What a record type is — its components, their generic types, the accessor of each, and the
-     * constructor that takes them all — worked out once per type and kept.
+     * The values of a record's {@code DEFAULTS}, read once; empty where it has none.
      *
-     * <p>Every block used to ask reflection all of it again. {@code getRecordComponents()} hands back a
-     * fresh array each call and reads the record's signature to build it, and the constructor was looked
-     * up by its parameter types on every block that was built. Measured on 11 MB of one RTS's data — 2115
-     * templates, most with a dozen modules inside — parsing took half a second and binding nearly five,
-     * which was most of the wait before the window opened. Nothing looked up changes: a record's shape is
-     * a fact about its class.
-     *
-     * <p>A {@link ClassValue} because that is exactly this: one answer per class, safe across threads, and
-     * gone with the class rather than pinning it in a map.
+     * <p>What a type is — its components, their generic types, its constructor, its {@code of(String)} — is its
+     * {@link Shape}, which {@link Shapes} works out once per type and keeps. Every block used to ask reflection
+     * all of it again: measured on 11 MB of one RTS's data — 2115 templates, most with a dozen modules inside —
+     * parsing took half a second and binding nearly five. A record's shape is a fact about its class.
      */
-    private record Shape(RecordComponent[] components, Type[] generics, Method[] accessors,
-            java.lang.reflect.Constructor<?> constructor) {
-    }
-
-    private static final ClassValue<Shape> SHAPES = new ClassValue<>() {
+    private static final ClassValue<Optional<Object[]>> DEFAULTS = new ClassValue<>() {
         @Override
-        protected Shape computeValue(Class<?> type) {
-            var components = type.getRecordComponents();
-            var generics = new Type[components.length];
-            var types = new Class<?>[components.length];
-            var accessors = new Method[components.length];
-            for (int i = 0; i < components.length; i++) {
-                generics[i] = components[i].getGenericType();
-                types[i] = components[i].getType();
-                accessors[i] = components[i].getAccessor();
-                accessors[i].setAccessible(true);
-            }
-            try {
-                var constructor = type.getDeclaredConstructor(types);
-                constructor.setAccessible(true);
-                return new Shape(components, generics, accessors, constructor);
-            } catch (NoSuchMethodException e) {
-                throw new IllegalStateException("cannot build " + type.getName(), e);
-            }
-        }
-    };
-
-    /**
-     * A type's static {@code of(String)} or {@code valueOf(String)}, or none, looked up once.
-     *
-     * <p>Kept for the same reason as {@link #SHAPES}, and with more reason: it is asked of every scalar and
-     * every record-typed component, and the answer for most of them is "none" — which reflection gives by
-     * throwing, twice, and an exception built with its stack trace is the dearest way there is to say no.
-     */
-    private static final ClassValue<Optional<Method>> FACTORIES = new ClassValue<>() {
-        @Override
-        protected Optional<Method> computeValue(Class<?> type) {
-            for (var name : List.of("of", "valueOf")) {
-                try {
-                    var method = type.getMethod(name, String.class);
-                    if (Modifier.isStatic(method.getModifiers()) && type.isAssignableFrom(method.getReturnType())) {
-                        return Optional.of(method);
-                    }
-                } catch (NoSuchMethodException _) {
-                    // try the next name
-                }
-            }
-            return Optional.empty();
+        protected Optional<Object[]> computeValue(Class<?> type) {
+            var components = Shapes.of(type).components();
+            var defaults = components.defaults() == null ? null : components.defaults().get();
+            return defaults == null ? Optional.empty() : Optional.of(components.read().apply(defaults));
         }
     };
 
@@ -148,20 +76,20 @@ public final class Binder {
     }
 
     private Object record(Block block, Class<?> type) {
-        if (!type.isRecord()) {
+        var shape = Shapes.of(type).components();
+        if (shape == null) {
             throw new IllegalArgumentException(type.getName() + " is not a record");
         }
-        var shape = SHAPES.get(type);
-        var components = shape.components();
-        var values = new Object[components.length];
-        var given = new boolean[components.length];
+        var components = shape.names();
+        var values = new Object[components.size()];
+        var given = new boolean[components.size()];
         for (var field : block.fields()) {
             int i = named(components, field.key());
             if (i < 0) {
                 throw new DataException(block.at(field.line()),
                         "'" + block.word() + "' has no field '" + field.key() + "'");
             }
-            values[i] = value(field.value(), shape.generics()[i], block.at(field.line()), field.key());
+            values[i] = value(field.value(), shape.generics().get(i), block.at(field.line()), field.key());
             given[i] = true;
         }
         // Nothing may stand inside a block but its own fields. A map used to: it was written as a block of
@@ -170,19 +98,19 @@ public final class Binder {
         // other, written as a list of its entries.
         if (!block.blocks().isEmpty()) {
             var inner = block.blocks().getFirst();
-            throw new DataException(block.at(inner.line()), misplaced(block, components, inner.word()));
+            throw new DataException(block.at(inner.line()), misplaced(block, shape, inner.word()));
         }
-        for (int i = 0; i < components.length; i++) {
+        for (int i = 0; i < values.length; i++) {
             if (!given[i]) {
                 values[i] = missing(type, shape, i);
             }
         }
-        return construct(type, shape, values, block.at(block.line()), block.word());
+        return construct(shape, values, block.at(block.line()), block.word());
     }
 
-    private static int named(RecordComponent[] components, String key) {
-        for (int i = 0; i < components.length; i++) {
-            if (components[i].getName().equalsIgnoreCase(key)) {
+    private static int named(List<String> components, String key) {
+        for (int i = 0; i < components.size(); i++) {
+            if (components.get(i).equalsIgnoreCase(key)) {
                 return i;
             }
         }
@@ -193,10 +121,10 @@ public final class Binder {
      * Why a block written on its own inside another is not one of its maps, said as the line it
      * should have been: the files were written the other way first, so the way back is spelt out.
      */
-    private String misplaced(Block holder, RecordComponent[] components, String word) {
-        int named = named(components, word);
+    private String misplaced(Block holder, Shape.Components components, String word) {
+        int named = named(components.names(), word);
         if (named >= 0) {
-            var generic = components[named].getGenericType();
+            var generic = components.generics().get(named);
             if (raw(generic) == Map.class) {
                 return "'" + word + "' is a map: write it " + word + " = [key = value, key = value]";
             }
@@ -211,14 +139,14 @@ public final class Binder {
             return "'" + word + "' is written '" + word + " = " + String.join("' or '" + word + " = ",
                     words(raw(generic))) + "', its fields under it";
         }
-        for (var component : components) {
-            var generic = component.getGenericType();
+        for (int i = 0; i < components.names().size(); i++) {
+            var generic = components.generics().get(i);
             if (raw(generic) == Map.class) {
                 continue;
             }
             var type = many(generic) ? element(generic) : raw(generic);
             if (accepting(type, word) != null) {
-                var key = capitalized(component.getName());
+                var key = capitalized(components.names().get(i));
                 return many(generic)
                         ? "'" + word + "' goes in its list: '" + key + " = [', then " + word + " … End, then ']'"
                         : "'" + word + "' is the value of its field: " + key + " = " + word;
@@ -236,9 +164,9 @@ public final class Binder {
      * value means is this method's business. That keeps the syntax of a map and the syntax of a list the
      * same thing on the page and only different here.
      */
-    private Object entries(Value value, Type target, String where, String key) {
-        var arguments = target instanceof ParameterizedType p
-                ? p.getActualTypeArguments() : new Type[] {Object.class, Object.class};
+    private Object entries(Value value, TypeRef target, String where, String key) {
+        var arguments = target.arguments().isEmpty()
+                ? new TypeRef[] {TypeRef.OBJECT, TypeRef.OBJECT} : target.arguments().toArray(TypeRef[]::new);
         var read = new LinkedHashMap<Object, Object>();
         if (value instanceof Value.Items items) {
             for (var entry : items.items()) {
@@ -290,7 +218,7 @@ public final class Binder {
         }
     }
 
-    private Object value(Value value, Type target, String where, String key) {
+    private Object value(Value value, TypeRef target, String where, String key) {
         var raw = raw(target);
         if (raw == Map.class) {
             return entries(value, target, where, key);
@@ -313,7 +241,7 @@ public final class Binder {
                     // A record read from one line — {@code Skeleton 17 16} — may also be written as a block, for
                     // a list whose things have more to say than a line holds: a monster that starts asleep, a
                     // prop turned to face the door. One or the other for the whole list, not both in one.
-                    if (!choosable(element) && !element.isRecord()) {
+                    if (!choosable(element) && !isRecord(element)) {
                         throw new DataException(where, "'" + key + "' is a list: write it [a, b]");
                     }
                     var read = new ArrayList<Object>(list.blocks().size());
@@ -335,7 +263,7 @@ public final class Binder {
             case Value.Nested nested when !choosable(raw) ->
                     throw new DataException(where, "'" + key + "' is a value: write it " + key + " = …");
             case Value.Nested nested -> nested(nested.block(), raw, key);
-            case Value.Items items when raw.isRecord() -> positional(items, raw, where, key);
+            case Value.Items items when isRecord(raw) -> positional(items, raw, where, key);
             case Value.Items items -> throw new DataException(where, "'" + key + "' takes one value, not a list");
             case Value.NestedList list -> throw new DataException(where, "'" + key + "' takes one value, not a list");
             case Value.NestedEntries written -> throw new DataException(where,
@@ -359,12 +287,12 @@ public final class Binder {
         if (record == null) {
             throw new DataException(where, notOneOf(type, key, word));
         }
-        var shape = SHAPES.get(record);
-        var values = new Object[shape.components().length];
+        var shape = Shapes.of(record).components();
+        var values = new Object[shape.names().size()];
         for (int i = 0; i < values.length; i++) {
             values[i] = missing(record, shape, i);
         }
-        return construct(record, shape, values, where, word);
+        return construct(shape, values, where, word);
     }
 
     private String notOneOf(Class<?> type, String key, String word) {
@@ -376,16 +304,16 @@ public final class Binder {
      * the game gave words to. A type read from text by {@code of(String)} is a value, even a record.
      */
     private boolean choosable(Class<?> type) {
-        return factoryOf(type) == null && (type.isRecord() || type.isSealed() || vocabularies.containsKey(type));
+        return factoryOf(type) == null && (isRecord(type) || permitted(type) != null || vocabularies.containsKey(type));
     }
 
     /** The record a block called {@code word} is, where a component of {@code type} holds it. */
     private Class<?> accepting(Class<?> type, String word) {
-        if (type.isRecord() && type.getSimpleName().equalsIgnoreCase(word)) {
+        if (isRecord(type) && type.getSimpleName().equalsIgnoreCase(word)) {
             return type;
         }
-        if (type.isSealed()) {
-            for (var permitted : type.getPermittedSubclasses()) {
+        if (permitted(type) != null) {
+            for (var permitted : permitted(type)) {
                 var found = accepting(permitted, word);
                 if (found != null) {
                     return found;
@@ -399,11 +327,11 @@ public final class Binder {
     /** Every word a component of {@code type} may be written with, for the message that lists them. */
     private List<String> words(Class<?> type) {
         var words = new ArrayList<String>();
-        if (type.isRecord()) {
+        if (isRecord(type)) {
             words.add(type.getSimpleName());
         }
-        if (type.isSealed()) {
-            for (var permitted : type.getPermittedSubclasses()) {
+        if (permitted(type) != null) {
+            for (var permitted : permitted(type)) {
                 words.addAll(words(permitted));
             }
         }
@@ -413,17 +341,17 @@ public final class Binder {
 
     /** A record written as its components in order: {@code At = [0.12, 0.1, -0.22]}. */
     private Object positional(Value.Items items, Class<?> type, String where, String key) {
-        var shape = SHAPES.get(type);
-        var components = shape.components();
-        if (components.length != items.items().size()) {
-            throw new DataException(where, "'" + key + "' takes " + components.length + " values, not "
+        var shape = Shapes.of(type).components();
+        var components = shape.types();
+        if (components.size() != items.items().size()) {
+            throw new DataException(where, "'" + key + "' takes " + components.size() + " values, not "
                     + items.items().size());
         }
-        var values = new Object[components.length];
-        for (int i = 0; i < components.length; i++) {
-            values[i] = scalar(items.items().get(i), components[i].getType(), where, key);
+        var values = new Object[components.size()];
+        for (int i = 0; i < values.length; i++) {
+            values[i] = scalar(items.items().get(i), components.get(i), where, key);
         }
-        return construct(type, shape, values, where, type.getSimpleName());
+        return construct(shape, values, where, type.getSimpleName());
     }
 
     private static Object scalar(String text, Class<?> type, String where, String key) {
@@ -452,19 +380,20 @@ public final class Binder {
                 }
                 return text.charAt(0);
             }
-            if (type.isEnum()) {
+            if (Shapes.of(type).constants() != null) {
                 return constant(type, text, where, key);
-            }
-            var factory = factoryOf(type);
-            if (factory != null) {
-                return factory.invoke(null, text);
             }
         } catch (NumberFormatException _) {
             throw new DataException(where, "'" + key + "' is a number, not '" + text + "'");
-        } catch (InvocationTargetException e) {
-            throw new DataException(where, "'" + key + "': " + e.getCause().getMessage(), e.getCause());
-        } catch (IllegalAccessException e) {
-            throw new IllegalStateException(e);
+        }
+        var factory = factoryOf(type);
+        if (factory != null) {
+            // Whatever the factory throws is its own word on the text, even a NumberFormatException.
+            try {
+                return factory.apply(text);
+            } catch (RuntimeException | Error e) {
+                throw new DataException(where, "'" + key + "': " + e.getMessage(), e);
+            }
         }
         throw new DataException(where, "'" + key + "' cannot be read as " + type.getSimpleName());
     }
@@ -485,7 +414,7 @@ public final class Binder {
 
     private static Object constant(Class<?> type, String text, String where, String key) {
         var names = new ArrayList<String>();
-        for (var constant : type.getEnumConstants()) {
+        for (var constant : Shapes.of(type).constants()) {
             var name = ((Enum<?>) constant).name();
             if (name.equalsIgnoreCase(text)) {
                 return constant;
@@ -495,8 +424,17 @@ public final class Binder {
         throw new DataException(where, "'" + key + "' is one of " + names + ", not '" + text + "'");
     }
 
-    private static Method factoryOf(Class<?> type) {
-        return FACTORIES.get(type).orElse(null);
+    private static Function<String, ?> factoryOf(Class<?> type) {
+        return Shapes.of(type).factory();
+    }
+
+    private static boolean isRecord(Class<?> type) {
+        return Shapes.of(type).components() != null;
+    }
+
+    /** The records and types a sealed type permits, or {@code null} where it is not sealed. */
+    private static List<Class<?>> permitted(Class<?> type) {
+        return Shapes.of(type).permitted();
     }
 
     private static Object collection(Class<?> type, List<Object> items) {
@@ -504,16 +442,12 @@ public final class Binder {
     }
 
     /** What a component the block does not write holds: its record's default, else nothing. */
-    private static Object missing(Class<?> record, Shape shape, int component) {
+    private static Object missing(Class<?> record, Shape.Components shape, int component) {
         var defaults = DEFAULTS.get(record);
         if (defaults.isPresent()) {
-            try {
-                return shape.accessors()[component].invoke(defaults.get());
-            } catch (ReflectiveOperationException e) {
-                throw new IllegalStateException(e);
-            }
+            return defaults.get()[component];
         }
-        var type = shape.components()[component].getType();
+        var type = shape.types().get(component);
         if (type == List.class) {
             return List.of();
         }
@@ -550,21 +484,17 @@ public final class Binder {
         return 0;
     }
 
-    private static Object construct(Class<?> type, Shape shape, Object[] values, String where, String word) {
+    private static Object construct(Shape.Components shape, Object[] values, String where, String word) {
         try {
-            return shape.constructor().newInstance(values);
-        } catch (InvocationTargetException e) {
-            var cause = e.getCause();
-            if (cause instanceof DataException data) {
-                throw data;
-            }
-            throw new DataException(where, "'" + word + "': " + cause.getMessage(), cause);
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("cannot build " + type.getName(), e);
+            return shape.build().apply(values);
+        } catch (DataException data) {
+            throw data;
+        } catch (RuntimeException | Error e) {
+            throw new DataException(where, "'" + word + "': " + e.getMessage(), e);
         }
     }
 
-    private static boolean many(Type type) {
+    private static boolean many(TypeRef type) {
         var raw = raw(type);
         return raw == List.class || raw == Set.class;
     }
@@ -573,16 +503,11 @@ public final class Binder {
         return name.isEmpty() ? name : Character.toUpperCase(name.charAt(0)) + name.substring(1);
     }
 
-    private static Class<?> raw(Type type) {
-        return switch (type) {
-            case Class<?> c -> c;
-            case ParameterizedType p -> raw(p.getRawType());
-            case WildcardType w -> raw(w.getUpperBounds()[0]);
-            default -> Object.class;
-        };
+    private static Class<?> raw(TypeRef type) {
+        return type.raw();
     }
 
-    private static Class<?> element(Type collection) {
-        return collection instanceof ParameterizedType p ? raw(p.getActualTypeArguments()[0]) : Object.class;
+    private static Class<?> element(TypeRef collection) {
+        return collection.arguments().isEmpty() ? Object.class : collection.arguments().getFirst().raw();
     }
 }
