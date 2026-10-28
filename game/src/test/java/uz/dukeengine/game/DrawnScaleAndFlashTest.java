@@ -36,6 +36,22 @@ class DrawnScaleAndFlashTest {
     }
 
     @Test
+    void aFadeInOfTenFramesGoesFromNothingToWholeByTheTenth() {
+        var game = gameWithOne();
+        var thing = game.getLogic().getObjects().getFirst();
+        assertEquals(1f, viewOf(game).opacity(), "whole until told");
+
+        thing.fadeIn(10);
+        assertEquals(0f, thing.getDrawnOpacity(), "nothing the frame it begins");
+        for (int frame = 1; frame <= 10; frame++) {
+            game.runHeadless(1);
+            assertEquals(frame / 10f, viewOf(game).opacity(), 1e-6f);
+        }
+        game.runHeadless(5);
+        assertEquals(1f, viewOf(game).opacity(), "and whole after");
+    }
+
+    @Test
     void aRedFlashOfTwelveFramesTintsRedEasesOutAndIsClearByTheTwelfth() {
         var game = gameWithOne();
         var thing = game.getLogic().getObjects().getFirst();

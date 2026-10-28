@@ -75,6 +75,9 @@ public final class GameObject {
     private int wearsColoursOf = -1;
     /** How opaque it is drawn, 0 to 1. */
     private float drawnOpacity = 1f;
+    /** The frames its fade in lasts, and the frame it began — see {@link #fadeIn}. */
+    private int fadeFrames;
+    private int fadeFrom;
     /** How large it is drawn, about its middle, as a share of its look's size. */
     private float drawnScale = 1f;
     /** The colour it is flashed in, with the strength it starts at as its alpha, and the frames it lasts from the one it began. */
@@ -388,8 +391,23 @@ public final class GameObject {
         this.drawnOpacity = Math.clamp(opacity, 0f, 1f);
     }
 
+    /** How opaque it is drawn now: its opacity, times how far through a fade in it is. */
     public float getDrawnOpacity() {
-        return drawnOpacity;
+        if (fadeFrames <= 0 || world == null) {
+            return drawnOpacity;
+        }
+        float through = (float) (world.getFrame() - fadeFrom) / fadeFrames;
+        return through >= 1f ? drawnOpacity : drawnOpacity * Math.max(0f, through);
+    }
+
+    /**
+     * Drawn from nothing to its opacity evenly over {@code frames} of the game's from now — a rebel ambush arriving,
+     * the reference's {@code Drawable::fadeIn}. A fade again begins it over. Drawing only, as {@link
+     * #setDrawnOpacity}: out of the checksum and not saved.
+     */
+    public void fadeIn(int frames) {
+        fadeFrames = frames;
+        fadeFrom = world == null ? 0 : world.getFrame();
     }
 
     public float getDrawnScale() {
