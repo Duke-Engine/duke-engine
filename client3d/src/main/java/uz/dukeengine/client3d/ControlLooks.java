@@ -20,6 +20,7 @@ final class ControlLooks {
     boolean dragSelects = true;
     boolean selectionRings = true;
     Visuals.GhostLook ghostLook;
+    Visuals.LocaterLook locaters;
     OrderMark orderMark = OrderMark.DEFAULTS;
     final Map<String, String> orderAnswers = new HashMap<>();
     final Map<String, Function<AnswerTarget, String>> aimedAnswers = new HashMap<>();

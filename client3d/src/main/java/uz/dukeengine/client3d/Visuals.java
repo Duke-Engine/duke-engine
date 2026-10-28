@@ -1625,6 +1625,14 @@ public final class Visuals {
     }
 
     /**
+     * The models a placement drag marks the ground with — the reference's {@code Locater01} and {@code Locater02}:
+     * {@code anchor} stands where the press went down until the cursor is dragged away from it, then {@code arrow}
+     * does, turned along the drag. Each a whole path, or null to draw none of it.
+     */
+    public record LocaterLook(String anchor, String arrow) {
+    }
+
+    /**
      * One state of a model's pieces — see {@link UnitVisual#pieces}.
      *
      * @param words the condition words it is for, all of which must hold
@@ -2846,6 +2854,18 @@ public final class Visuals {
 
     public GhostLook getGhostLook() {
         return controls.ghostLook;
+    }
+
+    /**
+     * The models a placement drag marks the ground with — see {@link LocaterLook}; unsaid, none, as it always was.
+     */
+    public Visuals locaters(LocaterLook look) {
+        controls.locaters = look;
+        return this;
+    }
+
+    public LocaterLook getLocaters() {
+        return controls.locaters;
     }
 
 

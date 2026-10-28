@@ -52,6 +52,8 @@ final class CommandButtons {
     private GroundDecal aimDecal;
     /** What the armed button will put down, drawn at the cursor, or null for a button with no ghost. */
     private Ghost ghost;
+    /** The anchor or arrow a placement drag lays on the ground, made when first wanted; null where none is named. */
+    private PlacementLocater locater;
 
     CommandButtons(AssetManager assetManager, Node guiNode, Node markerNode, Visuals visuals, Looks looks,
             Bodies bodies, Screens screens, Function<String, BitmapFont> fonts, Camera cam,
@@ -268,6 +270,10 @@ final class CommandButtons {
     /** Take down what an aim put up: the ghost, the circle, and the game's question about the place. */
     private void forgetTheAim() {
         game.get().setAim(null, null, 0f);
+        if (locater != null) {
+            locater.remove();
+            locater = null;
+        }
         if (ghost != null) {
             ghost.remove();
             ghost = null;
@@ -375,6 +381,7 @@ final class CommandButtons {
         var ground = pointer.pickGround();
         var cursor = inputManager.getCursorPosition();
         placement.cursor(cursor.x, cursor.y, ground == null ? null : new Coord3D(ground.x, ground.z, 0f));
+        layTheLocater(placement);
         var where = placement.where();
         if (where == null) {
             return;
@@ -401,5 +408,19 @@ final class CommandButtons {
             aimRing.show(where, aiming.radius(), look.height(), fits ? look.allowColour() : look.denyColour(),
                     look.edgeAlpha(), look.fillAlpha(), floor::at);
         }
+    }
+
+    /** The anchor or the arrow of a placement drag, where the game named models for them: see {@link PlacementLocater}. */
+    private void layTheLocater(PlacementDrag placement) {
+        var named = visuals.getLocaters();
+        if (named == null) {
+            return;
+        }
+        if (locater == null) {
+            locater = new PlacementLocater(markerNode, named.anchor() == null ? null
+                    : bodies.asFiled(named.anchor(), "placement anchor"),
+                    named.arrow() == null ? null : bodies.asFiled(named.arrow(), "placement arrow"));
+        }
+        locater.show(placement, floor::at);
     }
 }
