@@ -83,6 +83,10 @@ final class Particles {
     private final TreeMap<Integer, LinkedHashSet<Particle>> living = new TreeMap<>();
     private final Set<String> unknown = new HashSet<>();
     private int count;
+    /** The field cap: the priority whose ground-aligned particles it counts, and its most; none until set. */
+    private int fieldPriority = Integer.MIN_VALUE;
+    private int fieldMost = Integer.MAX_VALUE;
+    private int fieldCount;
     private long made;
     private int frame;
     private float owed;
@@ -100,6 +104,21 @@ final class Particles {
         this.ground = ground == null ? Ground.FLAT : ground;
         this.most = Math.max(0, most);
         this.neverRefusedFrom = neverRefusedFrom;
+    }
+
+    /**
+     * Cap the ground-aligned particles of {@code priority} — the reference's {@code MaxFieldParticleCount} of its
+     * {@code AREA_EFFECT} fields: while more than {@code most} of them burn, a system of them that already has
+     * particles makes no more ({@code ParticleSystem::createParticle}). The reference counts those on screen; this
+     * counts all of them.
+     */
+    void fieldCap(int priority, int most) {
+        fieldPriority = priority;
+        fieldMost = Math.max(0, most);
+    }
+
+    private boolean field(Emitter emitter) {
+        return emitter.data().priority() == fieldPriority && emitter.data().isGroundAligned();
     }
 
     // ---- starting and stopping ----
@@ -164,6 +183,7 @@ final class Particles {
         emitters.clear();
         living.clear();
         count = 0;
+        fieldCount = 0;
     }
 
     // ---- time ----
@@ -214,6 +234,10 @@ final class Particles {
     /** A particle made for {@code emitter}, or null where the budget has no room for it. */
     Particle make(Emitter emitter, Particle.Born born) {
         int priority = emitter.data().priority();
+        boolean field = field(emitter);
+        if (field && fieldCount > fieldMost && !emitter.particles().isEmpty()) {
+            return null;
+        }
         if (priority < neverRefusedFrom) {
             // The reference's arithmetic, room made for whatever is over the most before this one is added.
             int over = count - most;
@@ -231,6 +255,9 @@ final class Particles {
         emitter.particles().add(particle);
         living.computeIfAbsent(priority, _ -> new LinkedHashSet<>()).add(particle);
         count++;
+        if (field) {
+            fieldCount++;
+        }
         return particle;
     }
 
@@ -264,6 +291,9 @@ final class Particles {
         var level = living.get(particle.system.data().priority());
         if (level != null && level.remove(particle)) {
             count--;
+            if (field(particle.system)) {
+                fieldCount--;
+            }
         }
         if (particle.riding != null) {
             particle.riding.destroy(); // what rode it goes with it

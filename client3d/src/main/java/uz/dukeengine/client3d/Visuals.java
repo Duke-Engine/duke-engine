@@ -2082,6 +2082,25 @@ public final class Visuals {
     }
 
     /**
+     * Cap the ground-aligned particles of one priority — the reference's {@code MaxFieldParticleCount} (30) of its
+     * {@code AREA_EFFECT} fields: while more than {@code most} burn, a system of them that already has particles makes
+     * no more. Left unset there is no cap.
+     */
+    public Visuals particleFieldCap(int priority, int most) {
+        fx.particleFieldPriority = priority;
+        fx.particleFieldMost = Math.max(0, most);
+        return this;
+    }
+
+    public int getParticleFieldPriority() {
+        return fx.particleFieldPriority;
+    }
+
+    public int getParticleFieldMost() {
+        return fx.particleFieldMost;
+    }
+
+    /**
      * What the client may spend on things in flight.
      *
      * <p>Ceilings rather than targets, and the reason they exist at all is that a

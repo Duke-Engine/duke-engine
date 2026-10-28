@@ -563,6 +563,45 @@ class ParticlesTest {
         assertTrue(round.y > 0f && round.x > 0f, "blown up and across as the wind turns: " + round.x + ", " + round.y);
     }
 
+    private static final String FIELD = """
+            ParticleSystem
+              Name = Field
+              Priority = 11
+              Blend = ALPHA_TEST
+              IsGroundAligned = Yes
+              BurstCount = [5]
+              BurstDelay = [0]
+              Lifetime = [1000]
+            End
+            """;
+
+    /**
+     * Past the field cap a field that already burns makes no more: one over the most, as the reference's {@code >}
+     * lets it; a new field still gets its first; and with no cap nothing is held back.
+     */
+    @Test
+    void theFieldCapHoldsGroundAlignedFieldsBack() {
+        var capped = world(library(FIELD), 1L);
+        capped.fieldCap(11, 6);
+        var field = capped.startAt("Field", HERE);
+        for (int frame = 0; frame < 5; frame++) {
+            capped.update();
+        }
+        assertEquals(7, field.particles().size(), "held at one over six");
+        var another = capped.startAt("Field", HERE);
+        for (int frame = 0; frame < 5; frame++) {
+            capped.update();
+        }
+        assertEquals(1, another.particles().size(), "a new field gets its first only");
+
+        var free = world(library(FIELD), 1L);
+        var unheld = free.startAt("Field", HERE);
+        for (int frame = 0; frame < 5; frame++) {
+            free.update();
+        }
+        assertEquals(25, unheld.particles().size(), "no cap, five a frame");
+    }
+
     /** A system the game never described draws nothing, and says so once. */
     @Test
     void aSystemNobodyDescribedStartsNothing() {
