@@ -53,6 +53,16 @@ public abstract class RtsSimulation extends GameLogic implements uz.dukeengine.c
         switch (command) {
             case uz.dukeengine.combat.message.CombatOrder order -> onCombatOrder(order);
             case GameMessage message -> onRtsCommand(message);
+            case uz.dukeengine.combat.message.GameOrder word -> {
+                // The game's word is an order in place of the places its units had still to go, as a plain move is.
+                for (var id : word.units()) {
+                    var unit = findObject(id);
+                    if (unit != null && unit.getPlayerIndex() == word.playerIndex()) {
+                        forgetWaypoints(id.value());
+                    }
+                }
+                onOtherCommand(word);
+            }
             default -> onOtherCommand(command);
         }
     }
@@ -716,7 +726,7 @@ public abstract class RtsSimulation extends GameLogic implements uz.dukeengine.c
                 continue; // gone, or not the issuer's to command
             }
             if (!adds) {
-                waypoints.remove(id.value()); // any other order is in place of the places it had still to go
+                forgetWaypoints(id.value()); // any other order is in place of the places it had still to go
             }
             for (var module : java.util.List.copyOf(unit.getModules())) {
                 if (module instanceof uz.dukeengine.rts.module.OrderListener listener) {
@@ -736,12 +746,26 @@ public abstract class RtsSimulation extends GameLogic implements uz.dukeengine.c
      */
     protected final boolean addWaypoint(uz.dukeengine.core.thing.GameObject unit,
             uz.dukeengine.core.math.Coord3D place) {
-        var queue = waypoints.get(unit.getId().value());
-        if (queue == null && (unit.getLocomotor() == null || !unit.getLocomotor().isMoving())) {
+        var mover = unit.getLocomotor();
+        int id = unit.getId().value();
+        // A place sent now is a walk until a later frame sees the mover idle: a locomotor may not say it moves the very
+        // next frame, and the place added then would take the first one's turn instead of waiting for it.
+        if (mover == null || !waypoints.containsKey(id) && !sentNow.containsKey(id) && !mover.isMoving()) {
+            if (mover != null) {
+                sentNow.put(id, getFrame());
+            }
             return true;
         }
-        waypoints.computeIfAbsent(unit.getId().value(), id -> new java.util.ArrayDeque<>()).add(place);
+        waypoints.computeIfAbsent(id, key -> new java.util.ArrayDeque<>()).add(place);
         return false;
+    }
+
+    /** Each unit sent off by an added place at once, by id, and the frame it was sent in; see {@link #addWaypoint}. */
+    private final java.util.SortedMap<Integer, Integer> sentNow = new java.util.TreeMap<>();
+
+    private void forgetWaypoints(int id) {
+        waypoints.remove(id);
+        sentNow.remove(id);
     }
 
     /** The places {@code unit} still has to go after the one it walks to, in turn; none for most. */
@@ -753,6 +777,11 @@ public abstract class RtsSimulation extends GameLogic implements uz.dukeengine.c
 
     /** Each unit with places still to go and none it walks to now sent on to the next, in the order of their ids. */
     protected final void walkWaypoints() {
+        sentNow.entrySet().removeIf(sent -> {
+            var unit = findObject(new uz.dukeengine.core.thing.ObjectId(sent.getKey()));
+            return unit == null || unit.isEffectivelyDead() || unit.getLocomotor() == null
+                    || sent.getValue() < getFrame() && !unit.getLocomotor().isMoving();
+        });
         for (var it = waypoints.entrySet().iterator(); it.hasNext();) {
             var entry = it.next();
             var unit = findObject(new uz.dukeengine.core.thing.ObjectId(entry.getKey()));
@@ -760,8 +789,9 @@ public abstract class RtsSimulation extends GameLogic implements uz.dukeengine.c
                 it.remove();
                 continue;
             }
-            if (!unit.getLocomotor().isMoving()) {
+            if (!unit.getLocomotor().isMoving() && !sentNow.containsKey(entry.getKey())) {
                 unit.getLocomotor().moveTo(entry.getValue().poll());
+                sentNow.put(entry.getKey(), getFrame());
                 if (entry.getValue().isEmpty()) {
                     it.remove();
                 }
