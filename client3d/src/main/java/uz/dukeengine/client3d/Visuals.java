@@ -3776,6 +3776,25 @@ public final class Visuals {
         return java.util.Map.copyOf(controls.pointers);
     }
 
+    /**
+     * The pointer shown in place of {@code pointer} — the one an armed button shows ({@code Duke3D.aim}) — over a thing
+     * or a place the game will not take for it ({@code DukeGame.aimThing}, {@code aimFits}): the reference's {@code
+     * InvalidCursorName}, {@code PlaceChargeInvalid} for {@code PlaceCharge}. Named nothing, a refused thing shows
+     * {@code Deny} and a refused place the armed pointer, as ever; a situation with no picture falls back to {@code
+     * Deny}.
+     */
+    public Visuals invalidPointer(String pointer, String invalid) {
+        if (pointer != null) {
+            controls.invalidPointers.put(pointer, invalid == null || invalid.isBlank() ? null : invalid);
+        }
+        return this;
+    }
+
+    /** The pointer shown in place of {@code pointer} where its aim is refused, or null for none named. */
+    String invalidPointerFor(String pointer) {
+        return pointer == null ? null : controls.invalidPointers.get(pointer);
+    }
+
     /** The pointer pictures, for {@link Preload}: read before the window needs them. */
     public java.util.List<String> pointerImages() {
         return controls.pointers.values().stream().map(Cursors.Look::image).toList();

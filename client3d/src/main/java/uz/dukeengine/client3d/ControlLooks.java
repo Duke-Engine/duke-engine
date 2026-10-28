@@ -34,6 +34,7 @@ final class ControlLooks {
     MenuStyle menuStyle = MenuStyle.DEFAULTS;
     PanelSkin panelSkin = PanelSkin.NONE;
     final Map<String, Cursors.Look> pointers = new LinkedHashMap<>();
+    final Map<String, String> invalidPointers = new HashMap<>();
 
     /** The moment that answers a click giving {@code word}: the game's, none (null), or a move's. */
     String orderAnswerFor(String word) {

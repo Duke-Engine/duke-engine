@@ -260,6 +260,11 @@ final class CommandButtons {
         return overAThing && aiming.isArmed() && Aiming.aimsAtAThing(aiming.button()) && !takesThePointed();
     }
 
+    /** Whether the armed button is aimed at a place and the game will not take the one under the pointer. */
+    boolean refusesThePlace() {
+        return aiming.placement() != null && !takesThePointed();
+    }
+
     /** Take down what an aim put up: the ghost, the circle, and the game's question about the place. */
     private void forgetTheAim() {
         game.get().setAim(null, null, 0f);

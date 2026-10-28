@@ -244,6 +244,21 @@ final class Cursors {
     }
 
     /**
+     * The pointers over the world while a button is armed, or null where the client's own choice stands: the game's
+     * {@code invalid} pointer, {@code Deny} standing in, where the thing or the place under the pointer is refused and
+     * it named one; else {@code Deny} for a refused thing; else the armed {@code pointer} where the game named one.
+     */
+    static java.util.List<String> armed(String pointer, String invalid, boolean thingRefused, boolean placeRefused) {
+        if (invalid != null && (thingRefused || placeRefused)) {
+            return java.util.List.of(invalid, DENY);
+        }
+        if (thingRefused) {
+            return java.util.List.of(DENY);
+        }
+        return pointer == null ? null : java.util.List.of(pointer);
+    }
+
+    /**
      * The pointers wanted where the game may name one over its own canvas: {@code named} — the arrow standing in where
      * it painted none — while the pointer is over the canvas and the game named one; otherwise {@code otherwise}, the
      * client's own choice.

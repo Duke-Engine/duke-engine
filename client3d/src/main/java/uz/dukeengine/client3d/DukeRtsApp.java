@@ -2295,13 +2295,13 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         var over = whatThePointerIsOver();
-        if (over.scrolling() == null && !over.overPanel() && buttons.refusesTheThingPointedAt(over.overUnit())) {
-            cursors.showFirst(java.util.List.of(Cursors.DENY)); // the game will not take this thing for the armed button
-            return;
-        }
         var aimPointer = buttons.aimPointer();
-        if (aimPointer != null && over.scrolling() == null && !over.overPanel()) {
-            cursors.show(aimPointer); // the pointer the game named for this aim, over the world
+        // The pointer the game named for this aim, over the world, or its refusal of the thing or place under it.
+        var armed = over.scrolling() != null || over.overPanel() ? null
+                : Cursors.armed(aimPointer, visuals.invalidPointerFor(aimPointer),
+                        buttons.refusesTheThingPointedAt(over.overUnit()), !over.overUnit() && buttons.refusesThePlace());
+        if (armed != null) {
+            cursors.showFirst(armed);
             return;
         }
         cursors.showFirst(Cursors.overCanvas(canvasPointer, canvasInputs != null && canvasInputs.pointerTaken(),

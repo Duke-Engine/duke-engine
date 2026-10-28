@@ -419,4 +419,25 @@ class CursorsTest {
         assertEquals("Scroll-S", Cursors.situationFor(new Cursors.Over(true, null, true, true, false, false, true,
                 true, null, "S")), "a view being scrolled shows it first, over the bar too");
     }
+
+    /**
+     * An armed button's own pointer, and the game's invalid one (the reference's {@code InvalidCursorName}) over a thing
+     * or a place it refuses — {@code Deny} standing in, and over a refused thing {@code Deny} where it named none.
+     */
+    @Test
+    void anArmedButtonShowsTheGamesInvalidPointerWhereItsAimIsRefused() {
+        var visuals = Visuals.create().invalidPointer("PlaceCharge", "PlaceChargeInvalid");
+        var invalid = visuals.invalidPointerFor("PlaceCharge");
+
+        assertEquals(java.util.List.of("PlaceCharge"), Cursors.armed("PlaceCharge", invalid, false, false));
+        assertEquals(java.util.List.of("PlaceChargeInvalid", Cursors.DENY),
+                Cursors.armed("PlaceCharge", invalid, true, false), "a thing refused");
+        assertEquals(java.util.List.of("PlaceChargeInvalid", Cursors.DENY),
+                Cursors.armed("PlaceCharge", invalid, false, true), "a place refused");
+        assertEquals(java.util.List.of(Cursors.DENY), Cursors.armed("Strike", visuals.invalidPointerFor("Strike"), true,
+                false), "none named: Deny, as ever");
+        assertEquals(java.util.List.of("Strike"), Cursors.armed("Strike", null, false, true),
+                "a place refused, none named: the armed pointer, as ever");
+        assertEquals(null, Cursors.armed(null, null, false, false), "nothing named: the client's own choice");
+    }
 }
