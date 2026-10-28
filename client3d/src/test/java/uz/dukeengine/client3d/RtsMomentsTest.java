@@ -196,6 +196,26 @@ class RtsMomentsTest {
         assertTrue(silent.played.isEmpty(), "and one with none hears nothing new");
     }
 
+    /** What comes out of a hold is heard by its own word as well, once, however it came out. */
+    @Test
+    void whatComesOutOfAHoldIsHeardByItsOwnWord() {
+        var heard = new Heard();
+        var noises = noises(effect(effect(SoundBank.create(), "left.Plane", "door.ogg"), "fell.Bomb", "whistle.ogg")
+                .build(), heard);
+        var plane = unit(4, "Plane", ME, 100f, false);
+        var bomb = unit(5, "Bomb", ME, 100f, false);
+        var where = new Coord3D(40f, 0f, 0f);
+
+        noises.frame(frame(List.of(plane, bomb), new uz.dukeengine.core.event.ObjectLeft(1, new ObjectId(5),
+                new ObjectId(4), uz.dukeengine.core.event.Passage.FELL, where)), ME, 0f);
+        assertEquals(List.of("door.ogg", "whistle.ogg"), heard.played, "the hold's and the rider's, once each");
+
+        noises.frame(frame(List.of(plane, bomb), new uz.dukeengine.core.event.ObjectLeft(2, new ObjectId(5),
+                new ObjectId(4), uz.dukeengine.core.event.Passage.EJECTED, where)), ME, 5f);
+        assertEquals(List.of("door.ogg", "whistle.ogg", "door.ogg", "whistle.ogg"), heard.played,
+                "on every way out, as the reference plays it");
+    }
+
     /** Falling under 70% sounds damaged once — not again as it falls further, nor on the frame it is first seen. */
     @Test
     void fallingUnderSeventyPercentSoundsDamagedOnce() {

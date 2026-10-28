@@ -193,6 +193,7 @@ final class GameSounds {
                 passage("entered", entered.hold().value(), entered.where(), after, hidden, now, localPlayer);
             } else if (event instanceof uz.dukeengine.core.event.ObjectLeft left) {
                 passage("left", left.hold().value(), left.where(), after, hidden, now, localPlayer);
+                cameOut(left.passenger().value(), after, hidden, now, localPlayer);
             } else if (event instanceof WeaponFired fired) {
                 var shooter = after.get(fired.shooter().value());
                 fired(fired.weapon() == null || fired.rank() <= 0 ? fired.weapon() : fired.weapon() + "." + fired.rank(),
@@ -290,6 +291,19 @@ final class GameSounds {
             return;
         }
         sounds.play(heardAs(moment, view), at(where), now, view.playerIndex() == localPlayer);
+    }
+
+    /**
+     * What came out of a hold, heard by its own word: {@code fell.<its template>}, where it stands — the reference's
+     * {@code SoundFallingFromPlane}, which, its name notwithstanding, a rider plays on every way out of every hold
+     * ({@code OpenContain::onRemoving}). A game with no such cue hears nothing new.
+     */
+    private void cameOut(int passenger, Map<Integer, UnitView> after, Map<Integer, UnitView> hidden, float now,
+            int localPlayer) {
+        var view = after.getOrDefault(passenger, hidden.get(passenger));
+        if (view != null) {
+            sounds.play(heardAs("fell", view), at(view), now, view.playerIndex() == localPlayer);
+        }
     }
 
     /** A moment where the viewer does not see: heard only where fog does not hide its cue, and shown nowhere. */
