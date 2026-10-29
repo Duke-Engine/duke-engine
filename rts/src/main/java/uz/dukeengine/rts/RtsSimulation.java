@@ -762,10 +762,20 @@ public abstract class RtsSimulation extends GameLogic implements uz.dukeengine.c
 
     /** Each unit sent off by an added place at once, by id, and the frame it was sent in; see {@link #addWaypoint}. */
     private final java.util.SortedMap<Integer, Integer> sentNow = new java.util.TreeMap<>();
+    /** Those of {@link #sentNow} whose mover has since said it moves: the first frame it is idle again, it is there. */
+    private final java.util.SortedSet<Integer> seenMoving = new java.util.TreeSet<>();
+
+    /**
+     * How long a mover sent off may take to say it moves before it is taken to be going nowhere — sent where it
+     * stands, or where it cannot go: a tank turning, a route still being sought, an order its AI takes up a frame or two
+     * later. Till then a place added behind waits, rather than taking the first one's turn.
+     */
+    static final int STARTING_FRAMES = uz.dukeengine.core.GameConstants.LOGICFRAMES_PER_SECOND / 2;
 
     private void forgetWaypoints(int id) {
         waypoints.remove(id);
         sentNow.remove(id);
+        seenMoving.remove(id);
     }
 
     /** The places {@code unit} still has to go after the one it walks to, in turn; none for most. */
@@ -779,8 +789,20 @@ public abstract class RtsSimulation extends GameLogic implements uz.dukeengine.c
     protected final void walkWaypoints() {
         sentNow.entrySet().removeIf(sent -> {
             var unit = findObject(new uz.dukeengine.core.thing.ObjectId(sent.getKey()));
-            return unit == null || unit.isEffectivelyDead() || unit.getLocomotor() == null
-                    || sent.getValue() < getFrame() && !unit.getLocomotor().isMoving();
+            boolean done;
+            if (unit == null || unit.isEffectivelyDead() || unit.getLocomotor() == null) {
+                done = true;
+            } else if (unit.getLocomotor().isMoving()) {
+                seenMoving.add(sent.getKey());
+                done = false;
+            } else {
+                // Idle: there, once it was seen on its way; else going nowhere, once it has had its time to start.
+                done = seenMoving.contains(sent.getKey()) || getFrame() - sent.getValue() >= STARTING_FRAMES;
+            }
+            if (done) {
+                seenMoving.remove(sent.getKey());
+            }
+            return done;
         });
         for (var it = waypoints.entrySet().iterator(); it.hasNext();) {
             var entry = it.next();

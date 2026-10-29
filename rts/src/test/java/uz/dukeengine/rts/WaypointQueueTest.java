@@ -36,6 +36,8 @@ class WaypointQueueTest {
         }
 
         static final List<Coord3D> sent = new ArrayList<>();
+        /** How many frames after it is sent it says it moves. */
+        static int startFrames = 2;
         private int starting;
         private int walking;
         private boolean moving;
@@ -47,7 +49,7 @@ class WaypointQueueTest {
         @Override
         public void moveTo(Coord3D destination) {
             sent.add(destination);
-            starting = 2;
+            starting = startFrames;
             moving = false;
         }
 
@@ -177,6 +179,51 @@ class WaypointQueueTest {
         field.click(A, false);
         field.logic().update();
         assertEquals(List.of(A, B, C, A), Slow.sent, "a plain click goes at once");
+    }
+
+    /** A mover that takes frames to say it moves — a tank turning first — keeps A ahead of places clicked a frame on. */
+    @Test
+    void aPlaceSentIsNotReplacedThoughItsMoverTakesSeveralFramesToSayItMoves() {
+        Slow.sent.clear();
+        Slow.startFrames = 5;
+        try {
+            var field = Field.of("Walker", new Slow.Data());
+            for (var place : List.of(A, B, C)) {
+                field.click(place, true);
+                field.logic().update();
+            }
+            for (int frame = 0; frame < 3; frame++) {
+                field.logic().update();
+            }
+            assertEquals(List.of(A), Slow.sent, "B and C still wait behind A, though it has not yet said it moves");
+
+            for (int frame = 0; frame < 60; frame++) {
+                field.logic().update();
+            }
+            assertEquals(List.of(A, B, C), Slow.sent, "in the order they were clicked");
+        } finally {
+            Slow.startFrames = 2;
+        }
+    }
+
+    /** One sent where it cannot go waits no longer than a mover may take to start, and the next place is walked. */
+    @Test
+    void aMoverThatNeverSaysItMovesLetsTheNextPlaceGoOnceItHasHadItsTimeToStart() {
+        Slow.sent.clear();
+        Slow.startFrames = 1_000;
+        try {
+            var field = Field.of("Walker", new Slow.Data());
+            field.click(A, true);
+            field.logic().update();
+            field.click(B, true);
+            field.logic().update();
+            for (int frame = 0; frame < RtsSimulation.STARTING_FRAMES; frame++) {
+                field.logic().update();
+            }
+            assertEquals(List.of(A, B), Slow.sent);
+        } finally {
+            Slow.startFrames = 2;
+        }
     }
 
     @Test
