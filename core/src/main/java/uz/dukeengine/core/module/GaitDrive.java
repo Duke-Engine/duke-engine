@@ -47,6 +47,20 @@ final class GaitDrive {
         this.way = way;
     }
 
+    /** Its speed now, its braking and backing, and since when wheels have been near the end of their way. */
+    void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeFloat(speedNow).writeBoolean(brakingOnto).writeBoolean(backing).writeBoolean(threePoint)
+                .writeInt(nearEndSince);
+    }
+
+    void load(uz.dukeengine.core.save.SaveIn in) {
+        speedNow = in.readFloat();
+        brakingOnto = in.readBoolean();
+        backing = in.readBoolean();
+        threePoint = in.readBoolean();
+        nearEndSince = in.readInt();
+    }
+
     float speedNow() {
         return speedNow;
     }

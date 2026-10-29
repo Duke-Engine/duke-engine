@@ -86,15 +86,43 @@ final class Obstacles {
             return;
         }
         dirty = false;
+        var laid = laidNow();
+        if (laid.equals(lastLaid)) {
+            return; // what lays anything lays what it laid last: laid again, the ground would come out the same
+        }
+        lastLaid = laid;
+        lay(pathGrid, laid);
+        pathGrid.commitObstacles();
+    }
+
+    /**
+     * Whether the next {@link #refresh} would change the ground — what a save carries as the version that laying gives
+     * — found by laying into the grid's scratch alone, which nothing reads outside a laying.
+     */
+    boolean behind() {
+        var pathGrid = grid.get();
+        if (!dirty || pathGrid == null) {
+            return false;
+        }
+        var laid = laidNow();
+        if (laid.equals(lastLaid)) {
+            return false;
+        }
+        lay(pathGrid, laid);
+        return pathGrid.obstaclesDiffer();
+    }
+
+    private List<Laying> laidNow() {
         var stillThings = roster.stillThings();
         var laid = new ArrayList<Laying>(stillThings.size());
         for (var object : stillThings) {
             laid.add(laidNow(object));
         }
-        if (laid.equals(lastLaid)) {
-            return; // what lays anything lays what it laid last: laid again, the ground would come out the same
-        }
-        lastLaid = laid;
+        return laid;
+    }
+
+    /** {@code laid} laid into the grid's scratch, for a commit. */
+    private void lay(PathGrid pathGrid, List<Laying> laid) {
         pathGrid.beginObstacles();
         float cellSize = pathGrid.getCellSize();
         float halfCell = cellSize * 0.5f;
@@ -138,7 +166,6 @@ final class Obstacles {
             }
         }
         scenery.closeBoxes(pathGrid);
-        pathGrid.commitObstacles();
     }
 
     /**

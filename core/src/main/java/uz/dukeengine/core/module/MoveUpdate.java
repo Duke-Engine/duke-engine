@@ -7,6 +7,10 @@ import static uz.dukeengine.core.module.Steps.stepTo;
 import java.util.List;
 import uz.dukeengine.core.GameConstants;
 import uz.dukeengine.core.math.Coord3D;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.save.Saveable;
+import uz.dukeengine.core.save.UnsavedModuleException;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectStatus;
 import uz.dukeengine.core.thing.World;
@@ -44,7 +48,7 @@ import uz.dukeengine.core.thing.World;
  * produce the same bits everywhere.
  */
 @ModuleGroup(ModuleGroups.MOVEMENT)
-public final class MoveUpdate extends UpdateModule implements Locomotor {
+public final class MoveUpdate extends UpdateModule implements Locomotor, Saveable {
 
     /**
      * How a ground mover moves — the reference's locomotor appearance ({@code LOCO_LEGS_TWO}, {@code LOCO_TREADS},
@@ -180,6 +184,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     private final GaitDrive gaits = new GaitDrive(this, giving);
     private final RouteWalk walk = new RouteWalk(this, route, giving, gaits, progress);
 
+    /** Its template's locomotor: a save writes the one given only where the game has given another since. */
+    private final Data template;
     private Data data;
     /** Its locomotor as given, the template's or the game's since: what it moves by off the classes it has one for. */
     private Data given;
@@ -213,8 +219,16 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     /** The band round a thing its next route ends in — see {@link #moveWithin} — until that route is planned. */
     private Band band;
 
-    /** Between {@code least} and {@code most} of {@code what}, outline to outline. */
-    private record Band(GameObject what, float least, float most) {
+    /**
+     * Between {@code least} and {@code most} of {@code what}, outline to outline. {@code what} is null for a thing killed
+     * and gone from the world before a save, {@code fellAt} where it lay: no band is planned round a dead thing, and a
+     * walk on into it goes where it fell.
+     */
+    private record Band(GameObject what, float least, float most, Coord3D fellAt) {
+
+        Coord3D at() {
+            return what == null ? fellAt : what.getPosition();
+        }
     }
 
     /** A walk it goes on to: to the place round {@code to}, exactly onto it, or into a band round a thing. */
@@ -227,6 +241,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     public MoveUpdate(GameObject owner, Data data) {
         super(owner);
+        this.template = data;
         this.data = data;
         this.given = data;
         setSpeed(data.speed(), data.turnRate());
@@ -317,9 +332,14 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
      */
     @Override
     public void moveWithin(GameObject what, float least, float most) {
+        within(new Band(what, least, most, null));
+    }
+
+    private void within(Band band) {
         letPlaceGo();
-        sentTo = what.getPosition();
-        head(what.getPosition(), false, new Band(what, least, most));
+        var at = band.at();
+        sentTo = at;
+        head(at, false, band);
         exactly = true;
     }
 
@@ -412,7 +432,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         }
         var walk = then;
         if (walk.within() != null) {
-            moveWithin(walk.within().what(), walk.within().least(), walk.within().most());
+            within(walk.within());
         } else if (walk.exactly()) {
             moveExactlyTo(walk.to());
         } else {
@@ -444,8 +464,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             // Asked for this owner, so the route allows for its width and comes
             // back straightened rather than as a walk of cell centres — and, where
             // there is no way there, as a route to the nearest place there is one.
-            var bandTo = band == null || band.what().isEffectivelyDead() || band.what().getWorld() != world
-                    ? null : band;
+            var bandTo = band == null || band.what() == null || band.what().isEffectivelyDead()
+                    || band.what().getWorld() != world ? null : band;
             var round = giving.round();
             var path = bandTo != null ? world.findPathWithin(owner, bandTo.what(), bandTo.least(), bandTo.most())
                     : round.isEmpty() ? world.findPath(owner, destination)
@@ -879,5 +899,150 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     /** Whether it is going exactly onto its point, not its close-enough distance short — see {@link #moveExactlyTo}. */
     boolean goesExactly() {
         return exactly;
+    }
+
+    /** Its walk as it stands and a locomotor the game gave it; refused while it walks by a steering, which is code. */
+    @Override
+    public void save(SaveOut out) {
+        if (steering != null) {
+            throw new UnsavedModuleException(MoveUpdate.class.getName(), "thing " + getOwner().getId().value() + " ("
+                    + getOwner().getTemplate().name() + ") walks by a steering (steerBy, "
+                    + steering.getClass().getName() + "): that is code, which a save cannot hold");
+        }
+        boolean ownLocomotor = given.equals(template);
+        out.writeBoolean(ownLocomotor);
+        if (!ownLocomotor) {
+            writeData(out, given);
+        }
+        out.writeString(movingOn).writeFloat(topSpeed).writeFloat(stepPerFrame).writeFloat(turnPerFrame);
+        out.writePlace(destination).writeBoolean(stoppedShort).writeBoolean(lookedAgain);
+        writeWalk(out, then);
+        out.writePlaces(through).writePlace(throughTo).writePlace(facing);
+        out.writeBoolean(toPlace).writePlace(sentTo).writeBoolean(exactly);
+        writeBand(out, band);
+        out.writePlace(lastPosition).writeFloat(lastStep);
+        progress.save(out);
+        route.save(out);
+        links.save(out, getOwner().getWorld());
+        giving.save(out);
+        gaits.save(out);
+    }
+
+    @Override
+    public void load(SaveIn in) {
+        given = in.readBoolean() ? template : readData(in);
+        movingOn = in.readString();
+        var onIt = movingOn == null ? null : given.classLocomotors().get(movingOn);
+        data = onIt == null ? given : onIt; // what takeTheGroundsLocomotor chose: a class's locomotor, or its own
+        topSpeed = in.readFloat();
+        stepPerFrame = in.readFloat();
+        turnPerFrame = in.readFloat();
+        progress.setStep(stepPerFrame);
+        destination = in.readPlace();
+        stoppedShort = in.readBoolean();
+        lookedAgain = in.readBoolean();
+        then = readWalk(in);
+        through = List.copyOf(in.readPlaces());
+        throughTo = in.readPlace();
+        facing = in.readPlace();
+        toPlace = in.readBoolean();
+        sentTo = in.readPlace();
+        exactly = in.readBoolean();
+        band = readBand(in);
+        lastPosition = in.readPlace();
+        lastStep = in.readFloat();
+        progress.load(in);
+        route.load(in);
+        links.load(in);
+        giving.load(in);
+        gaits.load(in);
+    }
+
+    private void writeWalk(SaveOut out, Walk walk) {
+        out.writeBoolean(walk != null);
+        if (walk != null) {
+            out.writePlace(walk.to()).writeBoolean(walk.exactly());
+            writeBand(out, walk.within());
+        }
+    }
+
+    private Walk readWalk(SaveIn in) {
+        return in.readBoolean() ? new Walk(in.readPlace(), in.readBoolean(), readBand(in)) : null;
+    }
+
+    /** A band by its thing's id, or where it lay once killed and gone; gone without dying, it is still planned round. */
+    private void writeBand(SaveOut out, Band band) {
+        out.writeBoolean(band != null);
+        if (band == null) {
+            return;
+        }
+        var what = band.what();
+        boolean here = what != null && getOwner().getWorld().findObject(what.getId()) == what;
+        if (what != null && !here && !what.isEffectivelyDead()) {
+            throw new UnsavedModuleException(MoveUpdate.class.getName(), "thing " + getOwner().getId().value() + " ("
+                    + getOwner().getTemplate().name() + ") is going within reach of thing " + what.getId().value()
+                    + ", which has left the world without dying: a load would have nothing to plan its way round");
+        }
+        out.writeThing(here ? what : null);
+        if (!here) {
+            out.writePlace(band.at());
+        }
+        out.writeFloat(band.least()).writeFloat(band.most());
+    }
+
+    private Band readBand(SaveIn in) {
+        if (!in.readBoolean()) {
+            return null;
+        }
+        var id = in.readId();
+        GameObject what = null;
+        if (id != null) {
+            what = in.world().findObject(id);
+            if (what == null) {
+                throw new UnsavedModuleException(MoveUpdate.class.getName(), "thing " + getOwner().getId().value()
+                        + " was saved going within reach of thing " + id.value() + ", which is not in the world");
+            }
+        }
+        var fellAt = id == null ? in.readPlace() : null;
+        return new Band(what, in.readFloat(), in.readFloat(), fellAt);
+    }
+
+    private static void writeData(SaveOut out, Data data) {
+        out.writeFloat(data.speed()).writeFloat(data.turnRate()).writeFloat(data.acceleration())
+                .writeFloat(data.braking()).writeFloat(data.accelerationDamaged()).writeFloat(data.brakingDamaged())
+                .writeFloat(data.damagedBelow()).writeFloat(data.minSpeed()).writeFloat(data.minTurnSpeed())
+                .writeFloat(data.closeEnough()).writeBoolean(data.canMoveBackwards()).writeEnum(data.gait())
+                .writeInt(data.pathPriority()).writeEnum(data.movePriority()).writeStrings(data.surfaces())
+                .writeInt(data.classLocomotors().size());
+        for (var onClass : data.classLocomotors().entrySet()) {
+            out.writeString(onClass.getKey());
+            writeData(out, onClass.getValue());
+        }
+    }
+
+    private static Data readData(SaveIn in) {
+        float speed = in.readFloat();
+        float turnRate = in.readFloat();
+        float acceleration = in.readFloat();
+        float braking = in.readFloat();
+        float accelerationDamaged = in.readFloat();
+        float brakingDamaged = in.readFloat();
+        float damagedBelow = in.readFloat();
+        float minSpeed = in.readFloat();
+        float minTurnSpeed = in.readFloat();
+        float closeEnough = in.readFloat();
+        boolean canMoveBackwards = in.readBoolean();
+        var gait = in.readEnum(Gait.class);
+        int pathPriority = in.readInt();
+        var movePriority = in.readEnum(MovePriority.class);
+        var surfaces = in.readStrings();
+        var classLocomotors = new java.util.TreeMap<String, Data>();
+        for (int count = in.readInt(); count > 0; count--) {
+            var onClass = in.readString();
+            classLocomotors.put(onClass, readData(in));
+        }
+        return new Data(speed, turnRate, acceleration, braking, accelerationDamaged, brakingDamaged, damagedBelow,
+                minSpeed, minTurnSpeed, closeEnough, canMoveBackwards, gait, pathPriority, movePriority, surfaces,
+                classLocomotors);
     }
 }

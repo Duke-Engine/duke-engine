@@ -53,4 +53,15 @@ final class Progress {
         }
         return ++framesWithoutProgress >= STUCK_FRAME_LIMIT;
     }
+
+    /** Its nearest yet, its frames without coming nearer, and how far off its way it was; its epsilon is its step's. */
+    void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeFloat(closestApproach).writeInt(framesWithoutProgress).writeFloat(lastOff);
+    }
+
+    void load(uz.dukeengine.core.save.SaveIn in) {
+        closestApproach = in.readFloat();
+        framesWithoutProgress = in.readInt();
+        lastOff = in.readFloat();
+    }
 }

@@ -1196,6 +1196,40 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         }
     }
 
+    /**
+     * What the world keeps of its ground movers outside their modules, for a save between frames: the frame's searching,
+     * where each was sent beside a thing, the obstacles' version as their next laying leaves it, and the movers' cells.
+     */
+    public final void saveMovers(uz.dukeengine.core.save.SaveOut out) {
+        routes.save(out);
+        standing.save(out);
+        out.writeBoolean(pathGrid != null);
+        if (pathGrid != null) {
+            out.writeInt(pathGrid.getObstacleVersion() + (obstacles.behind() ? 1 : 0));
+            pathGrid.movers().save(out);
+        }
+    }
+
+    /**
+     * Read back what {@link #saveMovers} wrote, last, the save's things, decks and scenery all back: the obstacles laid
+     * afresh from them are the ground the saved world's next laying gives, a function of them, at that laying's version.
+     */
+    public final void loadMovers(uz.dukeengine.core.save.SaveIn in) {
+        routes.load(in);
+        standing.load(in);
+        if (in.readBoolean() != (pathGrid != null)) {
+            throw new IllegalArgumentException("the save's world " + (pathGrid == null ? "had" : "had no")
+                    + " ground grid, and this one " + (pathGrid == null ? "has none" : "has one"));
+        }
+        if (pathGrid != null) {
+            int version = in.readInt();
+            obstacles.layAfresh();
+            obstacles.refresh();
+            pathGrid.restoreObstacleVersion(version);
+            pathGrid.movers().load(in);
+        }
+    }
+
     /** The commands queued for the start of the next frame, in order — for a save to carry. */
     public final List<Command> getPendingCommands() {
         return messageStream.peekAll();

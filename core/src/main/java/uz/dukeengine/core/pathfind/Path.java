@@ -39,7 +39,7 @@ public final class Path {
     }
 
     /** A route over decks: each waypoint with the floor it stands on — see {@link PathGrid#enters}. */
-    static Path onFloors(List<Coord3D> waypoints, int[] floors, boolean reachesGoal) {
+    public static Path onFloors(List<Coord3D> waypoints, int[] floors, boolean reachesGoal) {
         return new Path(waypoints, floors, reachesGoal);
     }
 

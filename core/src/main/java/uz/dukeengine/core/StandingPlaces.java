@@ -63,6 +63,24 @@ final class StandingPlaces {
         sentBeside.remove(id.value());
     }
 
+    /** Where each mover was last sent beside a thing, by the mover's id. */
+    void save(uz.dukeengine.core.save.SaveOut out) {
+        var ids = sentBeside.keySet().stream().sorted().toList();
+        out.writeInt(ids.size());
+        for (int id : ids) {
+            var sent = sentBeside.get(id);
+            out.writeInt(id).writeInt(sent.what()).writePlace(sent.whatAt()).writePlace(sent.at());
+        }
+    }
+
+    void load(uz.dukeengine.core.save.SaveIn in) {
+        sentBeside.clear();
+        for (int count = in.readInt(); count > 0; count--) {
+            int id = in.readInt();
+            sentBeside.put(id, new SentBeside(in.readInt(), in.readPlace(), in.readPlace()));
+        }
+    }
+
     /**
      * Where {@code who}, not beside {@code what} yet, should stand to work on it: {@code straight}, the straight-line
      * spot, where it can be stood on and walked to; else the cell beside the thing nearest it that can be reached;

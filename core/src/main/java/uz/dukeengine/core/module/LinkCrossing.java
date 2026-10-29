@@ -43,6 +43,37 @@ final class LinkCrossing {
     private Plan plan;
     private Crossing crossing;
 
+    /** The link it means to cross, by where it stands in {@code world}'s links, and the crossing it is on. */
+    void save(uz.dukeengine.core.save.SaveOut out, World world) {
+        out.writeBoolean(plan != null);
+        if (plan != null) {
+            int link = world.traversalLinks().indexOf(plan.link());
+            if (link < 0) {
+                throw new uz.dukeengine.core.save.UnsavedModuleException(MoveUpdate.class.getName(), "a mover means to"
+                        + " cross a link its world no longer has (setTraversalLinks): a load could not find it");
+            }
+            out.writeInt(link).writePlace(plan.entry()).writePlace(plan.exit()).writePlace(plan.goal());
+        }
+        out.writeBoolean(crossing != null);
+        if (crossing != null) {
+            out.writePlace(crossing.from).writePlace(crossing.to).writeInt(crossing.frames).writeFloat(crossing.arc)
+                    .writePlace(crossing.goal).writeInt(crossing.gone);
+        }
+    }
+
+    void load(uz.dukeengine.core.save.SaveIn in) {
+        plan = null;
+        if (in.readBoolean()) {
+            int link = in.readInt();
+            plan = new Plan(in.world().traversalLinks().get(link), in.readPlace(), in.readPlace(), in.readPlace());
+        }
+        crossing = null;
+        if (in.readBoolean()) {
+            crossing = new Crossing(in.readPlace(), in.readPlace(), in.readInt(), in.readFloat(), in.readPlace());
+            crossing.gone = in.readInt();
+        }
+    }
+
     boolean isPlanned() {
         return plan != null;
     }

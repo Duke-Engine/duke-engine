@@ -78,6 +78,40 @@ final class GivingWay {
         this.legs = legs;
     }
 
+    /** Its holds, waits and steps aside, and whom it plans round, by id; it is only ever planning within a frame. */
+    void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeInt(heldFrames).writeFloat(bumpLimit).writeInt(lastRouteFrame).writeInt(routeAgainAt);
+        out.writeIds(sorted(round));
+        out.writeInt(passThroughUntil).writeInt(asideUntil).writeId(asideFor).writeInt(turnWaits);
+        out.writeIds(sorted(roundLast));
+        out.writePlace(roundFrom).writeFloat(roundAway).writeInt(roundSince).writeBoolean(passedRound);
+    }
+
+    void load(uz.dukeengine.core.save.SaveIn in) {
+        heldFrames = in.readInt();
+        bumpLimit = in.readFloat();
+        lastRouteFrame = in.readInt();
+        routeAgainAt = in.readInt();
+        round = idSet(in.readIds());
+        passThroughUntil = in.readInt();
+        asideUntil = in.readInt();
+        asideFor = in.readId();
+        turnWaits = in.readInt();
+        roundLast = idSet(in.readIds());
+        roundFrom = in.readPlace();
+        roundAway = in.readFloat();
+        roundSince = in.readInt();
+        passedRound = in.readBoolean();
+    }
+
+    private static List<ObjectId> sorted(Set<ObjectId> ids) {
+        return ids.stream().sorted(java.util.Comparator.comparingInt(ObjectId::value)).toList();
+    }
+
+    private static Set<ObjectId> idSet(List<ObjectId> ids) {
+        return ids.isEmpty() ? Set.of() : new HashSet<>(ids);
+    }
+
     /** A new order: no step aside, and nobody planned round. */
     void newOrder() {
         asideUntil = -1;

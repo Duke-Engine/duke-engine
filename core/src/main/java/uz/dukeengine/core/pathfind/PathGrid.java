@@ -571,6 +571,21 @@ public final class PathGrid {
         obstacleVersion++;
     }
 
+    /** Whether the layer rebuilt since {@link #beginObstacles()} differs from the published one: whether a commit would. */
+    public boolean obstaclesDiffer() {
+        return !java.util.Arrays.equals(obstacle, obstacleScratch) || !java.util.Arrays.equals(laid, laidScratch)
+                || !circlesScratch.equals(stillCircles.list);
+    }
+
+    /** {@link #getObstacleVersion()} set as a save carried it, which a route planned before the save is checked against. */
+    public void restoreObstacleVersion(int version) {
+        if (root != null) {
+            root.restoreObstacleVersion(version);
+            return;
+        }
+        obstacleVersion = version;
+    }
+
     /**
      * Increments whenever anything that decides where a body can walk changes — terrain, what stands on it, a
      * level or a ramp, the relief's cliffs. What {@link Zones} are recomputed by.

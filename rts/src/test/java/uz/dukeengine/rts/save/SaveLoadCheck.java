@@ -95,7 +95,10 @@ final class SaveLoadCheck {
         world.saveWorld(core);
         var rts = new SaveOut();
         world.saveRts(rts);
-        return text.append("WORLD ").append(core.text()).append("\nRTS ").append(rts.text()).append('\n').toString();
+        var movers = new SaveOut();
+        world.saveMovers(movers);
+        return text.append("WORLD ").append(core.text()).append("\nRTS ").append(rts.text()).append("\nMOVERS ")
+                .append(movers.text()).append('\n').toString();
     }
 
     private static void copy(RtsSimulation from, RtsSimulation to) {
@@ -125,5 +128,10 @@ final class SaveLoadCheck {
         var core = new SaveOut();
         from.saveWorld(core);
         to.loadWorld(new SaveIn(core.text(), to, "WORLD"));
+        var movers = new SaveOut();
+        from.saveMovers(movers);
+        var in = new SaveIn(movers.text(), to, "MOVERS");
+        to.loadMovers(in); // last: the obstacles it lays are the things' as the rest of the save left them
+        in.expectEnd();
     }
 }

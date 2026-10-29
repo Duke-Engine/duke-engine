@@ -39,6 +39,37 @@ final class Route {
     /** How many routes it has been given, for a test to count. */
     private int plans;
 
+    /** Its waypoints, where it set off, each one's floor, how far along, the shape it was planned for, and its wait. */
+    void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writePlaces(waypoints).writePlace(from).writeBoolean(path != null);
+        if (path != null) {
+            for (int i = 0; i < waypoints.size(); i++) {
+                out.writeInt(path.floorOf(i));
+            }
+        }
+        out.writeInt(index).writeInt(navigationVersion).writeBoolean(goalReachable).writeBoolean(waiting)
+                .writeInt(plans);
+    }
+
+    void load(uz.dukeengine.core.save.SaveIn in) {
+        waypoints = List.copyOf(in.readPlaces());
+        from = in.readPlace();
+        int[] floors = null;
+        if (in.readBoolean()) {
+            floors = new int[waypoints.size()];
+            for (int i = 0; i < floors.length; i++) {
+                floors[i] = in.readInt();
+            }
+        }
+        index = in.readInt();
+        navigationVersion = in.readInt();
+        goalReachable = in.readBoolean();
+        waiting = in.readBoolean();
+        plans = in.readInt();
+        // A planned route ends where it was sent as its path does: they are made of one search.
+        path = floors == null ? null : Path.onFloors(waypoints, floors, goalReachable);
+    }
+
     /** A planned route to follow from its first waypoint. */
     void follow(Path planned, int version) {
         plans++;

@@ -123,6 +123,68 @@ public final class MoverCells {
         releaseGoal(id);
     }
 
+    /** Each mover's blocks, and every cell's movers as they are: which one a cell names depends on the claims' order. */
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        saveBlocks(out, goals);
+        saveBlocks(out, stands);
+        saveCells(out, going);
+        saveCells(out, standing);
+    }
+
+    /** Read back what {@link #save} wrote, in place of what it held. */
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        loadBlocks(in, goals);
+        loadBlocks(in, stands);
+        loadCells(in, going);
+        loadCells(in, standing);
+    }
+
+    private static void saveBlocks(uz.dukeengine.core.save.SaveOut out, Map<Integer, Block> blocks) {
+        var ids = blocks.keySet().stream().sorted().toList();
+        out.writeInt(ids.size());
+        for (int id : ids) {
+            var block = blocks.get(id);
+            out.writeInt(id).writeInt(block.x()).writeInt(block.y()).writeInt(block.half())
+                    .writeBoolean(block.centred());
+        }
+    }
+
+    private static void loadBlocks(uz.dukeengine.core.save.SaveIn in, Map<Integer, Block> blocks) {
+        blocks.clear();
+        for (int count = in.readInt(); count > 0; count--) {
+            int id = in.readInt();
+            blocks.put(id, new Block(in.readInt(), in.readInt(), in.readInt(), in.readBoolean()));
+        }
+    }
+
+    /** The cells naming a mover, as runs: where each starts, how long it is, and the mover. */
+    private static void saveCells(uz.dukeengine.core.save.SaveOut out, int[] cells) {
+        var runs = new java.util.ArrayList<int[]>();
+        for (int at = 0; at < cells.length; at++) {
+            if (cells[at] == 0) {
+                continue;
+            }
+            int from = at;
+            while (at + 1 < cells.length && cells[at + 1] == cells[from]) {
+                at++;
+            }
+            runs.add(new int[] {from, at - from + 1, cells[from]});
+        }
+        out.writeInt(runs.size());
+        for (var run : runs) {
+            out.writeInt(run[0]).writeInt(run[1]).writeInt(run[2]);
+        }
+    }
+
+    private static void loadCells(uz.dukeengine.core.save.SaveIn in, int[] cells) {
+        java.util.Arrays.fill(cells, 0);
+        for (int count = in.readInt(); count > 0; count--) {
+            int from = in.readInt();
+            int length = in.readInt();
+            java.util.Arrays.fill(cells, from, from + length, in.readInt());
+        }
+    }
+
     private boolean inside(int cx, int cy) {
         return cx >= 0 && cy >= 0 && cx < width && cy < height;
     }

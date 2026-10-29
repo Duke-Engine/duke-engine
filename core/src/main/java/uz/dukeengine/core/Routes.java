@@ -282,4 +282,14 @@ final class Routes {
         cellsLastFrame = cellsThisFrame;
         cellsThisFrame = 0;
     }
+
+    /** What the frame's searches have examined, and the last frame's: the budget is the world's rule, not written. */
+    void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeInt(cellsThisFrame).writeInt(cellsLastFrame);
+    }
+
+    void load(uz.dukeengine.core.save.SaveIn in) {
+        cellsThisFrame = in.readInt();
+        cellsLastFrame = in.readInt();
+    }
 }
