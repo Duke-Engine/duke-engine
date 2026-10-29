@@ -240,6 +240,49 @@ public final class GameObject {
         mobilityMayHaveChanged(wasMobile);
     }
 
+    /** The modules its template gave it as it was made, in the template's order — see {@link #templateSlotOf}. */
+    private List<Module> fromTemplate = List.of();
+
+    /** Its modules as they stand are the ones its template gave it: told once, as it is made. */
+    public void madeFromTemplate() {
+        fromTemplate = List.copyOf(modules);
+    }
+
+    /**
+     * Where {@code module} stood among the modules its template gave it, or -1 for one added since: what a save tells
+     * a module the template makes again on a load from one that must be made by its own reviver.
+     */
+    public int templateSlotOf(Module module) {
+        for (int slot = 0; slot < fromTemplate.size(); slot++) {
+            if (fromTemplate.get(slot) == module) {
+                return slot;
+            }
+        }
+        return -1;
+    }
+
+    /** The modules its template gave it as it was made, in the template's order, whether it still has them or not. */
+    public List<Module> templateModules() {
+        return fromTemplate;
+    }
+
+    /**
+     * Carry exactly {@code saved}, in that order, in place of what it carries: a load putting back the modules a save
+     * had. Those left out are not told they are taken off — the saved world had already told them — and nothing is told
+     * it is made.
+     */
+    public void restoreModules(List<Module> saved) {
+        boolean wasMobile = mobile;
+        modules.clear();
+        updateModules.clear();
+        body = null;
+        mobile = false;
+        for (var module : saved) {
+            addModuleOnly(module);
+        }
+        mobilityMayHaveChanged(wasMobile);
+    }
+
     /** Its world told where it became still or began to move: what a route is laid round follows its still things. */
     private void mobilityMayHaveChanged(boolean wasMobile) {
         if (world != null && wasMobile != mobile) {
@@ -882,6 +925,11 @@ public final class GameObject {
 
     public boolean isDestroyed() {
         return destroyed;
+    }
+
+    /** Whether its modules have been told it is made — see {@link #announceCreated}. */
+    public boolean isAnnounced() {
+        return announced;
     }
 
     /**

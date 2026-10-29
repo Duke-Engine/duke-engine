@@ -64,6 +64,7 @@ public final class ThingFactory extends SubsystemInterface {
         for (var entry : template.modules()) {
             object.addModule(moduleFactory.newModule(object, entry));
         }
+        object.madeFromTemplate();
         return object;
     }
 }

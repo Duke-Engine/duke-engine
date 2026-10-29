@@ -5,6 +5,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import uz.dukeengine.core.SubsystemInterface;
+import uz.dukeengine.core.save.Saveable;
+import uz.dukeengine.core.save.Stateless;
 import uz.dukeengine.core.thing.GameObject;
 
 /**
@@ -90,6 +92,38 @@ public final class ModuleFactory extends SubsystemInterface {
 
     @Override
     public void update() {
+    }
+
+    private final Map<String, Saveable.Reviver<?>> revivers = new LinkedHashMap<>();
+
+    /**
+     * Modules of {@code type} added to a thing while the match runs — an order, a site — are made again on a load by
+     * {@code reviver} from what they saved; a second registration of the same type replaces the first.
+     */
+    public <M extends Module> ModuleFactory revives(Class<M> type, Saveable.Reviver<M> reviver) {
+        revivers.put(type.getName(), reviver);
+        return this;
+    }
+
+    /** The reviver modules of the class named {@code type} (its full name) were registered with, or null. */
+    public Saveable.Reviver<?> reviverFor(String type) {
+        return revivers.get(type);
+    }
+
+    /**
+     * Every module this factory builds that a save would refuse, by the word a block names it with: neither {@link
+     * Saveable} nor declared {@link Stateless}, or a data record with no module class around it to tell by. Empty for
+     * a game whose every module saves — what a game's test asks of its whole module set.
+     */
+    public List<String> unsaved() {
+        var unsaved = new java.util.ArrayList<String>();
+        for (var data : builders.keySet()) {
+            var module = data.getEnclosingClass();
+            if (module == null || !Saveable.class.isAssignableFrom(module) && !module.isAnnotationPresent(Stateless.class)) {
+                unsaved.add(nameOf(data));
+            }
+        }
+        return unsaved;
     }
 
     /** Build the module {@code data} was read for, on {@code owner}. */
