@@ -175,4 +175,41 @@ class SnapshotFormatTest {
         assertThrows(IllegalArgumentException.class, () -> more.saveAlso("other", new Ledger()), "given once");
         assertThrows(IllegalArgumentException.class, () -> more.saveAlso("two words", new Ledger()));
     }
+
+    /** A module that puts a word and a status on its thing as it is made. */
+    @uz.dukeengine.core.save.Stateless
+    static final class Packed extends Module {
+        record Data() implements ModuleData {
+        }
+
+        Packed(GameObject owner, Data data) {
+            super(owner);
+            owner.setCondition("PACKED");
+            owner.setStatus(uz.dukeengine.core.thing.ObjectStatus.UNSELECTABLE);
+        }
+    }
+
+    @Test
+    void aThingIsLoadedWithExactlyTheWordsAndStatusesItWasSavedWith() {
+        java.util.function.Supplier<RtsLogic> rules = () -> {
+            var logic = new RtsLogic();
+            logic.getThingFactory().getModuleFactory().register(Packed.Data.class, Packed::new);
+            logic.getThingFactory().addTemplate(RtsTemplate.named("Drone").module(new ActiveBody.Data(10f))
+                    .module(new Packed.Data()).build());
+            logic.init();
+            return logic;
+        };
+        var played = rules.get();
+        var drone = played.spawn(played.findTemplate("Drone"), Coord3D.ZERO, 0);
+        drone.clearCondition("PACKED");
+        drone.setCondition("MENDING");
+        drone.clearStatus(uz.dukeengine.core.thing.ObjectStatus.UNSELECTABLE);
+        var text = GameSnapshot.save(played);
+        var loaded = rules.get();
+        GameSnapshot.load(text, loaded);
+        var again = loaded.findObject(drone.getId());
+        assertEquals(java.util.Set.of("MENDING"), again.getConditions());
+        assertTrue(!again.hasStatus(uz.dukeengine.core.thing.ObjectStatus.UNSELECTABLE));
+        assertEquals(text, GameSnapshot.save(loaded));
+    }
 }

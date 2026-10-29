@@ -452,15 +452,25 @@ public final class GameSnapshot {
         if (!health.isEmpty() && object.getBody() != null) {
             object.getBody().setHealth(Float.parseFloat(health));
         }
-        if (!statuses.isEmpty()) {
-            for (var status : statuses.split(",")) {
-                object.setStatus(ObjectStatus.valueOf(status));
+        // Exactly the saved statuses and words: what a module set on its thing as it was made (a drone's arm packed) and
+        // the saved thing had since lost is taken off again.
+        var savedStatuses = statuses.isEmpty() ? java.util.List.<String>of() : java.util.List.of(statuses.split(","));
+        for (var status : ObjectStatus.values()) {
+            if (object.hasStatus(status) && !savedStatuses.contains(status.name())) {
+                object.clearStatus(status);
             }
         }
-        if (!conditions.isEmpty()) {
-            for (var word : conditions.split(",")) {
-                object.setCondition(word);
+        for (var status : savedStatuses) {
+            object.setStatus(ObjectStatus.valueOf(status));
+        }
+        var savedWords = conditions.isEmpty() ? java.util.List.<String>of() : java.util.List.of(conditions.split(","));
+        for (var word : java.util.List.copyOf(object.getConditions())) {
+            if (!savedWords.contains(word)) {
+                object.clearCondition(word);
             }
+        }
+        for (var word : savedWords) {
+            object.setCondition(word);
         }
         object.setContained(Boolean.parseBoolean(parts[21]));
         object.setSeesOut(Boolean.parseBoolean(parts[22]));
