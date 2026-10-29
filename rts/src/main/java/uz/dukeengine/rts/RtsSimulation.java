@@ -722,8 +722,9 @@ public abstract class RtsSimulation extends GameLogic implements uz.dukeengine.c
         boolean adds = order instanceof uz.dukeengine.combat.message.CombatOrder.MoveTo move && move.append();
         for (var id : units) {
             var unit = findObject(id);
-            if (unit == null || unit.getPlayerIndex() != player) {
-                continue; // gone, or not the issuer's to command
+            if (unit == null || unit.getPlayerIndex() != player
+                    || uz.dukeengine.rts.module.OrderListener.refused(unit, order)) {
+                continue; // gone, not the issuer's to command, or deaf to it
             }
             if (!adds) {
                 forgetWaypoints(id.value()); // any other order is in place of the places it had still to go

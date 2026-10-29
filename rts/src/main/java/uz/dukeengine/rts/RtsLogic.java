@@ -5,6 +5,7 @@ import uz.dukeengine.combat.message.CombatOrder;
 import uz.dukeengine.combat.module.WeaponUpdate;
 import uz.dukeengine.core.module.MoveUpdate;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.rts.module.OrderListener;
 
 /**
  * The RTS world with the standard orders applied, which {@link RtsFlavour} runs: every hand-rolled simulation in the
@@ -88,8 +89,9 @@ public final class RtsLogic extends RtsSimulation {
                 var movers = new java.util.ArrayList<uz.dukeengine.core.thing.GameObject>();
                 for (var id : move.units()) {
                     var unit = findObject(id);
-                    if (unit == null || unit.getPlayerIndex() != move.playerIndex()) {
-                        continue; // gone, or not the issuer's unit to command
+                    if (unit == null || unit.getPlayerIndex() != move.playerIndex()
+                            || OrderListener.refused(unit, move)) {
+                        continue; // gone, not the issuer's unit to command, or deaf to it
                     }
                     if (move.append() && !addWaypoint(unit, move.destination())) {
                         continue; // walks on there once it is where it was going
@@ -109,7 +111,8 @@ public final class RtsLogic extends RtsSimulation {
             case CombatOrder.AttackObject attack -> {
                 for (var id : attack.units()) {
                     var unit = findObject(id);
-                    if (unit == null || unit.getPlayerIndex() != attack.playerIndex()) {
+                    if (unit == null || unit.getPlayerIndex() != attack.playerIndex()
+                            || OrderListener.refused(unit, attack)) {
                         continue;
                     }
                     uz.dukeengine.combat.module.Errand.giveUpAll(unit);
@@ -123,7 +126,8 @@ public final class RtsLogic extends RtsSimulation {
             case CombatOrder.AttackGround ground -> {
                 for (var id : ground.units()) {
                     var unit = findObject(id);
-                    if (unit == null || unit.getPlayerIndex() != ground.playerIndex()) {
+                    if (unit == null || unit.getPlayerIndex() != ground.playerIndex()
+                            || OrderListener.refused(unit, ground)) {
                         continue;
                     }
                     uz.dukeengine.combat.module.Errand.giveUpAll(unit);
@@ -137,7 +141,8 @@ public final class RtsLogic extends RtsSimulation {
             case CombatOrder.StopMoving stop -> {
                 for (var id : stop.units()) {
                     var unit = findObject(id);
-                    if (unit == null || unit.getPlayerIndex() != stop.playerIndex()) {
+                    if (unit == null || unit.getPlayerIndex() != stop.playerIndex()
+                            || OrderListener.refused(unit, stop)) {
                         continue;
                     }
                     uz.dukeengine.combat.module.Errand.giveUpAll(unit);

@@ -16,4 +16,18 @@ public interface OrderListener {
      * RTS's own ({@code GameMessage}).
      */
     void onOrder(Command order);
+
+    /**
+     * Whether its unit will not take {@code order} at all — the reference's {@code isAllowedToRespondToAiCommands}, a
+     * gunship that answers only its own update ({@code ForbidPlayerCommands}): left out of the order as if not named,
+     * neither moved nor told. None by default.
+     */
+    default boolean refuses(Command order) {
+        return false;
+    }
+
+    /** Whether any of {@code unit}'s modules {@linkplain #refuses refuses} {@code order}. */
+    static boolean refused(uz.dukeengine.core.thing.GameObject unit, Command order) {
+        return unit.anyModule(module -> module instanceof OrderListener listener && listener.refuses(order));
+    }
 }

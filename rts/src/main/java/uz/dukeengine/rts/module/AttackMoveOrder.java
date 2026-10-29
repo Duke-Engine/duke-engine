@@ -38,7 +38,8 @@ public final class AttackMoveOrder extends UpdateModule implements Errand, uz.du
         for (var id : order.units()) {
             var unit = world.findObject(id);
             if (unit == null || unit.getPlayerIndex() != order.playerIndex() || unit.isEffectivelyDead()
-                    || unit.getLocomotor() == null || unit.findModule(WeaponUpdate.class) == null) {
+                    || OrderListener.refused(unit, order) || unit.getLocomotor() == null
+                    || unit.findModule(WeaponUpdate.class) == null) {
                 continue;
             }
             Errand.giveUpAll(unit);

@@ -47,7 +47,7 @@ public final class GuardOrder extends UpdateModule implements Errand, uz.dukeeng
         for (var id : order.units()) {
             var unit = world.findObject(id);
             if (unit == null || unit.getPlayerIndex() != order.playerIndex() || unit.isEffectivelyDead()
-                    || unit.findModule(WeaponUpdate.class) == null) {
+                    || OrderListener.refused(unit, order) || unit.findModule(WeaponUpdate.class) == null) {
                 continue;
             }
             Errand.giveUpAll(unit);
