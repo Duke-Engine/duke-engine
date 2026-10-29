@@ -44,6 +44,18 @@ public final class Engaging {
      * from, which it goes on to though it may fire on the way.
      */
     public record Chase(Coord3D at, boolean goingThere) {
+
+        /** {@code chase}, or none, for an errand's save: read back by {@link #read}. */
+        public static void save(Chase chase, uz.dukeengine.core.save.SaveOut out) {
+            out.writePlace(chase == null ? null : chase.at()).writeBoolean(chase != null && chase.goingThere());
+        }
+
+        /** What {@link #save} wrote: the chase, or null for none. */
+        public static Chase read(uz.dukeengine.core.save.SaveIn in) {
+            var at = in.readPlace();
+            boolean goingThere = in.readBoolean();
+            return at == null ? null : new Chase(at, goingThere);
+        }
     }
 
     /**

@@ -132,6 +132,24 @@ final class Engagement {
         pointAttack = attack.attacked() ? attack : null;
     }
 
+    /** All of it but the attack toward a point, which is the game's code: its {@link WeaponUpdate} refuses that. */
+    void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeId(target).writeBoolean(forced).writePlace(groundTarget).writeEnum(source).writeInt(pointWindEnds)
+                .writeBoolean(leeching).writeBoolean(acquiresNothing).writeInt(shotsLeft);
+    }
+
+    void load(uz.dukeengine.core.save.SaveIn in) {
+        target = in.readId();
+        forced = in.readBoolean();
+        groundTarget = in.readPlace();
+        source = in.readEnum(OrderSource.class);
+        pointAttack = null;
+        pointWindEnds = in.readInt();
+        leeching = in.readBoolean();
+        acquiresNothing = in.readBoolean();
+        shotsLeft = in.readInt();
+    }
+
     /** Let everything go: the attack is over. */
     void release() {
         pointAttack = null;

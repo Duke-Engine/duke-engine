@@ -65,6 +65,16 @@ final class TargetScan {
         busy = busyNow;
     }
 
+    void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeInt(nextLook).writeBoolean(lookedBefore).writeBoolean(busy);
+    }
+
+    void load(uz.dukeengine.core.save.SaveIn in) {
+        nextLook = in.readInt();
+        lookedBefore = in.readBoolean();
+        busy = in.readBoolean();
+    }
+
     /**
      * The nearest living enemy that one of the weapons it may pick by itself may be fired at from where it
      * stands — within its reach and not within its least range — if any: the reference's

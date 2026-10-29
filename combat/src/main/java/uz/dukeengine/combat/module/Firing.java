@@ -64,6 +64,18 @@ final class Firing {
         windingUp = -1;
     }
 
+    /** Its wind-up and what it last fired at; not {@code firedOn}, read only for the frame just run. */
+    void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeInt(windingUp).writeInt(windUpEnds).writeId(windUpAt).writeId(lastFiredAt);
+    }
+
+    void load(uz.dukeengine.core.save.SaveIn in) {
+        windingUp = in.readInt();
+        windUpEnds = in.readInt();
+        windUpAt = in.readId();
+        lastFiredAt = in.readId();
+    }
+
     /**
      * Fire on {@code victim} with {@code chosen}, if it is near enough, may be fired from here, is ready, is aimed and
      * has wound up — else leave it for a later frame, or, where it can never fire from where it stands, let it go.

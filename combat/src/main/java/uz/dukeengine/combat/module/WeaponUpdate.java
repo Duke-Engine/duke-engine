@@ -64,7 +64,7 @@ import uz.dukeengine.combat.message.OrderSource;
  * behaves exactly as it did.
  */
 @ModuleGroup(ModuleGroups.COMBAT)
-public final class WeaponUpdate extends UpdateModule {
+public final class WeaponUpdate extends UpdateModule implements uz.dukeengine.core.save.Saveable {
 
     /**
      * INI configuration: {@code Damage}, {@code AttackRange}, {@code ReloadFrames},
@@ -677,6 +677,32 @@ public final class WeaponUpdate extends UpdateModule {
             return;
         }
         firing.engage(world, chosen, victim, walking, wasWindingUp);
+    }
+
+    /**
+     * Its clips and lock, what it is set on, its wind-up and its next look; refused while it attacks toward a point,
+     * which is the game's code.
+     */
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        var attack = engagement.pointAttack();
+        if (attack != null) {
+            throw new uz.dukeengine.core.save.UnsavedModuleException(WeaponUpdate.class.getName(), "thing "
+                    + getOwner().getId().value() + " (" + getOwner().getTemplate().name() + ") is attacking toward a"
+                    + " point (" + attack.getClass().getName() + "): that is code, which a save cannot hold");
+        }
+        loadout.save(out);
+        engagement.save(out);
+        firing.save(out);
+        scan.save(out);
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        loadout.load(in);
+        engagement.load(in);
+        firing.load(in);
+        scan.load(in);
     }
 
     /** Its target, if it is still one to fire on; else the attack is let go, and null. */

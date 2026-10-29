@@ -216,6 +216,42 @@ final class Loadout {
         setInUse = fits;
     }
 
+    /** The lock, the set in use, and every clip it has: the one in place, or each the sets armed, in the order armed. */
+    void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeInt(lockedSlot).writeEnum(lock).writeInt(setInUse);
+        for (var armed : inPlace) {
+            armed.clip().save(out);
+        }
+        out.writeInt(clips.size());
+        clips.forEach((name, clip) -> {
+            out.writeString(name);
+            clip.save(out);
+        });
+    }
+
+    void load(uz.dukeengine.core.save.SaveIn in) {
+        lockedSlot = in.readInt();
+        lock = in.readEnum(Lock.class);
+        setInUse = in.readInt();
+        for (var armed : inPlace) {
+            armed.clip().load(in);
+        }
+        clips.clear();
+        var world = in.world();
+        for (int count = in.readInt(); count > 0; count--) {
+            var name = in.readString();
+            var weapon = world instanceof ArmedWorld arms ? arms.armoury().findWeapon(name) : null;
+            if (weapon == null) {
+                throw new uz.dukeengine.core.save.UnsavedModuleException(WeaponUpdate.class.getName(), "thing "
+                        + owner.getId().value() + " (" + owner.getTemplate().name() + ") was saved with a clip of the"
+                        + " weapon '" + name + "', which the game has not given this world — see addWeapons");
+            }
+            var clip = clipOf(weapon);
+            clip.load(in);
+            clips.put(name, clip);
+        }
+    }
+
     // ---- what may be fired at what ----
 
     /** See {@link WeaponUpdate#canFireAt(GameObject, boolean, OrderSource)}. */

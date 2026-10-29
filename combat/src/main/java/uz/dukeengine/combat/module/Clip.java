@@ -127,6 +127,18 @@ final class Clip {
         wait = 0;
     }
 
+    /** Its rounds, its wait, and whether it is reloading or out; what it is made with is its weapon's. */
+    void save(uz.dukeengine.core.save.SaveOut to) {
+        to.writeInt(rounds).writeInt(wait).writeBoolean(reloading).writeBoolean(out);
+    }
+
+    void load(uz.dukeengine.core.save.SaveIn in) {
+        rounds = in.readInt();
+        wait = in.readInt();
+        reloading = in.readBoolean();
+        out = in.readBoolean();
+    }
+
     /** A wait divided by the rate of fire, floored — a bonus of 1 leaves it exactly as written. */
     private static int shortened(int frames, float rateOfFire) {
         return rateOfFire > 0f && rateOfFire != 1f ? (int) (frames / rateOfFire) : frames;
