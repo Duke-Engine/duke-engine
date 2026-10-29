@@ -139,6 +139,15 @@ final class Sleepers {
         }
     }
 
+    /** The things awake as a save had them, in creation order; null for yet to be decided. */
+    void restore(List<GameObject> things) {
+        clear();
+        if (things != null) {
+            awake = new ArrayList<>(things);
+            awakeSet.addAll(things);
+        }
+    }
+
     /** Every thing awake, as a world with no rule has it, until who sleeps is next decided. */
     void clear() {
         awake = null;

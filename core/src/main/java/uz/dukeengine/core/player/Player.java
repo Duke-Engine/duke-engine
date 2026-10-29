@@ -75,6 +75,11 @@ public class Player {
         relationships.put(other.index, relationship);
     }
 
+    /** Each stance it has been set to, by the other player's index — for a save to carry. */
+    public final java.util.SortedMap<Integer, Relationship> getRelationships() {
+        return new java.util.TreeMap<>(relationships);
+    }
+
     public final boolean isEnemyOf(Player other) {
         return getRelationshipTo(other) == Relationship.ENEMIES;
     }

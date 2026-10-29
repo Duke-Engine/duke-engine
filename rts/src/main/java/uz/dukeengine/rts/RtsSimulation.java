@@ -772,6 +772,55 @@ public abstract class RtsSimulation extends GameLogic implements uz.dukeengine.c
      */
     static final int STARTING_FRAMES = uz.dukeengine.core.GameConstants.LOGICFRAMES_PER_SECOND / 2;
 
+    /**
+     * What the RTS world keeps beside its things, for a save: the places units have still to go, those just sent off
+     * and seen on their way, the passengers of each side's shared holds and the caps set for the match.
+     */
+    public final void saveRts(uz.dukeengine.core.save.SaveOut out) {
+        out.writeInt(waypoints.size());
+        waypoints.forEach((id, places) -> out.writeInt(id).writePlaces(places));
+        out.writeInt(sentNow.size());
+        sentNow.forEach((id, frame) -> out.writeInt(id).writeInt(frame));
+        out.writeInt(seenMoving.size());
+        seenMoving.forEach(out::writeInt);
+        out.writeInt(sharedHolds.size());
+        sharedHolds.forEach((side, networks) -> {
+            out.writeInt(side).writeInt(networks.size());
+            networks.forEach((network, passengers) -> out.writeString(network).writeIds(passengers));
+        });
+        out.writeInt(caps.size());
+        caps.forEach((key, most) -> out.writeString(key).writeInt(most));
+    }
+
+    /** Read back what {@link #saveRts} wrote, in place of what the world kept. */
+    public final void loadRts(uz.dukeengine.core.save.SaveIn in) {
+        waypoints.clear();
+        for (int count = in.readInt(); count > 0; count--) {
+            waypoints.put(in.readInt(), new java.util.ArrayDeque<>(in.readPlaces()));
+        }
+        sentNow.clear();
+        for (int count = in.readInt(); count > 0; count--) {
+            sentNow.put(in.readInt(), in.readInt());
+        }
+        seenMoving.clear();
+        for (int count = in.readInt(); count > 0; count--) {
+            seenMoving.add(in.readInt());
+        }
+        sharedHolds.clear();
+        for (int sides = in.readInt(); sides > 0; sides--) {
+            var networks = new java.util.TreeMap<String, java.util.List<uz.dukeengine.core.thing.ObjectId>>();
+            int side = in.readInt();
+            for (int count = in.readInt(); count > 0; count--) {
+                networks.put(in.readString(), new java.util.ArrayList<>(in.readIds()));
+            }
+            sharedHolds.put(side, networks);
+        }
+        caps.clear();
+        for (int count = in.readInt(); count > 0; count--) {
+            caps.put(in.readString(), in.readInt());
+        }
+    }
+
     private void forgetWaypoints(int id) {
         waypoints.remove(id);
         sentNow.remove(id);

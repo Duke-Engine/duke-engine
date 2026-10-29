@@ -99,6 +99,29 @@ public final class RtsPlayer extends Player implements uz.dukeengine.combat.Arme
         priceChanges.add(new PriceChange(kind, percent, 1));
     }
 
+    /** Its named bonuses and its price changes in the order given — what a save carries beside its line. */
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeInt(bonuses.size());
+        bonuses.forEach((name, value) -> out.writeString(name).writeFloat(value));
+        out.writeInt(priceChanges.size());
+        for (var change : priceChanges) {
+            out.writeString(change.kind().name()).writeFloat(change.percent()).writeInt(change.count());
+        }
+    }
+
+    /** Read back what {@link #save} wrote, in place of its bonuses and price changes. */
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        bonuses.clear();
+        for (int count = in.readInt(); count > 0; count--) {
+            bonuses.put(in.readString(), in.readFloat());
+        }
+        priceChanges.clear();
+        for (int count = in.readInt(); count > 0; count--) {
+            priceChanges.add(new PriceChange(uz.dukeengine.core.thing.Kind.of(in.readString()), in.readFloat(),
+                    in.readInt()));
+        }
+    }
+
     /** Take away a change {@link #addPriceChange} gave: it holds until taken away as many times as it was given. */
     public void removePriceChange(uz.dukeengine.core.thing.Kind kind, float percent) {
         for (int i = 0; i < priceChanges.size(); i++) {

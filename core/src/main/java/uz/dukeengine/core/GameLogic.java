@@ -1166,6 +1166,41 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return sleepers.isAsleep(thing);
     }
 
+    /**
+     * What the world keeps of its own beside its things, its players and its lines a save writes elsewhere — the things
+     * awake since who sleeps was last decided — for a save, between frames.
+     */
+    public final void saveWorld(uz.dukeengine.core.save.SaveOut out) {
+        var awake = sleepers.awakeOr(null);
+        out.writeBoolean(awake != null);
+        if (awake != null) {
+            out.writeIds(awake.stream().map(GameObject::getId).toList());
+        }
+    }
+
+    /**
+     * Read back what {@link #saveWorld} wrote, every thing of the save already in the world: those awake as the save
+     * had them, every other asleep until who sleeps is next decided on the rule's own frame, as in the saved world.
+     */
+    public final void loadWorld(uz.dukeengine.core.save.SaveIn in) {
+        if (!in.readBoolean()) {
+            sleepers.restore(null);
+        } else {
+            sleepers.restore(in.readIds().stream().map(id -> {
+                var thing = findObject(id);
+                if (thing == null) {
+                    throw new IllegalArgumentException("thing " + id.value() + " is awake in the save but not here");
+                }
+                return thing;
+            }).toList());
+        }
+    }
+
+    /** The commands queued for the start of the next frame, in order — for a save to carry. */
+    public final List<Command> getPendingCommands() {
+        return messageStream.peekAll();
+    }
+
     // ---- reaping ----
 
     private void reapDestroyed() {

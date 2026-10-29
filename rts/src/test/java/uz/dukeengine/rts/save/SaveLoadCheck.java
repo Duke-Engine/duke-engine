@@ -7,6 +7,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import uz.dukeengine.core.save.ModuleStates;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
 import uz.dukeengine.rts.RtsSimulation;
 
 /**
@@ -74,15 +76,26 @@ final class SaveLoadCheck {
         }
     }
 
-    /** Everything a save holds of {@code world}: the world's own lines and each thing's modules. */
+    /** Everything a save holds of {@code world}: the world's own lines, its sides', each thing's modules, the rest. */
     static String stateOf(RtsSimulation world) {
         var text = new StringBuilder(GameSnapshot.save(world));
+        var players = world.getPlayerList();
+        for (int i = 0; i < players.getPlayerCount(); i++) {
+            var side = new SaveOut();
+            world.getRtsPlayer(i).save(side);
+            text.append("SIDE ").append(i).append('|').append(players.getPlayer(i).getRelationships()).append('|')
+                    .append(side.text()).append('\n');
+        }
         var factory = world.getThingFactory().getModuleFactory();
         for (var thing : world.getObjects()) {
             text.append("MODULES ").append(thing.getId().value()).append('|')
                     .append(ModuleStates.save(thing, factory)).append('\n');
         }
-        return text.toString();
+        var core = new SaveOut();
+        world.saveWorld(core);
+        var rts = new SaveOut();
+        world.saveRts(rts);
+        return text.append("WORLD ").append(core.text()).append("\nRTS ").append(rts.text()).append('\n').toString();
     }
 
     private static void copy(RtsSimulation from, RtsSimulation to) {
@@ -93,14 +106,24 @@ final class SaveLoadCheck {
         }
     }
 
+    /** The world's lines, its sides and what it and its RTS keep — its things' modules made afresh. */
     private static void copyWithoutModules(RtsSimulation from, RtsSimulation to) {
         GameSnapshot.load(GameSnapshot.save(from), to);
         var players = from.getPlayerList();
         for (int i = 0; i < players.getPlayerCount(); i++) {
-            for (int j = 0; j < players.getPlayerCount(); j++) {
-                to.getPlayerList().getPlayer(i).setRelationshipTo(to.getPlayerList().getPlayer(j),
-                        players.getPlayer(i).getRelationshipTo(players.getPlayer(j)));
+            for (var stance : players.getPlayer(i).getRelationships().entrySet()) {
+                to.getPlayerList().getPlayer(i).setRelationshipTo(to.getPlayerList().getPlayer(stance.getKey()),
+                        stance.getValue());
             }
+            var side = new SaveOut();
+            from.getRtsPlayer(i).save(side);
+            to.getRtsPlayer(i).load(new SaveIn(side.text(), to, "SIDE"));
         }
+        var rts = new SaveOut();
+        from.saveRts(rts);
+        to.loadRts(new SaveIn(rts.text(), to, "RTS"));
+        var core = new SaveOut();
+        from.saveWorld(core);
+        to.loadWorld(new SaveIn(core.text(), to, "WORLD"));
     }
 }
