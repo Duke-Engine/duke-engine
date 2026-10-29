@@ -723,6 +723,20 @@ public final class Duke3D {
         return this;
     }
 
+    /**
+     * Where the screenshot key's pictures go, and under what name: in {@code folder}, made if it is not there, as
+     * {@code pattern} — a {@link String#format} with one number, as {@code sshot%03d.bmp} — at the first number from 1
+     * no file there has yet: the reference's {@code sshotNNN.bmp} in its user data folder. Its extension is the format
+     * written ({@code png}, {@code bmp}, {@code jpg}); {@link #onScreenshot} is told the file's name. Until set, {@code
+     * screenshotN.png} in the folder the game runs from. A pattern without its number is refused at once.
+     */
+    public Duke3D screenshots(java.nio.file.Path folder, String pattern) {
+        java.util.Objects.requireNonNull(folder, "folder");
+        Screenshots.checked(pattern);
+        later(client -> client.screenshots(folder, pattern));
+        return this;
+    }
+
     /** The window's sample count — 0, 2, 4 or 8 — kept with the player's settings and taken by the next window made. */
     public Duke3D samples(int samples) {
         later(client -> client.samplesNextLaunch(samples));

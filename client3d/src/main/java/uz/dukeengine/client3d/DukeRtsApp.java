@@ -293,6 +293,18 @@ final class DukeRtsApp extends SimpleApplication {
     void onScreenshot(java.util.function.Consumer<String> saved) {
         this.screenshotSaved = saved;
     }
+
+    /** Where the game's pictures go and their name — see {@link Duke3D#screenshots}; null for jME's own. */
+    private java.nio.file.Path screenshotFolder;
+    private String screenshotPattern;
+
+    void screenshots(java.nio.file.Path folder, String pattern) {
+        screenshotFolder = folder;
+        screenshotPattern = pattern;
+        if (screenshots != null) {
+            screenshots.saveAs(folder, pattern);
+        }
+    }
     private BitmapText hud;
     private SceneVeil veil;
 
@@ -2001,6 +2013,9 @@ final class DukeRtsApp extends SimpleApplication {
                             told.accept(name);
                         }
                     });
+                    if (screenshotPattern != null) {
+                        screenshots.saveAs(screenshotFolder, screenshotPattern);
+                    }
                     stateManager.attach(screenshots);
                 }
                 screenshots.takeScreenshot();

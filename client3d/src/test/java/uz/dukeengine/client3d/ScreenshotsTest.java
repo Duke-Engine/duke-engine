@@ -29,4 +29,31 @@ class ScreenshotsTest {
         assertEquals(List.of("screenshot7.png"), told);
         assertTrue(file.isFile() && file.length() > 0, "and that file is there");
     }
+
+    @Test
+    void theGamesFolderAndNameTakeTheFirstFreeNumberInTheFormatTheNameSays() throws IOException {
+        var told = new ArrayList<String>();
+        var shots = new Screenshots("", "screenshot", told::add);
+        shots.reshape(null, 4, 3);
+        var userData = folder.resolve("Command and Conquer Generals Zero Hour Data");
+        java.nio.file.Files.createDirectories(userData);
+        java.nio.file.Files.writeString(userData.resolve("sshot001.bmp"), "taken before");
+        shots.saveAs(userData, "sshot%03d.bmp");
+
+        shots.writeImageFile(folder.resolve("ignored.png").toFile());
+        shots.writeImageFile(folder.resolve("ignored.png").toFile());
+
+        assertEquals(List.of("sshot002.bmp", "sshot003.bmp"), told, "the first free numbers, from 1");
+        var written = javax.imageio.ImageIO.read(userData.resolve("sshot002.bmp").toFile());
+        assertEquals(4, written.getWidth(), "a bmp the frame's size");
+        assertTrue(!java.nio.file.Files.exists(folder.resolve("ignored.png")), "nothing under jME's own name");
+    }
+
+    @Test
+    void aNameWithoutItsNumberIsRefused() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> Screenshots.checked("sshot.bmp"));
+        assertEquals("sshot%03d.bmp", Screenshots.checked("sshot%03d.bmp"));
+        assertEquals("png", Screenshots.format("screenshot"));
+    }
 }
