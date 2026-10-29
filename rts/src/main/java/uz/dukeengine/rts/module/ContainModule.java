@@ -61,7 +61,8 @@ import uz.dukeengine.core.thing.ObjectId;
  */
 @ModuleGroup(ModuleGroups.MOVEMENT)
 public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
-        implements uz.dukeengine.core.module.DieModule, uz.dukeengine.combat.module.Hold {
+        implements uz.dukeengine.core.module.DieModule, uz.dukeengine.combat.module.Hold,
+                uz.dukeengine.core.save.Saveable {
 
     /**
      * INI config: {@code Slots} (passenger capacity); {@code SharedBy}: the network whose one hold, and one capacity,
@@ -179,6 +180,22 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         this.showsPassengers = data.showsPassengers();
         this.riderTurret = data.riderTurret();
         this.damageToPassengers = data.damageToPassengers();
+    }
+
+    /**
+     * Who is in, in order, the network it shares and whether they fire, as set while the match ran. A shared hold's
+     * passengers are the side's, saved with the world; the passengers' own flags are their things'.
+     */
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeString(sharedBy).writeBoolean(passengersFire).writeIds(passengers);
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        sharedBy = in.readString();
+        passengersFire = in.readBoolean();
+        passengers.addAll(in.readIds());
     }
 
     /**

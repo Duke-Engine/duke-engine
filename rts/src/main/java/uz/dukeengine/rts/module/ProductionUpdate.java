@@ -37,7 +37,7 @@ import uz.dukeengine.rts.player.Upgrade;
  * not leave yet waits at the head of the queue, complete, and the queue waits with it.
  */
 @ModuleGroup(RtsModuleGroups.ECONOMY)
-public final class ProductionUpdate extends UpdateModule {
+public final class ProductionUpdate extends UpdateModule implements uz.dukeengine.core.save.Saveable {
 
     /**
      * Per-structure configuration: the unit template names this structure may
@@ -222,6 +222,86 @@ public final class ProductionUpdate extends UpdateModule {
         this.words = data.words();
         this.refundsPriceNow = data.refundsPriceNow();
         this.burstLeft = exit == null ? 0 : Math.max(0, exit.burst());
+    }
+
+    /**
+     * The queue — each job's unit or research by name, its length, price, id, door, frames run, whether it is done and
+     * the token each reservation gave it — the next job's id, the rally point, the waits and each door's state.
+     */
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeInt(nextJob).writeInt(madeLeft).writePlace(rallyPoint).writeInt(exitWait).writeInt(burstLeft);
+        out.writeInt(doorways.size());
+        doorways.forEach(doorway -> doorway.save(out));
+        out.writeInt(queue.size());
+        for (var job : queue) {
+            out.writeString(job.unit == null ? null : job.unit.name())
+                    .writeString(job.research == null ? null : job.research.name());
+            out.writeInt(job.frames).writeInt(job.paid).writeInt(job.id).writeInt(job.door).writeInt(job.ran)
+                    .writeBoolean(job.done).writeInt(job.tokens.size());
+            for (var token : job.tokens.entrySet()) {
+                int slot = token.getKey() instanceof uz.dukeengine.core.module.Module module
+                        ? getOwner().templateSlotOf(module) : -1;
+                if (slot < 0) {
+                    var type = token.getKey().getClass().getName();
+                    throw new uz.dukeengine.core.save.UnsavedModuleException(type, type + " holds a job of "
+                            + getClass().getName() + " but was added while the match ran: a load could not find it");
+                }
+                out.writeInt(slot);
+                token.getKey().saveToken(token.getValue(), out);
+            }
+        }
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        nextJob = in.readInt();
+        madeLeft = in.readInt();
+        rallyPoint = in.readPlace();
+        exitWait = in.readInt();
+        burstLeft = in.readInt();
+        int doors = in.readInt();
+        if (doors != doorways.size()) {
+            throw refused("was saved with " + doors + " doors, where its template now has " + doorways.size());
+        }
+        doorways.forEach(doorway -> doorway.load(in));
+        var world = in.world();
+        for (int jobs = in.readInt(); jobs > 0; jobs--) {
+            var unitName = in.readString();
+            var researchName = in.readString();
+            var unit = unitName == null ? null : world.findTemplate(unitName);
+            var research = researchName == null || !(world instanceof RtsSimulation rts) ? null
+                    : rts.findUpgrade(researchName);
+            if (unitName != null && unit == null || researchName != null && research == null) {
+                throw refused("has queued " + (unitName != null ? unitName : researchName)
+                        + ", which the world no longer has");
+            }
+            int frames = in.readInt();
+            int paid = in.readInt();
+            int id = in.readInt();
+            int door = in.readInt();
+            int ran = in.readInt();
+            boolean done = in.readBoolean();
+            var tokens = new java.util.LinkedHashMap<ProductionReservation, Object>();
+            for (int count = in.readInt(); count > 0; count--) {
+                var modules = getOwner().templateModules();
+                int slot = in.readInt();
+                if (slot >= modules.size() || !(modules.get(slot) instanceof ProductionReservation reservation)) {
+                    throw refused("has a job held by its module " + slot + ", which its template no longer makes a"
+                            + " reservation");
+                }
+                tokens.put(reservation, reservation.loadToken(in));
+            }
+            var job = new Job(unit, research, frames, paid, id, tokens, door);
+            job.ran = ran;
+            job.done = done;
+            queue.add(job);
+        }
+    }
+
+    private uz.dukeengine.core.save.UnsavedModuleException refused(String why) {
+        return new uz.dukeengine.core.save.UnsavedModuleException(getClass().getName(),
+                getClass().getName() + " on thing " + getOwner().getId().value() + " " + why);
     }
 
     /** The unit template names this structure offers in its build menu. */
@@ -658,6 +738,18 @@ public final class ProductionUpdate extends UpdateModule {
 
         Doorway(Door door) {
             this.door = door;
+        }
+
+        /** Its state, the frames left in it and whether it is held open. */
+        void save(uz.dukeengine.core.save.SaveOut out) {
+            out.writeEnum(state).writeInt(left).writeBoolean(held);
+        }
+
+        /** The word it holds is on the factory's own line already: read back, not held again. */
+        void load(uz.dukeengine.core.save.SaveIn in) {
+            state = in.readEnum(State.class);
+            left = in.readInt();
+            held = in.readBoolean();
         }
 
         /** A frame of its time: into the next state once this one's is up — but for one held open. */

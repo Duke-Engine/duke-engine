@@ -112,6 +112,11 @@ final class SaveLoadCheck {
     /** The world's lines, its sides and what it and its RTS keep — its things' modules made afresh. */
     private static void copyWithoutModules(RtsSimulation from, RtsSimulation to) {
         GameSnapshot.load(GameSnapshot.save(from), to);
+        for (var thing : from.getObjects()) {
+            var copy = to.findObject(thing.getId());
+            copy.setContained(thing.isContained()); // the snapshot's line for a thing will carry these
+            copy.setSeesOut(thing.seesOut());
+        }
         var players = from.getPlayerList();
         for (int i = 0; i < players.getPlayerCount(); i++) {
             for (var stance : players.getPlayer(i).getRelationships().entrySet()) {

@@ -37,4 +37,20 @@ public interface ProductionReservation {
     default boolean admits(Upgrade research) {
         return true;
     }
+
+    /**
+     * Write {@code token}, which this module gave a job, into a save: the factory writes it with the job and hands it
+     * to {@link #loadToken} on a load. What the module holds itself is for its own save; this is the value it handed
+     * out. A module that gives out tokens and does not say how to write them refuses the save.
+     */
+    default void saveToken(Object token, uz.dukeengine.core.save.SaveOut out) {
+        throw new uz.dukeengine.core.save.UnsavedModuleException(getClass().getName(), getClass().getName()
+                + " gave a job a token and cannot write it: it overrides saveToken and loadToken, or a save is refused");
+    }
+
+    /** Read back the token {@link #saveToken} wrote, an equal one; the module's own state is loaded apart from it. */
+    default Object loadToken(uz.dukeengine.core.save.SaveIn in) {
+        throw new uz.dukeengine.core.save.UnsavedModuleException(getClass().getName(), getClass().getName()
+                + " cannot read a token back: it overrides saveToken and loadToken, or a save is refused");
+    }
 }
