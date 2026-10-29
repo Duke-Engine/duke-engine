@@ -1,5 +1,6 @@
 package uz.dukeengine.client3d;
 
+import uz.dukeengine.game.Colour;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -66,7 +67,7 @@ class ProjectileEffectsTest {
      */
     @Test
     void aGlowLightsThosePartsOnly() {
-        var visuals = Visuals.create().effect("Embers", recipe -> recipe.glow(List.of("Eyes"), java.awt.Color.ORANGE));
+        var visuals = Visuals.create().effect("Embers", recipe -> recipe.glow(List.of("Eyes"), Colour.ORANGE));
         var assets = new DesktopAssetManager(true);
 
         var body = new com.jme3.scene.Geometry("Skeleton_Warrior_Body", new com.jme3.scene.shape.Box(1f, 1f, 1f));

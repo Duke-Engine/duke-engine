@@ -277,7 +277,7 @@ final class PanelBrush {
                 : NineSlice.frame(width, height, image.getWidth(), image.getHeight(),
                         painted.inset(), painted.scale(), NineSlice.Rect.WHOLE);
         var geometry = new Geometry("frame-" + piece, mesh);
-        var material = unshaded(rgb(painted.tint().getRGB()));
+        var material = unshaded(rgb(painted.tint().argb()));
         material.setTexture("ColorMap", texture);
         geometry.setMaterial(material);
         attach(node, geometry, x, y, z);

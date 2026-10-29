@@ -10,7 +10,7 @@ import com.jme3.math.ColorRGBA;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.shape.Box;
-import java.awt.Color;
+import uz.dukeengine.game.Colour;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.view.AimMark;
@@ -20,7 +20,7 @@ class GhostTest {
 
     private static final DesktopAssetManager ASSETS = new DesktopAssetManager(true);
     private static final String BIB = "Common/Textures/MissingTexture.png";
-    private static final Visuals.GhostLook LOOK = new Visuals.GhostLook(0.45f, Color.RED, BIB);
+    private static final Visuals.GhostLook LOOK = new Visuals.GhostLook(0.45f, Colour.RED, BIB);
 
     private static Geometry hull(Material material) {
         var hull = new Geometry("hull", new Box(5f, 5f, 5f));

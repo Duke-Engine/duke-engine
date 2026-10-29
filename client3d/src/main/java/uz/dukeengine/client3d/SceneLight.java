@@ -7,6 +7,7 @@ import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.ViewPort;
 import com.jme3.scene.Node;
+import uz.dukeengine.game.Colour;
 
 /**
  * The one sun and the one flat ambient the whole scene is lit by, as the game asked for them — see {@link Sunlight} —
@@ -135,7 +136,7 @@ final class SceneLight {
         }
     }
 
-    void shadowColour(java.awt.Color colour) {
+    void shadowColour(Colour colour) {
         this.shadowColour = colour == null ? SunShadows.DEFAULT_COLOUR : Materials.colour(colour);
         if (sunShadows != null) {
             sunShadows.colour(shadowColour);

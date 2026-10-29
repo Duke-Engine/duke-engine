@@ -333,7 +333,7 @@ final class SkillRow {
         var painted = brush.skin.piece(PanelSkin.SLOT);
         if (slot.rim != null && painted != null) {
             slot.rim.getMaterial().setColor("Color",
-                    linear(darker(rgb(painted.tint().getRGB()), 0.6f)));
+                    linear(darker(rgb(painted.tint().argb()), 0.6f)));
         }
     }
 
@@ -532,7 +532,7 @@ final class SkillRow {
         // says the opposite of what the slot means — the whole reason the stone
         // behind it darkens.
         if (slot.rim != null) {
-            var gold = rgb(brush.skin.piece(PanelSkin.SLOT).tint().getRGB());
+            var gold = rgb(brush.skin.piece(PanelSkin.SLOT).tint().argb());
             slot.rim.getMaterial().setColor("Color",
                     linear(locked ? darker(gold, 0.6f) : cooling || passive ? darker(gold, 0.3f) : gold));
         }

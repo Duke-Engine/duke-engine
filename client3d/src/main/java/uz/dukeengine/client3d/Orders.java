@@ -600,7 +600,7 @@ final class Orders {
                 .toSet());
         var shown = snapshot.get().rallies().stream().filter(rally -> own.contains(rally.id())).toList();
         rallyMarks.show(visuals.getRally(), shown, RallyMarks.flagOf(shown, selected.size()),
-                Materials.colour(game.get().getColor(game.get().getLocalPlayerIndex())), visuals.getHouseColour(), floor::at,
+                Materials.colour(game.get().getColour(game.get().getLocalPlayerIndex())), visuals.getHouseColour(), floor::at,
                 cam.getLocation());
     }
 

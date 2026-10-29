@@ -23,6 +23,7 @@ import java.util.logging.Logger;
 
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.ObjectId;
+import uz.dukeengine.game.Colour;
 import uz.dukeengine.game.DukeGame;
 import uz.dukeengine.core.view.UnitView;
 import uz.dukeengine.core.view.WorldSnapshot;
@@ -725,7 +726,7 @@ final class DukeRtsApp extends SimpleApplication {
                     || view.playerIndex() != local && !visuals.getOcclusionMarked().test(view)) {
                 continue;
             }
-            marked.put(node.root, Materials.colour(game.getColor(view.playerIndex())));
+            marked.put(node.root, Materials.colour(game.getColour(view.playerIndex())));
         }
         occlusionMarks.mark(marked);
     }
@@ -1009,7 +1010,7 @@ final class DukeRtsApp extends SimpleApplication {
         light.scales().times(group, times);
     }
 
-    void shadowColour(java.awt.Color colour) {
+    void shadowColour(Colour colour) {
         light.shadowColour(colour);
     }
 
@@ -2595,7 +2596,7 @@ final class DukeRtsApp extends SimpleApplication {
     private void paintThrown(Spatial piece, Spatial thing) {
         Integer wears = thing.getUserData("wears");
         if (visuals.getHouseColour() != null && wears != null) {
-            Bodies.paintOwner(piece, visuals.getHouseColour(), Materials.colour(game.getColor(wears)));
+            Bodies.paintOwner(piece, visuals.getHouseColour(), Materials.colour(game.getColour(wears)));
         }
     }
 

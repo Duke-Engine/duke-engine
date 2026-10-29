@@ -4,6 +4,7 @@ import com.jme3.system.AppSettings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import uz.dukeengine.game.Colour;
 import uz.dukeengine.game.DukeGame;
 
 /**
@@ -570,7 +571,7 @@ public final class Duke3D {
      * its lighting in the reference ({@code setShadowColor}); null for the reference's own, A0A0A0. From any thread,
      * before launch or while it runs.
      */
-    public void shadowColour(java.awt.Color colour) {
+    public void shadowColour(Colour colour) {
         later(client -> client.shadowColour(colour));
     }
 

@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import uz.dukeengine.game.Colour;
 
 /**
  * Unity-style asset binding: attach models, animations and sounds to unit
@@ -115,8 +116,8 @@ public final class Visuals {
         final java.util.List<String> otherAnims = new java.util.ArrayList<>();
         String fireSound;
         String dieSound;
-        java.awt.Color colour; // null = the owning player's colour
-        java.awt.Color tint;   // multiplied over the model's own texture
+        Colour colour; // null = the owning player's colour
+        Colour tint;   // multiplied over the model's own texture
 
         /** Models for conditions, by the words that must all hold; see {@link #modelFor}. */
         final java.util.Map<String, String> conditionalModels = new java.util.LinkedHashMap<>();
@@ -1331,7 +1332,7 @@ public final class Visuals {
          *
          * <p>Left unset, the player's colour is used exactly as before.
          */
-        public UnitVisual colour(java.awt.Color colour) {
+        public UnitVisual colour(Colour colour) {
             this.colour = colour;
             return this;
         }
@@ -1345,7 +1346,7 @@ public final class Visuals {
          * flattening either into a single colour — and without changing what the
          * player reads on the minimap.
          */
-        public UnitVisual tint(java.awt.Color tint) {
+        public UnitVisual tint(Colour tint) {
             this.tint = tint;
             return this;
         }
@@ -1677,7 +1678,7 @@ public final class Visuals {
      * @param marks   the picture the answer's rectangles of ground are laid with — the reference's {@code TBRedBib} —
      *                or null to lay none
      */
-    public record GhostLook(float opacity, java.awt.Color refused, String marks) {
+    public record GhostLook(float opacity, Colour refused, String marks) {
     }
 
     /**
@@ -1861,7 +1862,7 @@ public final class Visuals {
         }
         return unit(template.name(), drawn -> {
             drawn.model(template.model()).scale(template.modelScale())
-                    .tint(new java.awt.Color(template.tint())).facing(template.facing());
+                    .tint(new Colour(0xFF000000 | template.tint())).facing(template.facing());
             template.models().forEach(drawn.conditionalModels::put);
             template.whenHurt().forEach(drawn::whenHurt);
             if (set != null) {
@@ -2294,7 +2295,7 @@ public final class Visuals {
 
         /** Words that name the pieces {@link #glow} lights; see there. */
         final java.util.List<String> glowParts = new java.util.ArrayList<>();
-        java.awt.Color glowColour = java.awt.Color.WHITE;
+        Colour glowColour = Colour.WHITE;
         float shakeSeconds;
         float shakePower;
         /** The layers it is drawn from, in the order the file named them — see {@link EffectLayer}. */
@@ -2330,10 +2331,10 @@ public final class Visuals {
          * differently on every creature it ships — {@code Skeleton_Warrior_Eyes},
          * {@code Skeleton_Mage_Eyes} — and a game should be able to say "the eyes" once.
          */
-        public EffectVisual glow(java.util.List<String> parts, java.awt.Color colour) {
+        public EffectVisual glow(java.util.List<String> parts, Colour colour) {
             glowParts.clear();
             glowParts.addAll(parts);
-            glowColour = Objects.requireNonNullElse(colour, java.awt.Color.WHITE);
+            glowColour = Objects.requireNonNullElse(colour, Colour.WHITE);
             return this;
         }
 

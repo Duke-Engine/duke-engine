@@ -23,6 +23,7 @@ import java.util.logging.Logger;
 import uz.dukeengine.core.view.UnitView;
 import uz.dukeengine.core.view.WorldSnapshot;
 import uz.dukeengine.game.DukeGame;
+import uz.dukeengine.game.Colour;
 
 /**
  * The minimap: the ground as the player knows it, a dot for each thing he sees, the game's marks, and the outline of
@@ -436,7 +437,7 @@ final class MinimapView {
             } else {
                 material.clearParam("ColorMap");
             }
-            material.setColor("Color", Materials.colour(new java.awt.Color(mark.colour())));
+            material.setColor("Color", Materials.colour(new Colour(0xFF000000 | mark.colour())));
             var point = minimap.markAt(mark.x(), mark.y());
             // A diamond is the square turned an eighth; a picture stands upright.
             float turn = picture == null ? com.jme3.math.FastMath.QUARTER_PI : 0f;

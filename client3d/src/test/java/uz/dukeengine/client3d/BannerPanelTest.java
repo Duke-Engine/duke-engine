@@ -10,7 +10,7 @@ import com.jme3.math.ColorRGBA;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
-import java.awt.Color;
+import uz.dukeengine.game.Colour;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -35,7 +35,7 @@ class BannerPanelTest {
     private static PanelSkin skin(Map<String, Integer> tints) {
         var pieces = new java.util.LinkedHashMap<String, PanelSkin.Piece>();
         tints.forEach((name, tint) ->
-                pieces.put(name, new PanelSkin.Piece(TEXTURE, 16f, 1.8f, new Color(tint))));
+                pieces.put(name, new PanelSkin.Piece(TEXTURE, 16f, 1.8f, new Colour(0xFF000000 | tint))));
         return new PanelSkin(pieces);
     }
 

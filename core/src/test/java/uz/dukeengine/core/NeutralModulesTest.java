@@ -36,11 +36,11 @@ class NeutralModulesTest {
             GAME + "DukeGame.java", GAME + "GamePlayer.java",
             GAME + "swing/GamePanel.java", GAME + "swing/GameWindow.java",
             CLIENT + "BitmapFontBaker.java", CLIENT + "CameraRig.java", CLIENT + "CanvasDrawing.java",
-            CLIENT + "CanvasText.java", CLIENT + "DisplayModes.java", CLIENT + "Duke3D.java",
-            CLIENT + "DukeRtsApp.java", CLIENT + "Lettering.java", CLIENT + "Materials.java",
-            CLIENT + "MinimapView.java", CLIENT + "MovieFrames.java", CLIENT + "PanelSkin.java",
-            CLIENT + "SceneLight.java", CLIENT + "Screens.java", CLIENT + "Screenshots.java",
-            CLIENT + "Skin.java", CLIENT + "Visuals.java", CLIENT + "WindowDisplay.java");
+            CLIENT + "CanvasText.java", CLIENT + "DisplayModes.java",
+            CLIENT + "DukeRtsApp.java", CLIENT + "Lettering.java",
+            CLIENT + "MovieFrames.java",
+            CLIENT + "Screens.java", CLIENT + "Screenshots.java",
+            CLIENT + "WindowDisplay.java");
 
     private static final List<String> STILL_ON_FILES = List.of(
             GAME + "DukeGame.java",

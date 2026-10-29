@@ -360,7 +360,7 @@ final class CommandButtons {
         if (ghostLook != null && visuals.getHouseColour() != null && (look == null || look.ownerColoured)) {
             var game = this.game.get();
             Bodies.paintOwner(body, visuals.getHouseColour(),
-                    Materials.colour(game.getColor(game.getLocalPlayerIndex())));
+                    Materials.colour(game.getColour(game.getLocalPlayerIndex())));
         }
         ghost = new Ghost(assetManager, markerNode, body, ghostLook);
     }

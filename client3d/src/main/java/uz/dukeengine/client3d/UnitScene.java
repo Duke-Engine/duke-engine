@@ -504,11 +504,11 @@ final class UnitScene {
         if (node == null || node.view == null) {
             return;
         }
-        selectionFlash.flash(id, node.root, look, Materials.colour(game.get().getColor(node.view.wears())));
+        selectionFlash.flash(id, node.root, look, Materials.colour(game.get().getColour(node.view.wears())));
         for (var rider : unitNodes.values()) {
             if (rider.view != null && rider.view.ridesOn() == id) {
                 selectionFlash.flash(rider.view.id(), rider.root, look,
-                        Materials.colour(game.get().getColor(rider.view.wears())));
+                        Materials.colour(game.get().getColour(rider.view.wears())));
             }
         }
     }
@@ -849,7 +849,7 @@ final class UnitScene {
         if (prefix == null || body == null) {
             return; // a game that names none is drawn as it always was
         }
-        Bodies.paintOwner(body, prefix, Materials.colour(game.get().getColor(view.wears()))); // a disguise's to those it fools
+        Bodies.paintOwner(body, prefix, Materials.colour(game.get().getColour(view.wears()))); // a disguise's to those it fools
     }
 
     /**
@@ -890,7 +890,7 @@ final class UnitScene {
      */
     ColorRGBA colourOf(UnitView view) {
         var own = looks.visualFor(view).colour;
-        return Materials.colour(own != null ? own : game.get().getColor(view.wears()));
+        return Materials.colour(own != null ? own : game.get().getColour(view.wears()));
     }
 
     /**

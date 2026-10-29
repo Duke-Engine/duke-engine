@@ -3,6 +3,7 @@ package uz.dukeengine.client3d;
 import com.jme3.asset.AssetManager;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
+import uz.dukeengine.game.Colour;
 
 /** The plain materials and colours the client's own drawing is made of. */
 final class Materials {
@@ -34,8 +35,8 @@ final class Materials {
     }
 
     /** A colour the game named, opaque. */
-    static ColorRGBA colour(java.awt.Color colour) {
-        return new ColorRGBA(colour.getRed() / 255f, colour.getGreen() / 255f, colour.getBlue() / 255f, 1f);
+    static ColorRGBA colour(Colour colour) {
+        return new ColorRGBA(colour.red() / 255f, colour.green() / 255f, colour.blue() / 255f, 1f);
     }
 
     /** A colour packed as {@code 0xRRGGBB}, opaque; whatever is above the low 24 bits is ignored. */

@@ -1,11 +1,11 @@
 package uz.dukeengine.client3d;
 
-import java.awt.Color;
 import com.jme3.asset.AssetManager;
 import com.jme3.texture.Texture;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
+import uz.dukeengine.game.Colour;
 
 /**
  * The painted edges a game wants its hero panel drawn with.
@@ -92,7 +92,7 @@ public record PanelSkin(Map<String, Piece> pieces) {
      * @param tint    what to paint it. The pictures are white, so this is the only
      *                thing that decides whether an edge is gold or bone
      */
-    public record Piece(String texture, float inset, float scale, Color tint) {
+    public record Piece(String texture, float inset, float scale, Colour tint) {
     }
 
     public PanelSkin {

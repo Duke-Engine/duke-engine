@@ -18,8 +18,4 @@ public record Skin(String name, String texture, float inset, float scale, int ti
 
     /** What a block leaves out. */
     public static final Skin DEFAULTS = new Skin("", "", 0f, 1f, 0xFFFFFF);
-
-    public java.awt.Color awtTint() {
-        return new java.awt.Color(tint);
-    }
 }

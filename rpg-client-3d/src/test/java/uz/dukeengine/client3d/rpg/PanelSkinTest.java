@@ -14,7 +14,7 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.VertexBuffer;
-import java.awt.Color;
+import uz.dukeengine.game.Colour;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +45,7 @@ class PanelSkinTest {
     /** Something really there, standing in for a frame the dungeon would name. */
     private static final String REAL = "Common/Textures/dot.png";
 
-    private static PanelSkin skinOf(String texture, float inset, float scale, Color tint) {
+    private static PanelSkin skinOf(String texture, float inset, float scale, Colour tint) {
         var piece = new PanelSkin.Piece(texture, inset, scale, tint);
         return new PanelSkin(Map.of(
                 PanelSkin.MINIMAP, piece, PanelSkin.PORTRAIT, piece, PanelSkin.SLOT, piece,
@@ -103,7 +103,7 @@ class PanelSkinTest {
      */
     @Test
     void aPictureThatWillNotLoadLeavesThePanelAsItWas() {
-        var gui = panelWith(skinOf("ui/borders/no-such-frame.png", 16f, 1f, Color.WHITE));
+        var gui = panelWith(skinOf("ui/borders/no-such-frame.png", 16f, 1f, Colour.WHITE));
 
         assertTrue(frames(gui).isEmpty(), "nothing should have been painted");
         // And the panel is still a panel: the check above would also pass on a
@@ -113,7 +113,7 @@ class PanelSkinTest {
 
     @Test
     void whatTheGameNamesReachesEveryPartOfThePanel() {
-        var gui = panelWith(skinOf(REAL, 8f, 1f, Color.WHITE));
+        var gui = panelWith(skinOf(REAL, 8f, 1f, Colour.WHITE));
 
         for (var piece : List.of(PanelSkin.MINIMAP, PanelSkin.PORTRAIT, PanelSkin.SLOT,
                 PanelSkin.GAUGE, PanelSkin.CHIP, PanelSkin.DIVIDER)) {
@@ -134,7 +134,7 @@ class PanelSkinTest {
         var font = assets.loadFont("Interface/Fonts/Default.fnt");
         var gui = new Node("gui");
         var only = Map.of(PanelSkin.GAUGE,
-                new PanelSkin.Piece(REAL, 2f, 1f, Color.WHITE));
+                new PanelSkin.Piece(REAL, 2f, 1f, Colour.WHITE));
         new HeroPanel(assets, font, gui, 1280f, 720f, new PanelSkin(only), RangeLook.DEFAULT).show(LINE, 0f);
 
         assertNotNull(frame(gui, PanelSkin.GAUGE));
@@ -152,8 +152,8 @@ class PanelSkinTest {
      */
     @Test
     void theInsetAndTheScaleAreReallyReadRatherThanAssumed() {
-        var light = frame(panelWith(skinOf(REAL, 8f, 1f, Color.WHITE)), PanelSkin.MINIMAP);
-        var heavy = frame(panelWith(skinOf(REAL, 8f, 2f, Color.WHITE)), PanelSkin.MINIMAP);
+        var light = frame(panelWith(skinOf(REAL, 8f, 1f, Colour.WHITE)), PanelSkin.MINIMAP);
+        var heavy = frame(panelWith(skinOf(REAL, 8f, 2f, Colour.WHITE)), PanelSkin.MINIMAP);
 
         assertEquals(2f * cornerOf(light), cornerOf(heavy), 0.01f,
                 "twice the scale should be twice the border");
@@ -161,8 +161,8 @@ class PanelSkinTest {
 
     @Test
     void theTintIsReallyReadToo() {
-        var gold = frame(panelWith(skinOf(REAL, 8f, 1f, new Color(0xC9A24B))), PanelSkin.SLOT);
-        var bone = frame(panelWith(skinOf(REAL, 8f, 1f, new Color(0xDCD2BC))), PanelSkin.SLOT);
+        var gold = frame(panelWith(skinOf(REAL, 8f, 1f, new Colour(0xFF000000 | 0xC9A24B))), PanelSkin.SLOT);
+        var bone = frame(panelWith(skinOf(REAL, 8f, 1f, new Colour(0xFF000000 | 0xDCD2BC))), PanelSkin.SLOT);
 
         var goldColour = (ColorRGBA) gold.getMaterial().getParam("Color").getValue();
         var boneColour = (ColorRGBA) bone.getMaterial().getParam("Color").getValue();
@@ -181,7 +181,7 @@ class PanelSkinTest {
      */
     @Test
     void aLockedSocketsRimGoesDeadWithIt() {
-        var gui = panelWith(skinOf(REAL, 8f, 1f, new Color(0xC9A24B)));
+        var gui = panelWith(skinOf(REAL, 8f, 1f, new Colour(0xFF000000 | 0xC9A24B)));
         // Skill sockets only: the bag and the order buttons wear the same picture,
         // and it is the skill row that has states.
         var rims = frames(gui).stream()
