@@ -75,6 +75,18 @@ core is pure Java; a render/audio backend comes later.
   its parts of the picture. `client3d` imports neither `rts` nor `rpg`, and the two
   client parts never each other: duke-generals builds without `rpg-client-3d`. A game
   depends on `kit`, and `kit` on nothing but data.
+- **Every module is one of three kinds, and stays it.**
+  - *Neutral* — runs on every platform: `core`, `combat`, `rts`, `rpg`, `action`, `game`, `client3d`,
+    `rts-client-3d`, `rpg-client-3d`, `client3d-action`, `kit`. None names `java.awt`, `javax.swing`,
+    `javax.imageio`, `org.lwjgl`, `android.*`, `com.jme3.system.lwjgl` or `com.jme3.app.Android*`, and files
+    are reached only through an interface (`core/map` is that interface for maps).
+  - *Platform* — one platform's side of the interfaces, knowing no rule of any game: `game-swing` (the 2D Swing
+    window), and the desktop and Android halves of the 3D client once they are split out.
+  - *Launcher* — only wires a game to a platform, no logic: `skirmish`, and a game's own desktop and Android mains.
+  - The arrow runs launcher → platform → neutral client → `game` → `combat` → `core`, never back. A neutral module
+    never knows a platform or a launcher, one platform never knows another, and a platform knows no kind of game
+    (`rts`, `rpg`): a kind's part comes through `HudPart` and `ControlScheme`. Neutral code never asks which
+    platform it is on. `NeutralModulesTest` (in `core`) holds this; the files it still lists only shrink.
 
 **The question to ask before adding to `combat`:** *would an RTS and an RPG both
 need this?* A weapon, a stun, a heal, experience, an aura: both, so `combat`. A
