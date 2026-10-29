@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -93,7 +92,7 @@ class KindsOfGameTest {
         var game = DukeGame.create("plain", new PlainFlavour()).map(20, 20)
                 .addUnits(List.of(ThingTemplate.named("Walker").module(new ActiveBody.Data(10f))
                         .module(new MoveUpdate.Data(30f)).build()));
-        var me = game.addPlayer("Me", Color.BLUE);
+        var me = game.addPlayer("Me", Colour.BLUE);
         var waves = new ArrayList<Command>();
         var words = new ArrayList<String>();
         game.localPlayer(me).spawn("Walker", me, 50f, 50f)
@@ -125,7 +124,7 @@ class KindsOfGameTest {
     void theRtsFlavourSaysItHasNoWorldYetWithoutAThrow() {
         var flavour = new RtsFlavour();
         var game = DukeGame.create("before", flavour).loadUnits(RtsFlavour.STARTER_UNITS).map(40, 30);
-        game.addPlayer("One", java.awt.Color.BLUE);
+        game.addPlayer("One", Colour.BLUE);
         assertEquals(null, flavour.logicOrNull(), "a menu, before the match");
         org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, flavour::logic);
 

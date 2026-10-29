@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.thing.ObjectStatus;
 
@@ -13,7 +12,7 @@ class UnselectableTest {
     @Test
     void markedItCannotBePickedAndUnmarkedItCanAgain() {
         var game = DukeGame.create("drones").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40);
-        var you = game.addPlayer("You", Color.BLUE);
+        var you = game.addPlayer("You", Colour.BLUE);
         game.localPlayer(you);
         game.spawn("Rifleman", you, 50f, 50f);
         game.runHeadless(1);

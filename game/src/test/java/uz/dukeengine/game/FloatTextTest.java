@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.event.TextFloated;
 
@@ -30,8 +29,8 @@ class FloatTextTest {
     @Test
     void aTextFloatedWhereThePlayerSeesReachesHisClientAndOneInTheFogDoesNot() {
         var game = DukeGame.create("Floating").loadUnits(UNITS).map(80, 80);
-        var me = game.addPlayer("Me", Color.CYAN);
-        var them = game.addPlayer("Them", Color.RED);
+        var me = game.addPlayer("Me", Colour.CYAN);
+        var them = game.addPlayer("Them", Colour.RED);
         game.enemies(me, them).localPlayer(me).spawn("Derrick", me, 100f, 100f).spawn("Derrick", them, 700f, 700f);
         game.runHeadless(1);
 

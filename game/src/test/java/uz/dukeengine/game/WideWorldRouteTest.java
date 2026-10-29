@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.map.Sectored;
 import uz.dukeengine.core.math.Coord3D;
@@ -40,7 +39,7 @@ class WideWorldRouteTest {
 
     private static DukeGame match(Object map) {
         var game = DukeGame.create("wide").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        game.localPlayer(game.addPlayer("Me", Color.CYAN));
+        game.localPlayer(game.addPlayer("Me", Colour.CYAN));
         game.applyMapTerrain(walled(), map);
         return game;
     }

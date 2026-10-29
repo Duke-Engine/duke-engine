@@ -2,7 +2,6 @@ package uz.dukeengine.game;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.awt.Color;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.rts.message.GameMessage;
@@ -51,8 +50,8 @@ class RefusedOrderTest {
 
     private static DukeGame match(boolean headquarters) {
         var game = DukeGame.create("refused-order").loadUnits(UNITS);
-        var one = game.addPlayer("One", Color.BLUE);
-        game.addPlayer("Two", Color.RED);
+        var one = game.addPlayer("One", Colour.BLUE);
+        game.addPlayer("Two", Colour.RED);
         game.flavour(uz.dukeengine.rts.RtsFlavour.class).money(one::getIndex, 2000);
         game.spawn("Barracks", one, 100, 100);
         if (headquarters) {

@@ -33,7 +33,7 @@ class CommandBarTest {
             return selection.isEmpty() ? List.of()
                     : List.of(CommandButton.of("train.rifleman", "icons/rifleman.png", "Rifleman", "B"));
         });
-        game.addPlayer("Me", java.awt.Color.CYAN);
+        game.addPlayer("Me", Colour.CYAN);
         game.runHeadless(2);
 
         game.setSelection(List.of(7, 9));
@@ -112,7 +112,7 @@ class CommandBarTest {
         var mark = new uz.dukeengine.core.view.AimMark(60f, 50f, 90f, 10f, 5f, 4f);
         var game = headless().aimAnswer((button, place, facing) -> new uz.dukeengine.core.view.AimAnswer(
                 place.x() < 55f, place.x() < 55f ? List.of() : List.of(mark)));
-        game.addPlayer("Me", java.awt.Color.CYAN);
+        game.addPlayer("Me", Colour.CYAN);
         game.runHeadless(1);
 
         game.setAim("build:Barracks", new uz.dukeengine.core.math.Coord3D(60f, 50f, 0f), 0f);
@@ -137,7 +137,7 @@ class CommandBarTest {
             asked.add(facing);
             return facing < 90f;
         });
-        game.addPlayer("Me", java.awt.Color.CYAN);
+        game.addPlayer("Me", Colour.CYAN);
         game.runHeadless(1);
 
         var place = new uz.dukeengine.core.math.Coord3D(50f, 50f, 0f);
@@ -156,7 +156,7 @@ class CommandBarTest {
     @Test
     void aGameThatNamedNoBarSendsNoButtonsAndTakesNoPresses() {
         var game = headless();
-        game.addPlayer("Me", java.awt.Color.CYAN);
+        game.addPlayer("Me", Colour.CYAN);
         game.runHeadless(2);
 
         assertEquals(List.of(), game.getSnapshot().commands());
@@ -200,7 +200,7 @@ class CommandBarTest {
             asked.add(button + ":" + unit);
             return unit != 7;
         });
-        game.addPlayer("Me", java.awt.Color.CYAN);
+        game.addPlayer("Me", Colour.CYAN);
         game.runHeadless(1);
 
         game.setAim("use:3", null, 0f);
@@ -226,7 +226,7 @@ class CommandBarTest {
     @Test
     void withNoRuleEveryThingIsTaken() {
         var game = headless();
-        game.addPlayer("Me", java.awt.Color.CYAN);
+        game.addPlayer("Me", Colour.CYAN);
         game.runHeadless(1);
 
         game.setAim("use:3", null, 0f);

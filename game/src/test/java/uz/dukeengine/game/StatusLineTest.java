@@ -29,7 +29,7 @@ class StatusLineTest {
     @Test
     void aGameWithNothingToSayHasAnEmptyLine() {
         var game = game();
-        game.addPlayer("One", java.awt.Color.RED);
+        game.addPlayer("One", Colour.RED);
         game.runHeadless(1);
 
         assertFalse(game.getSnapshot().hasStatus());
@@ -39,7 +39,7 @@ class StatusLineTest {
     @Test
     void whatTheGameSetsReachesTheSnapshot() {
         var game = game();
-        game.addPlayer("One", java.awt.Color.RED);
+        game.addPlayer("One", Colour.RED);
         game.runHeadless(1);
 
         game.setStatus("Level 4    xp 120/180");
@@ -52,7 +52,7 @@ class StatusLineTest {
     @Test
     void theLineCanBeChangedAndCleared() {
         var game = game();
-        game.addPlayer("One", java.awt.Color.RED);
+        game.addPlayer("One", Colour.RED);
         game.runHeadless(1);
 
         game.setStatus("first");
@@ -72,7 +72,7 @@ class StatusLineTest {
     @Test
     void theStatusAndTheBannerAreIndependent() {
         var game = game();
-        game.addPlayer("One", java.awt.Color.RED);
+        game.addPlayer("One", Colour.RED);
         game.runHeadless(1);
 
         game.setStatus("Level 2");

@@ -48,8 +48,8 @@ import uz.dukeengine.game.swing.GameWindow;
  *         .loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS)
  *         .map(60, 40);
  *
- * var you = game.addPlayer("USA", Color.CYAN);
- * var foe = game.addPlayer("China", Color.RED);
+ * var you = game.addPlayer("USA", Colour.CYAN);
+ * var foe = game.addPlayer("China", Colour.RED);
  * game.enemies(you, foe).localPlayer(you).money(you, 1000);
  *
  * game.spawn("Barracks", you, 60, 60);
@@ -215,9 +215,15 @@ public final class DukeGame {
     }
 
     /** Add a player. The first player added is the local (viewing) player by default. */
-    public GamePlayer addPlayer(String name, Color color) {
+    public GamePlayer addPlayer(String name, Colour colour) {
         requireNotStarted();
-        return roster.add(name, color);
+        return roster.add(name, colour);
+    }
+
+    /** @deprecated use {@link #addPlayer(String, Colour)}; goes once the games have moved off AWT. */
+    @Deprecated
+    public GamePlayer addPlayer(String name, Color color) {
+        return addPlayer(name, new Colour(color.getRGB()));
     }
 
     /**
@@ -1225,8 +1231,14 @@ public final class DukeGame {
     }
 
     /** The display colour for a player index (neutral is gray). */
+    public Colour getColour(int playerIndex) {
+        return roster.colourOf(playerIndex);
+    }
+
+    /** @deprecated use {@link #getColour(int)}; goes once the games have moved off AWT. */
+    @Deprecated
     public Color getColor(int playerIndex) {
-        return roster.colorOf(playerIndex);
+        return new Color(getColour(playerIndex).argb(), true);
     }
 
     /** The index of the viewing player (whose units the window commands). */

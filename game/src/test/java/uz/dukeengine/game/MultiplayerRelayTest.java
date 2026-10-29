@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeMap;
@@ -101,7 +100,7 @@ class MultiplayerRelayTest {
         var replayed = new TreeMap<Integer, Long>();
         replay.onTick(g -> replayed.put(g.getLogic().getFrame(), g.getLogic().checksum()));
         for (int i = 1; i <= 3; i++) {
-            replay.spawn("Rifleman", replay.addPlayer("P" + i, Color.BLUE), 200f * i, 0f);
+            replay.spawn("Rifleman", replay.addPlayer("P" + i, Colour.BLUE), 200f * i, 0f);
         }
         replay.runHeadless(0);
         var byFrame = new TreeMap<Integer, TreeMap<Integer, CommandPacket>>();

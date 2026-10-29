@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import java.awt.Color;
 import java.net.ServerSocket;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -23,8 +22,8 @@ class GameOrderTest {
 
     private static DukeGame match() {
         var game = DukeGame.create("order-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(80, 40);
-        var one = game.addPlayer("One", Color.BLUE);
-        var two = game.addPlayer("Two", Color.RED);
+        var one = game.addPlayer("One", Colour.BLUE);
+        var two = game.addPlayer("Two", Colour.RED);
         game.enemies(one, two);
         game.spawn("Rifleman", one, 100, 100);
         game.spawn("Rifleman", one, 100, 160);

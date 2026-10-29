@@ -2,7 +2,6 @@ package uz.dukeengine.game;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.awt.Color;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.thing.GameObject;
@@ -29,7 +28,7 @@ class PassengersInViewTest {
     @Test
     void aTransportsViewListsItsPassengersInTheOrderTheyGotIn() {
         var game = DukeGame.create("passengers-test").loadUnits(UNITS).map(60, 40);
-        var you = game.addPlayer("You", Color.BLUE);
+        var you = game.addPlayer("You", Colour.BLUE);
         game.localPlayer(you);
         game.spawn("Humvee", you, 200, 200);
         game.spawn("Rifleman", you, 100, 100).spawn("Rifleman", you, 110, 100).spawn("Rifleman", you, 120, 100);

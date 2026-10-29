@@ -2,7 +2,6 @@ package uz.dukeengine.game;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.awt.Color;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.module.ActiveBody;
@@ -45,7 +44,7 @@ class TurretViewTest {
     void theViewCarriesEachTurretsTurnAndPitch() {
         var game = DukeGame.create("turrets").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(20, 20)
                 .addUnits(List.of(RtsTemplate.named("Ship").module(new ActiveBody.Data(100f)).build()));
-        var me = game.addPlayer("Me", Color.BLUE);
+        var me = game.addPlayer("Me", Colour.BLUE);
         game.localPlayer(me).spawn("Ship", me, 100f, 100f).spawn("Rifleman", me, 150f, 100f);
         game.runHeadless(1);
         var ship = game.getLogic().getObjects().getFirst();

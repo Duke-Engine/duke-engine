@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -68,8 +67,8 @@ class WeaponLockTest {
                 .addUnits(List.of(RtsTemplate.named("Sniper").visionRange(80f).module(new ActiveBody.Data(100f))
                         .module(WeaponUpdate.Data.sets(sets)).build(),
                         RtsTemplate.named("Tank").visionRange(10f).module(new ActiveBody.Data(100_000f)).build()));
-        var usa = game.addPlayer("USA", Color.BLUE);
-        var china = game.addPlayer("China", Color.RED);
+        var usa = game.addPlayer("USA", Colour.BLUE);
+        var china = game.addPlayer("China", Colour.RED);
         game.enemies(usa, china).localPlayer(usa);
         game.spawn("Sniper", usa, 100f, 100f);
         game.spawn("Tank", china, 120f, 100f);

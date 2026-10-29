@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
@@ -24,8 +23,8 @@ class MultiplayerSyncTest {
 
     private static DukeGame newGame() {
         var game = DukeGame.create("mp-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        var host = game.addPlayer("Host", Color.BLUE);
-        var guest = game.addPlayer("Guest", Color.RED);
+        var host = game.addPlayer("Host", Colour.BLUE);
+        var guest = game.addPlayer("Guest", Colour.RED);
         game.enemies(host, guest);
         game.flavour(uz.dukeengine.rts.RtsFlavour.class).money(host::getIndex, 500).money(guest::getIndex, 500);
         game.spawn("Rifleman", host, 0, 0);     // id 1, host's

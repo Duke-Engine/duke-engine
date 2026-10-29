@@ -2,7 +2,6 @@ package uz.dukeengine.game;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.awt.Color;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
@@ -31,9 +30,9 @@ class AlliedViewTest {
     @Test
     void itsOwnAndAnAllysThingsAreAlliedAndAnEnemysAreNot() {
         var game = DukeGame.create("Allied").loadUnits(UNITS).map(80, 80);
-        var me = game.addPlayer("Me", Color.CYAN);
-        var friend = game.addPlayer("Friend", Color.GREEN);
-        var foe = game.addPlayer("Foe", Color.RED);
+        var me = game.addPlayer("Me", Colour.CYAN);
+        var friend = game.addPlayer("Friend", Colour.GREEN);
+        var foe = game.addPlayer("Foe", Colour.RED);
         game.allies(me, friend).enemies(me, foe).enemies(friend, foe).localPlayer(me)
                 .spawn("Outpost", me, 100f, 100f).spawn("Outpost", friend, 150f, 100f)
                 .spawn("Outpost", foe, 200f, 100f);

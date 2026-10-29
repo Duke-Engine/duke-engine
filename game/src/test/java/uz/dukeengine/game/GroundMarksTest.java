@@ -2,7 +2,6 @@ package uz.dukeengine.game;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.awt.Color;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -15,7 +14,7 @@ class GroundMarksTest {
     @Test
     void aMarkLaidAtLoadWhereNoPlayerSeesIsKeptForTheGround() {
         var game = DukeGame.create("Scorched").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(60, 60);
-        var player = game.addPlayer("USA", Color.BLUE);
+        var player = game.addPlayer("USA", Colour.BLUE);
         game.localPlayer(player).markGround("textures/scorch_2.png", 500f, 520f, 60f);
         game.runHeadless(3);
         game.markGround("textures/scorch_0.png", 40f, 40f, 9f);

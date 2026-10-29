@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -54,7 +53,7 @@ class MomentWordsTest {
     @Test
     void movingItHoldsItsMovingWordAndStandingItDoesNot() {
         var game = DukeGame.create("moments").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).momentWords(WORDS).map(40, 40);
-        var me = game.addPlayer("Me", Color.BLUE);
+        var me = game.addPlayer("Me", Colour.BLUE);
         game.localPlayer(me).spawn("Rifleman", me, 100f, 100f);
         game.runHeadless(1);
         int id = game.getLogic().getObjects().getFirst().getId().value();
@@ -77,8 +76,8 @@ class MomentWordsTest {
     @Test
     void aSlotsWordsFollowItsWeaponStatus() {
         var game = DukeGame.create("moments").loadUnits(GUNNER).momentWords(WORDS).map(40, 40);
-        var me = game.addPlayer("Me", Color.BLUE);
-        var them = game.addPlayer("Them", Color.RED);
+        var me = game.addPlayer("Me", Colour.BLUE);
+        var them = game.addPlayer("Them", Colour.RED);
         game.enemies(me, them).localPlayer(me).spawn("Gunner", me, 100f, 100f).spawn("Gunner", them, 140f, 100f);
         game.runHeadless(1);
         int id = game.getLogic().getObjects().getFirst().getId().value();
@@ -131,8 +130,8 @@ class MomentWordsTest {
                 .addUnits(List.of(uz.dukeengine.rts.RtsTemplate.named("Burton").visionRange(80f)
                         .module(new uz.dukeengine.core.module.ActiveBody.Data(100f))
                         .module(uz.dukeengine.combat.module.WeaponUpdate.Data.sets(sets)).build()));
-        var me = game.addPlayer("Me", Color.BLUE);
-        var them = game.addPlayer("Them", Color.RED);
+        var me = game.addPlayer("Me", Colour.BLUE);
+        var them = game.addPlayer("Them", Colour.RED);
         game.enemies(me, them).localPlayer(me).spawn("Burton", me, 100f, 100f).spawn("Rifleman", them, 120f, 100f);
         game.runHeadless(1);
         int id = game.getLogic().getObjects().getFirst().getId().value();

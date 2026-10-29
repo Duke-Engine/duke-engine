@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import java.awt.Color;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.view.FallingWeather;
 
@@ -15,7 +14,7 @@ class MatchWeatherTest {
 
     private static DukeGame game() {
         var game = DukeGame.create("weather").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(20, 20);
-        var me = game.addPlayer("Me", Color.BLUE);
+        var me = game.addPlayer("Me", Colour.BLUE);
         game.localPlayer(me).spawn("Rifleman", me, 100f, 100f);
         return game;
     }

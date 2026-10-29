@@ -3,9 +3,9 @@ package uz.dukeengine.client3d.action;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import java.awt.Color;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import uz.dukeengine.game.Colour;
 import uz.dukeengine.game.DukeGame;
 
 /** The nearest thing worth an order in front of him, found on each snapshot; turned round, the one behind (E94). */
@@ -14,8 +14,8 @@ class InteractTest {
     @Test
     void theTreeBeforeHimThenTheWellBehind() {
         var game = DukeGame.create("interact").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40);
-        var me = game.addPlayer("Me", Color.BLUE);
-        var world = game.addPlayer("World", Color.GRAY);
+        var me = game.addPlayer("Me", Colour.BLUE);
+        var world = game.addPlayer("World", Colour.GRAY);
         game.localPlayer(me).spawn("Rifleman", me, 100f, 100f);
         game.spawn("Tank", world, 110f, 100f); // the "tree", ten before him
         game.spawn("Rifleman", world, 90f, 100f); // the "well", ten behind
@@ -43,7 +43,7 @@ class InteractTest {
     @Test
     void aSceneryTreeIsFoundByTheGroundRule() {
         var game = DukeGame.create("interact").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40);
-        var me = game.addPlayer("Me", Color.BLUE);
+        var me = game.addPlayer("Me", Colour.BLUE);
         game.localPlayer(me).spawn("Rifleman", me, 100f, 100f);
         game.groundOrder((selection, place) -> place.x() > 108f ? "Chop" : null);
         var interact = new Interact('E', 14f, (float) Math.toRadians(100), (word, key) -> word);

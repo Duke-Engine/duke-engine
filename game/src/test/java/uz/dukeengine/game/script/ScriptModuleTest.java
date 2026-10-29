@@ -3,9 +3,9 @@ package uz.dukeengine.game.script;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
+import uz.dukeengine.game.Colour;
 import uz.dukeengine.game.DukeGame;
 
 class ScriptModuleTest {
@@ -73,7 +73,7 @@ class ScriptModuleTest {
                     ScriptModule.registerScript(mf, Walker.Data.class, Walker::new);
                     ScriptModule.registerScript(mf, Broken.Data.class, Broken::new);
                 });
-        var you = game.addPlayer("You", Color.BLUE);
+        var you = game.addPlayer("You", Colour.BLUE);
         game.spawn("Runner", you, 0, 0);
         game.runHeadless(30);
 

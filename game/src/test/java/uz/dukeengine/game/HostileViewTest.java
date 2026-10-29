@@ -2,7 +2,6 @@ package uz.dukeengine.game;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.awt.Color;
 import org.junit.jupiter.api.Test;
 
 /** Whether a view's viewer takes its thing's owner for an enemy: not its owner, its ally, nor a neutral — its enemy. */
@@ -10,10 +9,10 @@ class HostileViewTest {
 
     private static boolean hostileTo(int viewer) {
         var game = DukeGame.create("Sides").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(60, 60);
-        var owner = game.addPlayer("GLA", Color.GREEN);
-        var ally = game.addPlayer("Ally", Color.YELLOW);
-        var enemy = game.addPlayer("USA", Color.BLUE);
-        var neutral = game.addPlayer("Neutral", Color.GRAY);
+        var owner = game.addPlayer("GLA", Colour.GREEN);
+        var ally = game.addPlayer("Ally", Colour.YELLOW);
+        var enemy = game.addPlayer("USA", Colour.BLUE);
+        var neutral = game.addPlayer("Neutral", Colour.GRAY);
         var viewing = switch (viewer) {
             case 0 -> owner;
             case 1 -> ally;

@@ -1,6 +1,5 @@
 package uz.dukeengine.game;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import uz.dukeengine.core.player.PlayerList;
@@ -14,8 +13,8 @@ final class Roster {
     /** Whether this machine has taken a watcher's seat mid-match. */
     private volatile boolean watching;
 
-    GamePlayer add(String name, Color color) {
-        var player = new GamePlayer(name, color);
+    GamePlayer add(String name, Colour colour) {
+        var player = new GamePlayer(name, colour);
         players.add(player);
         if (local == null && !observing) {
             local = player;
@@ -46,9 +45,9 @@ final class Roster {
         return null;
     }
 
-    Color colorOf(int index) {
+    Colour colourOf(int index) {
         var player = bound(index);
-        return player != null ? player.getColor() : index == 0 ? Color.GRAY : Color.MAGENTA;
+        return player != null ? player.getColour() : index == 0 ? Colour.GRAY : Colour.MAGENTA;
     }
 
     /** The index of the player this machine plays, or -1. */

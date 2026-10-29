@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
@@ -33,7 +32,7 @@ class RidingEffectTest {
 
     private static DukeGame game() {
         var game = DukeGame.create("Smoke").loadUnits(UNITS).map(80, 80);
-        var me = game.addPlayer("Me", Color.CYAN);
+        var me = game.addPlayer("Me", Colour.CYAN);
         game.localPlayer(me).spawn("Barracks", me, 100f, 100f);
         game.runHeadless(1);
         return game;

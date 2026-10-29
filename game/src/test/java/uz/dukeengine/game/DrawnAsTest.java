@@ -2,7 +2,6 @@ package uz.dukeengine.game;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.awt.Color;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.view.UnitView;
 
@@ -14,8 +13,8 @@ class DrawnAsTest {
 
     private static UnitView truckSeenBy(int viewer) {
         var game = DukeGame.create("Disguise").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(60, 60);
-        var gla = game.addPlayer("GLA", Color.GREEN);
-        var usa = game.addPlayer("USA", Color.BLUE);
+        var gla = game.addPlayer("GLA", Colour.GREEN);
+        var usa = game.addPlayer("USA", Colour.BLUE);
         game.enemies(gla, usa).localPlayer(viewer == 1 ? gla : usa);
         game.spawn("Rifleman", gla, 100f, 100f).spawn("Tank", usa, 120f, 100f);
         game.runHeadless(1);

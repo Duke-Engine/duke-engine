@@ -2,7 +2,6 @@ package uz.dukeengine.game;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -44,7 +43,7 @@ class HoldOrdersToldTest {
         var game = DukeGame.create("holds").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(30, 30)
                 .addUnits(List.of(RtsTemplate.named("Truck").module(new ActiveBody.Data(200f))
                         .module(new MoveUpdate.Data(30f)).module(new ContainModule.Data(4)).build()));
-        var me = game.addPlayer("Me", Color.BLUE);
+        var me = game.addPlayer("Me", Colour.BLUE);
         game.localPlayer(me).spawn("Truck", me, 150f, 150f).spawn("Rifleman", me, 150f, 150f);
         game.runHeadless(1);
         var objects = game.getLogic().getObjects();

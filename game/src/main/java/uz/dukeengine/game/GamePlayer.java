@@ -13,20 +13,26 @@ import java.awt.Color;
 public final class GamePlayer {
 
     private final String name;
-    private final Color color;
+    private final Colour colour;
     private int index = -1;
 
-    GamePlayer(String name, Color color) {
+    GamePlayer(String name, Colour colour) {
         this.name = name;
-        this.color = color;
+        this.colour = colour;
     }
 
     public String getName() {
         return name;
     }
 
+    public Colour getColour() {
+        return colour;
+    }
+
+    /** @deprecated use {@link #getColour()}; goes once the games have moved off AWT. */
+    @Deprecated
     public Color getColor() {
-        return color;
+        return new Color(colour.argb(), true);
     }
 
     /** The engine player index. Only valid once the game has started. */

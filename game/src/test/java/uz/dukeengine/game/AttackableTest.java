@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.thing.GameObject;
@@ -74,8 +73,8 @@ class AttackableTest {
 
     private static Scene scene() {
         var game = DukeGame.create("Attackable").loadUnits(UNITS).map(40, 40);
-        var me = game.addPlayer("Me", Color.CYAN);
-        var them = game.addPlayer("Them", Color.RED);
+        var me = game.addPlayer("Me", Colour.CYAN);
+        var them = game.addPlayer("Them", Colour.RED);
         game.enemies(me, them).localPlayer(me)
                 .spawn("Tank", me, 100f, 100f)
                 .spawn("Worker", me, 120f, 100f)

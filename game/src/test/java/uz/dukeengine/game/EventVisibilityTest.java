@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.event.ObjectDied;
 import uz.dukeengine.core.thing.GameObject;
@@ -22,8 +21,8 @@ class EventVisibilityTest {
         var game = DukeGame.create("fog")
                 .loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS)
                 .map(70, 45);
-        var you = game.addPlayer("You", Color.BLUE);
-        var foe = game.addPlayer("Foe", Color.RED);
+        var you = game.addPlayer("You", Colour.BLUE);
+        var foe = game.addPlayer("Foe", Colour.RED);
         game.enemies(you, foe).localPlayer(you);
         game.spawn("Rifleman", you, 50f, 50f);      // vision range 40
         game.spawn("Rifleman", foe, enemyX, enemyY);

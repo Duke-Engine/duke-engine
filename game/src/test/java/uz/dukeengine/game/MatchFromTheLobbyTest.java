@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.net.ServerSocket;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
@@ -23,8 +22,8 @@ class MatchFromTheLobbyTest {
     /** The match a game builds from the settings its lobby agreed on. */
     private static DukeGame match() {
         var game = DukeGame.create("lobby-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        var first = game.addPlayer("One", Color.BLUE);
-        var second = game.addPlayer("Two", Color.RED);
+        var first = game.addPlayer("One", Colour.BLUE);
+        var second = game.addPlayer("Two", Colour.RED);
         game.enemies(first, second);
         game.spawn("Rifleman", first, 0, 0);
         game.spawn("Rifleman", second, 300, 0);
@@ -62,8 +61,8 @@ class MatchFromTheLobbyTest {
     @Test
     void aMachineThatWatchesSeesEveryoneThroughNobodysFog() {
         var game = DukeGame.create("observer-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        var first = game.addPlayer("One", Color.BLUE);
-        var second = game.addPlayer("Two", Color.RED);
+        var first = game.addPlayer("One", Colour.BLUE);
+        var second = game.addPlayer("Two", Colour.RED);
         game.enemies(first, second).observe();
         game.spawn("Rifleman", first, 0, 0);
         game.spawn("Rifleman", second, 3000, 3000);

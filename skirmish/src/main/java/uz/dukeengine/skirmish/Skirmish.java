@@ -1,9 +1,9 @@
 package uz.dukeengine.skirmish;
 
-import java.awt.Color;
-import uz.dukeengine.game.DukeGame;
 import uz.dukeengine.core.map.MapTerrain;
 import uz.dukeengine.core.pathfind.PathGrid;
+import uz.dukeengine.game.Colour;
+import uz.dukeengine.game.DukeGame;
 import uz.dukeengine.skirmish.content.Battlefield;
 import uz.dukeengine.skirmish.content.Content;
 import uz.dukeengine.skirmish.content.Field;
@@ -59,8 +59,8 @@ public final class Skirmish {
 
     /** The two sides, at war, with a purse each. */
     private static Match set(DukeGame game, int purse, Battlefield field) {
-        var left = game.addPlayer("Left", Color.CYAN);
-        var right = game.addPlayer("Right", Color.ORANGE);
+        var left = game.addPlayer("Left", Colour.CYAN);
+        var right = game.addPlayer("Right", Colour.ORANGE);
         game.enemies(left, right).localPlayer(left);
         game.flavour(uz.dukeengine.rts.RtsFlavour.class).money(left::getIndex, purse).money(right::getIndex, purse);
         commandBar(game);

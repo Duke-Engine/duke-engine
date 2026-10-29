@@ -6,10 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import uz.dukeengine.combat.message.CombatOrder;
+import uz.dukeengine.game.Colour;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.skirmish.content.Content;
 import uz.dukeengine.skirmish.content.Unit;
-import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * A second game on the engine, written from nothing rather than copied from the dungeon.
@@ -248,7 +249,7 @@ class SkirmishTest {
                 .templates(loader -> loader.type(uz.dukeengine.skirmish.content.Unit.class))
                 .loadUnits(uz.dukeengine.skirmish.content.Content.units())
                 .map(40, 30);
-        var me = game.addPlayer("Me", java.awt.Color.CYAN);
+        var me = game.addPlayer("Me", Colour.CYAN);
         game.skirmish(List.of("field"), List.of("Any"), (built, map, sides) -> {
             built.spawn("Barracks", me, 100f, 100f);
             built.spawnNeutral("OreNode", 200f, 200f);
@@ -274,7 +275,7 @@ class SkirmishTest {
                 .loadUnits(uz.dukeengine.skirmish.content.Content.units())
                 .map(40, 30)
                 .placesEverythingAtSetup();
-        var me = game.addPlayer("Me", java.awt.Color.CYAN);
+        var me = game.addPlayer("Me", Colour.CYAN);
         game.spawn("Barracks", me, 100f, 100f);
         game.spawnNeutral("OreNode", 200f, 200f);
 

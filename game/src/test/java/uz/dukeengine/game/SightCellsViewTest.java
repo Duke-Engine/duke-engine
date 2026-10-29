@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -24,7 +23,7 @@ class SightCellsViewTest {
                     told.add(seen);
                     return null;
                 });
-        var me = game.addPlayer("Me", Color.BLUE);
+        var me = game.addPlayer("Me", Colour.BLUE);
         game.localPlayer(me).spawn("Rifleman", me, 100f, 100f);
         game.runHeadless(1);
         game.getLogic().setSightCells(40f, 150);
@@ -46,8 +45,8 @@ class SightCellsViewTest {
     @Test
     void aPlayerMarkedSeenHasHisGroundSeenAndWhatStandsThereUnshown() {
         var game = DukeGame.create("seen").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(60, 60);
-        var me = game.addPlayer("Me", Color.BLUE);
-        var them = game.addPlayer("Them", Color.RED);
+        var me = game.addPlayer("Me", Colour.BLUE);
+        var them = game.addPlayer("Them", Colour.RED);
         game.enemies(me, them).localPlayer(me).markMapSeen(me);
         game.spawn("Rifleman", me, 100f, 100f);
         game.spawn("Rifleman", them, 500f, 500f);

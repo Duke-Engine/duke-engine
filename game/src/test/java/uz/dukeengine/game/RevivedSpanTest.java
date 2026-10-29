@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.event.ObjectRevived;
@@ -41,7 +40,7 @@ class RevivedSpanTest {
     void aBridgeKilledAndRevivedJoinsItsBanksAgainAndIsDrawnWholeAndARemovedThingIsRefused() {
         var game = DukeGame.create("Bridges").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40)
                 .addUnits(List.of(RtsTemplate.named("Bridge").module(new ActiveBody.Data(1000f)).build()));
-        var me = game.addPlayer("Me", Color.BLUE);
+        var me = game.addPlayer("Me", Colour.BLUE);
         game.localPlayer(me).spawn("Bridge", me, 200f, 200f).spawn("Rifleman", me, 50f, 200f);
         game.runHeadless(1);
         var logic = game.getLogic();

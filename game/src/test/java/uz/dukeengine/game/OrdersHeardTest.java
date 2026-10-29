@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -39,8 +38,8 @@ class OrdersHeardTest {
     @Test
     void aWeaponlessUnitHearsItsOrdersTheFrameTheyAreAppliedAndSendsItsSoldier() {
         var game = DukeGame.create("hive").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(60, 40);
-        var gla = game.addPlayer("GLA", Color.GREEN);
-        var usa = game.addPlayer("USA", Color.BLUE);
+        var gla = game.addPlayer("GLA", Colour.GREEN);
+        var usa = game.addPlayer("USA", Colour.BLUE);
         game.enemies(gla, usa).localPlayer(gla);
         game.spawn("Barracks", gla, 100f, 100f);
         game.spawn("Rifleman", gla, 120f, 100f);

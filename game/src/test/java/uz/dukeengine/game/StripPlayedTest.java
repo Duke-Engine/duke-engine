@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.event.StripPlayed;
 import uz.dukeengine.core.math.Coord3D;
@@ -14,7 +13,7 @@ class StripPlayedTest {
     @Test
     void aStripInSightIsShownOneInFogIsNotAndAHeadlessGameBreaksNothing() {
         var game = DukeGame.create("Strips").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(80, 80);
-        var me = game.addPlayer("Me", Color.CYAN);
+        var me = game.addPlayer("Me", Colour.CYAN);
         game.localPlayer(me).spawn("Rifleman", me, 100f, 100f);
         game.runHeadless(1);
 

@@ -6,17 +6,17 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.Test;
+import uz.dukeengine.combat.message.CombatOrder;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.ObjectId;
+import uz.dukeengine.game.Colour;
 import uz.dukeengine.game.DukeGame;
 import uz.dukeengine.rts.message.GameMessage;
-import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * The match behind a front end: nobody plays it, it takes no orders, and made again it plays the same way; held back
@@ -40,8 +40,8 @@ class BackdropTest {
     /** The game's recipe: two sides in a fight, and one soldier standing well away from it. */
     private static DukeGame recipe() {
         var game = DukeGame.create("backdrop-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(80, 40).randomSeed(7);
-        var west = game.addPlayer("West", Color.BLUE);
-        var east = game.addPlayer("East", Color.RED);
+        var west = game.addPlayer("West", Colour.BLUE);
+        var east = game.addPlayer("East", Colour.RED);
         game.enemies(west, east);
         game.spawn("Rifleman", west, 700, 350);
         game.spawn("Rifleman", west, 100, 100);
@@ -70,7 +70,7 @@ class BackdropTest {
         var seat = new uz.dukeengine.game.GamePlayer[1];
         var backdrop = new Backdrop(() -> {
             var game = DukeGame.create("adopted").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(80, 40);
-            seat[0] = game.addPlayer("Hero", Color.BLUE);
+            seat[0] = game.addPlayer("Hero", Colour.BLUE);
             game.spawn("Rifleman", seat[0], 100, 100);
             return game;
         }, _ -> NOTHING, _ -> { });

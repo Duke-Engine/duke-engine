@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.Span;
@@ -41,8 +40,8 @@ class SpanTest {
     @Test
     void aBridgeCarriesItsLineAndIsShownFogOrNot() {
         var game = DukeGame.create("Spans").loadUnits(UNITS).map(80, 80);
-        var me = game.addPlayer("Me", Color.CYAN);
-        var them = game.addPlayer("Them", Color.RED);
+        var me = game.addPlayer("Me", Colour.CYAN);
+        var them = game.addPlayer("Them", Colour.RED);
         game.enemies(me, them).localPlayer(me).spawn("Outpost", me, 100f, 100f).spawn("Bridge", them, 600f, 600f);
         game.runHeadless(1);
         var bridge = game.getLogic().getObjects().stream().filter(o -> o.getTemplate().name().equals("Bridge"))

@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.rts.message.GameMessage;
@@ -16,7 +15,7 @@ class ProductionCommandTest {
     @Test
     void queueCommandChargesBuildsAndRalliesTheUnit() {
         var game = DukeGame.create("t").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        var you = game.addPlayer("You", Color.BLUE);
+        var you = game.addPlayer("You", Colour.BLUE);
         game.flavour(uz.dukeengine.rts.RtsFlavour.class).money(you::getIndex, 500);
         game.spawn("Barracks", you, 100, 100);   // id 1 — consumes power,
         game.spawn("PowerPlant", you, 60, 100);  // id 2 — so it needs a plant
@@ -44,8 +43,8 @@ class ProductionCommandTest {
     @Test
     void theSnapshotCarriesTheViewersOwnRallyPointsWithTheirLinesAndNoEnemys() {
         var game = DukeGame.create("t").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        var you = game.addPlayer("You", Color.BLUE);
-        var foe = game.addPlayer("Foe", Color.RED);
+        var you = game.addPlayer("You", Colour.BLUE);
+        var foe = game.addPlayer("Foe", Colour.RED);
         game.enemies(you, foe).localPlayer(you);
         game.spawn("Barracks", you, 100, 100);  // id 1, yours
         game.spawn("Barracks", foe, 300, 100);  // id 2, the enemy's
@@ -66,7 +65,7 @@ class ProductionCommandTest {
     @Test
     void buildMenuIsTheContract() {
         var game = DukeGame.create("t").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        var you = game.addPlayer("You", Color.BLUE);
+        var you = game.addPlayer("You", Colour.BLUE);
         game.flavour(uz.dukeengine.rts.RtsFlavour.class).money(you::getIndex, 5000);
         game.spawn("Barracks", you, 100, 100); // id 1; Builds = Rifleman Tank
 
@@ -82,8 +81,8 @@ class ProductionCommandTest {
     @Test
     void otherPlayersCannotUseYourFactory() {
         var game = DukeGame.create("t").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        var you = game.addPlayer("You", Color.BLUE);
-        var foe = game.addPlayer("Foe", Color.RED);
+        var you = game.addPlayer("You", Colour.BLUE);
+        var foe = game.addPlayer("Foe", Colour.RED);
         game.enemies(you, foe);
         game.flavour(uz.dukeengine.rts.RtsFlavour.class).money(you::getIndex, 500).money(foe::getIndex, 500);
         game.spawn("Barracks", you, 100, 100); // id 1, yours
@@ -99,7 +98,7 @@ class ProductionCommandTest {
     @Test
     void buildOptionsExposeTheMenuForUis() {
         var game = DukeGame.create("t").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        game.addPlayer("You", Color.BLUE);
+        game.addPlayer("You", Colour.BLUE);
         game.runHeadless(1);
 
         var options = game.flavour(uz.dukeengine.rts.RtsFlavour.class).getBuildOptions("Barracks",

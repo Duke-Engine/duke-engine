@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.GameObject;
@@ -87,7 +86,7 @@ class BuildOrderStopsHarvestTest {
     @Test
     void aHarvestingBuilderToldToBuildPutsTheBuildingUpAndTakesNoMoreLoad() {
         var game = DukeGame.create("Building").loadUnits(UNITS).map(60, 60);
-        var me = game.addPlayer("Me", Color.CYAN);
+        var me = game.addPlayer("Me", Colour.CYAN);
         var local = game.localPlayer(me);
         local.spawn("Depot", me, 100f, 100f);
         local.spawn("Pile", me, 400f, 100f);
@@ -125,7 +124,7 @@ class BuildOrderStopsHarvestTest {
     @Test
     void aBuildOrderRefusedLeavesTheWorkAsItWas() {
         var game = DukeGame.create("Broke").loadUnits(UNITS).map(60, 60);
-        var me = game.addPlayer("Me", Color.CYAN);
+        var me = game.addPlayer("Me", Colour.CYAN);
         var local = game.localPlayer(me);
         local.spawn("Depot", me, 100f, 100f);
         local.spawn("Pile", me, 400f, 100f);

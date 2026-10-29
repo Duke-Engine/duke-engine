@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.event.ObjectDied;
@@ -24,9 +23,9 @@ class DeathsHeardTest {
     @Test
     void aTankOfTheSecondSideKillingOneOfTheThirdIsHeardOnceWithTheSecondAsItsKiller() {
         var game = DukeGame.create("deaths-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(80, 40);
-        var one = game.addPlayer("One", Color.BLUE);
-        var two = game.addPlayer("Two", Color.RED);
-        var three = game.addPlayer("Three", Color.GREEN);
+        var one = game.addPlayer("One", Colour.BLUE);
+        var two = game.addPlayer("Two", Colour.RED);
+        var three = game.addPlayer("Three", Colour.GREEN);
         game.enemies(one, two).enemies(two, three).enemies(one, three);
         game.spawn("Rifleman", one, 700, 300);
         game.spawn("Tank", two, 100, 100);
@@ -53,7 +52,7 @@ class DeathsHeardTest {
     @Test
     void aBuildingSoldIsNotHeardAsADeath() {
         var game = DukeGame.create("sold-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(80, 40);
-        var one = game.addPlayer("One", Color.BLUE);
+        var one = game.addPlayer("One", Colour.BLUE);
         game.localPlayer(one);
         game.spawn("Barracks", one, 200, 200);
         var died = new CopyOnWriteArrayList<ObjectDied>();

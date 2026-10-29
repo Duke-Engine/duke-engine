@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import org.junit.jupiter.api.Test;
+import uz.dukeengine.game.Colour;
 import uz.dukeengine.game.DukeGame;
 
 /** The haze and the world picture, each for the maps a game names: an open world's, and none for a descent's floors. */
@@ -28,7 +29,7 @@ class HazePerMapTest {
     void theWorldPictureIsHandedOnlyForTheMapsTheGameNames() {
         var game = DukeGame.create("world-picture-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS)
                 .map(20, 20);
-        game.addPlayer("Alone", java.awt.Color.BLUE);
+        game.addPlayer("Alone", Colour.BLUE);
         game.boot();
         var app = new DukeRtsApp(game, Visuals.create(), Shell.standard(), null, null, null, null, null, null, null);
         var handed = new ArrayList<Picture>();

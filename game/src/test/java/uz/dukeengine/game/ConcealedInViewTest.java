@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.module.Concealment;
 import uz.dukeengine.core.module.Module;
@@ -29,8 +28,8 @@ class ConcealedInViewTest {
     /** A hidden American rifleman firing at a Chinese one beside him, shown to whoever {@code local} is. */
     private static DukeGame match(int local, boolean watch) {
         var game = DukeGame.create("stealth").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(70, 45);
-        var usa = game.addPlayer("USA", Color.BLUE);
-        var china = game.addPlayer("China", Color.RED);
+        var usa = game.addPlayer("USA", Colour.BLUE);
+        var china = game.addPlayer("China", Colour.RED);
         game.enemies(usa, china).localPlayer(local == 1 ? usa : china);
         game.spawn("Rifleman", usa, 50f, 50f);
         game.spawn("Rifleman", china, 70f, 50f);

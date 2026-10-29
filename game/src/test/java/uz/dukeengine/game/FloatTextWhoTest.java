@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.event.TextFloated;
@@ -16,8 +15,8 @@ class FloatTextWhoTest {
     /** An American rifleman hidden from China, beside a Chinese one who would otherwise see him; shown to {@code local}. */
     private static DukeGame match(int local) {
         var game = DukeGame.create("income").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(70, 45);
-        var usa = game.addPlayer("USA", Color.BLUE);
-        var china = game.addPlayer("China", Color.RED);
+        var usa = game.addPlayer("USA", Colour.BLUE);
+        var china = game.addPlayer("China", Colour.RED);
         game.enemies(usa, china).localPlayer(local == 1 ? usa : china);
         game.spawn("Rifleman", usa, 50f, 50f);
         game.spawn("Rifleman", china, 70f, 50f);

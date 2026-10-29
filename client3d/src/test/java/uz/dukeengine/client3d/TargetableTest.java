@@ -3,11 +3,11 @@ package uz.dukeengine.client3d;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.player.PlayerList;
 import uz.dukeengine.core.thing.ObjectStatus;
 import uz.dukeengine.core.view.UnitView;
+import uz.dukeengine.game.Colour;
 import uz.dukeengine.game.DukeGame;
 
 /** A neutral thing the game made a target ({@code objectTargetable}): a plain click attacks it, and no other neutral. */
@@ -16,8 +16,8 @@ class TargetableTest {
     @Test
     void aPlainClickAttacksATargetableNeutralAndNoOtherNeutralNorItsOwn() {
         var game = DukeGame.create("targetable").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40);
-        var me = game.addPlayer("Me", Color.BLUE);
-        var them = game.addPlayer("Them", Color.RED);
+        var me = game.addPlayer("Me", Colour.BLUE);
+        var them = game.addPlayer("Them", Colour.RED);
         game.localPlayer(me).spawn("Rifleman", me, 100f, 100f).spawn("Rifleman", them, 120f, 100f)
                 .spawnNeutral("Rifleman", 100f, 120f).spawnNeutral("Rifleman", 110f, 110f);
         game.runHeadless(1);

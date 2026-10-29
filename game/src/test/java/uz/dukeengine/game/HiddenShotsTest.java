@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.module.ActiveBody;
@@ -60,9 +59,9 @@ class HiddenShotsTest {
                 .addWeapons(List.of(weapon("MineBlast", true), weapon("TrapGun", false)))
                 .addUnits(List.of(shooter("Demo", "MineBlast"), shooter("Trap", "TrapGun"),
                         shooter("Mine", "TrapGun", MINE)));
-        var usa = game.addPlayer("USA", Color.BLUE);
-        var uk = game.addPlayer("UK", Color.GREEN);
-        var china = game.addPlayer("China", Color.RED);
+        var usa = game.addPlayer("USA", Colour.BLUE);
+        var uk = game.addPlayer("UK", Colour.GREEN);
+        var china = game.addPlayer("China", Colour.RED);
         game.enemies(usa, china).enemies(uk, china).allies(usa, uk)
                 .localPlayer(switch (viewer) {
                     case 0 -> usa;

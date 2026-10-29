@@ -4,13 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.client3d.CanvasInput;
 import uz.dukeengine.client3d.MenuStyle;
 import uz.dukeengine.core.view.CommandButton;
+import uz.dukeengine.game.Colour;
 import uz.dukeengine.game.DukeGame;
 import uz.dukeengine.rpg.item.ItemUse;
 import uz.dukeengine.rpg.item.Loot;
@@ -41,7 +41,7 @@ class BagScreenTest {
 
     private DukeGame shown() {
         var game = DukeGame.create("bag-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        game.addPlayer("One", Color.BLUE);
+        game.addPlayer("One", Colour.BLUE);
         screen.show(game, () -> bag, order -> order, canvas -> under.add("under"));
         return game;
     }
@@ -105,7 +105,7 @@ class BagScreenTest {
                         new BuffScreen.Words("Zarba", "Mana/s", "Qon", "Tezlik", "s")),
                 (button, ended) -> armed.add(new Armed(button)), () -> 0L);
         var game = DukeGame.create("worn-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        game.addPlayer("One", Color.BLUE);
+        game.addPlayer("One", Colour.BLUE);
         wearing.show(game, () -> wornBag, order -> {
             sent.add(order);
             return order;

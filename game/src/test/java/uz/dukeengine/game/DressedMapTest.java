@@ -44,7 +44,7 @@ class DressedMapTest {
     @Test
     void theSceneryWithAFootprintStandsInTheWayAndTheRestIsOnlyDrawn() {
         var game = DukeGame.create("Dressed");
-        game.localPlayer(game.addPlayer("Me", java.awt.Color.CYAN));
+        game.localPlayer(game.addPlayer("Me", Colour.CYAN));
         game.applyMapTerrain(new PathGrid(20, 20), new Floor(List.of(
                 new Piece("models/boulder.glb", 10.5f, 10.5f, 1.2f),
                 new Piece("models/grass.glb", 3.5f, 3.5f, 0f))));
@@ -62,7 +62,7 @@ class DressedMapTest {
     @Test
     void aSubdividedMapIsWalkedOnFinerCellsAndCountedInItsOwn() {
         var game = DukeGame.create("Wood");
-        game.localPlayer(game.addPlayer("Me", java.awt.Color.CYAN));
+        game.localPlayer(game.addPlayer("Me", Colour.CYAN));
         var drawn = new PathGrid(20, 20);
         game.applyMapTerrain(drawn, new Wood(List.of(new Piece("models/tree.glb", 10.5f, 10.5f, 0.15f))));
         game.runHeadless(1);

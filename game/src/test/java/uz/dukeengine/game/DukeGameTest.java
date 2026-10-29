@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -24,8 +23,8 @@ class DukeGameTest {
         var game = DukeGame.create("test")
                 .loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS)
                 .map(30, 20);
-        var you = game.addPlayer("You", Color.BLUE);
-        var foe = game.addPlayer("Foe", Color.RED);
+        var you = game.addPlayer("You", Colour.BLUE);
+        var foe = game.addPlayer("Foe", Colour.RED);
         game.enemies(you, foe);
         game.flavour(uz.dukeengine.rts.RtsFlavour.class).money(you::getIndex, 1000);
         game.spawn("Barracks", you, 50, 50)
@@ -47,7 +46,7 @@ class DukeGameTest {
     @Test
     void builtInCommandRoutingMovesUnits() {
         var game = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        var you = game.addPlayer("You", Color.BLUE);
+        var you = game.addPlayer("You", Colour.BLUE);
         game.spawn("Rifleman", you, 0, 0);
 
         game.onStart(g -> g.postCommand(new CombatOrder.MoveTo(
@@ -62,8 +61,8 @@ class DukeGameTest {
     @Test
     void unitsOfOtherPlayersCannotBeCommanded() {
         var game = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        var you = game.addPlayer("You", Color.BLUE);
-        var foe = game.addPlayer("Foe", Color.RED);
+        var you = game.addPlayer("You", Colour.BLUE);
+        var foe = game.addPlayer("Foe", Colour.RED);
         game.enemies(you, foe);
         game.spawn("Rifleman", foe, 0, 0); // id 1, owned by the enemy
 
@@ -78,8 +77,8 @@ class DukeGameTest {
     @Test
     void everySecondsAndDefeatCallbacksFire() {
         var game = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        var you = game.addPlayer("You", Color.BLUE);
-        var foe = game.addPlayer("Foe", Color.RED);
+        var you = game.addPlayer("You", Colour.BLUE);
+        var foe = game.addPlayer("Foe", Colour.RED);
         game.enemies(you, foe);
         game.spawn("Tank", you, 0, 0);
         game.spawn("Rifleman", foe, 20, 0); // within tank range 30 → auto-acquired
@@ -98,7 +97,7 @@ class DukeGameTest {
     @Test
     void unknownTemplateFailsWithHelpfulError() {
         var game = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        game.addPlayer("You", Color.BLUE);
+        game.addPlayer("You", Colour.BLUE);
         game.spawn("Battlecruiser", null, 0, 0);
         var error = assertThrows(IllegalArgumentException.class, () -> game.runHeadless(1));
         assertTrue(error.getMessage().contains("Battlecruiser"));
@@ -108,7 +107,7 @@ class DukeGameTest {
     @Test
     void configurationAfterStartIsRejected() {
         var game = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        game.addPlayer("You", Color.BLUE);
+        game.addPlayer("You", Colour.BLUE);
         game.runHeadless(1);
         assertThrows(IllegalStateException.class, () -> game.map(10, 10));
         assertThrows(IllegalStateException.class, () -> game.loadUnits("Object X\nEnd"));
@@ -118,7 +117,7 @@ class DukeGameTest {
     @Test
     void theLogicRateAndOneStepAreTheGamesToAskOnceItIsBooted() throws InterruptedException {
         var game = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        game.addPlayer("You", Color.BLUE);
+        game.addPlayer("You", Colour.BLUE);
         assertThrows(IllegalStateException.class, () -> game.setLogicRate(2f), "a rate before there is an engine");
         assertThrows(IllegalStateException.class, game::stepOnce);
 
@@ -155,7 +154,7 @@ class DukeGameTest {
     @Test
     void aTaskBetweenFramesRunsAfterAWholeFrameAndWhilePaused() throws InterruptedException {
         var game = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        game.addPlayer("You", Color.BLUE);
+        game.addPlayer("You", Colour.BLUE);
         assertThrows(IllegalStateException.class, () -> game.runBetweenFrames(() -> { }), "before there is an engine");
         var ticks = new java.util.concurrent.atomic.AtomicInteger();
         game.onTick(g -> ticks.incrementAndGet());
@@ -166,7 +165,7 @@ class DukeGameTest {
         assertEquals(List.of(4 * 100 + 4), seen, "not after the attempt's whole frame");
 
         var paused = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        paused.addPlayer("You", Color.BLUE);
+        paused.addPlayer("You", Colour.BLUE);
         var running = paused.startEngineOnly();
         try {
             paused.getLogic().setGamePaused(true);
@@ -192,8 +191,8 @@ class DukeGameTest {
     @Test
     void moveOrderOverridesCurrentTarget() {
         var game = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        var you = game.addPlayer("You", Color.BLUE);
-        var foe = game.addPlayer("Foe", Color.RED);
+        var you = game.addPlayer("You", Colour.BLUE);
+        var foe = game.addPlayer("Foe", Colour.RED);
         game.enemies(you, foe);
         game.spawn("Tank", you, 0, 0);        // id 1
         game.spawn("Barracks", foe, 25, 0);   // id 2, in range

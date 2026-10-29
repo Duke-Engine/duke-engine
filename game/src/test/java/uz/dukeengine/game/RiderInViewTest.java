@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.thing.Kind;
@@ -16,7 +15,7 @@ class RiderInViewTest {
     @Test
     void aRiderIsInTheViewRidingOnItsCarrierAndCannotBeSelectedItself() {
         var game = DukeGame.create("overlord").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40);
-        var china = game.addPlayer("China", Color.RED);
+        var china = game.addPlayer("China", Colour.RED);
         game.localPlayer(china);
         game.spawn("Barracks", china, 100f, 100f);
         game.spawn("Rifleman", china, 100f, 100f);
@@ -38,7 +37,7 @@ class RiderInViewTest {
     @Test
     void aHoldRidingOneKindShowsItsRiderAndNotThoseInside() {
         var game = DukeGame.create("helix").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40);
-        var china = game.addPlayer("China", Color.RED);
+        var china = game.addPlayer("China", Colour.RED);
         game.localPlayer(china);
         game.spawn("Barracks", china, 100f, 100f);
         game.spawn("Tank", china, 100f, 100f);
@@ -68,7 +67,7 @@ class RiderInViewTest {
     @Test
     void aShowingHoldsPassengersAreDrawnWhereTheGameStandsThem() {
         var game = DukeGame.create("firebase").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40);
-        var china = game.addPlayer("China", Color.RED);
+        var china = game.addPlayer("China", Colour.RED);
         game.localPlayer(china);
         game.spawn("Barracks", china, 100f, 100f);
         game.spawn("Barracks", china, 200f, 100f);

@@ -4,10 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import uz.dukeengine.game.Colour;
 import uz.dukeengine.game.DukeGame;
 
 /**
@@ -33,8 +33,8 @@ class MatchLoadTest {
 
     private static DukeGame match() {
         var game = DukeGame.create("load-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 30);
-        var one = game.addPlayer("One", Color.BLUE);
-        var two = game.addPlayer("Two", Color.RED);
+        var one = game.addPlayer("One", Colour.BLUE);
+        var two = game.addPlayer("Two", Colour.RED);
         game.enemies(one, two);
         game.spawn("Rifleman", one, 50, 50);
         game.spawn("Rifleman", two, 250, 50);

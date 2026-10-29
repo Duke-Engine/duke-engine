@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
@@ -56,7 +55,7 @@ class SiteRisesTest {
     @Test
     void aSiteIsSeenRisingFromNothingToWholeAndASoldBuildingSinkingBelowIt() {
         var game = DukeGame.create("Rising").loadUnits(UNITS).map(40, 40);
-        var me = game.addPlayer("Me", Color.CYAN);
+        var me = game.addPlayer("Me", Colour.CYAN);
         game.localPlayer(me).spawn("Dozer", me, 100f, 100f);
         game.flavour(uz.dukeengine.rts.RtsFlavour.class).money(me::getIndex, 1000);
         game.runHeadless(1);

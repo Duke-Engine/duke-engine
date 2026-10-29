@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
@@ -57,8 +56,8 @@ class RememberedThingsTest {
                                 .module(new MoveUpdate.Data(60f)).build()))
                 .remember(thing -> !thing.isMobile())
                 .keepOutOfSight(60, 150);
-        var me = game.addPlayer("Me", Color.BLUE);
-        var them = game.addPlayer("Them", Color.RED);
+        var me = game.addPlayer("Me", Colour.BLUE);
+        var them = game.addPlayer("Them", Colour.RED);
         game.enemies(me, them).localPlayer(me).spawn("Rifleman", me, 100f, 100f);
         game.runHeadless(1);
         if (cells) {

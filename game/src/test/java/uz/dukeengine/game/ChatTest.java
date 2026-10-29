@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.net.ServerSocket;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -19,8 +18,8 @@ class ChatTest {
 
     private static DukeGame match() {
         var game = DukeGame.create("chat-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        var one = game.addPlayer("One", Color.BLUE);
-        var two = game.addPlayer("Two", Color.RED);
+        var one = game.addPlayer("One", Colour.BLUE);
+        var two = game.addPlayer("Two", Colour.RED);
         game.enemies(one, two);
         game.spawn("Rifleman", one, 0, 0);
         game.spawn("Rifleman", two, 300, 0);

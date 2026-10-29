@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -33,7 +32,7 @@ class GameCommandTest {
         var game = DukeGame.create("game-command-test")
                 .loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS)
                 .map(40, 30);
-        var you = game.addPlayer("You", Color.BLUE);
+        var you = game.addPlayer("You", Colour.BLUE);
         game.localPlayer(you);
         return game;
     }
@@ -147,7 +146,7 @@ class GameCommandTest {
         var game = DukeGame.create("game-command-test")
                 .loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS)
                 .map(40, 30);
-        var you = game.addPlayer("You", Color.BLUE);
+        var you = game.addPlayer("You", Colour.BLUE);
         game.localPlayer(you);
         game.onCommand(command -> {
             if (command instanceof Shout call) {

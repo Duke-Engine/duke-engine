@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import org.junit.jupiter.api.Test;
 
 /** The camera as the game drives it: stepped with the logic frames, linear, the same flight every time it is flown. */
@@ -14,7 +13,7 @@ class GameCameraTest {
 
     private static DukeGame watched() {
         var game = DukeGame.create("camera-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(60, 40);
-        game.addPlayer("One", Color.BLUE);
+        game.addPlayer("One", Colour.BLUE);
         return game.observe();
     }
 

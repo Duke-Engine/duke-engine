@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -29,9 +28,9 @@ class ThreePlayerSyncTest {
 
     private static DukeGame newGame() {
         var game = DukeGame.create("mp3-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
-        var one = game.addPlayer("One", Color.BLUE);
-        var two = game.addPlayer("Two", Color.RED);
-        var three = game.addPlayer("Three", Color.GREEN);
+        var one = game.addPlayer("One", Colour.BLUE);
+        var two = game.addPlayer("Two", Colour.RED);
+        var three = game.addPlayer("Three", Colour.GREEN);
         game.enemies(one, two).enemies(one, three).enemies(two, three);
         // Far apart, so nothing fights and the only motion is the ordered kind.
         game.spawn("Rifleman", one, 0, 0);      // id 1

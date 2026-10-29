@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
@@ -30,8 +29,8 @@ class ReplayRoundTripTest {
         var game = DukeGame.create("replay-test")
                 .loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS)
                 .map(60, 40);
-        var you = game.addPlayer("You", Color.BLUE);
-        var foe = game.addPlayer("Foe", Color.RED);
+        var you = game.addPlayer("You", Colour.BLUE);
+        var foe = game.addPlayer("Foe", Colour.RED);
         game.enemies(you, foe).localPlayer(you);
         game.flavour(uz.dukeengine.rts.RtsFlavour.class).money(you::getIndex, 2000).money(foe::getIndex, 2000);
 

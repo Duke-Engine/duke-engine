@@ -1,11 +1,11 @@
 package uz.dukeengine.skirmish;
 
-import java.awt.Color;
 import uz.dukeengine.client3d.Camera;
 import uz.dukeengine.client3d.Duke3D;
 import uz.dukeengine.client3d.EdgeScroll;
 import uz.dukeengine.client3d.Sun;
 import uz.dukeengine.client3d.Visuals;
+import uz.dukeengine.game.Colour;
 import uz.dukeengine.skirmish.content.Content;
 import uz.dukeengine.skirmish.content.Unit;
 

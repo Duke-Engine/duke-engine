@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -41,7 +40,7 @@ class OrdersRefusedTest {
     @Test
     void aRefusingUnitStaysWhereItIsAndHearsNothingWhileTheRestOfTheGroupGoes() {
         var game = DukeGame.create("deaf").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(60, 40);
-        var usa = game.addPlayer("USA", Color.BLUE);
+        var usa = game.addPlayer("USA", Colour.BLUE);
         game.localPlayer(usa);
         game.spawn("Rifleman", usa, 100f, 100f);
         game.spawn("Rifleman", usa, 100f, 140f);

@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import java.awt.Color;
 import org.junit.jupiter.api.Test;
 
 /** The loop the game gives one thing reaches its view while given, and leaves with it, the match's checksum untouched. */
@@ -12,7 +11,7 @@ class AmbientTest {
     @Test
     void theLoopIsInTheViewUntilItIsTakenAwayAndTheChecksumNeverHearsOfIt() {
         var game = DukeGame.create("ambient").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40);
-        var me = game.addPlayer("Me", Color.BLUE);
+        var me = game.addPlayer("Me", Colour.BLUE);
         game.localPlayer(me).spawn("Rifleman", me, 100f, 100f);
         game.runHeadless(1);
         var thing = game.getLogic().getObjects().getFirst();

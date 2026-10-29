@@ -5,13 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.client3d.CanvasInput;
 import uz.dukeengine.client3d.MenuStyle;
+import uz.dukeengine.game.Colour;
 import uz.dukeengine.game.DukeGame;
 import uz.dukeengine.rpg.story.Conversation;
 import uz.dukeengine.rpg.story.Speaker;
@@ -35,7 +35,7 @@ class DialogueScreenTest implements DialogueScreen.Answers {
             () -> "Duke", this);
 
     DialogueScreenTest() {
-        game.addPlayer("One", Color.BLUE);
+        game.addPlayer("One", Colour.BLUE);
         game.runHeadless(1);
     }
 

@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,7 +39,7 @@ class HostLeavesTest {
     static Watched watched(int players, MultiplayerSession session) {
         var game = DukeGame.create("host-leaves").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
         for (int i = 1; i <= players; i++) {
-            game.spawn("Rifleman", game.addPlayer("P" + i, Color.BLUE), 200f * i, 0f); // unit i is player i's
+            game.spawn("Rifleman", game.addPlayer("P" + i, Colour.BLUE), 200f * i, 0f); // unit i is player i's
         }
         var sums = new TreeMap<Integer, Long>();
         var leftAt = new ConcurrentHashMap<Integer, Integer>();

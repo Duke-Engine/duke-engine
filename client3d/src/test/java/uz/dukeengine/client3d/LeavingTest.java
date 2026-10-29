@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
+import uz.dukeengine.game.Colour;
 import uz.dukeengine.game.DukeGame;
 
 /** A game's own rows on the pause menu, and the game told once, with the world still, before its match is let go. */
@@ -20,7 +21,7 @@ class LeavingTest {
     @Test
     void theGameIsToldOnceWithTheWorldStillBeforeItsMatchIsLetGo() {
         var game = DukeGame.create("leaving-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(20, 20);
-        game.addPlayer("Alone", java.awt.Color.BLUE);
+        game.addPlayer("Alone", Colour.BLUE);
         game.boot();
         var app = app(game);
         var told = new AtomicInteger();

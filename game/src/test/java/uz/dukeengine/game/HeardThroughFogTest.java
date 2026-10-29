@@ -3,7 +3,6 @@ package uz.dukeengine.game;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.event.SoundPlayed;
 import uz.dukeengine.core.math.Coord3D;
@@ -13,8 +12,8 @@ class HeardThroughFogTest {
 
     private static DukeGame game(boolean hears) {
         var game = DukeGame.create("fog").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(60, 60).hearThroughFog(hears);
-        var me = game.addPlayer("Me", Color.BLUE);
-        var them = game.addPlayer("Them", Color.RED);
+        var me = game.addPlayer("Me", Colour.BLUE);
+        var them = game.addPlayer("Them", Colour.RED);
         game.enemies(me, them).localPlayer(me).spawn("Rifleman", me, 100f, 100f).spawn("Rifleman", them, 500f, 500f);
         game.runHeadless(1);
         return game;
