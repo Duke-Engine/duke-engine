@@ -57,7 +57,7 @@ Every `Module` subclass in the engine. "Template" = built from a `Data` block;
 | `WeaponUpdate` (+ `Loadout`, `Clip`, `Engagement`, `Firing`, `TargetScan`) | template | target, forced, ground target, order source, point attack, shots left, leeching; each clip's rounds, wait, reloading; locked slot and its lock, set in use; wind-up; last fired at; when it looks next | Saveable; refused while a game `PointAttack` is in hand |
 | `PursueUpdate` | template | where it took its target from, where it planned for, going there, plans | Saveable |
 | `ExperienceModule` | template | experience, rung | Saveable |
-| `AutoHealUpdate` | template | nothing | @Stateless |
+| `AutoHealUpdate` | template, or added (an upgrade) | its rate | Saveable + reviver (5.2) |
 | `StatusUpdate` | template | each timed status and its frames left | Saveable |
 | `AuraUpdate` | template | whom it holds, when it looks next | Saveable |
 
@@ -66,7 +66,7 @@ Every `Module` subclass in the engine. "Template" = built from a `Data` block;
 | Module | How | State | 5.1 |
 |---|---|---|---|
 | `ProductionUpdate` (+ `Job`, door states) | template | the queue (unit or research, progress, paid, reservation id), next job id, units left in a burst, rally point, exit wait, each door's state and frames | Saveable; each job's reservation token written by its `ProductionReservation` (`saveToken`/`loadToken`; the defaults refuse) |
-| `PowerModule` | template | its bonus | Saveable |
+| `PowerModule` | template, or added (a power cut, an upgrade) | its figures, its bonus | Saveable + reviver (5.2) |
 | `CapacityGate` | template | nothing | @Stateless |
 | `SpecialPowerModule` | template | cooldown | Saveable |
 | `ContainModule` | template | passengers in order, shared network, whether passengers fire | Saveable; a shared network's passengers are the RTS world's |

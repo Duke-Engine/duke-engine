@@ -40,5 +40,6 @@ public final class CombatModules {
                 .register(AutoHealUpdate.Data.class, AutoHealUpdate::new)
                 .register(StatusUpdate.Data.class, StatusUpdate::new)
                 .register(AuraUpdate.Data.class, AuraUpdate::new);
+        factory.revives(AutoHealUpdate.class, AutoHealUpdate::revive); // an upgrade's own mending, added in a match
     }
 }

@@ -51,6 +51,7 @@ public final class RtsModules {
                 .register(Crushable.Data.class, Crushable::new)
                 .register(ToppleUpdate.Data.class, ToppleUpdate::new);
         factory.revives(AttackMoveOrder.class, AttackMoveOrder::revive)
+                .revives(PowerModule.class, PowerModule::revive)
                 .revives(GuardOrder.class, GuardOrder::revive)
                 .revives(uz.dukeengine.rts.construction.BuildOrder.class,
                         uz.dukeengine.rts.construction.BuildOrder::revive)

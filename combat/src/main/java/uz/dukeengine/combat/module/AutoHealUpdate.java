@@ -18,18 +18,42 @@ import uz.dukeengine.core.thing.GameObject;
  * health and stops there. A dead unit is never revived.
  */
 @ModuleGroup(ModuleGroups.BODY)
-@uz.dukeengine.core.save.Stateless
-public final class AutoHealUpdate extends UpdateModule {
+public final class AutoHealUpdate extends UpdateModule implements uz.dukeengine.core.save.Saveable {
 
     /** INI config: {@code HealPerSecond}. */
     public record Data(float healPerSecond) implements ModuleData {
     }
 
+    private final float healPerSecond;
     private final float healPerFrame;
 
     public AutoHealUpdate(GameObject owner, Data data) {
         super(owner);
+        this.healPerSecond = data.healPerSecond();
         this.healPerFrame = data.healPerSecond() * GameConstants.SECONDS_PER_LOGICFRAME;
+    }
+
+    /**
+     * Its rate, which is all it holds: the same as its template's for one its template made, and what makes again one a
+     * game added while the match ran (an upgrade's own mending) — see {@link #revive}.
+     */
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeFloat(healPerSecond);
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        float saved = in.readFloat();
+        if (saved != healPerSecond) {
+            throw new uz.dukeengine.core.save.UnsavedModuleException(getClass().getName(), "a self-healer saved at "
+                    + saved + " a second is loaded as its template's, at " + healPerSecond);
+        }
+    }
+
+    /** One added while the match ran, made again at the rate it saved. */
+    public static AutoHealUpdate revive(GameObject owner, uz.dukeengine.core.save.SaveIn in) {
+        return new AutoHealUpdate(owner, new Data(in.readFloat()));
     }
 
     @Override

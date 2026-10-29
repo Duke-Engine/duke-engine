@@ -168,6 +168,22 @@ class PlainModulesResumeTest {
     }
 
     @Test
+    void aSelfHealerAndAPowerSourceAddedInTheMatchAreMadeAgainWithTheirFigures() {
+        var saved = SaveLoadCheck.resumes(() -> rules(new ActiveBody.Data(100f)), logic -> {
+            sides(logic);
+            var thing = thing(logic, 1, 10f, 10f);
+            thing.getBody().damage(60f);
+            thing.addModule(new AutoHealUpdate(thing, new AutoHealUpdate.Data(3f)));
+            var power = new PowerModule(thing, new PowerModule.Data(7, 1));
+            power.setBonus(2);
+            thing.addModule(power);
+        }, (logic, frame) -> {
+        }, 10, 30);
+        assertTrue(saved.contains(AutoHealUpdate.class.getName() + " 3.0"), saved);
+        assertTrue(saved.contains(PowerModule.class.getName() + " 7 1 2"), saved);
+    }
+
+    @Test
     void aPowerPlantKeepsItsBonusAndAGateHoldsNothing() {
         SaveLoadCheck.resumesOnlyWithItsModules(() -> rules(new ActiveBody.Data(500f), new PowerModule.Data(10, 2),
                 new CapacityGate.Data()), logic -> {

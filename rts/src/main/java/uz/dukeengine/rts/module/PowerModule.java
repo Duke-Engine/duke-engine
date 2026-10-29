@@ -54,13 +54,31 @@ public final class PowerModule extends Module implements uz.dukeengine.core.save
         return consumed;
     }
 
+    /**
+     * What its block says it produces and draws, then its bonus: the block's figures are its template's for one its
+     * template made, and what makes again one a game added while the match ran (a power cut, an upgrade) — {@link
+     * #revive}.
+     */
     @Override
     public void save(uz.dukeengine.core.save.SaveOut out) {
-        out.writeInt(bonus);
+        out.writeInt(produced).writeInt(consumed).writeInt(bonus);
     }
 
     @Override
     public void load(uz.dukeengine.core.save.SaveIn in) {
+        int savedProduced = in.readInt();
+        int savedConsumed = in.readInt();
+        if (savedProduced != produced || savedConsumed != consumed) {
+            throw new uz.dukeengine.core.save.UnsavedModuleException(getClass().getName(), "power saved as "
+                    + savedProduced + "/" + savedConsumed + " is loaded as its template's, " + produced + "/" + consumed);
+        }
         bonus = in.readInt();
+    }
+
+    /** One added while the match ran, made again with the figures and the bonus it saved. */
+    public static PowerModule revive(GameObject owner, uz.dukeengine.core.save.SaveIn in) {
+        var power = new PowerModule(owner, new Data(in.readInt(), in.readInt()));
+        power.bonus = in.readInt();
+        return power;
     }
 }
