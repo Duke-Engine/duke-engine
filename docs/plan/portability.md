@@ -139,12 +139,23 @@ Measured on a scratch Gradle project (JDK 25, Gradle 9.3.1, TeaVM and Gradle plu
 - GraalVM Native Image: providers listed in `META-INF/services` on the build class path are registered automatically; nothing extra is needed. Not verified (no `native-image` here).
 - TeaVM: its classlib implements `ServiceLoader` from `META-INF/services` read at compile time, so providers must be on the TeaVM class path when it compiles. Not verified in the probe (the probe reached no `ServiceLoader`). `client3d/HudPart` is moot until there is a browser client.
 
+## Android
+
+Measured on a scratch app (AGP 9.2.1, Gradle 9.4.1, compileSdk 36, targetSdk 35, jME 3.7.0-stable with `jme3-android` and `jme3-android-native`) on a Vivo V2247 phone, Android 15 (API 35), arm64-v8a. Nothing in the repo was changed except this section.
+
+- **jME runs:** `AndroidHarness` with a `SimpleApplication` opened and drew a lit spinning box (OpenAL renderer started).
+- **Java 25 bytecode is accepted as is:** `assembleDebug` (D8) and `assembleRelease` (R8 minify) both pass with the `core`, `combat`, `rts`, `game` 0.8.0 jars (class version 69), no warnings, no recompile at a lower release. Two catches in the app module: the Gradle JVM must be JDK 25 (with JDK 21 it fails "invalid source release: 25"); the DSL `compileOptions` cannot be 25 (AGP 9's built-in Kotlin: "Unknown Kotlin JVM target: 25"), so it stays 21 and the `JavaCompile` tasks get source/target 25 in `afterEvaluate`, else javac rejects the jars ("wrong version 69.0, should be 65.0").
+- **minSdk 35 works with no source changes.** On the phone `List.getFirst/getLast` and `Math.clamp` ran correctly.
+- **Lower than 35 needs engine changes.** `Math.clamp` (API 35) is backported by D8 at minSdk 26. `List/ArrayList.getFirst/getLast/removeFirst/removeLast`, `LinkedHashSet/SortedSet.getFirst` (API 35) are not: D8, R8 and `desugar_jdk_libs` 2.1.5 all leave them, lint NewApi flags them at minSdk 26, and they would throw `NoSuchMethodError` before 35. Also flagged: `ServiceLoader.stream`, `CharSequence.isEmpty`, `InputStream.readAllBytes`, `URLEncoder.encode(String, Charset)`/`URLDecoder.decode`, `Thread.onSpinWait`, `String.formatted`, `Path.of` (API 33 to 34), `Class.isRecord`/`getRecordComponents`/`RecordComponent` in `Shapes`/`Binder` (API 34), `Files.readString` in `DukeGame.loadUnitsFile` (API 36 jar only).
+- **Headless game fails on `java.awt.Color`, as expected:** `DukeGame.create(..).loadUnits(..).map(80, 80)` works; `addPlayer(name, Color)` throws `NoClassDefFoundError: java/awt/Color`. Without a player `runHeadless` refuses to start, so no logic frame ran yet. An Android caller cannot even compile against `addPlayer` without a stub `java.awt.Color`. By `jdeps`, `java.awt`/`javax.swing` are only in `game` (`DukeGame`, `GamePlayer`, `Roster`, `swing/*`); `java.nio.file` is in `core/map` and `DukeGame`.
+- Not verified: any device below API 35 (older APIs are from lint and the dex only); the release APK was built but not run.
+
 ## Summary by platform
 
 | Target | State | What stands in the way | Next step |
 |---|---|---|---|
 | Desktop JVM | works | nothing | jpackage installer; GraalVM Native Image only if startup or size matters |
-| Android | not tried | logic modules need Java 21 sources at least (9 `_` sites in `core` at 21; 17 means 86 pattern-switch sites and ~74 newer API calls); `client3d` has 18 desktop-only files, no Android client exists | check what the Android toolchain accepts at 21, then write a client |
+| Android | jME runs on a phone; engine jars at Java 25 dex fine, minSdk 35 | `java.awt.Color` in the `game` API; below API 35 the SequencedCollection calls and a few API 33/34 calls; `client3d` has 18 desktop-only files, no Android client exists | take AWT out of `game`, split `client3d`, write the Android client |
 | Browser | `core` compiles and runs under Node (TeaVM 0.16.0, Wasm GC), for the code a probe reaches | TeaVM lacks `Class.isRecord`, record components, sealed reflection and four JDK methods; `Binder` reads generated shapes now, but `Shapes` still falls back to reflection for JDK types, and 16 private records stay reflective | built-in shapes for JDK types and no reflective fallback under TeaVM, then widen the probe to `Binder` with real data |
 | GraalVM native | not tried (`native-image` not installed) | reflection metadata only for the private records left to reflection (tracing agent can produce it) | install GraalVM CE, run a probe with the agent |
 | iOS | out of scope | no maintained Java AOT toolchain for Java 25 found | none |
