@@ -13,7 +13,24 @@ class HiddenFromEnemiesTest {
     private static final Visuals VISUALS = Visuals.create()
             .unit("Cache", look -> look.model("models/cache.glb").hiddenFromEnemies())
             .unit("Tank", look -> look.model("models/tank.glb"))
-            .unit("Birds", Visuals.UnitVisual::noShape);
+            .unit("Birds", Visuals.UnitVisual::noShape)
+            .unit("Crate", look -> look.model("models/crate.glb").shownOnlyTo((crate, viewer) -> viewer == 2 || viewer < 0));
+
+    /** A neutral thing as every viewer's frame has it: nobody's enemy, so {@code hostile} is false for all. */
+    private static final uz.dukeengine.core.view.UnitView NEUTRAL_CRATE = new uz.dukeengine.core.view.UnitView(
+            7, "Crate", 0, 10f, 10f, 0f, 1f, 1f, false, true, false, false, -1);
+
+    @Test
+    void aNeutralThingIsShownAndPickedOnlyToTheViewersItsRuleNames() {
+        var crate = VISUALS.of("Crate");
+
+        assertTrue(crate.shownTo(NEUTRAL_CRATE, 2), "the player the rule names");
+        assertTrue(crate.pickableBy(NEUTRAL_CRATE, 2));
+        assertTrue(crate.shownTo(NEUTRAL_CRATE, -1), "an observer, who is nobody");
+        assertFalse(crate.shownTo(NEUTRAL_CRATE, 1), "anyone else, though nobody takes a neutral for an enemy");
+        assertFalse(crate.pickableBy(NEUTRAL_CRATE, 1));
+        assertTrue(VISUALS.of("Tank").shownTo(NEUTRAL_CRATE, 1), "a look with no rule is everyone's");
+    }
 
     @Test
     void itsOwnersSideAndANeutralSeeAndPickItAndAnEnemyDoesNot() {

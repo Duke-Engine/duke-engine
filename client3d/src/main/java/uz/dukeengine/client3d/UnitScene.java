@@ -376,7 +376,7 @@ final class UnitScene {
             if (outOfSight(view)) {
                 continue; // behind a wall: not drawn, and taken away if it was
             }
-            if (!looks.visualFor(view).shownTo(view.hostile())) {
+            if (!looks.visualFor(view).shownTo(view, game.getLocalPlayerIndex())) {
                 selected.remove(view.id());
                 continue; // kept from this viewer's side: not drawn either, as behind a wall
             }
@@ -450,7 +450,7 @@ final class UnitScene {
      */
     /** Whether a click or a box may take this thing: selectable, with a shape, and shown to this viewer. */
     boolean pickable(UnitView view) {
-        return looks.visualFor(view).pickableBy(view.selectable(), view.hostile());
+        return looks.visualFor(view).pickableBy(view, game.get().getLocalPlayerIndex());
     }
 
     private boolean outOfSight(UnitView view) {

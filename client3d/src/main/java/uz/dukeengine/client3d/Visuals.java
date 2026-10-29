@@ -1011,9 +1011,34 @@ public final class Visuals {
             return !(hostile && hidesFromEnemies);
         }
 
+        /** Who else it is kept from — see {@link #shownOnlyTo}; null for no one. */
+        java.util.function.BiPredicate<uz.dukeengine.core.view.UnitView, Integer> shownToViewer;
+
+        /**
+         * It is drawn, and picked, only where {@code viewer} answers true for the thing as this frame's view has it and
+         * the viewing player's index ({@code -1} for an observer, who is nobody): a rule of the viewer rather than of
+         * the owner, for what {@link #hiddenFromEnemies} cannot say — a neutral thing, which is nobody's enemy, shown
+         * only to the players who may pick it up (the reference's salvage crate, seen by {@code SCIENCE_GLA}'s player
+         * and an observer). Both rules hold where a look says both.
+         */
+        public UnitVisual shownOnlyTo(java.util.function.BiPredicate<uz.dukeengine.core.view.UnitView, Integer> viewer) {
+            shownToViewer = Objects.requireNonNull(viewer, "viewer");
+            return this;
+        }
+
         /** Whether a click or a box may take a thing that is {@code selectable} to a viewer {@code hostile} to it. */
         boolean pickableBy(boolean selectable, boolean hostile) {
             return selectable && !shapeless && shownTo(hostile);
+        }
+
+        /** Whether the player {@code viewer} ({@code -1}: an observer) is shown this thing at all. */
+        boolean shownTo(uz.dukeengine.core.view.UnitView thing, int viewer) {
+            return shownTo(thing.hostile()) && (shownToViewer == null || shownToViewer.test(thing, viewer));
+        }
+
+        /** Whether a click or a box of the player {@code viewer} may take this thing. */
+        boolean pickableBy(uz.dukeengine.core.view.UnitView thing, int viewer) {
+            return thing.selectable() && !shapeless && shownTo(thing, viewer);
         }
 
         public UnitVisual model(String assetPath) {
