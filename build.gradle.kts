@@ -108,6 +108,8 @@ val published = mapOf(
     "game-swing" to "A 2D Swing window over the DukeGame facade: select with the left button, order with the right.",
     "client3d" to "The 3D client on jMonkeyEngine: model loading, skeletal animation, positional sound, an RTS "
         + "camera, effects, menus and a minimap.",
+    "client3d-desktop" to "The desktop side of the 3D client: the platform interfaces answered with AWT, Swing and GLFW, "
+        + "so a game gets fonts, picture files, settings and a window by depending on it.",
     "rts-client-3d" to "The RTS's part of the 3D client: what its window sends that only an RTS has words for — a "
         + "building's rally point and its build menu.",
     "rpg-client-3d" to "The RPG's part of the 3D client: the hero's bar and portrait, the skill cards, the bag "

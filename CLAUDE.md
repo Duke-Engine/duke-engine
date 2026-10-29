@@ -81,7 +81,8 @@ core is pure Java; a render/audio backend comes later.
     `javax.imageio`, `org.lwjgl`, `android.*`, `com.jme3.system.lwjgl` or `com.jme3.app.Android*`, and files
     are reached only through an interface (`core/map` is that interface for maps).
   - *Platform* — one platform's side of the interfaces, knowing no rule of any game: `game-swing` (the 2D Swing
-    window), and the desktop and Android halves of the 3D client once they are split out.
+    window), `client3d-desktop` (the 3D client's desktop half, behind `ClientPlatform`), and
+    `client3d-android` once it is written.
   - *Launcher* — only wires a game to a platform, no logic: `skirmish`, and a game's own desktop and Android mains.
   - The arrow runs launcher → platform → neutral client → `game` → `combat` → `core`, never back. A neutral module
     never knows a platform or a launcher, one platform never knows another, and a platform knows no kind of game

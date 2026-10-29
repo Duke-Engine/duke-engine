@@ -12,4 +12,6 @@ dependencies {
     api(project(":action"))
     // A kind of game for the tests' matches to run on; the module itself names none.
     testImplementation(project(":rts"))
+    // The platform the tests run on.
+    testRuntimeOnly(project(":client3d-desktop"))
 }

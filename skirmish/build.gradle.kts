@@ -8,6 +8,8 @@ dependencies {
     implementation(project(":rts-client-3d"))
     // The starter set: the effects every game may use, and the art they are drawn with.
     implementation(project(":kit"))
+    // The desktop to run it on.
+    runtimeOnly(project(":client3d-desktop"))
 }
 
 application {

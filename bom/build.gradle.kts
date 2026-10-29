@@ -20,6 +20,7 @@ dependencies {
         api(project(":game"))
         api(project(":game-swing"))
         api(project(":client3d"))
+        api(project(":client3d-desktop"))
         api(project(":rts-client-3d"))
         api(project(":rpg-client-3d"))
         api(project(":action"))

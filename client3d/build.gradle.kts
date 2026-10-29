@@ -15,4 +15,6 @@ dependencies {
     implementation("org.jmonkeyengine:jme3-jogg:$jmeVersion")    // .ogg sound loading
     // A kind of game for the tests' matches to run on; the client itself names none.
     testImplementation(project(":rts"))
+    // The platform the tests run on; the client itself names none.
+    testImplementation(project(":client3d-desktop"))
 }

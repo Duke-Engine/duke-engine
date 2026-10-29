@@ -5,6 +5,7 @@ when it does, this page says exactly what to change and how.
 
 ## Unreleased
 
+- **`client3d-desktop`**, a new platform module (`uz.duke-engine:client3d-desktop`), and `client3d`'s `platform` package: `ClientPlatform.get()` finds the platform on the classpath. Nothing uses it yet; a launcher adds the module to its runtime classpath.
 - `client3d`: a game's own scene in the world (`Duke3D.scene`, `SceneLayer`), and the player's own eyes in place of the RTS camera — WASD, a held mouse, a cross and what is under it within reach (`Duke3D.firstPerson`, `FirstPersonCamera`).
 - **A player's colour is a `uz.dukeengine.game.Colour`** (one ARGB int, AWT's packing and its named colours), so the API
   names no desktop toolkit: `addPlayer(name, Colour.RED)`, `getColour(index)`, `GamePlayer.getColour()`. The AWT
