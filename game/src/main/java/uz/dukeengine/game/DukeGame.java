@@ -753,7 +753,10 @@ public final class DukeGame {
         return this;
     }
 
-    /** The recording so far. Empty if {@link #recordReplay()} was never called. */
+    /**
+     * The recording so far, whole up to the last frame written; safe from any thread while the match runs. Empty if
+     * {@link #recordReplay()} was never called.
+     */
     public String getReplayText() {
         return recorder == null ? "" : recorder.toText();
     }

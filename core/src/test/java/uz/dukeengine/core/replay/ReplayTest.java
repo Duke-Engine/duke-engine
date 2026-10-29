@@ -194,6 +194,32 @@ class ReplayTest {
                 "a world that issues its own commands must still replay exactly");
     }
 
+    /**
+     * A game keeps the recording from its window's thread as the match ends, while the simulation's thread may still
+     * be writing frames: every text read is whole, the header and then a line for each frame, never a torn list.
+     */
+    @Test
+    void theRecordingCanBeReadWhileItIsWritten() throws Exception {
+        var recorder = new ReplayRecorder(CODEC);
+        var writer = Thread.ofPlatform().start(() -> {
+            for (int frame = 1; frame <= 20_000; frame++) {
+                recorder.checkpoint(frame, frame);
+            }
+        });
+        int reads = 0;
+        while (writer.isAlive() || reads == 0) {
+            var text = recorder.toText();
+            var lines = text.split("\n");
+            assertEquals(ReplayRecorder.HEADER, lines[0]);
+            assertTrue(text.endsWith("\n"), "a read caught a line half written");
+            Replay.parse(text, CODEC); // every line in it a whole one
+            reads++;
+        }
+        writer.join();
+        assertEquals(20_000, recorder.getLastFrame());
+        assertEquals(20_001, recorder.toText().split("\n").length);
+    }
+
     @Test
     void somethingThatIsNotARecordingIsRejected() {
         assertThrows(IllegalArgumentException.class, () -> Replay.parse("hello\n", CODEC));

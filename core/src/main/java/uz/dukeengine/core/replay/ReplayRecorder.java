@@ -20,6 +20,9 @@ import uz.dukeengine.core.network.PacketCodec;
  * one back and finding a world that no longer matches is a determinism failure
  * caught in a build, on a machine, with a frame number — rather than in a real
  * game, on somebody else's machine, with nothing to go on.
+ *
+ * <p>The simulation's thread writes it; another may read it at any moment (a game
+ * keeping the recording as its match ends), so every method holds the lock.
  */
 public final class ReplayRecorder implements FrameLog {
 
@@ -45,7 +48,7 @@ public final class ReplayRecorder implements FrameLog {
     }
 
     @Override
-    public void commands(int frame, List<Command> commands) {
+    public synchronized void commands(int frame, List<Command> commands) {
         lastFrame = Math.max(lastFrame, frame);
         lines.add(NetFraming.encode(new CommandPacket(frame, ALL_PLAYERS, commands), codec));
     }
@@ -56,18 +59,18 @@ public final class ReplayRecorder implements FrameLog {
     }
 
     @Override
-    public void checkpoint(int frame, long checksum) {
+    public synchronized void checkpoint(int frame, long checksum) {
         lastFrame = Math.max(lastFrame, frame);
         lines.add(NetFraming.encode(new FrameChecksum(frame, ALL_PLAYERS, checksum), codec));
     }
 
     /** The last frame this recording covers. */
-    public int getLastFrame() {
+    public synchronized int getLastFrame() {
         return lastFrame;
     }
 
     /** The recording so far, ready to write to a file or hand to {@link Replay}. */
-    public String toText() {
+    public synchronized String toText() {
         return String.join("\n", lines) + "\n";
     }
 }
