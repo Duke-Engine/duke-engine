@@ -780,10 +780,9 @@ public final class WeaponUpdate extends UpdateModule implements uz.dukeengine.co
             return false;
         }
         for (var carrier : world.getObjects()) {
-            for (var module : carrier.getModules()) {
-                if (module instanceof Hold hold && hold.passengerFires(passenger)) {
-                    return true;
-                }
+            // Asked of every thing for every passenger every frame: its modules read in place, not copied.
+            if (carrier.anyModule(module -> module instanceof Hold hold && hold.passengerFires(passenger))) {
+                return true;
             }
         }
         return false;
