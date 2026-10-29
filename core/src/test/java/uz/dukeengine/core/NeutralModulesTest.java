@@ -22,7 +22,8 @@ class NeutralModulesTest {
             "client3d", "rts-client-3d", "rpg-client-3d", "client3d-action");
 
     private static final Pattern PLATFORM = Pattern.compile("\\b(java\\.awt|javax\\.swing|javax\\.imageio|org\\.lwjgl"
-            + "|android|com\\.jme3\\.system\\.lwjgl|com\\.jme3\\.app\\.Android\\w*)\\.");
+            + "|android|com\\.jme3\\.system\\.lwjgl|com\\.jme3\\.app\\.Android\\w*)\\."
+            + "|\\bcom\\.jme3\\.(texture\\.plugins\\.AWT\\w*|system\\.JmeDesktopSystem)\\b");
 
     private static final Pattern FILES = Pattern.compile("\\bjava\\.io\\.File\\b|\\bjava\\.nio\\.file\\b");
 
