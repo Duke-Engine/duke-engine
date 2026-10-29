@@ -64,6 +64,13 @@ final class ArtLoad implements MatchLoad.Art {
         }
 
         /**
+         * What a load has read, and what it has shown the card, in this window: the next load skips them. The
+         * second match's load read and warmed all of Generals' art again, and kept a second copy of every model.
+         */
+        private final java.util.Set<String> readAlready = java.util.concurrent.ConcurrentHashMap.newKeySet();
+        private final java.util.Set<String> warmedAlready = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+        /**
          * @param sound a sound made ready to play, so the first time it is heard is not the first time it is read
          */
         Store(AssetManager assetManager, RenderManager renderManager, Bodies bodies, Node rootNode,
@@ -144,6 +151,7 @@ final class ArtLoad implements MatchLoad.Art {
                 byPath.putIfAbsent(path, new Warm(look, path));
             }
         }
+        byPath.keySet().removeAll(store.warmedAlready);
         return List.copyOf(byPath.values());
     }
 
@@ -203,15 +211,19 @@ final class ArtLoad implements MatchLoad.Art {
     private void readOne(Preload.Job job) {
         reading = job.assetPath();
         try {
+            if (job.kind() == Preload.Kind.SOUND || store.readAlready.contains(job.assetPath())) {
+                // A sound's node is the render thread's: it goes into the scene, and the
+                // scene is not this thread's to touch. Its samples are read with the others.
+                return;
+            }
             switch (job.kind()) {
                 case MODEL, TILE -> store.keep(store.assetManager.loadModel(job.assetPath()));
                 case ANIMATIONS -> store.bodies.readLibrary(job.assetPath());
                 case TEXTURE -> store.keep(store.assetManager.loadTexture(job.assetPath()));
-                // A sound's node is the render thread's: it goes into the scene, and the
-                // scene is not this thread's to touch. Its samples are read with the others.
                 case SOUND -> {
                 }
             }
+            store.readAlready.add(job.assetPath());
         } catch (RuntimeException | LinkageError _) {
             store.missing.warn(job.assetPath(), job.kind().name().toLowerCase(
                     java.util.Locale.ROOT));
@@ -226,8 +238,10 @@ final class ArtLoad implements MatchLoad.Art {
     private void readSound(String path) {
         reading = path;
         try {
-            // AudioNode(assetManager, path, Buffer)'s own key: not streamed, cached.
-            store.keep(store.assetManager.loadAsset(new com.jme3.audio.AudioKey(path, false, true)));
+            if (store.readAlready.add(path)) {
+                // AudioNode(assetManager, path, Buffer)'s own key: not streamed, cached.
+                store.keep(store.assetManager.loadAsset(new com.jme3.audio.AudioKey(path, false, true)));
+            }
         } catch (RuntimeException | LinkageError _) {
             // Said once, by the render thread, as it makes the node.
         } finally {
@@ -313,6 +327,7 @@ final class ArtLoad implements MatchLoad.Art {
             store.warmNode.attachChild(body);
             store.rootNode.updateGeometricState();
             store.renderManager.preloadScene(body);
+            store.warmedAlready.add(one.path());
         } catch (RuntimeException _) {
             store.missing.warn(one.path(), "model");
         }
