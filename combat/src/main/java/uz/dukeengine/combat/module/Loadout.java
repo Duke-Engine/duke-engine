@@ -322,7 +322,7 @@ final class Loadout {
             }
             float damage = victim.getBody() == null ? 0f
                     : victim.getBody().estimateDamage(Hands.dealt(owner, one.weapon(), one.weapon().damage()),
-                            one.weapon().damageType());
+                            one.weapon().damageType(), one.weapon().name());
             if (damage <= 0f) {
                 continue;
             }

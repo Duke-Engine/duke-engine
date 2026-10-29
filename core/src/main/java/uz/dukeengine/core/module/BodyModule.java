@@ -197,6 +197,16 @@ public abstract class BodyModule extends Module {
         return Math.max(0f, amount);
     }
 
+    /**
+     * The same, as the weapon named {@code weapon} weighs it — what a unit choosing between its weapons asks: SAGE's
+     * {@code WeaponTemplate::estimateWeaponTemplateDamage}, whose rules of the weapon come before the body's (its
+     * {@code AllowAttackGarrisonedBldgs}: something at a building it may clear, whatever its armour says). A body
+     * with no rule of a weapon's own answers as {@link #estimateDamage(float, DamageType)}, which is this default.
+     */
+    public float estimateDamage(float amount, DamageType type, String weapon) {
+        return estimateDamage(amount, type);
+    }
+
     /** Restore {@code amount} of health, clamped to the maximum. */
     public abstract void heal(float amount);
 
