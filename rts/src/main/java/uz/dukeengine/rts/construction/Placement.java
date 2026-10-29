@@ -3,6 +3,7 @@ package uz.dukeengine.rts.construction;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.pathfind.PathGrid;
 import uz.dukeengine.core.thing.Footprint;
+import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.Solid;
 import uz.dukeengine.core.thing.ThingTemplate;
 import uz.dukeengine.core.thing.World;
@@ -101,25 +102,40 @@ public final class Placement {
         if (riseUnder(grid, print, place, reach, cell) > rules.maxRise()) {
             return Fit.TOO_STEEP;
         }
-        // In the order the world holds them, which is creation order: the answer never depends on it, but a
-        // question asked the same way twice is a question that cannot be answered two ways.
-        for (var other : world.getObjects()) {
-            if (refuses(other, rules) && Footprint.of(other).overlaps(print)) {
-                return Fit.IN_THE_WAY;
-            }
+        if (inTheWay(world, print, rules).findAny().isPresent()) {
+            return Fit.IN_THE_WAY;
         }
-        for (var clear : rules.keptClear()) {
-            if (!clear.template().equals(template.name())) {
-                continue;
-            }
-            for (var other : world.getObjects()) {
-                if (!other.isEffectivelyDead() && clear.from().test(other)
-                        && Footprint.of(other).separation(print) < clear.border()) {
-                    return Fit.TOO_CLOSE_TO_KIND;
-                }
-            }
+        if (tooClose(world, template, print, rules).findAny().isPresent()) {
+            return Fit.TOO_CLOSE_TO_KIND;
         }
         return Fit.FITS;
+    }
+
+    /**
+     * What stands against a site of {@code template} at {@code place}, facing {@code facing} degrees: first every
+     * thing in its way ({@link Fit#IN_THE_WAY}), then every thing of a kind it is kept clear of that stands too close
+     * ({@link Fit#TOO_CLOSE_TO_KIND}), each once, in the order the world holds them — what a client lays a red mark
+     * under (the reference's {@code BuildAssistant::isLocationLegalToBuild} and its {@code addFactionBib}). Only what
+     * stands there: the ground, the edge and what a side has seen are {@link #check}'s alone. Empty where nothing does.
+     */
+    public static java.util.List<GameObject> blockers(World world, ThingTemplate template, Coord3D place, float facing,
+            PlacementRules rules) {
+        var print = new Footprint(Solid.of(template), place, (float) StrictMath.toRadians(facing));
+        return java.util.stream.Stream.concat(inTheWay(world, print, rules), tooClose(world, template, print, rules))
+                .distinct().toList();
+    }
+
+    // In the order the world holds them, which is creation order: the answer never depends on it, but a question
+    // asked the same way twice is a question that cannot be answered two ways.
+    private static java.util.stream.Stream<GameObject> inTheWay(World world, Footprint print, PlacementRules rules) {
+        return world.getObjects().stream().filter(other -> refuses(other, rules) && Footprint.of(other).overlaps(print));
+    }
+
+    private static java.util.stream.Stream<GameObject> tooClose(World world, ThingTemplate template, Footprint print,
+            PlacementRules rules) {
+        return rules.keptClear().stream().filter(clear -> clear.template().equals(template.name()))
+                .flatMap(clear -> world.getObjects().stream().filter(other -> !other.isEffectivelyDead()
+                        && clear.from().test(other) && Footprint.of(other).separation(print) < clear.border()));
     }
 
     /**
@@ -143,7 +159,7 @@ public final class Placement {
      * Whether {@code other} refuses a site standing over it: a thing that does not move, standing and taking up room,
      * and of no kind the rules let a site stand over ({@link PlacementRules#standsOver}).
      */
-    static boolean refuses(uz.dukeengine.core.thing.GameObject other, PlacementRules rules) {
+    static boolean refuses(GameObject other, PlacementRules rules) {
         if (other.isMobile() || other.isEffectivelyDead() || other.getGeometry() == null
                 || other.getGeometry().footprintRadius() <= 0f) {
             return false;
