@@ -112,4 +112,21 @@ class UnitLightsTest {
                 "two flashers in a street do not blink as one");
         assertEquals(1f, UnitLights.brightness(new Visuals.ThingLight(0xFFFFFF, 5f), 9, 0.3f), "steady means steady");
     }
+
+    @Test
+    void aLightOfSeveralColoursTakesTheNextEachTimeItFlickersRound() {
+        var police = new Visuals.ThingLight(List.of(0xFF0000, 0x0000FF, 0xFFFFFF), 12f, 2f, 0.6f, 4f);
+        assertEquals(0xFF0000, police.colour(), "its colour is the first of them");
+
+        var seen = new java.util.ArrayList<Integer>();
+        for (int round = 0; round < 3; round++) {
+            seen.add(UnitLights.colourAt(police, 0, round * 0.25f + 0.01f));
+        }
+        assertEquals(List.of(0xFF0000, 0x0000FF, 0xFFFFFF), seen, "red, blue, white, a quarter second each");
+        assertEquals(0xFF0000, UnitLights.colourAt(police, 0, 0.76f), "and round again");
+        assertEquals(0xFF0000, UnitLights.colourAt(
+                new Visuals.ThingLight(List.of(0xFF0000, 0x0000FF), 12f, 2f, 0f, 0f), 0, 5f), "a steady one burns the first");
+        assertEquals(List.of(0x3050FF), FLASHER.colours(), "one colour is a list of one");
+        assertEquals(0x3050FF, UnitLights.colourAt(FLASHER, 4, 1.3f));
+    }
 }

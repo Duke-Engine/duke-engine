@@ -2433,11 +2433,28 @@ public final class Visuals {
      * lies within {@code radius} of a point {@code height} over its feet (a radius of 0 or less is no light — jME reads
      * it as reaching everything), and dimming and brightening {@code hertz} times a second by up to {@code flicker}
      * of its strength (0 burns steadily, 1 goes right out between). Each thing's flicker starts at a phase of its own.
+     *
+     * <p>{@code colours}, where it has more than one, are taken in turn, the next each time it flickers round ({@code
+     * hertz} times a second) — a police flasher's red, blue and white; a steady light burns the first. Null or empty is
+     * {@code colour} alone, and {@code colour} is otherwise the first of them.
      */
-    public record ThingLight(int colour, float radius, float height, float flicker, float hertz) {
+    public record ThingLight(int colour, float radius, float height, float flicker, float hertz,
+            java.util.List<Integer> colours) {
 
         public ThingLight {
             flicker = Math.clamp(flicker, 0f, 1f);
+            colours = colours == null || colours.isEmpty() ? java.util.List.of(colour) : java.util.List.copyOf(colours);
+            colour = colours.getFirst();
+        }
+
+        /** A light of one colour. */
+        public ThingLight(int colour, float radius, float height, float flicker, float hertz) {
+            this(colour, radius, height, flicker, hertz, null);
+        }
+
+        /** A light that takes {@code colours} in turn, one each time it flickers round. */
+        public ThingLight(java.util.List<Integer> colours, float radius, float height, float flicker, float hertz) {
+            this(colours.getFirst(), radius, height, flicker, hertz, colours);
         }
 
         /** A steady light at the thing's feet. */

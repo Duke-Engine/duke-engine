@@ -50,7 +50,7 @@ final class UnitLights {
             kept.add(line.id());
             lamp.setPosition(line.at().add(0f, look.height(), 0f));
             lamp.setRadius(look.radius());
-            lamp.setColor(rgb(look.colour()).mult(brightness(look, line.id(), seconds)));
+            lamp.setColor(rgb(colourAt(look, line.id(), seconds)).mult(brightness(look, line.id(), seconds)));
         }
         burning.entrySet().removeIf(one -> {
             boolean out = !kept.contains(one.getKey());
@@ -69,6 +69,16 @@ final class UnitLights {
         // Each thing at a phase of its own, or every flasher in a street would blink as one.
         float swing = FastMath.sin(FastMath.TWO_PI * (look.hertz() * seconds + id * 0.37f));
         return 1f - look.flicker() * 0.5f * (1f + swing);
+    }
+
+    /** Which of its colours a thing's light burns {@code seconds} in: the next each flicker round, from its phase. */
+    static int colourAt(Visuals.ThingLight look, int id, float seconds) {
+        var colours = look.colours();
+        if (colours.size() == 1 || look.hertz() <= 0f) {
+            return colours.getFirst();
+        }
+        int round = (int) Math.floor(look.hertz() * seconds + id * 0.37f);
+        return colours.get(Math.floorMod(round, colours.size()));
     }
 
     /** The light a thing burns, or null for none, for a test. */
