@@ -359,6 +359,29 @@ class HarvestTest {
         assertEquals(300, logic.getRtsPlayer(usa).getMoney());
     }
 
+    /** A load dropped is lost: nothing of it is banked. */
+    @Test
+    void aDroppedLoadIsNeverBanked() {
+        var trucker = ThingTemplate.named("Truck")
+                .module(new ActiveBody.Data(100f))
+                .module(new HarvestUpdate.Data(300, 0, 0f, 0, 30, 75))
+                .build();
+        thingFactory.addTemplate(trucker);
+        var truck = spawn(trucker).findModule(HarvestUpdate.class);
+        spawn(supplyPile);
+        for (int frame = 1; frame <= 60; frame++) {
+            logic.update();
+        }
+        assertEquals(150, truck.getCarrying(), "two boxes in hand");
+        truck.dropLoad();
+        assertEquals(0, truck.getCarrying());
+        for (int frame = 1; frame <= 90; frame++) {
+            logic.update();
+        }
+        assertEquals(0, logic.getRtsPlayer(usa).getMoney(), "the boxes lost are not banked");
+        assertEquals(225, truck.getCarrying(), "and it loads anew");
+    }
+
     /** A pile that runs out part-way ends the wait at the act that finds it empty, and what was loaded goes home. */
     @Test
     void aPileThatRunsOutPartWayEndsTheWaitEarly() {

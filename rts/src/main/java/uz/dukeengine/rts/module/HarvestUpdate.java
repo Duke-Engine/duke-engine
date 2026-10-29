@@ -746,4 +746,12 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener, 
     public int getCarrying() {
         return carrying;
     }
+
+    /**
+     * What it carries lost, never banked — the reference's {@code while (loseOneBox())}, a Chinook sent on a combat drop
+     * or to carry men. Told where to work again, it fetches anew ({@link #workAt}).
+     */
+    public void dropLoad() {
+        carrying = 0;
+    }
 }
