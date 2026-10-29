@@ -211,6 +211,28 @@ class LockstepGateTest {
         }
     }
 
+    /** A loaded save starts every peer's world past frame 0: the game runs on from there, alike everywhere. */
+    @Test
+    void peersWhoseWorldsStartPastFrameZeroRunOn() {
+        var board = new Switchboard();
+        var peers = peers(2, board);
+        for (var peer : peers) {
+            peer.logic.setFrame(450);
+        }
+        for (int turn = 0; turn < 120; turn++) {
+            if (turn == 10) {
+                peers.get(1).gate.issueLocal(new TestCommand.Move(2, List.of(new ObjectId(2)),
+                        new Coord3D(300f, 40f, 0f)));
+            }
+            stepAll(peers);
+        }
+        assertIdentical(peers, "after starting at frame 450");
+        for (var peer : peers) {
+            assertTrue(peer.logic.getFrame() > 550, "peer " + peer.index + " stalled at " + peer.logic.getFrame());
+            assertNull(peer.gate.getDesync());
+        }
+    }
+
     @Test
     void peersThatAgreeNeverCryDesyncAndKeepRunning() {
         var board = new Switchboard();

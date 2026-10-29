@@ -305,10 +305,13 @@ public final class LockstepGate {
         if (!primed) {
             primed = true;
             // Nobody has any input yet, but the first frames still need everyone's
-            // "nothing from me" before they can run.
-            for (int frame = 0; frame < frameDelay; frame++) {
+            // "nothing from me" before they can run — from the frame the world is at, which a loaded save puts
+            // past 0.
+            int from = logic.getFrame();
+            for (int frame = from; frame < from + frameDelay; frame++) {
                 transport.send(new CommandPacket(frame, localPlayer, List.of()));
             }
+            nextSubmitFrame = Math.max(nextSubmitFrame, from + frameDelay);
         }
 
         int frame = logic.getFrame();
