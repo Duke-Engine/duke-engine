@@ -38,6 +38,8 @@ package uz.dukeengine.core.view;
  * @param flash      the colour it is flashed in this frame, its alpha how strongly — 0 for none — as the game sets it
  * @param caption    the words drawn over it, or null for none, as the game sets them
  * @param withoutWorld the words of the world it is drawn as though it did not hold, as the game sets them
+ * @param ambient    the loop it is heard by in place of its template's, {@code ""} for none, or null for its template's,
+ *                   as the game sets it
  */
 public record UnitView(
         int id,
@@ -78,7 +80,8 @@ public record UnitView(
         float scale,
         int flash,
         String caption,
-        java.util.Set<String> withoutWorld) {
+        java.util.Set<String> withoutWorld,
+        String ambient) {
     /** The word a busy thing's clip is carried under among its conditions: {@code busy:<clip>}. */
     public static final String BUSY = "busy:";
 
@@ -123,6 +126,21 @@ public record UnitView(
         turrets = turrets == null ? Turrets.NONE : turrets;
         corners = corners == null ? uz.dukeengine.core.thing.Corners.LEVEL : corners;
         withoutWorld = withoutWorld == null ? java.util.Set.of() : java.util.Set.copyOf(withoutWorld);
+    }
+
+    /** A view heard by its template's loop: every view from before the game could give one thing a loop of its own. */
+    public UnitView(int id, String templateName, int playerIndex, float x, float y, float orientation, float health,
+            float maxHealth, boolean structure, boolean selectable, boolean moving, boolean attacking,
+            int productionQueue, float z, float pitch, float roll, boolean ownHeight, int statuses,
+            java.util.List<Integer> passengers, java.util.List<String> conditions, float built, int ridesOn,
+            boolean allied, uz.dukeengine.core.thing.Span span, boolean mobile, String drawnAs, int wears,
+            float opacity, boolean hostile, float speed, boolean remembered, Turrets turrets, float lift, float yaw,
+            uz.dukeengine.core.thing.Corners corners, float scale, int flash, String caption,
+            java.util.Set<String> withoutWorld) {
+        this(id, templateName, playerIndex, x, y, orientation, health, maxHealth, structure, selectable, moving,
+                attacking, productionQueue, z, pitch, roll, ownHeight, statuses, passengers, conditions, built, ridesOn,
+                allied, span, mobile, drawnAs, wears, opacity, hostile, speed, remembered, turrets, lift, yaw, corners,
+                scale, flash, caption, withoutWorld, null);
     }
 
     /** A view drawn in the whole world: every view from before the game could leave some of it out. */
@@ -212,7 +230,7 @@ public record UnitView(
         return new UnitView(id, templateName, playerIndex, x, y, orientation, health, maxHealth, structure, false,
                 false, false, productionQueue, z, pitch, roll, ownHeight, statuses, passengers, conditions, built,
                 ridesOn, allied, span, mobile, drawnAs, wears, opacity, hostile, 0f, true, turrets, lift, yaw, corners, scale,
-                flash, caption, withoutWorld);
+                flash, caption, withoutWorld, ambient);
     }
 
     /** A view that says nothing of its speed: every view from before a walk was paced to it. */

@@ -88,6 +88,8 @@ public final class GameObject {
     private String caption;
     /** The words of the world it is drawn without — see {@link #setWithoutWorld}. */
     private java.util.Set<String> withoutWorld = java.util.Set.of();
+    /** The loop it is heard by in place of its template's — see {@link #setAmbient}. */
+    private String ambient;
     /** The floor it is on: 0 the ground, n the n-th deck laid over it — see {@link #getFloor}. */
     private int floor;
     /** The line it is drawn along, or null — see {@link #setSpan}. */
@@ -445,6 +447,21 @@ public final class GameObject {
 
     public java.util.Set<String> getWithoutWorld() {
         return withoutWorld;
+    }
+
+    /**
+     * The cue it loops in place of its template's {@code ambient.<template>} — a map's one fountain retuned, louder or
+     * heard farther, under a cue the game made for it; {@code ""} to keep this one thing silent; null for its
+     * template's again — the reference's {@code objectSoundAmbient}, {@code objectSoundAmbientCustomized} and {@code
+     * objectSoundAmbientEnabled}. A loop of one of its words (its rubble's) still comes first. Drawing only, as {@link
+     * #setDrawnOpacity}: out of the checksum and not saved.
+     */
+    public void setAmbient(String cue) {
+        this.ambient = cue;
+    }
+
+    public String getAmbient() {
+        return ambient;
     }
 
     /**

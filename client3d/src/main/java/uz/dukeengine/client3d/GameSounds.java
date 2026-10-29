@@ -446,10 +446,15 @@ final class GameSounds {
      * The loop a thing wants: {@code ambient.<template>.<word>} for the deepest hurt word, else for the first of its own
      * words (sorted) the game wrote a loop for, else {@code ambient.<template>}. A word the game wrote nothing under
      * does not count, so it falls through rather than to the plain loop early.
+     *
+     * <p>A thing the game gave a loop of its own ({@code GameObject.setAmbient}) is heard by that one whatever its
+     * hurt, and by none for {@code ""} — but for a loop of its own words, which comes first: the reference keeps a
+     * customised loop for every state but rubble.
      */
-    private String ambientFor(UnitView view, String deepest) {
+    String ambientFor(UnitView view, String deepest) {
         var plain = "ambient." + view.templateName();
-        if (deepest != null) {
+        var own = view.ambient();
+        if (own == null && deepest != null) {
             var hurtLoop = plain + "." + deepest.toLowerCase(java.util.Locale.ROOT);
             if (hurtLoop.equals(sounds.resolved(hurtLoop))) {
                 return hurtLoop;
@@ -460,6 +465,9 @@ final class GameSounds {
             if (wordLoop.equals(sounds.resolved(wordLoop))) {
                 return wordLoop;
             }
+        }
+        if (own != null) {
+            return own.isEmpty() ? null : sounds.resolved(own);
         }
         return sounds.resolved(plain);
     }

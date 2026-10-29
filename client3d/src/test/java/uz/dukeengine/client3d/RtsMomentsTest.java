@@ -160,6 +160,39 @@ class RtsMomentsTest {
         assertEquals(List.of("dust.ogg", "crackle.ogg", "hum.ogg"), heard.looping, "a word it has no loop for: plain");
     }
 
+    /** {@code view} as the game gave it a loop of its own. */
+    private static UnitView heardBy(UnitView v, String ambient) {
+        return new UnitView(v.id(), v.templateName(), v.playerIndex(), v.x(), v.y(), v.orientation(), v.health(),
+                v.maxHealth(), v.structure(), v.selectable(), v.moving(), v.attacking(), v.productionQueue(), v.z(),
+                v.pitch(), v.roll(), v.ownHeight(), v.statuses(), v.passengers(), v.conditions(), v.built(),
+                v.ridesOn(), v.allied(), v.span(), v.mobile(), v.drawnAs(), v.wears(), v.opacity(), v.hostile(),
+                v.speed(), v.remembered(), v.turrets(), v.lift(), v.yaw(), v.corners(), v.scale(), v.flash(),
+                v.caption(), v.withoutWorld(), ambient);
+    }
+
+    /** One fountain of a map heard by a loop of its own, or by none, its hurt aside but not its rubble. */
+    @Test
+    void aThingGivenALoopOfItsOwnIsHeardByItOrByNone() {
+        var heard = new Heard();
+        var bank = effect(effect(effect(effect(SoundBank.create(), "ambient.Ruin", "hum.ogg"),
+                "ambient.Ruin.rubble", "dust.ogg"), "ambient.Ruin.really_damaged", "crackle.ogg"),
+                "fountain.loud", "splash.ogg").build();
+        var noises = noises(bank, heard);
+
+        assertEquals("fountain.loud", noises.ambientFor(heardBy(ruin(100f), "fountain.loud"), null));
+        assertEquals("fountain.loud", noises.ambientFor(heardBy(ruin(30f), "fountain.loud"), "REALLY_DAMAGED"),
+                "its own loop whatever its hurt");
+        assertEquals("ambient.Ruin.rubble", noises.ambientFor(heardBy(ruin(100f, "rubble"), "fountain.loud"), null),
+                "but its rubble's first, as the reference keeps a customised loop for every state but rubble");
+        assertEquals(null, noises.ambientFor(heardBy(ruin(100f), ""), null), "silenced");
+        assertEquals("ambient.Ruin", noises.ambientFor(ruin(100f), null), "none given: its template's");
+
+        noises.frame(frame(List.of(heardBy(ruin(100f), ""))), ME, 0f);
+        assertTrue(heard.looping.isEmpty(), "a silenced thing loops nothing");
+        noises.frame(frame(List.of(heardBy(ruin(100f), "fountain.loud"))), ME, 0.1f);
+        assertEquals(List.of("splash.ogg"), heard.looping);
+    }
+
     private static UnitView ruin(float health, String... words) {
         return new UnitView(5, "Ruin", ME, 50f, 0f, 0f, health, 100f, true, true, false, false, -1, 0f, 0f, 0f, false,
                 0, List.of(), List.of(words), 1f, -1, true, null, false);

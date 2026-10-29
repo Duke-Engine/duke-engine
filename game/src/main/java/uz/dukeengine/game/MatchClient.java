@@ -362,7 +362,8 @@ final class MatchClient extends GameClient {
                 object.getDrawnScale(),
                 object.getFlash(),
                 object.getCaption(),
-                object.getWithoutWorld());
+                object.getWithoutWorld(),
+                object.getAmbient());
     }
 
     /**
