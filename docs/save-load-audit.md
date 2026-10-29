@@ -148,7 +148,7 @@ from the things), the roster's indices and partition, the sight cells' chunks.
 Every engine module of core, combat, rts and game is Saveable or @Stateless
 (`EngineModulesAreAllSavedTest`: `RtsModules.withDefaults().unsaved()` is
 empty), and every module rts or core adds while a match runs has a reviver.
-`GameSnapshot.VERSION` is **2**; a text of any other version (version 1 is the
+`GameSnapshot.VERSION` is **3** (2 before the game's parts); a text of any other version (version 1 is the
 unmarked one before) is refused before the world is touched.
 
 Each family is played on after a load by `rts/src/test/.../save/*ResumeTest`:
@@ -164,7 +164,7 @@ Still open, and loud:
   left without dying; a `WeaponUpdate` holding a game `PointAttack`; a factory
   job whose `ProductionReservation` does not write its token; a `BuildOrder`,
   site or sale made with placement or sell rules other than the world's.
-- **The game's own** (5.2): its modules (`ModuleFactory.unsaved()` in its
+- **The game's own** (5.2): what it keeps outside the engine it gives as save parts (`GameLogic.saveAlso`, `DukeGame.saveAlso`; `GAME` lines, version 3; the engine game's own two, `duke.driver` — who has had things and who is beaten — and `duke.camera`, are given by `DukeGame`); its modules (`ModuleFactory.unsaved()` in its
   test), its `UnitScript`s, its `ProductionReservation` tokens, its triggers
   (`GameLogic.reset` clears them on a load), its `checksumAlso` parts, and the
   rules a load expects set the same before it (templates, armoury, placement,

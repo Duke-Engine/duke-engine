@@ -16,7 +16,7 @@ import uz.dukeengine.core.view.CameraView;
  *
  * <p>Its units are {@link CameraView}'s.
  */
-public final class GameCamera {
+public final class GameCamera implements uz.dukeengine.core.save.Saveable {
 
     /** How a move gets from where it starts to where it ends over its frames. */
     public enum Ease {
@@ -58,6 +58,18 @@ public final class GameCamera {
 
         boolean going() {
             return done < frames;
+        }
+
+        void save(uz.dukeengine.core.save.SaveOut out) {
+            out.writeFloat(from).writeFloat(to).writeInt(frames).writeInt(done).writeEnum(ease);
+        }
+
+        void load(uz.dukeengine.core.save.SaveIn in) {
+            from = in.readFloat();
+            to = in.readFloat();
+            frames = in.readInt();
+            done = in.readInt();
+            ease = in.readEnum(Ease.class);
         }
 
         void stop() {
@@ -440,6 +452,55 @@ public final class GameCamera {
                 zoom = view.zoom();
             }
         }
+    }
+
+    /**
+     * Where it stands and every move, path, fade, bar and follow under way, so a scene loaded goes on as it was saved;
+     * what the client last said it saw is not written, and is taken to be the camera's own until the client says again.
+     */
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeFloat(x).writeFloat(y).writeFloat(angle).writeFloat(pitch).writeFloat(zoom).writeBoolean(driven);
+        for (var tween : List.of(movingX, movingY, turning, tilting, zooming, fading, barring)) {
+            tween.save(out);
+        }
+        out.writeInt(path.size());
+        for (var key : path) {
+            out.writeFloat(key.x()).writeFloat(key.y()).writeFloat(key.angle()).writeFloat(key.pitch())
+                    .writeFloat(key.zoom());
+        }
+        out.writeInt(pathFrames).writeInt(pathDone).writeEnum(pathEase);
+        out.writeInt(fadeColour).writeFloat(fade).writeFloat(letterbox).writeBoolean(inputLocked);
+        out.writeId(followed).writeInt(catchUpFrames);
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        x = in.readFloat();
+        y = in.readFloat();
+        angle = in.readFloat();
+        pitch = in.readFloat();
+        zoom = in.readFloat();
+        driven = in.readBoolean();
+        for (var tween : List.of(movingX, movingY, turning, tilting, zooming, fading, barring)) {
+            tween.load(in);
+        }
+        var keys = new java.util.ArrayList<Key>();
+        for (int count = in.readInt(); count > 0; count--) {
+            keys.add(new Key(in.readFloat(), in.readFloat(), in.readFloat(), in.readFloat(), in.readFloat()));
+        }
+        path = List.copyOf(keys);
+        pathFrames = in.readInt();
+        pathDone = in.readInt();
+        pathEase = in.readEnum(Ease.class);
+        fadeColour = in.readInt();
+        fade = in.readFloat();
+        letterbox = in.readFloat();
+        inputLocked = in.readBoolean();
+        followed = in.readId();
+        catchUpFrames = in.readInt();
+        seen = current();
+        publish();
     }
 
     private static float wrap(float radians) {

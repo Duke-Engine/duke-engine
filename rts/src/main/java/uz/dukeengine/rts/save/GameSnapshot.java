@@ -27,25 +27,27 @@ import uz.dukeengine.rts.player.RtsPlayer;
  * then each thing's {@code OBJECT} line, then each thing's {@code MODULES} line
  * ({@link ModuleStates}: every module it carries and what it wrote of itself),
  * then the world's own ({@link GameLogic#saveWorld}), the RTS world's ({@link
- * RtsSimulation#saveRts}), the movers' ({@link GameLogic#saveMovers}) and the
- * commands queued for the next frame, in the game's wire ({@link PacketCodec}).
+ * RtsSimulation#saveRts}), the movers' ({@link GameLogic#saveMovers}), the
+ * commands queued for the next frame, in the game's wire ({@link PacketCodec}),
+ * and last each part of the game's own state ({@link GameLogic#saveAlso}).
  * Floats are written by {@link Float#toString}, which reads back to the same bits.
  *
  * <p>Taken between frames, on the simulation thread; a module that cannot be
  * written ({@link uz.dukeengine.core.save.UnsavedModuleException}) is refused. Loaded into a
  * world made by the same rules — its templates, its module set and their
- * revivers, its grid and its settings — before the load; what the game keeps
- * outside the engine is the game's to save beside it.
+ * revivers, its grid, its settings and its save parts — before the load; what
+ * the game keeps outside the engine it gives as save parts.
  */
 public final class GameSnapshot {
 
     /**
-     * The version of what is written. 2: every thing's modules, the players' stances, the scenery taken away, a thing
-     * dead, destroyed, vanished or held, who is awake, the RTS world's own state, the movers' cells and routes and the
-     * queued commands. 1, unmarked: the world's lines and the things alone, every module made afresh — refused now,
-     * as it cannot go on as it was. Any change to what a line or a module writes raises it.
+     * The version of what is written. 3: the game's own parts ({@code GAME}, {@link GameLogic#saveAlso}) after the
+     * engine's. 2: every thing's modules, the players' stances, the scenery taken away, a thing dead, destroyed,
+     * vanished or held, who is awake, the RTS world's own state, the movers' cells and routes and the queued commands.
+     * 1, unmarked: the world's lines and the things alone, every module made afresh — refused now, as it cannot go on
+     * as it was. Any change to what a line or a module writes raises it.
      */
-    public static final int VERSION = 2;
+    public static final int VERSION = 3;
 
     private GameSnapshot() {
     }
@@ -179,6 +181,11 @@ public final class GameSnapshot {
         if (!queued.isEmpty()) {
             sb.append("COMMANDS ").append(codec.encode(new CommandPacket(logic.getFrame(), 0, queued))).append('\n');
         }
+        for (var part : logic.saveParts().entrySet()) {
+            var out = new SaveOut();
+            part.getValue().save(out);
+            sb.append("GAME ").append(part.getKey()).append('|').append(out.text()).append('\n');
+        }
         return sb.toString();
     }
 
@@ -200,6 +207,7 @@ public final class GameSnapshot {
         }
         logic.reset(); // baseline: empty world, neutral player only
         var modulesToCome = new java.util.LinkedHashSet<Integer>();
+        var partsToCome = new java.util.LinkedHashSet<>(logic.saveParts().keySet());
         var modules = logic.getThingFactory().getModuleFactory();
         for (var line : text.split("\n")) {
             if (line.isBlank()) {
@@ -240,6 +248,18 @@ public final class GameSnapshot {
                     in.expectEnd();
                 }
                 case "COMMANDS" -> codec.decode(rest).commands().forEach(logic::issueCommand);
+                case "GAME" -> {
+                    int bar = rest.indexOf('|');
+                    var name = rest.substring(0, bar);
+                    var part = logic.saveParts().get(name);
+                    if (part == null || !partsToCome.remove(name)) {
+                        throw new IllegalArgumentException("snapshot has the game's part " + name + ", which this world"
+                                + (part == null ? " does not keep" : " was given already"));
+                    }
+                    var in = new SaveIn(rest.substring(bar + 1), logic, name);
+                    part.load(in);
+                    in.expectEnd();
+                }
                 case "OBJECT" -> modulesToCome.add(loadObject(rest, logic));
                 case "FRAME" -> logic.setFrame(Integer.parseInt(rest.trim()));
                 case "NEXTID" -> logic.setNextObjectId(Integer.parseInt(rest.trim()));
@@ -262,6 +282,9 @@ public final class GameSnapshot {
         }
         if (!modulesToCome.isEmpty()) {
             throw new IllegalArgumentException("snapshot gives no modules for things " + modulesToCome);
+        }
+        if (!partsToCome.isEmpty()) {
+            throw new IllegalArgumentException("snapshot gives nothing for the game's parts " + partsToCome);
         }
     }
 

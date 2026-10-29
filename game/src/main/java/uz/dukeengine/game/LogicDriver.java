@@ -18,7 +18,7 @@ import uz.dukeengine.core.message.Command;
  * there is none; the game's per-frame and every-so-often code; and the annihilation rule, a side that had things and
  * has none left told defeated.
  */
-final class LogicDriver implements Runnable {
+final class LogicDriver implements Runnable, uz.dukeengine.core.save.Saveable {
 
     private static final java.util.logging.Logger LOG =
             java.util.logging.Logger.getLogger(LogicDriver.class.getName());
@@ -46,6 +46,27 @@ final class LogicDriver implements Runnable {
     private IntConsumer defeatListener;
 
     private record IntervalCallback(int everyFrames, Runnable action) {
+    }
+
+    /** The players who have had things and those told beaten, in order: a load beats nobody twice, nor misses one. */
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeInt(everOwnedObjects.size());
+        everOwnedObjects.stream().sorted().forEach(out::writeInt);
+        out.writeInt(defeated.size());
+        defeated.stream().sorted().forEach(out::writeInt);
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        everOwnedObjects.clear();
+        for (int count = in.readInt(); count > 0; count--) {
+            everOwnedObjects.add(in.readInt());
+        }
+        defeated.clear();
+        for (int count = in.readInt(); count > 0; count--) {
+            defeated.add(in.readInt());
+        }
     }
 
     LogicDriver(GameLogic logic, Flavour flavour) {

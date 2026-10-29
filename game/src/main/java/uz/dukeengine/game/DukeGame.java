@@ -524,6 +524,18 @@ public final class DukeGame {
     }
 
     /**
+     * State of the game's own kept outside the engine — a computer player's plans, a script's flags, a ledger its
+     * modules share — written into a snapshot under {@code name} (one word, given once) and read back into a world
+     * built by the same rules, once every thing of the save is in it, on the simulation thread. See {@code
+     * GameLogic.saveAlso}; before the match is built.
+     */
+    public DukeGame saveAlso(String name, uz.dukeengine.core.save.Saveable part) {
+        requireNotStarted();
+        callbacks.saveAlso(name, part);
+        return this;
+    }
+
+    /**
      * Told every death as it is reaped, on the simulation thread: what died, whose it was, what killed it and whose
      * side that was — known even when the killer is gone too — beside the client's event rather than instead of it.
      * Where a game counts what each side destroyed. A building sold, or anything removed without dying, is not heard.
@@ -963,6 +975,9 @@ public final class DukeGame {
         logic = flavour.newWorld();
         driver = new LogicDriver(logic, flavour);
         logic.eachFrame(driver);
+        // Whose side has been beaten and the camera's own moves: the engine game's state outside the world, saved first.
+        logic.saveAlso("duke.driver", driver);
+        logic.saveAlso("duke.camera", presentation.camera());
         callbacks.attach(logic);
         var client = link.create(logic, flavour.views());
         client.setCommands(selection::buttonsNow);

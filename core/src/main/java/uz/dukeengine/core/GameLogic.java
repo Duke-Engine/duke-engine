@@ -1589,6 +1589,28 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         checksumParts.add(part);
     }
 
+    private final java.util.Map<String, uz.dukeengine.core.save.Saveable> saveParts = new java.util.LinkedHashMap<>();
+
+    /**
+     * State of the game's own kept outside the engine — its computer players' plans, its scripts, its shared ledgers —
+     * written into a snapshot under {@code name} after everything the engine writes and read back once every thing is
+     * in the world again, in the order the parts were given. A name is one word, given once; kept across {@link #reset},
+     * as the rules are. A load refuses a part the world does not keep and leaves none of the world's unread.
+     */
+    public final void saveAlso(String name, uz.dukeengine.core.save.Saveable part) {
+        if (name.isEmpty() || name.chars().anyMatch(c -> c == ' ' || c == '|' || c == '\n' || c == '\r')) {
+            throw new IllegalArgumentException("a save part is named by one word, not '" + name + "'");
+        }
+        if (saveParts.putIfAbsent(name, java.util.Objects.requireNonNull(part)) != null) {
+            throw new IllegalArgumentException("a save part called " + name + " is kept already");
+        }
+    }
+
+    /** The game's own save parts by name, in the order they were given — see {@link #saveAlso}. */
+    public final java.util.Map<String, uz.dukeengine.core.save.Saveable> saveParts() {
+        return java.util.Collections.unmodifiableMap(saveParts);
+    }
+
     @Override
     public final uz.dukeengine.core.math.LogicRandom random() {
         return random;

@@ -63,6 +63,14 @@ final class Callbacks {
         checksumParts.add(part);
     }
 
+    private final java.util.Map<String, uz.dukeengine.core.save.Saveable> saveParts = new java.util.LinkedHashMap<>();
+
+    void saveAlso(String name, uz.dukeengine.core.save.Saveable part) {
+        if (saveParts.putIfAbsent(name, part) != null) {
+            throw new IllegalArgumentException("a save part called " + name + " is kept already");
+        }
+    }
+
     void onCommand(Consumer<Command> handler) {
         this.commandHandler = handler;
     }
@@ -70,6 +78,7 @@ final class Callbacks {
     /** Hand the simulation what it is to tell: the game's checksum numbers, its deaths, its own commands. */
     void attach(GameLogic logic) {
         checksumParts.forEach(logic::checksumAlso);
+        saveParts.forEach(logic::saveAlso);
         died.forEach(logic::onDied);
     }
 

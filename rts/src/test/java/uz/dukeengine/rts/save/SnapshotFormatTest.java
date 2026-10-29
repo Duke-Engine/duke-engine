@@ -69,8 +69,8 @@ class SnapshotFormatTest {
         var old = assertThrows(IllegalArgumentException.class,
                 () -> GameSnapshot.load(text.substring(text.indexOf('\n') + 1), loaded));
         assertTrue(old.getMessage().contains("version 1"), old.getMessage());
-        assertThrows(IllegalArgumentException.class, () -> GameSnapshot.load(text.replaceFirst("SNAPSHOT 2",
-                "SNAPSHOT 3"), loaded));
+        assertThrows(IllegalArgumentException.class, () -> GameSnapshot.load(text.replaceFirst("SNAPSHOT " + GameSnapshot.VERSION,
+                "SNAPSHOT " + (GameSnapshot.VERSION + 1)), loaded));
         assertEquals(before, GameSnapshot.save(loaded), "refused before anything was changed");
     }
 
@@ -127,5 +127,52 @@ class SnapshotFormatTest {
         assertNull(loaded.findObject(doomed.getId()));
         assertEquals(played.checksum(), loaded.checksum());
         assertEquals(GameSnapshot.save(played), GameSnapshot.save(loaded));
+    }
+
+    /** A game's own ledger outside the world: a count of what it has heard and who heard it last. */
+    static final class Ledger implements uz.dukeengine.core.save.Saveable {
+        int heard;
+        GameObject last;
+
+        @Override
+        public void save(uz.dukeengine.core.save.SaveOut out) {
+            out.writeInt(heard).writeThing(last);
+        }
+
+        @Override
+        public void load(uz.dukeengine.core.save.SaveIn in) {
+            heard = in.readInt();
+            last = in.readThing();
+        }
+    }
+
+    @Test
+    void theGamesOwnPartsAreWrittenLastAndReadBackOnceTheThingsAreInTheWorld() {
+        var playedLedger = new Ledger();
+        var played = played();
+        played.saveAlso("ledger", playedLedger);
+        playedLedger.heard = 7;
+        playedLedger.last = played.getObjects().get(1);
+        var text = GameSnapshot.save(played);
+        assertTrue(text.endsWith("GAME ledger|7 " + playedLedger.last.getId().value() + "\n"), text);
+
+        var loadedLedger = new Ledger();
+        var loaded = rules();
+        loaded.saveAlso("ledger", loadedLedger);
+        loadedLedger.heard = 99; // a reset keeps the part: it is read back over, not made again
+        GameSnapshot.load(text, loaded);
+        assertEquals(7, loadedLedger.heard);
+        assertEquals(playedLedger.last.getId(), loadedLedger.last.getId(), "found once every thing is back");
+        assertEquals(text, GameSnapshot.save(loaded));
+
+        var unkept = assertThrows(IllegalArgumentException.class, () -> GameSnapshot.load(text, rules()));
+        assertTrue(unkept.getMessage().contains("ledger"), unkept.getMessage());
+        var more = rules();
+        more.saveAlso("ledger", new Ledger());
+        more.saveAlso("other", new Ledger());
+        var unread = assertThrows(IllegalArgumentException.class, () -> GameSnapshot.load(text, more));
+        assertTrue(unread.getMessage().contains("other"), unread.getMessage());
+        assertThrows(IllegalArgumentException.class, () -> more.saveAlso("other", new Ledger()), "given once");
+        assertThrows(IllegalArgumentException.class, () -> more.saveAlso("two words", new Ledger()));
     }
 }
