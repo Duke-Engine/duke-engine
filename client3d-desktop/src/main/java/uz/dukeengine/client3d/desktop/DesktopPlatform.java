@@ -15,6 +15,8 @@ import uz.dukeengine.client3d.platform.Window;
 /** The desktop's platform: AWT's fonts and pictures, Swing's prompt, GLFW's window. Filled in a seam at a time. */
 public final class DesktopPlatform implements ClientPlatform {
 
+    private SettingsStore settings;
+
     @Override
     public GlyphRasterizer glyphs() {
         throw new UnsupportedOperationException("not yet: GlyphRasterizer");
@@ -27,12 +29,15 @@ public final class DesktopPlatform implements ClientPlatform {
 
     @Override
     public SettingsStore settings() {
-        throw new UnsupportedOperationException("not yet: SettingsStore");
+        if (settings == null) {
+            settings = new FileSettingsStore(); // takes over the registry on first use, not when the platform is found
+        }
+        return settings;
     }
 
     @Override
     public TextPrompt prompt() {
-        throw new UnsupportedOperationException("not yet: TextPrompt");
+        return new SwingTextPrompt();
     }
 
     @Override

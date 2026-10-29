@@ -57,12 +57,6 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private final boolean[] ctrlHeld = {false};
 
-    /**
-     * Persisted display/audio settings, shared by every duke-engine game.
-     */
-    static final java.util.prefs.Preferences PREFS =
-            java.util.prefs.Preferences.userRoot().node("duke-engine/game");
-
     /** The match being drawn: the one the window opened with, or the last the game started. */
     private DukeGame game;
     /** The match whose simulation was started, which is never started again. */

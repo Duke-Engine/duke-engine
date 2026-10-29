@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.client3d.platform.Window;
+import uz.dukeengine.client3d.desktop.FileSettingsStore;
 
 /** The sizes a window offers and what it says of filling the screen, whichever platform's window it is. */
 class WindowDisplayTest {
@@ -41,7 +42,7 @@ class WindowDisplayTest {
     private static WindowDisplay display(Window window, boolean settingsFullscreen) {
         var settings = new AppSettings(true);
         settings.setFullscreen(settingsFullscreen);
-        return new WindowDisplay(window, () -> settings, new GameSettings(Path.of("no-such-dir", "unused.properties")),
+        return new WindowDisplay(window, () -> settings, new GameSettings(new FileSettingsStore(Path.of("no-such-dir", "unused.properties"))),
                 new MissingAssets());
     }
 

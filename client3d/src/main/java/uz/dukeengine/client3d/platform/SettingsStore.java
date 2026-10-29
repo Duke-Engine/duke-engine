@@ -4,7 +4,7 @@ package uz.dukeengine.client3d.platform;
 public interface SettingsStore {
 
     /** What was last written, or {@code null} when nothing was. */
-    byte[] read();
+    byte[] read() throws java.io.IOException;
 
     void write(byte[] settings) throws java.io.IOException;
 }

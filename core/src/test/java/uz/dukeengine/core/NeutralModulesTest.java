@@ -37,12 +37,12 @@ class NeutralModulesTest {
             CLIENT + "BitmapFontBaker.java", CLIENT + "CanvasDrawing.java",
             CLIENT + "CanvasText.java", CLIENT + "Lettering.java",
             CLIENT + "MovieFrames.java",
-            CLIENT + "Screens.java", CLIENT + "Screenshots.java");
+            CLIENT + "Screenshots.java");
 
     private static final List<String> STILL_ON_FILES = List.of(
             GAME + "DukeGame.java",
             CLIENT + "BitmapFontBaker.java", CLIENT + "Duke3D.java", CLIENT + "DukeRtsApp.java",
-            CLIENT + "GameSettings.java", CLIENT + "Screenshots.java");
+            CLIENT + "Screenshots.java");
 
     @Test
     void noNeutralModuleNamesAPlatform() throws IOException {

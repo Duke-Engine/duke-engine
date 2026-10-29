@@ -1,12 +1,14 @@
 package uz.dukeengine.client3d;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
+import uz.dukeengine.client3d.platform.ClientPlatform;
+import uz.dukeengine.client3d.platform.SettingsStore;
 
 /**
  * What the player set, kept between one session and the next — and what he is in
@@ -18,62 +20,35 @@ import java.util.logging.Logger;
  * back if the answer is no — so a reading consults the draft first and the saved
  * values behind it, and cancelling is throwing the draft away.
  *
- * <p>A file rather than {@code java.util.prefs}, which on Windows is the registry:
- * a game's settings should be somewhere a player can see, copy between machines
- * and delete when something has gone wrong with them. It lives beside the user
- * rather than beside the game, because a game that writes into its own folder
- * cannot be installed where it belongs.
+ * <p>Kept through a {@link SettingsStore}, which on a desktop is a file a player
+ * can see, copy between machines and delete when something has gone wrong with it.
  */
 final class GameSettings {
 
     private static final Logger LOG = Logger.getLogger(GameSettings.class.getName());
 
-    private final Path file;
+    private final SettingsStore store;
     private final Properties saved = new Properties();
     private final Map<String, String> draft = new LinkedHashMap<>();
 
     GameSettings() {
-        this(Path.of(System.getProperty("user.home"), ".duke-engine", "settings.properties"));
+        this(ClientPlatform.get().settings());
     }
 
-    GameSettings(Path file) {
-        this.file = file;
+    GameSettings(SettingsStore store) {
+        this.store = store;
         load();
     }
 
     private void load() {
-        if (!Files.exists(file)) {
-            return;
-        }
-        try (var in = Files.newInputStream(file)) {
-            saved.load(in);
-        } catch (IOException e) {
-            LOG.warning(() -> "could not read " + file + " (" + e.getMessage()
-                    + ") — starting from the defaults");
-        }
-    }
-
-    /**
-     * Take over whatever an older version left in the registry.
-     *
-     * <p>Only once, and only when there is no file: a player who has already been
-     * playing should not lose the volume he set, and should not have it come back
-     * after he changes it.
-     */
-    void inheritFrom(java.util.prefs.Preferences older, String... keys) {
-        if (Files.exists(file) || older == null) {
-            return;
-        }
-        boolean found = false;
-        for (var key : keys) {
-            var value = older.get(key, null);
-            if (value != null) {
-                saved.setProperty(key, value);
-                found = true;
+        try {
+            var bytes = store.read();
+            if (bytes != null) {
+                saved.load(new ByteArrayInputStream(bytes));
             }
-        }
-        if (found) {
-            write();
+        } catch (IOException e) {
+            LOG.warning(() -> "could not read the settings (" + e.getMessage()
+                    + ") — starting from the defaults");
         }
     }
 
@@ -145,17 +120,12 @@ final class GameSettings {
 
     private void write() {
         try {
-            Files.createDirectories(file.getParent());
-            try (var out = Files.newOutputStream(file)) {
-                saved.store(out, "Duke Engine — what the player set");
-            }
+            var out = new ByteArrayOutputStream();
+            saved.store(out, "Duke Engine — what the player set");
+            store.write(out.toByteArray());
         } catch (IOException e) {
-            LOG.warning(() -> "could not write " + file + " (" + e.getMessage()
+            LOG.warning(() -> "could not write the settings (" + e.getMessage()
                     + ") — the settings hold for this session only");
         }
-    }
-
-    Path file() {
-        return file;
     }
 }

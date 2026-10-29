@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import uz.dukeengine.client3d.desktop.FileSettingsStore;
 
 /** A game's own row on Settings kept and read back, its keys rebound, Space a key it may bind (E79). */
 class RebindTest {
@@ -23,12 +24,12 @@ class RebindTest {
         var row = shell.settingsRows().getFirst();
         assertEquals("game.controls", row.key());
 
-        var settings = new GameSettings(folder.resolve("settings.properties"));
+        var settings = new GameSettings(new FileSettingsStore(folder.resolve("settings.properties")));
         settings.set(row.key(), 1);
         row.chosen().accept(1);
         settings.keep();
         assertEquals(1, told[0], "the game told at once");
-        assertEquals(1, new GameSettings(folder.resolve("settings.properties")).number("game.controls", 0),
+        assertEquals(1, new GameSettings(new FileSettingsStore(folder.resolve("settings.properties"))).number("game.controls", 0),
                 "and it is there after a restart");
     }
 

@@ -9,6 +9,7 @@ import com.jme3.system.AppSettings;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import uz.dukeengine.client3d.platform.ClientPlatform;
 
 import uz.dukeengine.core.view.WorldSnapshot;
 import uz.dukeengine.game.DukeGame;
@@ -366,7 +367,7 @@ final class Screens {
         var game = host.game();
         menu.show(game.getTitle(), "joining…", java.util.List.of(), "", version(), false);
         new Thread(() -> {
-            var ip = askText("Host IP address:", "127.0.0.1");
+            var ip = ClientPlatform.get().prompt().ask("Host IP address:", "127.0.0.1");
             if (ip == null || ip.isBlank()) {
                 host.later(this::showMainMenu);
                 return;
@@ -378,17 +379,6 @@ final class Screens {
                 host.later(this::showMainMenu);
             }
         }, "duke-join").start();
-    }
-
-    private static String askText(String prompt, String initial) {
-        var result = new String[1];
-        try {
-            javax.swing.SwingUtilities.invokeAndWait(() ->
-                    result[0] = javax.swing.JOptionPane.showInputDialog(null, prompt, initial));
-        } catch (Exception _) {
-            return null;
-        }
-        return result[0];
     }
 
     void showPauseMenu() {

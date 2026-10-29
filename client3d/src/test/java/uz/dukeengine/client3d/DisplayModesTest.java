@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import uz.dukeengine.client3d.desktop.FileSettingsStore;
 
 /** Which sizes a monitor shows a window at, the rest refused and the window left as it was; and a new player's. */
 class DisplayModesTest {
@@ -37,9 +38,9 @@ class DisplayModesTest {
     @Test
     void aNewPlayerOfAGameThatNamesNoSizeOpensAtTheMonitorsOwnModeFillingTheScreenWrittenDown() {
         var file = folder.resolve("settings.properties");
-        DisplayModes.firstWindow(new GameSettings(file), 0, 0, new int[] {2560, 1600});
+        DisplayModes.firstWindow(new GameSettings(new FileSettingsStore(file)), 0, 0, new int[] {2560, 1600});
 
-        var again = new GameSettings(file);
+        var again = new GameSettings(new FileSettingsStore(file));
         assertEquals(2560, again.number("width", 0));
         assertEquals(1600, again.number("height", 0));
         assertTrue(again.flag("fullscreen", false), "filling the screen, as a game opens");
@@ -47,7 +48,7 @@ class DisplayModesTest {
 
     @Test
     void aSizeHeChoseAGamesOwnSizeOrNoMonitorLeavesEverythingAsItWas() {
-        var chose = new GameSettings(folder.resolve("chose.properties"));
+        var chose = new GameSettings(new FileSettingsStore(folder.resolve("chose.properties")));
         chose.set("width", 800);
         chose.set("height", 600);
         chose.save();
@@ -55,18 +56,18 @@ class DisplayModesTest {
         assertEquals(800, chose.number("width", 0), "what he chose wins");
         assertFalse(chose.flag("fullscreen", false));
 
-        var named = new GameSettings(folder.resolve("named.properties"));
+        var named = new GameSettings(new FileSettingsStore(folder.resolve("named.properties")));
         DisplayModes.firstWindow(named, 800, 600, new int[] {2560, 1600});
         assertEquals(0, named.number("width", 0), "the game's own size stands for him");
 
-        var headless = new GameSettings(folder.resolve("headless.properties"));
+        var headless = new GameSettings(new FileSettingsStore(folder.resolve("headless.properties")));
         DisplayModes.firstWindow(headless, 0, 0, null);
         assertEquals(0, headless.number("width", 0), "no monitor to ask: the caller's fallback");
     }
 
     @Test
     void aWindowedChoiceSavedWithoutASizeStaysWindowedAtTheMonitorsSize() {
-        var older = new GameSettings(folder.resolve("older.properties"));
+        var older = new GameSettings(new FileSettingsStore(folder.resolve("older.properties")));
         older.set("fullscreen", false);
         older.save();
         DisplayModes.firstWindow(older, 0, 0, new int[] {2560, 1600});
