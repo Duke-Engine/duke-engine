@@ -1022,8 +1022,19 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         inGame = false;
     }
 
+    /**
+     * How long the last frame took to simulate, wall time, for a frame-rate readout. The simulation never reads it, and
+     * it is neither saved nor in the checksum.
+     */
+    public long lastFrameNanos() {
+        return lastFrameNanos;
+    }
+
+    private volatile long lastFrameNanos;
+
     @Override
     public final void update() {
+        long began = System.nanoTime();
         obstacles.refresh(); // before commands: a MoveTo issued now must see the world as it is
         recordFrame();
         messageStream.propagate(this::onCommand);
@@ -1041,6 +1052,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         routes.frameEnded();
         sight.look(frame, getPlayerList().getPlayerCount());
         frame++;
+        lastFrameNanos = System.nanoTime() - began;
     }
 
     /**
