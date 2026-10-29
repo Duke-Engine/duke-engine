@@ -44,7 +44,8 @@ import uz.dukeengine.rts.player.RtsPlayer;
  * it walks back beside the site and goes on building. Another order for it, the site gone, whole, or taken up by
  * another builder, and its work is over.
  */
-public final class BuildOrder extends UpdateModule implements uz.dukeengine.rts.module.OrderListener {
+public final class BuildOrder extends UpdateModule
+        implements uz.dukeengine.rts.module.OrderListener, uz.dukeengine.core.save.Saveable {
 
     /** How many times a builder standing on its own site is sent out of it before the order is given up. */
     private static final int STEPS_OUT = 3;
@@ -70,6 +71,11 @@ public final class BuildOrder extends UpdateModule implements uz.dukeengine.rts.
 
     BuildOrder(GameObject builder, ThingTemplate template, Coord3D place, float facing, int cost,
             PlacementRules rules, GameObject site) {
+        this(builder, template, place, facing, cost, rules, site, builder.getPlayerIndex());
+    }
+
+    private BuildOrder(GameObject builder, ThingTemplate template, Coord3D place, float facing, int cost,
+            PlacementRules rules, GameObject site, int side) {
         super(builder);
         this.template = template;
         this.place = place;
@@ -77,8 +83,50 @@ public final class BuildOrder extends UpdateModule implements uz.dukeengine.rts.
         this.cost = cost;
         this.rules = rules;
         this.goal = place;
-        this.side = builder.getPlayerIndex();
+        this.side = side;
         this.site = site;
+    }
+
+    /**
+     * What it was made with, then where it is in its errand. Its rules are the world's, which a game sets; a site gone
+     * from the world already is written as the order over, as its next update would find it.
+     */
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        Construction.expectWorldRules(getOwner(), rules, BuildOrder.class);
+        boolean siteGone = site != null && getOwner().getWorld().findObject(site.getId()) != site;
+        out.writeString(template.name()).writePlace(place).writeFloat(facing).writeInt(cost).writeInt(side)
+                .writeThing(siteGone ? null : site).writePlace(goal).writePlace(lastPosition).writeFloat(lastGap)
+                .writeInt(stepsOut).writeBoolean(over || siteGone).writeBoolean(atWork);
+    }
+
+    /** Nothing: it is made again by {@link #revive}, from all it wrote. */
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        throw new IllegalStateException("a build order is made again by BuildOrder.revive, never by its template");
+    }
+
+    /** A build order made again from its save, on {@code builder}: what {@code ModuleFactory.revives} is given. */
+    public static BuildOrder revive(GameObject builder, uz.dukeengine.core.save.SaveIn in) {
+        var name = in.readString();
+        var template = in.world().findTemplate(name);
+        if (template == null) {
+            throw new uz.dukeengine.core.save.UnsavedModuleException(BuildOrder.class.getName(),
+                    "a build order for " + name + ", which this world's templates do not make");
+        }
+        var place = in.readPlace();
+        float facing = in.readFloat();
+        int cost = in.readInt();
+        int side = in.readInt();
+        var order = new BuildOrder(builder, template, place, facing, cost,
+                Construction.worldRules(in, BuildOrder.class), in.readThing(), side);
+        order.goal = in.readPlace();
+        order.lastPosition = in.readPlace();
+        order.lastGap = in.readFloat();
+        order.stepsOut = in.readInt();
+        order.over = in.readBoolean();
+        order.atWork = in.readBoolean();
+        return order;
     }
 
     /**

@@ -69,7 +69,7 @@ public final class Selling {
     }
 
     /** The building coming down, a frame at a time. */
-    public static final class Coming extends UpdateModule {
+    public static final class Coming extends UpdateModule implements uz.dukeengine.core.save.Saveable {
 
         private final SellRules rules;
         private final int soldAt;
@@ -79,6 +79,37 @@ public final class Selling {
             super(building);
             this.rules = rules;
             this.soldAt = soldAt;
+        }
+
+        /**
+         * When it was sold and how much of it still stands. Its rules are the world's, which a game sets and a save does
+         * not write: an order given others is refused.
+         */
+        @Override
+        public void save(uz.dukeengine.core.save.SaveOut out) {
+            if (!(getOwner().getWorld() instanceof RtsSimulation world) || !rules.equals(world.getSellRules())) {
+                throw new uz.dukeengine.core.save.UnsavedModuleException(Coming.class.getName(), "thing "
+                        + getOwner().getId().value() + " (" + getOwner().getTemplate().name() + ") comes down by sell"
+                        + " rules that are not its world's: those are the game's, which a save does not write");
+            }
+            out.writeInt(soldAt).writeFloat(share);
+        }
+
+        /** Nothing: it is made again by {@link #revive}, from all it wrote. */
+        @Override
+        public void load(uz.dukeengine.core.save.SaveIn in) {
+            throw new IllegalStateException("a sold building's coming down is made again by Selling.Coming.revive");
+        }
+
+        /** The coming down made again from its save, on {@code building}: what {@code ModuleFactory.revives} is given. */
+        public static Coming revive(GameObject building, uz.dukeengine.core.save.SaveIn in) {
+            if (!(in.world() instanceof RtsSimulation world)) {
+                throw new uz.dukeengine.core.save.UnsavedModuleException(Coming.class.getName(),
+                        "a sold building is loaded into a world that is no RtsSimulation, with no sell rules");
+            }
+            var coming = new Coming(building, world.getSellRules(), in.readInt());
+            coming.share = in.readFloat();
+            return coming;
         }
 
         /** How much of it stands, in percent: just under 100 when sold, down past 0 to -50 as it comes down. */

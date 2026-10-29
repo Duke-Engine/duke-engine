@@ -72,15 +72,15 @@ Every `Module` subclass in the engine. "Template" = built from a `Data` block;
 | `ContainModule` | template | passengers in order, shared network, whether passengers fire | see §6 |
 | `SupplyModule` (+ `Docking`) | template | what is left; its dock: who is in, free from, places, who has come, closed | Saveable |
 | `SupplyDepot` (+ `Docking`) | template | its dock | Saveable |
-| `HarvestUpdate` | template | what it is doing, its place, pile, depot, load, waits and timers, search range | see §6 |
+| `HarvestUpdate` | template | what it is doing, its place, pile, depot, load, waits and timers, search range | Saveable |
 | `CrushUpdate` | template | where it stood last frame | Saveable |
 | `Crushable` | template | nothing | @Stateless |
 | `ToppleUpdate` | template | its fall: state, side, speed, how far, sunk, ground, who pushed it | Saveable (the lean is drawn again from the fall) |
-| `AttackMoveOrder` | added | destination, target, where it took it on, chase, engaged at, next look, over | see §6 |
-| `GuardOrder` | added | place, charge, mode, last place, target, chase, engaged at, next look, returning | see §6 |
-| `BuildOrder` | added | what, where, facing, cost, side, its walk, its site, at work | see §6 |
-| `ConstructionSite` | added | builder, cost, frames, work done | see §6 |
-| `Selling.Coming` | added | when sold, the share left | see §6 |
+| `AttackMoveOrder` | added | destination, target, where it took it on, chase, engaged at, next look, over | Saveable, made again by its reviver |
+| `GuardOrder` | added | place, charge, mode, last place, target, chase, engaged at, next look, returning | Saveable, made again by its reviver |
+| `BuildOrder` | added | what, where, facing, cost, side, its walk, its site, at work | Saveable, made again by its reviver |
+| `ConstructionSite` | added | builder, cost, work done (frames come from the template) | Saveable, made again by its reviver |
+| `Selling.Coming` | added | when sold, the share left | Saveable, made again by its reviver |
 
 ### game
 

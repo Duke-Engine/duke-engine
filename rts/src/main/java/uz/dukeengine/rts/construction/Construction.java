@@ -21,6 +21,27 @@ public final class Construction {
     }
 
     /**
+     * Refused unless {@code rules} are the placement rules of the world {@code owner} is in: those are the game's, set on
+     * the world and made again by the game on a load, so a save writes none; an order given others cannot be written.
+     */
+    static void expectWorldRules(GameObject owner, PlacementRules rules, Class<?> module) {
+        if (!(owner.getWorld() instanceof RtsSimulation world) || !rules.equals(world.getPlacementRules())) {
+            throw new uz.dukeengine.core.save.UnsavedModuleException(module.getName(), "thing " + owner.getId().value()
+                    + " (" + owner.getTemplate().name() + ") holds placement rules that are not its world's: those are"
+                    + " the game's, which a save does not write");
+        }
+    }
+
+    /** The placement rules of the world a module is revived in, which it was saved holding. */
+    static PlacementRules worldRules(uz.dukeengine.core.save.SaveIn in, Class<?> module) {
+        if (!(in.world() instanceof RtsSimulation world)) {
+            throw new uz.dukeengine.core.save.UnsavedModuleException(module.getName(),
+                    module.getName() + " is loaded into a world that is no RtsSimulation, with no placement rules");
+        }
+        return world.getPlacementRules();
+    }
+
+    /**
      * Accept a {@code Construct} order, or refuse it at no cost.
      *
      * <p>Refused if the builder is not the player's, cannot walk, or is gone; if nothing of that name exists;

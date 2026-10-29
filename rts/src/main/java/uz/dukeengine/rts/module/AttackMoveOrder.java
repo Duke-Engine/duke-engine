@@ -17,7 +17,7 @@ import uz.dukeengine.combat.module.WeaponUpdate;
  * guard's outer reach from where it took it on, nor longer than the guard's chase time ({@link GuardRules}) — and then
  * carries on to the point. Looks for an enemy as often as a guard holding its ground does.
  */
-public final class AttackMoveOrder extends UpdateModule implements Errand {
+public final class AttackMoveOrder extends UpdateModule implements Errand, uz.dukeengine.core.save.Saveable {
 
     private final Coord3D destination;
     private ObjectId target;
@@ -96,6 +96,32 @@ public final class AttackMoveOrder extends UpdateModule implements Errand {
         if (!legs.isMoving()) {
             legs.moveTo(destination);
         }
+    }
+
+    /** Where it goes first, then what it has taken on and where, its chase, when it engaged and next looks, and if over. */
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writePlace(destination).writeId(target).writePlace(tookItOnAt);
+        Engaging.Chase.save(chased, out);
+        out.writeInt(engagedAt).writeInt(nextLook).writeBoolean(over);
+    }
+
+    /** Nothing: it is made again by {@link #revive}, from all it wrote. */
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        throw new IllegalStateException("an attack-move is made again by AttackMoveOrder.revive, never by its template");
+    }
+
+    /** An attack-move made again from its save, on {@code unit}: what {@code ModuleFactory.revives} is given. */
+    public static AttackMoveOrder revive(GameObject unit, uz.dukeengine.core.save.SaveIn in) {
+        var order = new AttackMoveOrder(unit, in.readPlace());
+        order.target = in.readId();
+        order.tookItOnAt = in.readPlace();
+        order.chased = Engaging.Chase.read(in);
+        order.engagedAt = in.readInt();
+        order.nextLook = in.readInt();
+        order.over = in.readBoolean();
+        return order;
     }
 
     /** On an errand, it is at work: not asked to step aside. */

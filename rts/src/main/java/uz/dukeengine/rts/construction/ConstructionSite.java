@@ -28,7 +28,7 @@ import uz.dukeengine.rts.player.RtsPlayer;
  * <p>It holds the game's words while it goes up ({@link PlacementRules.SiteWords}): awaiting its first work,
  * partly built after it, being built on each frame a builder works on it, none once it is whole.
  */
-public final class ConstructionSite extends UpdateModule {
+public final class ConstructionSite extends UpdateModule implements uz.dukeengine.core.save.Saveable {
 
     /** How near 1 its work may add up to and be whole: what adding a length's shares in doubles may fall short by. */
     private static final double WHOLE = 1e-9;
@@ -43,13 +43,43 @@ public final class ConstructionSite extends UpdateModule {
     private double work;
 
     ConstructionSite(GameObject site, ObjectId builder, int cost, PlacementRules rules) {
+        this(site, builder, cost, rules, 0.0);
+        site.setCondition(rules.words().awaiting());
+    }
+
+    /** Without the word it puts on its site as it is put down: a site made again has the words it was saved with. */
+    private ConstructionSite(GameObject site, ObjectId builder, int cost, PlacementRules rules, double work) {
         super(site);
         this.builder = builder;
         this.cost = cost;
         this.rules = rules;
+        this.work = work;
         float seconds = site.getTemplate() instanceof Buildable buildable ? buildable.buildTime() : 0f;
         this.frames = Math.max(1, Math.round(seconds * GameConstants.LOGICFRAMES_PER_SECOND));
-        site.setCondition(rules.words().awaiting());
+    }
+
+    /**
+     * Whose work raises it, what it cost and how much is done; its rules are the world's, which a game sets, and its
+     * length is its template's.
+     */
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        Construction.expectWorldRules(getOwner(), rules, ConstructionSite.class);
+        out.writeId(builder).writeInt(cost).writeDouble(work);
+    }
+
+    /** Nothing: it is made again by {@link #revive}, from all it wrote. */
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        throw new IllegalStateException(
+                "a construction site is made again by ConstructionSite.revive, never by its template");
+    }
+
+    /** A construction site made again from its save, on {@code site}: what {@code ModuleFactory.revives} is given. */
+    public static ConstructionSite revive(GameObject site, uz.dukeengine.core.save.SaveIn in) {
+        var builder = in.readId();
+        return new ConstructionSite(site, builder, in.readInt(), Construction.worldRules(in, ConstructionSite.class),
+                in.readDouble());
     }
 
     @Override

@@ -78,7 +78,7 @@ import uz.dukeengine.rts.player.RtsPlayer;
  *                      banking — before it sets off: the reference's truck 4, its worker 33, a flier 3
  */
 @ModuleGroup(RtsModuleGroups.ECONOMY)
-public final class HarvestUpdate extends UpdateModule implements OrderListener {
+public final class HarvestUpdate extends UpdateModule implements OrderListener, uz.dukeengine.core.save.Saveable {
 
     /** Where it is in the loop. */
     private enum Doing {
@@ -420,6 +420,39 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
             docking.leave(getOwner());
         }
         docksAt = null;
+    }
+
+    /**
+     * Where it is in its loop and what it has in hand; the piles and depots it holds by id. Who is let in at a dock is
+     * the pile's or depot's to write.
+     */
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeEnum(doing).writeThing(place).writeBoolean(paused).writeInt(retryIn).writeThing(atPile)
+                .writeBoolean(sent).writeThing(reached).writeBoolean(waiting).writeThing(waitingBy).writeInt(elapsed)
+                .writeInt(carrying).writeThing(docksAt).writeInt(waitingSince).writeBoolean(sentIn)
+                .writeInt(beforeLeft).writeInt(afterLeft).writeFloat(searchRange);
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        doing = in.readEnum(Doing.class);
+        place = in.readThing();
+        paused = in.readBoolean();
+        retryIn = in.readInt();
+        atPile = in.readThing();
+        sent = in.readBoolean();
+        reached = in.readThing();
+        waiting = in.readBoolean();
+        waitingBy = in.readThing();
+        elapsed = in.readInt();
+        carrying = in.readInt();
+        docksAt = in.readThing();
+        waitingSince = in.readInt();
+        sentIn = in.readBoolean();
+        beforeLeft = in.readInt();
+        afterLeft = in.readInt();
+        searchRange = in.readFloat();
     }
 
     /** Whether it has stopped working for an order of its player's, until it is next told where to work. */
