@@ -114,6 +114,40 @@ class DukeGameTest {
         assertThrows(IllegalStateException.class, () -> game.loadUnits("Object X\nEnd"));
     }
 
+    /** A replay's controls: the pace of a booted game set and read, and one frame stepped while it is held. */
+    @Test
+    void theLogicRateAndOneStepAreTheGamesToAskOnceItIsBooted() throws InterruptedException {
+        var game = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
+        game.addPlayer("You", Color.BLUE);
+        assertThrows(IllegalStateException.class, () -> game.setLogicRate(2f), "a rate before there is an engine");
+        assertThrows(IllegalStateException.class, game::stepOnce);
+
+        var running = game.startEngineOnly();
+        try {
+            assertEquals(1f, game.getLogicRate());
+            game.setLogicRate(2f);
+            assertEquals(2f, game.getLogicRate());
+            game.setLogicRate(100f);
+            assertEquals(8f, game.getLogicRate(), "past the engine's fastest");
+
+            game.setLogicRate(0f);
+            Thread.sleep(150);
+            int held = game.getLogic().getFrame();
+            Thread.sleep(150);
+            assertEquals(held, game.getLogic().getFrame(), "a world at a rate of 0 moved");
+            game.stepOnce();
+            long giveUp = System.nanoTime() + 2_000_000_000L;
+            while (game.getLogic().getFrame() == held && System.nanoTime() < giveUp) {
+                Thread.sleep(5);
+            }
+            Thread.sleep(150);
+            assertEquals(held + 1, game.getLogic().getFrame(), "one step asked, not one frame stepped");
+        } finally {
+            game.stop();
+            running.join(5000);
+        }
+    }
+
     @Test
     void moveOrderOverridesCurrentTarget() {
         var game = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);

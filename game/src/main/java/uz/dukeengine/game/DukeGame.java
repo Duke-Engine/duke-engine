@@ -1156,6 +1156,36 @@ public final class DukeGame {
         }
     }
 
+    /**
+     * Run the world {@code multiplier} times as fast as the wall clock: 0.25 to 8, 0 or less a pause; each step still
+     * a thirtieth of a second of it, so the checksums and the order of orders do not change
+     * ({@link uz.dukeengine.core.GameEngine#setLogicRate}). In a match of several machines the game agrees on it as an
+     * order. Once booted, from any thread.
+     */
+    public void setLogicRate(float multiplier) {
+        booted().setLogicRate(multiplier);
+    }
+
+    /** How many times real time the world runs at; 1 until {@link #setLogicRate} says otherwise. Once booted. */
+    public float getLogicRate() {
+        return booted().getLogicRate();
+    }
+
+    /**
+     * One frame of the world on the engine's next turn, while it is paused or at a rate of 0: a replay's Next Frame.
+     * Once booted, from any thread. {@link #runHeadless} steps a frame each attempt, paused or not, and ignores it.
+     */
+    public void stepOnce() {
+        booted().stepOnce();
+    }
+
+    private MatchEngine booted() {
+        if (engine == null) {
+            throw new IllegalStateException("the game has no engine yet: boot it first");
+        }
+        return engine;
+    }
+
     // ---- runtime access (used by the window, callbacks, and tests) ----
 
     /** The most recent frame of the world; safe from any thread. */
