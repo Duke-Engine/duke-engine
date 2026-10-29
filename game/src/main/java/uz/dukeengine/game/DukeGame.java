@@ -959,6 +959,7 @@ public final class DukeGame {
             if (engine.isLogicFrameReady()) {
                 logic.update();
             }
+            engine.runBetweenFrames();
             link.client().update(); // keeps snapshots flowing for assertions
         }
     }
@@ -1192,6 +1193,16 @@ public final class DukeGame {
      */
     public void stepOnce() {
         booted().stepOnce();
+    }
+
+    /**
+     * Thread-safe: run {@code task} on the simulation's thread between two frames — never part way through one, as
+     * {@link #runOnSimThread}'s tasks are, and while the world is paused too — where a snapshot of it may be taken
+     * ({@code GameSnapshot.save}): at the end of the engine loop's next turn, or after the next attempt of
+     * {@link #runHeadless}. Once booted.
+     */
+    public void runBetweenFrames(Runnable task) {
+        booted().betweenFrames(task);
     }
 
     private MatchEngine booted() {

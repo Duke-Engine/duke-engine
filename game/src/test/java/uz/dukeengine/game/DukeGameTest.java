@@ -148,6 +148,47 @@ class DukeGameTest {
         }
     }
 
+    /**
+     * A save's moment: a task run between two frames — after a headless attempt's frame is whole, and on the engine's
+     * own thread while the world is paused, where {@link #runOnSimThread}'s tasks wait for a frame and run inside it.
+     */
+    @Test
+    void aTaskBetweenFramesRunsAfterAWholeFrameAndWhilePaused() throws InterruptedException {
+        var game = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
+        game.addPlayer("You", Color.BLUE);
+        assertThrows(IllegalStateException.class, () -> game.runBetweenFrames(() -> { }), "before there is an engine");
+        var ticks = new java.util.concurrent.atomic.AtomicInteger();
+        game.onTick(g -> ticks.incrementAndGet());
+        game.runHeadless(3);
+        var seen = new java.util.ArrayList<Integer>();
+        game.runBetweenFrames(() -> seen.add(game.getLogic().getFrame() * 100 + ticks.get()));
+        game.runHeadless(1);
+        assertEquals(List.of(4 * 100 + 4), seen, "not after the attempt's whole frame");
+
+        var paused = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
+        paused.addPlayer("You", Color.BLUE);
+        var running = paused.startEngineOnly();
+        try {
+            paused.getLogic().setGamePaused(true);
+            Thread.sleep(100);
+            int held = paused.getLogic().getFrame();
+            var ran = new java.util.concurrent.CountDownLatch(1);
+            var thread = new String[1];
+            var frame = new int[1];
+            paused.runBetweenFrames(() -> {
+                thread[0] = Thread.currentThread().getName();
+                frame[0] = paused.getLogic().getFrame();
+                ran.countDown();
+            });
+            assertTrue(ran.await(2, java.util.concurrent.TimeUnit.SECONDS), "a paused world never ran it");
+            assertEquals("duke-sim", thread[0]);
+            assertEquals(held, frame[0], "the paused world moved");
+        } finally {
+            paused.stop();
+            running.join(5000);
+        }
+    }
+
     @Test
     void moveOrderOverridesCurrentTarget() {
         var game = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);

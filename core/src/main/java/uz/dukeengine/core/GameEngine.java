@@ -58,6 +58,29 @@ public abstract class GameEngine extends SubsystemInterface {
         stepAsked = true;
     }
 
+    private final java.util.Queue<Runnable> betweenFrames = new java.util.concurrent.ConcurrentLinkedQueue<>();
+
+    /**
+     * Thread-safe: run {@code task} on the engine's thread between two logic frames — once this turn's frames are
+     * stepped and before the next turn's, paused or not — where no {@link GameLogic#update} is part way through: the
+     * moment a snapshot is taken in, as SAGE saves from its menus between frames. A task posted by a task runs on the
+     * turn after.
+     */
+    public final void betweenFrames(Runnable task) {
+        betweenFrames.add(task);
+    }
+
+    /** The tasks waiting for a gap between frames, run: the loop's own at the end of every turn. */
+    public final void runBetweenFrames() {
+        for (int waiting = betweenFrames.size(); waiting > 0; waiting--) {
+            var task = betweenFrames.poll();
+            if (task == null) {
+                return;
+            }
+            task.run();
+        }
+    }
+
     private GameLogic logic;
     private GameClient client;
 
@@ -119,6 +142,7 @@ public abstract class GameEngine extends SubsystemInterface {
             logic.update();
             accumulatedNanos -= STEP_NANOS;
         }
+        runBetweenFrames();
         client.update();
     }
 
