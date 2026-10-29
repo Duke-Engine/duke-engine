@@ -1192,6 +1192,23 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /** The match behind the front end put away while the front end stays up — see {@link Duke3D#dropBackdrop}. */
+    void dropBackdrop() {
+        if (backdrop == null) {
+            return;
+        }
+        boolean shown = backdropShown();
+        backdrop.drop();
+        if (shown) {
+            if (frontMatch != null) {
+                game = frontMatch; // the client's front menu's own match, back in its place
+                frontMatch = null;
+            }
+            forgetKeepingTheMenu(screens.menu()::isVisible, this::forgetTheWorld, screens.menu()::reveal);
+            screens.menu().liveBehind(false);
+        }
+    }
+
     /** Keep the match behind the front end going, and draw it once there is one. */
     private void keepTheBackdropGoing() {
         if (!onTheFrontEnd() || backdrop == null) {

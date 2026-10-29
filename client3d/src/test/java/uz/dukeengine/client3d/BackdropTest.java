@@ -190,6 +190,31 @@ class BackdropTest {
         assertEquals(2, asked.get(), "a fresh one once let go");
     }
 
+    /** Dropped under a load screen: stopped at once, none made in its place, and a fresh one once let go. */
+    @Test
+    void aDroppedBackdropStopsAndStaysAwayUntilLetGo() throws Exception {
+        var asked = new AtomicInteger();
+        var backdrop = new Backdrop(() -> {
+            asked.incrementAndGet();
+            return recipe();
+        }, _ -> NOTHING, _ -> { });
+        var first = started(backdrop);
+
+        backdrop.drop();
+        assertNull(backdrop.running(), "put away");
+        int stoppedAt = first.getSnapshot().frame();
+        for (int frame = 0; frame < 300; frame++) {
+            assertNull(backdrop.frame(), "and nothing in its place");
+        }
+        assertEquals(stoppedAt, first.getSnapshot().frame(), "its match no longer runs");
+        assertEquals(1, asked.get());
+
+        backdrop.hold(false);
+        started(backdrop);
+        backdrop.stop();
+        assertEquals(2, asked.get(), "a fresh one once let go");
+    }
+
     @Test
     void aRecipeThatMakesNoMatchStillTells100() {
         var told = new ArrayList<Integer>();

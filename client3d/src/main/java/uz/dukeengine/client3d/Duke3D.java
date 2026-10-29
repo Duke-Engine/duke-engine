@@ -667,6 +667,16 @@ public final class Duke3D {
         later(client -> client.holdBackdrop(hold));
     }
 
+    /**
+     * Put the backdrop away now, while the front end stays up — stopped, its last frame waited for, and its world no
+     * longer drawn — as a real match's start would, so a load screen shows over nothing (the reference's LAN load,
+     * which runs no shell map behind it). Held after, as by {@link #holdBackdrop}{@code (true)}: {@code
+     * holdBackdrop(false)} makes a fresh one, should the match not start after all. Nothing where none runs.
+     */
+    public void dropBackdrop() {
+        later(DukeRtsApp::dropBackdrop);
+    }
+
     /** Let the match being loaded start once it is loaded — at once if it is there already. */
     public void releaseMatchStart() {
         later(DukeRtsApp::releaseMatchStart);

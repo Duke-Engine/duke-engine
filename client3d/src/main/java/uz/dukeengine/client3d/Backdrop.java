@@ -93,6 +93,15 @@ final class Backdrop {
         return game;
     }
 
+    /**
+     * Put away now, with the front end still up, and held so no fresh one is made in its place — see {@link
+     * Duke3D#dropBackdrop}; let go ({@link #hold}) it is made fresh.
+     */
+    void drop() {
+        hold(true);
+        stop();
+    }
+
     /** The match running behind the front end, or null. */
     DukeGame running() {
         return thread == null ? null : game;
