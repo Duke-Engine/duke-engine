@@ -11,7 +11,7 @@ import java.util.function.Consumer;
 /**
  * One pass over every file the game named, in two halves.
  *
- * <p>The reading half runs on a thread of its own, because that is the slow
+ * <p>The reading half runs on threads of its own, because that is the slow
  * part and doing it here would freeze the very screen that exists to show it
  * happening. jME's asset manager is built for this: a loader off the render
  * thread parses into the shared cache, and nothing touches the scene graph.
@@ -86,10 +86,11 @@ final class ArtLoad implements MatchLoad.Art {
      *
      * <p>A share of a frame rather than a count of pieces. It was one piece a frame, which made the
      * wait a count of frames: 876 models were 876 frames, a quarter of a minute at sixty, however
-     * fast the card was. Half of a sixty-a-second frame keeps the bar moving and lets a quick machine
-     * be quick.
+     * fast the card was. Then half of a sixty-a-second frame, 8 ms, which left the frame idle half
+     * its time: Generals' 8389 pieces took 21.6 s. Three quarters of a thirty-a-second frame took
+     * 13.0 s, and a load screen's bar moves well enough at thirty.
      */
-    private static final long WARM_BUDGET_NANOS = 8_000_000L;
+    private static final long WARM_BUDGET_NANOS = 25_000_000L;
 
     /** One model to show the card, and the look that says how it is dressed. */
     private record Warm(Visuals.UnitVisual look, String path) {
@@ -175,30 +176,63 @@ final class ArtLoad implements MatchLoad.Art {
         return whose == null || !everyTemplate.contains(whose) || only.contains(whose);
     }
 
+    /**
+     * The reading half, on every core but the one that draws the bar.
+     *
+     * <p>jME's asset manager reads in parallel by design: each thread has its own
+     * loader instances and the cache is concurrent. One reader read Generals' 5989
+     * files in 31 s; sixteen cores do it in 5. Nothing here touches the world, so
+     * the order the files arrive in changes nothing a match plays.
+     */
     private void readEverything() {
-        for (var job : files) {
-            reading = job.assetPath();
-            try {
-                switch (job.kind()) {
-                    case MODEL, TILE -> store.keep(store.assetManager.loadModel(job.assetPath()));
-                    case ANIMATIONS -> store.bodies.readLibrary(job.assetPath());
-                    case TEXTURE -> store.keep(store.assetManager.loadTexture(job.assetPath()));
-                    // Sound is the render thread's: an audio node goes into the
-                    // scene, and the scene is not this thread's to touch.
-                    case SOUND -> {
-                    }
-                }
-            } catch (RuntimeException | LinkageError _) {
-                store.missing.warn(job.assetPath(), job.kind().name().toLowerCase(
-                        java.util.Locale.ROOT));
-            } finally {
-                // In a finally, because a thread that dies holding the count
-                // leaves the loading screen up for ever, and a game that will
-                // not start is worse than a game missing one texture.
-                read.incrementAndGet();
+        int cores = Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
+        try (var readers = java.util.concurrent.Executors.newFixedThreadPool(cores,
+                Thread.ofPlatform().name("duke-art-", 0).daemon().factory())) { // a window closed mid-load must still close
+            for (var job : files) {
+                readers.execute(() -> readOne(job));
+            }
+            // A sound's samples read here too: the audio node the render thread makes for it
+            // later finds them in the cache, under the very key it asks with.
+            for (var sound : sounds) {
+                readers.execute(() -> readSound(sound));
             }
         }
         reading = "";
+    }
+
+    private void readOne(Preload.Job job) {
+        reading = job.assetPath();
+        try {
+            switch (job.kind()) {
+                case MODEL, TILE -> store.keep(store.assetManager.loadModel(job.assetPath()));
+                case ANIMATIONS -> store.bodies.readLibrary(job.assetPath());
+                case TEXTURE -> store.keep(store.assetManager.loadTexture(job.assetPath()));
+                // A sound's node is the render thread's: it goes into the scene, and the
+                // scene is not this thread's to touch. Its samples are read with the others.
+                case SOUND -> {
+                }
+            }
+        } catch (RuntimeException | LinkageError _) {
+            store.missing.warn(job.assetPath(), job.kind().name().toLowerCase(
+                    java.util.Locale.ROOT));
+        } finally {
+            // In a finally, because a reader that dies holding the count
+            // leaves the loading screen up for ever, and a game that will
+            // not start is worse than a game missing one texture.
+            read.incrementAndGet();
+        }
+    }
+
+    private void readSound(String path) {
+        reading = path;
+        try {
+            // AudioNode(assetManager, path, Buffer)'s own key: not streamed, cached.
+            store.keep(store.assetManager.loadAsset(new com.jme3.audio.AudioKey(path, false, true)));
+        } catch (RuntimeException | LinkageError _) {
+            // Said once, by the render thread, as it makes the node.
+        } finally {
+            read.incrementAndGet();
+        }
     }
 
     /**
@@ -214,7 +248,12 @@ final class ArtLoad implements MatchLoad.Art {
     }
 
     private int total() {
-        return files.size() + looks.size() + sounds.size() + 1;
+        return reads() + looks.size() + sounds.size() + 1;
+    }
+
+    /** The reading half's count: every file, and every sound's samples. */
+    private int reads() {
+        return files.size() + sounds.size();
     }
 
     /**
@@ -222,7 +261,7 @@ final class ArtLoad implements MatchLoad.Art {
      */
     @Override
     public boolean step() {
-        if (read.get() < files.size()) {
+        if (read.get() < reads()) {
             return false; // still reading; the bar is the only thing to do
         }
         int all = looks.size() + sounds.size() + 1;
