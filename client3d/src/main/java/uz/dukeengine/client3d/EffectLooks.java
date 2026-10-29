@@ -23,6 +23,7 @@ final class EffectLooks {
     int particleFieldPriority = Integer.MIN_VALUE;
     int particleFieldMost = Integer.MAX_VALUE;
     List<Visuals.ParticleLod> particleLod = List.of();
+    java.util.function.Predicate<ParticleSystem> heatEffect = _ -> false;
     final Map<String, EffectList> lists = new LinkedHashMap<>();
     final Map<String, Laser> lasers = new LinkedHashMap<>();
     Visuals.EffectBudget budget = new Visuals.EffectBudget(4, 0f);

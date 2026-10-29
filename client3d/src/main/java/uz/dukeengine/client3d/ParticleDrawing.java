@@ -85,16 +85,27 @@ final class ParticleDrawing {
     /** The model each particle of a {@code DRAWABLE} system is drawn as. */
     private final Map<Particle, Spatial> modelled = new IdentityHashMap<>();
     private final Set<String> undrawable = new HashSet<>();
+    /** The systems not drawn now — heat, while the preset draws none — asked every frame. */
+    private final java.util.function.Predicate<ParticleSystem> hidden;
 
     /**
      * @param models a fresh copy of the model at a path, or null where it will not load — what a {@code DRAWABLE}
      *               system's particles are drawn as
+     * @param hidden whether a system is left undrawn this frame: its particles live on, unseen, and are drawn again
+     *               the frame it no longer is
      */
     ParticleDrawing(Particles particles, Function<ParticleSystem, Material> materials,
-            Function<String, Spatial> models) {
+            Function<String, Spatial> models, java.util.function.Predicate<ParticleSystem> hidden) {
         this.particles = particles;
         this.materials = materials;
         this.models = models;
+        this.hidden = hidden;
+    }
+
+    /** Every system drawn. */
+    ParticleDrawing(Particles particles, Function<ParticleSystem, Material> materials,
+            Function<String, Spatial> models) {
+        this(particles, materials, models, _ -> false);
     }
 
     Node node() {
@@ -109,6 +120,9 @@ final class ParticleDrawing {
         var live = java.util.Collections.newSetFromMap(new IdentityHashMap<Emitter, Boolean>());
         var seen = java.util.Collections.newSetFromMap(new IdentityHashMap<Particle, Boolean>());
         for (var emitter : particles.emitters()) {
+            if (hidden.test(emitter.data())) {
+                continue; // not live and not seen: whatever was drawn of it is taken away below
+            }
             if (emitter.data().type() == ParticleSystem.Type.DRAWABLE) {
                 model(emitter, seen);
                 continue;

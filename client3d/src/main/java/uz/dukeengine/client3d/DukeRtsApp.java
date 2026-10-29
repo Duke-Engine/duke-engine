@@ -553,7 +553,8 @@ final class DukeRtsApp extends SimpleApplication {
         particles.fieldCap(visuals.getParticleFieldPriority(), visuals.getParticleFieldMost());
         particles.lod(visuals.getParticleLod());
         particleDrawing = new ParticleDrawing(particles, this::particleMaterial,
-                path -> bodies.asFiled(path, "particle model"));
+                path -> bodies.asFiled(path, "particle model"),
+                system -> !preset.heatEffects() && visuals.isHeatEffect(system));
         rootNode.attachChild(particleDrawing.node());
         layered.drawsSystemsWith(particles);
         hangTheSky();

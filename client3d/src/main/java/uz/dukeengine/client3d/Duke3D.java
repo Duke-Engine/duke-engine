@@ -536,7 +536,7 @@ public final class Duke3D {
 
     /**
      * The detail preset's switches ({@link DetailPreset}) — shadow decals, the night's emissive materials, the water's
-     * soft edge, scaffolds and tree sway — applied to what is drawn at once and to what is drawn next, so a preset
+     * soft edge, scaffolds, tree sway, heat and the trees themselves — applied to what is drawn at once and to what is drawn next, so a preset
      * changed in the middle of a match takes away the shadows and the sway already there. {@link DetailPreset#ALL}
      * until set; null for that. From any thread, before launch or while it runs.
      */

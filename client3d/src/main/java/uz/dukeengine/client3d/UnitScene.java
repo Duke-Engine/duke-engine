@@ -379,9 +379,9 @@ final class UnitScene {
             if (outOfSight(view)) {
                 continue; // behind a wall: not drawn, and taken away if it was
             }
-            if (!looks.visualFor(view).shownTo(view, game.getLocalPlayerIndex())) {
+            if (!shown(view)) {
                 selected.remove(view.id());
-                continue; // kept from this viewer's side: not drawn either, as behind a wall
+                continue; // kept from this viewer, or a tree the preset leaves out: not drawn either, as behind a wall
             }
             var corpse = corpseOf(view.id());
             if (corpse != null) {
@@ -453,7 +453,13 @@ final class UnitScene {
      */
     /** Whether a click or a box may take this thing: selectable, with a shape, and shown to this viewer. */
     boolean pickable(UnitView view) {
-        return looks.visualFor(view).pickableBy(view, game.get().getLocalPlayerIndex());
+        return shown(view) && looks.visualFor(view).pickableBy(view, game.get().getLocalPlayerIndex());
+    }
+
+    /** Whether this viewer is shown this thing at all: its look's rules, and a tree only while the preset draws trees. */
+    private boolean shown(UnitView view) {
+        var look = looks.visualFor(view);
+        return look.shownTo(view, game.get().getLocalPlayerIndex()) && look.drawnBy(preset.get());
     }
 
     private boolean outOfSight(UnitView view) {

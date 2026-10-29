@@ -947,6 +947,24 @@ public final class Visuals {
             return this;
         }
 
+        /** Whether it is a tree — see {@link #tree}. */
+        boolean isTree;
+
+        /**
+         * It is a tree or a shrub (the reference's {@code KINDOF_SHRUBBERY}): a {@link DetailPreset} with {@code trees}
+         * off — the options' {@code ShowTrees} — neither draws nor picks it. Drawing only: the simulation keeps it,
+         * so every machine's match stays the same.
+         */
+        public UnitVisual tree() {
+            isTree = true;
+            return this;
+        }
+
+        /** Whether a preset draws it at all: anything but a tree, and a tree while it draws trees. */
+        boolean drawnBy(DetailPreset preset) {
+            return !isTree || preset.trees();
+        }
+
         /** Its picture of no words — a shadow — kept under whichever its words choose; null for none. */
         GroundPicture plainGroundPicture() {
             for (var picture : groundPictures) {
@@ -2215,6 +2233,21 @@ public final class Visuals {
 
     public java.util.List<ParticleLod> getParticleLod() {
         return fx.particleLod;
+    }
+
+    /**
+     * Which particle systems are heat — the reference's smudges, the shimmer over a fire or an exhaust, drawn only while
+     * its {@code UseHeatEffects} is on: a {@link DetailPreset} with {@code heatEffects} off draws none of them. Left
+     * unset, none is.
+     */
+    public Visuals heatEffects(java.util.function.Predicate<uz.dukeengine.core.content.ParticleSystem> which) {
+        fx.heatEffect = Objects.requireNonNull(which, "which");
+        return this;
+    }
+
+    /** Whether a particle system is one of the game's {@link #heatEffects}. */
+    public boolean isHeatEffect(uz.dukeengine.core.content.ParticleSystem system) {
+        return fx.heatEffect.test(system);
     }
 
     /**

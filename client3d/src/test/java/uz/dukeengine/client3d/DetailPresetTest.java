@@ -1,6 +1,7 @@
 package uz.dukeengine.client3d;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -66,6 +67,57 @@ class DetailPresetTest {
     @Test
     void thePresetDefaultsToDrawingEverythingAsItAlwaysWas() {
         assertEquals(new DetailPreset(true, true, true, true, true), DetailPreset.ALL);
+        assertEquals(new DetailPreset(true, true, true, true, true, true, true), DetailPreset.ALL,
+                "a preset from before heat and trees could be switched draws both");
+    }
+
+    @Test
+    void aTreeIsDrawnOnlyWhileThePresetDrawsTreesAndAnythingElseAlways() {
+        var visuals = Visuals.create().unit("Pine", look -> look.model("models/pine.glb").tree())
+                .unit("Tank", look -> look.model("models/tank.glb"));
+        var noTrees = new DetailPreset(true, true, true, true, true, true, false);
+
+        assertTrue(visuals.of("Pine").drawnBy(DetailPreset.ALL));
+        assertFalse(visuals.of("Pine").drawnBy(noTrees), "ShowTrees off");
+        assertTrue(visuals.of("Tank").drawnBy(noTrees), "a tank is no tree");
+    }
+
+    @Test
+    void aHeatEffectIsLeftUndrawnWhileThePresetDrawsNoHeatAndDrawnAgainAfter() {
+        var systems = java.util.Map.of("Shimmer", new uz.dukeengine.core.data.Binder().bind(
+                uz.dukeengine.core.data.DukeText.parse("""
+                        ParticleSystem
+                          Name = Shimmer
+                          Blend = ALPHA
+                          Size = [4]
+                          BurstCount = [1]
+                          BurstDelay = [1000]
+                          Lifetime = [100]
+                        End
+                        """, "it.duke").getFirst(), uz.dukeengine.core.content.ParticleSystem.class));
+        var world = new Particles(systems::get, 1L, Particles.Ground.FLAT, Integer.MAX_VALUE, Integer.MAX_VALUE);
+        var visuals = Visuals.create().heatEffects(system -> system.name().equals("Shimmer"));
+        var preset = new java.util.concurrent.atomic.AtomicReference<>(DetailPreset.ALL);
+        var drawing = new ParticleDrawing(world, _ -> new Material(new DesktopAssetManager(true),
+                "Common/MatDefs/Misc/Unshaded.j3md"), _ -> null,
+                system -> !preset.get().heatEffects() && visuals.isHeatEffect(system));
+        world.startAt("Shimmer", new Particles.Placement(0f, 0f, 0f, 0f));
+        var camera = new com.jme3.renderer.Camera(640, 480);
+        world.update();
+
+        drawing.draw(camera);
+        assertEquals(1, drawing.node().getQuantity(), "drawn while the preset draws heat");
+
+        preset.set(new DetailPreset(true, true, true, true, true, false, true));
+        world.update();
+        drawing.draw(camera);
+        assertEquals(0, drawing.node().getQuantity(), "and what was drawn of it taken away when it does not");
+
+        preset.set(DetailPreset.ALL);
+        world.update();
+        drawing.draw(camera);
+        assertEquals(1, drawing.node().getQuantity(), "its particles lived on, unseen, and are drawn again");
+        assertFalse(Visuals.create().isHeatEffect(systems.get("Shimmer")), "a game that names no heat has none");
     }
 
     @Test
