@@ -30,16 +30,12 @@ class NeutralModulesTest {
     private static final String MAP = "core/src/main/java/uz/dukeengine/core/map/";
 
     private static final String GAME = "game/src/main/java/uz/dukeengine/game/";
-    private static final String CLIENT = "client3d/src/main/java/uz/dukeengine/client3d/";
 
     private static final List<String> STILL_ON_A_PLATFORM = List.of(
-            GAME + "DukeGame.java", GAME + "GamePlayer.java",
-            CLIENT + "BitmapFontBaker.java", CLIENT + "CanvasDrawing.java",
-            CLIENT + "CanvasText.java", CLIENT + "Lettering.java");
+            GAME + "DukeGame.java", GAME + "GamePlayer.java");
 
     private static final List<String> STILL_ON_FILES = List.of(
-            GAME + "DukeGame.java",
-            CLIENT + "BitmapFontBaker.java");
+            GAME + "DukeGame.java");
 
     @Test
     void noNeutralModuleNamesAPlatform() throws IOException {

@@ -5,6 +5,7 @@ when it does, this page says exactly what to change and how.
 
 ## Unreleased
 
+- **`Lettering(AssetManager, java.awt.Font)` is gone**, so the API names no desktop toolkit; `Lettering.of(assets, path)` and `at(pixels)` are as before, and `new Lettering(assets, typeface)` takes a `platform.Typeface`. `BitmapFontBaker.bake` takes a `platform.Face` and returns the atlas as ARGB pixels (`Baked.argb()`, `width()`, `height()`) in place of PNG bytes; its command line is now `uz.dukeengine.client3d.desktop.BakeFont`, the same arguments and the same files.
 - **`Duke3D.screenshots(Path folder, String pattern)` is now `screenshots(String folder, String pattern)`**, so the API names no file classes: a game passes `path.toString()`.
 - **`client3d-desktop`**, a new platform module (`uz.duke-engine:client3d-desktop`), and `client3d`'s `platform` package: `ClientPlatform.get()` finds the platform on the classpath. Nothing uses it yet; a launcher adds the module to its runtime classpath.
 - `client3d`: a game's own scene in the world (`Duke3D.scene`, `SceneLayer`), and the player's own eyes in place of the RTS camera — WASD, a held mouse, a cross and what is under it within reach (`Duke3D.firstPerson`, `FirstPersonCamera`).

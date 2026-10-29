@@ -22,7 +22,8 @@ import org.junit.jupiter.api.Test;
 class LetteringTest {
 
     private final DesktopAssetManager assets = new DesktopAssetManager(true);
-    private final Lettering sans = new Lettering(assets, new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+    private final Lettering sans = new Lettering(assets,
+            uz.dukeengine.client3d.platform.ClientPlatform.get().glyphs().system(Font.SANS_SERIF));
 
     @Test
     void aFaceIsBakedSoThatALineOfItStandsThePixelsAsked() {

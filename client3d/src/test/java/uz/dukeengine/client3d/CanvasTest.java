@@ -117,7 +117,7 @@ class CanvasTest {
 
     @Test
     void aFaceAskedForAWidthIsCondensedToIt() {
-        var arial = java.awt.Font.decode("Arial").deriveFont(20f);
+        var arial = uz.dukeengine.client3d.platform.ClientPlatform.get().glyphs().system("Arial").at(20f, false, 1f, false);
         float natural = CanvasText.averageWidth(arial);
         var text = text();
 

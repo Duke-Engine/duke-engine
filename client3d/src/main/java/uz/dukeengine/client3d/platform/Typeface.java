@@ -3,6 +3,9 @@ package uz.dukeengine.client3d.platform;
 /** One font, before a size is chosen. */
 public interface Typeface {
 
-    /** The font at this size, stretched by {@code scaleX}; with or without fractional metrics. */
+    /**
+     * The font at this size, stretched by {@code scaleX}; with or without fractional metrics, which also choose the way
+     * it measures (see {@link Face}).
+     */
     Face at(float size, boolean bold, float scaleX, boolean fractionalMetrics);
 }

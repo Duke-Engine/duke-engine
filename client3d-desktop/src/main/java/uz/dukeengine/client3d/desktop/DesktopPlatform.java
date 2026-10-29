@@ -19,7 +19,7 @@ public final class DesktopPlatform implements ClientPlatform {
 
     @Override
     public GlyphRasterizer glyphs() {
-        throw new UnsupportedOperationException("not yet: GlyphRasterizer");
+        return new AwtGlyphs();
     }
 
     @Override

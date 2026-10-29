@@ -1,10 +1,5 @@
 package uz.dukeengine.client3d;
 
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.font.FontRenderContext;
-import java.awt.geom.AffineTransform;
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -15,6 +10,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.logging.Logger;
+import uz.dukeengine.client3d.platform.ClientPlatform;
+import uz.dukeengine.client3d.platform.Face;
+import uz.dukeengine.client3d.platform.GlyphRasterizer;
+import uz.dukeengine.client3d.platform.Typeface;
 
 /**
  * Text for the {@link Canvas}: faces made from the game's {@link Canvas.Font}s, each glyph drawn once into a page of
@@ -62,7 +61,8 @@ final class CanvasText {
 
     /** A page of glyphs, and a number that moves whenever a glyph is added to it. */
     static final class Page {
-        final BufferedImage image = new BufferedImage(PAGE, PAGE, BufferedImage.TYPE_INT_ARGB);
+        /** ARGB, {@link #PAGE} to a row. */
+        final int[] argb = new int[PAGE * PAGE];
         int version;
         private int penX;
         private int penY;
@@ -70,17 +70,16 @@ final class CanvasText {
     }
 
     /** One face at one size, and the glyphs of it drawn so far. */
-    private final class Face {
-        final java.awt.Font font;
+    private final class Sized {
+        final Face face;
         final int ascent;
         final int lineHeight;
         final Map<Integer, Glyph> glyphs = new HashMap<>();
 
-        Face(java.awt.Font font) {
-            this.font = font;
-            var metrics = font.getLineMetrics("Hg", RENDER);
-            this.ascent = (int) Math.ceil(metrics.getAscent());
-            this.lineHeight = ascent + (int) Math.ceil(metrics.getDescent());
+        Sized(Face face) {
+            this.face = face;
+            this.ascent = face.ascent();
+            this.lineHeight = ascent + face.descent();
         }
 
         Glyph glyph(int codePoint) {
@@ -88,36 +87,29 @@ final class CanvasText {
         }
 
         private Glyph draw(int codePoint) {
-            var vector = font.createGlyphVector(RENDER, new String(Character.toChars(codePoint)));
-            int advance = Math.round(vector.getGlyphMetrics(0).getAdvanceX());
-            var bounds = vector.getGlyphPixelBounds(0, RENDER, 0f, ascent);
-            if (bounds.width <= 0 || bounds.height <= 0) {
+            var drawn = face.draw(codePoint);
+            int advance = Math.round(drawn.advance());
+            if (drawn.width() <= 0 || drawn.height() <= 0) {
                 return new Glyph(0, 0, 0, 0, 0, 0, 0, advance);
             }
-            var page = room(bounds.width + 2, bounds.height + 2);
+            var page = room(drawn.width() + 2, drawn.height() + 2);
             int x = page.penX + 1;
             int y = page.penY + 1;
-            var pen = page.image.createGraphics();
-            try {
-                smooth(pen);
-                pen.setColor(java.awt.Color.WHITE);
-                pen.drawGlyphVector(vector, x - bounds.x, y - bounds.y + ascent);
-            } finally {
-                pen.dispose();
+            for (int row = 0; row < drawn.height(); row++) {
+                System.arraycopy(drawn.argb(), row * drawn.width(), page.argb, (y + row) * PAGE + x, drawn.width());
             }
-            page.penX += bounds.width + 2;
-            page.rowHeight = Math.max(page.rowHeight, bounds.height + 2);
+            page.penX += drawn.width() + 2;
+            page.rowHeight = Math.max(page.rowHeight, drawn.height() + 2);
             page.version++;
-            return new Glyph(pages.indexOf(page), x, y, bounds.width, bounds.height, bounds.x, bounds.y, advance);
+            return new Glyph(pages.indexOf(page), x, y, drawn.width(), drawn.height(), drawn.left(), drawn.top(),
+                    advance);
         }
     }
 
-    /** Antialiased edges, whole-pixel advances: what the text is measured and drawn with alike. */
-    private static final FontRenderContext RENDER = new FontRenderContext(null, true, false);
-
+    private final GlyphRasterizer glyphs = ClientPlatform.get().glyphs();
     private final Function<String, InputStream> open;
-    private final Map<Canvas.Font, Face> faces = new HashMap<>();
-    private final Map<String, java.awt.Font> families = new HashMap<>();
+    private final Map<Canvas.Font, Sized> faces = new HashMap<>();
+    private final Map<String, Typeface> families = new HashMap<>();
     private final List<Page> pages = new ArrayList<>();
     private final Set<String> missing = new HashSet<>();
 
@@ -158,50 +150,54 @@ final class CanvasText {
                 glyph.left(), glyph.top() + down, glyph.advance());
     }
 
-    private Face face(Canvas.Font font) {
+    private Sized face(Canvas.Font font) {
         return faces.computeIfAbsent(font, wanted -> {
-            int style = wanted.bold() ? java.awt.Font.BOLD : java.awt.Font.PLAIN;
-            var sized = family(wanted.family()).deriveFont(style, (float) wanted.pixelHeight());
+            var typeface = family(wanted.family());
+            float scale = 1f;
             if (wanted.glyphWidth() > 0) {
-                float natural = averageWidth(sized);
+                float natural = averageWidth(typeface.at(wanted.pixelHeight(), wanted.bold(), 1f, false));
                 if (natural > 0f) {
-                    sized = sized.deriveFont(AffineTransform.getScaleInstance(wanted.glyphWidth() / natural, 1.0));
+                    scale = wanted.glyphWidth() / natural;
                 }
             }
-            return new Face(sized);
+            return new Sized(typeface.at(wanted.pixelHeight(), wanted.bold(), scale, false));
         });
     }
 
     /** The average character width a face is condensed by: see {@link #LETTER_WEIGHTS}. */
-    static float averageWidth(java.awt.Font font) {
-        float sum = SPACE_WEIGHT * advanceOf(font, ' ');
+    static float averageWidth(Face face) {
+        float sum = SPACE_WEIGHT * advanceOf(face, ' ');
         for (int letter = 0; letter < LETTER_WEIGHTS.length; letter++) {
-            sum += LETTER_WEIGHTS[letter] * advanceOf(font, (char) ('a' + letter));
+            sum += LETTER_WEIGHTS[letter] * advanceOf(face, (char) ('a' + letter));
         }
         return sum / 1000f;
     }
 
-    private static float advanceOf(java.awt.Font font, char c) {
-        return font.createGlyphVector(RENDER, String.valueOf(c)).getGlyphMetrics(0).getAdvanceX();
+    private static float advanceOf(Face face, char c) {
+        return (float) face.width(String.valueOf(c));
     }
 
-    private java.awt.Font family(String family) {
-        return families.computeIfAbsent(family == null ? java.awt.Font.DIALOG : family, name -> {
+    private Typeface family(String family) {
+        if (family == null) {
+            return glyphs.system(null);
+        }
+        return families.computeIfAbsent(family, name -> {
             var lower = name.toLowerCase(java.util.Locale.ROOT);
             if (!lower.endsWith(".ttf") && !lower.endsWith(".otf")) {
-                return new java.awt.Font(name, java.awt.Font.PLAIN, 1);
+                return glyphs.system(name);
             }
             try (var in = open.apply(name)) {
-                if (in != null) {
-                    return java.awt.Font.createFont(java.awt.Font.TRUETYPE_FONT, in);
+                var typeface = in == null ? null : glyphs.load(in.readAllBytes());
+                if (typeface != null) {
+                    return typeface;
                 }
-            } catch (IOException | java.awt.FontFormatException _) {
+            } catch (IOException _) {
                 // said below, once, like a file that is not there
             }
             if (missing.add(name)) {
                 LOG.warning("no font file " + name + "; drawing its text in the machine's own face");
             }
-            return new java.awt.Font(java.awt.Font.DIALOG, java.awt.Font.PLAIN, 1);
+            return glyphs.system(null);
         });
     }
 
@@ -218,11 +214,5 @@ final class CanvasText {
             pages.add(page);
         }
         return page;
-    }
-
-    private static void smooth(Graphics2D pen) {
-        pen.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-        pen.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_OFF);
-        pen.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
     }
 }

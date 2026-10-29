@@ -14,7 +14,6 @@ import com.jme3.texture.Texture2D;
 import com.jme3.texture.image.ColorSpace;
 import com.jme3.texture.image.ImageRaster;
 import com.jme3.util.BufferUtils;
-import java.awt.image.DataBufferInt;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
@@ -307,7 +306,7 @@ final class CanvasDrawing {
             if (index < pages.size() && pageVersions.get(index) == page.version) {
                 continue;
             }
-            var data = pixels(page);
+            var data = pixels(page.argb, CanvasText.PAGE, CanvasText.PAGE);
             if (index < pages.size()) {
                 var image = pages.get(index).getImage();
                 image.setData(0, data);
@@ -321,13 +320,12 @@ final class CanvasDrawing {
         }
     }
 
-    /** A page's pixels, bottom row first as the card counts them. */
-    private static ByteBuffer pixels(CanvasText.Page page) {
-        int[] argb = ((DataBufferInt) page.image.getRaster().getDataBuffer()).getData();
-        var data = BufferUtils.createByteBuffer(CanvasText.PAGE * CanvasText.PAGE * 4);
-        for (int y = CanvasText.PAGE - 1; y >= 0; y--) {
-            for (int x = 0; x < CanvasText.PAGE; x++) {
-                int pixel = argb[y * CanvasText.PAGE + x];
+    /** ARGB pixels as the card takes them, RGBA with the bottom row first as it counts them. */
+    static ByteBuffer pixels(int[] argb, int width, int height) {
+        var data = BufferUtils.createByteBuffer(width * height * 4);
+        for (int y = height - 1; y >= 0; y--) {
+            for (int x = 0; x < width; x++) {
+                int pixel = argb[y * width + x];
                 data.put((byte) (pixel >>> 16)).put((byte) (pixel >>> 8)).put((byte) pixel).put((byte) (pixel >>> 24));
             }
         }

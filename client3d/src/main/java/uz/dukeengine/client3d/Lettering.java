@@ -7,17 +7,18 @@ import com.jme3.font.BitmapCharacterSet;
 import com.jme3.font.BitmapFont;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState;
+import com.jme3.texture.Image;
 import com.jme3.texture.Texture;
 import com.jme3.texture.Texture2D;
-import com.jme3.texture.plugins.AWTLoader;
-import java.awt.Font;
-import java.awt.FontFormatException;
-import java.io.ByteArrayInputStream;
+import com.jme3.texture.image.ColorSpace;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+import uz.dukeengine.client3d.platform.ClientPlatform;
+import uz.dukeengine.client3d.platform.Face;
+import uz.dukeengine.client3d.platform.Typeface;
 
 /**
  * A face the game named for the hero's bar, baked at the pixel sizes its lines are drawn at: one pixel of the face to
@@ -35,11 +36,11 @@ public final class Lettering {
             new java.util.WeakHashMap<>();
 
     private final AssetManager assets;
-    private final Font face;
+    private final Typeface face;
     private final Map<Integer, BitmapFont> bySize = new HashMap<>();
     private BitmapFontBaker.Kerning kerning;
 
-    public Lettering(AssetManager assets, Font face) {
+    public Lettering(AssetManager assets, Typeface face) {
         this.assets = assets;
         this.face = face;
     }
@@ -63,51 +64,51 @@ public final class Lettering {
                 LOG.warning(() -> "the hero bar's lettering names a font file that is not there: " + path);
                 return null;
             }
+            Typeface typeface;
             try (var stream = file.openStream()) {
-                return new Lettering(assets, Font.createFont(Font.TRUETYPE_FONT, stream));
+                typeface = ClientPlatform.get().glyphs().load(stream.readAllBytes());
             }
-        } catch (IOException | FontFormatException notAFace) {
+            if (typeface == null) {
+                LOG.warning(() -> "the hero bar's lettering will not load from " + path + ": not a font");
+                return null;
+            }
+            return new Lettering(assets, typeface);
+        } catch (IOException notAFace) {
             LOG.warning(() -> "the hero bar's lettering will not load from " + path + ": " + notAFace);
             return null;
         }
     }
 
-    /** The face baked so that a line of it stands {@code pixels} tall, its rendered size; null where it cannot be. */
+    /** The face baked so that a line of it stands {@code pixels} tall, its rendered size. */
     public BitmapFont at(int pixels) {
         return bySize.computeIfAbsent(Math.max(1, pixels), this::bake);
     }
 
     private BitmapFont bake(int pixels) {
-        try {
-            if (kerning == null) {
-                kerning = BitmapFontBaker.Kerning.of(face.deriveFont(KERNING_MEASURED_AT),
-                        BitmapFontBaker.DEFAULT_CHARACTERS);
-            }
-            return fontOf(BitmapFontBaker.bake(sized(pixels), "lettering", BitmapFontBaker.DEFAULT_CHARACTERS,
-                    kerning));
-        } catch (IOException cannot) {
-            LOG.warning(() -> "the hero bar's lettering could not be baked at " + pixels + " pixels: " + cannot);
-            return null;
+        if (kerning == null) {
+            kerning = BitmapFontBaker.Kerning.of(face.at(KERNING_MEASURED_AT, false, 1f, true),
+                    BitmapFontBaker.DEFAULT_CHARACTERS);
         }
+        return fontOf(BitmapFontBaker.bake(sized(pixels), "lettering", BitmapFontBaker.DEFAULT_CHARACTERS, kerning));
     }
 
     /** The face at the point size whose line, ascent and descent, comes to {@code pixels}: a few tries close it. */
-    private Font sized(int pixels) {
+    private Face sized(int pixels) {
         float points = pixels;
-        var sized = face.deriveFont(points);
+        var sized = face.at(points, false, 1f, true);
         for (int tries = 0; tries < 6; tries++) {
-            int rendered = BitmapFontBaker.renderedSize(sized);
+            int rendered = sized.ascent() + sized.descent();
             if (rendered == pixels || rendered <= 0) {
                 break;
             }
             points *= (float) pixels / rendered;
-            sized = face.deriveFont(points);
+            sized = face.at(points, false, 1f, true);
         }
         return sized;
     }
 
     /** The baked pair as the bitmap font jME draws with, read as its own loader reads an AngelCode file. */
-    private BitmapFont fontOf(BitmapFontBaker.Baked baked) throws IOException {
+    private BitmapFont fontOf(BitmapFontBaker.Baked baked) {
         var set = new BitmapCharacterSet();
         for (var line : baked.fnt().split("\n")) {
             var fields = new HashMap<String, String>();
@@ -140,8 +141,8 @@ public final class Lettering {
                 }
             }
         }
-        var picture = javax.imageio.ImageIO.read(new ByteArrayInputStream(baked.png()));
-        var texture = new Texture2D(new AWTLoader().load(picture, true));
+        var texture = new Texture2D(new Image(Image.Format.RGBA8, baked.width(), baked.height(),
+                CanvasDrawing.pixels(baked.argb(), baked.width(), baked.height()), ColorSpace.sRGB));
         // Drawn one texel to a pixel, where the nearest texel is the texel itself wherever the line starts.
         texture.setMagFilter(Texture.MagFilter.Nearest);
         texture.setMinFilter(Texture.MinFilter.BilinearNoMipMaps);

@@ -1,21 +1,13 @@
 package uz.dukeengine.client3d;
 
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.RenderingHints;
-import java.awt.font.FontRenderContext;
-import java.awt.font.TextAttribute;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import uz.dukeengine.client3d.platform.Face;
+import uz.dukeengine.client3d.platform.GlyphImage;
 
 /**
- * Turns a TrueType font into the pair of files jME can actually draw with.
+ * Turns a font into the pair of files jME can actually draw with.
  *
  * <p>jME does not read TTF. It draws text from a bitmap font: a PNG holding every
  * glyph once, and an AngelCode {@code .fnt} saying where each of them is and how
@@ -24,10 +16,12 @@ import java.util.List;
  * parse — so a game that wants its own lettering is stuck at whatever font it
  * shipped with.
  *
- * <p>This is that step, in the repository, in Java:
+ * <p>This is that step, in the repository, in Java. It works on a {@link Face}, which draws and measures the
+ * glyphs for the platform, and hands back the {@code .fnt} text and the atlas as ARGB pixels; the desktop's
+ * {@code BakeFont} tool writes the two files:
  *
  * <pre>{@code
- * java -cp … uz.dukeengine.client3d.BitmapFontBaker Cinzel-Bold.ttf 32 out/ cinzel-32
+ * java -cp … uz.dukeengine.client3d.desktop.BakeFont Cinzel-Bold.ttf 32 out/ cinzel-32
  * }</pre>
  *
  * <p>A build-time tool, and it is here rather than in a game because the next
@@ -52,74 +46,44 @@ public final class BitmapFontBaker {
         return text + "×·–—‹›«»";
     }
 
-    /** The two files, as bytes, for a caller that would rather not touch a disc. */
-    public record Baked(String fnt, byte[] png) {
+    /** The {@code .fnt} text and the atlas it describes, {@code width} by {@code height} pixels of ARGB. */
+    public record Baked(String fnt, int[] argb, int width, int height) {
     }
 
     private BitmapFontBaker() {
     }
 
-    public static void main(String[] args) throws Exception {
-        if (args.length < 4) {
-            System.err.println("usage: BitmapFontBaker <font.ttf> <size> <outDir> <name>");
-            System.exit(2);
-        }
-        var font = Font.createFont(Font.TRUETYPE_FONT, new File(args[0]))
-                .deriveFont(Font.PLAIN, Float.parseFloat(args[1]));
-        var out = Path.of(args[2]);
-        Files.createDirectories(out);
-        var baked = bake(font, args[3], DEFAULT_CHARACTERS);
-        Files.writeString(out.resolve(args[3] + ".fnt"), baked.fnt(), StandardCharsets.UTF_8);
-        Files.write(out.resolve(args[3] + ".png"), baked.png());
-        System.out.println("wrote " + args[3] + ".fnt and " + args[3] + ".png to " + out);
-    }
-
     /**
-     * Draw every character once, pack them, and describe where they landed.
+     * Draw every character once, pack them, and describe where they landed. The face is the one asked for fractional
+     * metrics ({@code Typeface.at(…, true)}), which is how the baker measures.
      *
      * @param name  what the {@code .fnt} will call its page, which must be the
      *     name the PNG is saved under — the loader reads the one to find the other
      */
-    public static Baked bake(Font font, String name, String characters) throws IOException {
-        return bake(font, name, characters, Kerning.of(font, characters));
+    public static Baked bake(Face face, String name, String characters) {
+        return bake(face, name, characters, Kerning.of(face, characters));
     }
 
     /** The same, with the kerning already measured — at this size or another, which it is scaled from. */
-    static Baked bake(Font font, String name, String characters, Kerning kerning) throws IOException {
-        var scratch = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-        var measure = scratch.createGraphics();
-        applyQuality(measure);
-        var metrics = measure.getFontMetrics(font);
-        var context = measure.getFontRenderContext();
-
+    static Baked bake(Face face, String name, String characters, Kerning kerning) {
         var glyphs = new ArrayList<Glyph>();
         for (int i = 0; i < characters.length(); i++) {
             char c = characters.charAt(i);
-            if (font.canDisplay(c)) {
-                glyphs.add(measureOne(font, context, metrics, c));
+            if (face.canDisplay(c)) {
+                glyphs.add(measureOne(face, c));
             }
         }
-        measure.dispose();
 
         int width = atlasSideFor(glyphs);
-        var wide = new BufferedImage(width, width, BufferedImage.TYPE_INT_ARGB);
-        var paint = wide.createGraphics();
-        applyQuality(paint);
-        paint.setFont(font);
-        paint.setColor(Color.WHITE);
-        int used = shelfPack(glyphs, width, paint);
-        paint.dispose();
+        var wide = new int[width * width];
+        int used = shelfPack(glyphs, width, wide);
 
         // Cropped to the shelves that were filled. Square was only ever the
         // starting guess; half a texture of nothing costs memory on the card for
         // as long as the game is open.
-        int height = Integer.highestOneBit(Math.max(1, used - 1)) * 2;
-        var atlas = wide.getSubimage(0, 0, width, Math.min(width, height));
-
-        var png = new java.io.ByteArrayOutputStream();
-        javax.imageio.ImageIO.write(atlas, "png", png);
-        return new Baked(describe(font, name, metrics, glyphs, width, atlas.getHeight(), kerning),
-                png.toByteArray());
+        int height = Math.min(width, Integer.highestOneBit(Math.max(1, used - 1)) * 2);
+        return new Baked(describe(face, name, glyphs, width, height, kerning),
+                Arrays.copyOf(wide, width * height), width, height);
     }
 
     /**
@@ -129,42 +93,22 @@ public final class BitmapFontBaker {
      * great deal of air around a capital and packing the air wastes most of the
      * atlas. The offsets put it back where it belongs when it is drawn.
      */
-    private static Glyph measureOne(Font font, FontRenderContext context,
-            java.awt.FontMetrics metrics, char c) {
-        var text = String.valueOf(c);
-        var vector = font.createGlyphVector(context, text);
-        var ink = vector.getPixelBounds(context, 0, 0);
+    private static Glyph measureOne(Face face, char c) {
+        var ink = face.draw(c);
         var glyph = new Glyph();
         glyph.code = c;
-        glyph.advance = metrics.charWidth(c);
-        if (ink.width <= 0 || ink.height <= 0) {
+        glyph.advance = Math.round(ink.advance());
+        if (ink.width() <= 0 || ink.height() <= 0) {
             return glyph; // a space has no ink, only a width
         }
         // One pixel of air on each side: bilinear filtering samples across a
         // glyph's edge, and a neighbour packed flush against it bleeds in.
-        glyph.width = ink.width + 2;
-        glyph.height = ink.height + 2;
-        glyph.left = ink.x - 1;
-        glyph.top = ink.y - 1;
+        glyph.ink = ink;
+        glyph.width = ink.width() + 2;
+        glyph.height = ink.height() + 2;
+        glyph.left = ink.left() - 1;
+        glyph.top = ink.top() - face.ascent() - 1; // from the baseline, as the face puts it from the line's top
         return glyph;
-    }
-
-    /** How tall a line of {@code font} is, ascent and descent: the size {@link #bake} says it was drawn at. */
-    static int renderedSize(Font font) {
-        var measure = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics();
-        applyQuality(measure);
-        var metrics = measure.getFontMetrics(font);
-        measure.dispose();
-        return metrics.getAscent() + metrics.getDescent();
-    }
-
-    private static void applyQuality(java.awt.Graphics2D g) {
-        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
-                RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-                RenderingHints.VALUE_ANTIALIAS_ON);
-        g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS,
-                RenderingHints.VALUE_FRACTIONALMETRICS_ON);
     }
 
     /** The smallest power of two that holds the ink with room for shelves. */
@@ -184,7 +128,7 @@ public final class BitmapFontBaker {
     }
 
     /** Rows of glyphs, each row as tall as its tallest. Simple, and tight enough. */
-    private static int shelfPack(List<Glyph> glyphs, int side, java.awt.Graphics2D paint) {
+    private static int shelfPack(List<Glyph> glyphs, int side, int[] atlas) {
         int x = 0;
         int y = 0;
         int shelfHeight = 0;
@@ -199,8 +143,11 @@ public final class BitmapFontBaker {
             }
             glyph.x = x;
             glyph.y = y;
-            // Drawn at the baseline, offset so the ink lands in the cell.
-            paint.drawString(String.valueOf(glyph.code), x - glyph.left, y - glyph.top);
+            // The ink lands in the cell, inside its pixel of air.
+            for (int row = 0; row < glyph.ink.height(); row++) {
+                System.arraycopy(glyph.ink.argb(), row * glyph.ink.width(), atlas, (y + 1 + row) * side + x + 1,
+                        glyph.ink.width());
+            }
             x += glyph.width;
             shelfHeight = Math.max(shelfHeight, glyph.height);
         }
@@ -214,14 +161,14 @@ public final class BitmapFontBaker {
      * real BMFont file carries. Anything else would be decoration for a parser
      * that skips it.
      */
-    private static String describe(Font font, String name, java.awt.FontMetrics metrics,
-            List<Glyph> glyphs, int width, int height, Kerning kerning) {
+    private static String describe(Face face, String name, List<Glyph> glyphs, int width, int height,
+            Kerning kerning) {
         var out = new StringBuilder();
-        out.append("info face=\"").append(font.getFamily())
-                .append("\" size=").append(metrics.getAscent() + metrics.getDescent())
+        out.append("info face=\"").append(face.family())
+                .append("\" size=").append(face.ascent() + face.descent())
                 .append(" bold=0 italic=0 unicode=1 smooth=1 aa=1\n");
-        out.append("common lineHeight=").append(metrics.getHeight())
-                .append(" base=").append(metrics.getAscent())
+        out.append("common lineHeight=").append(face.ascent() + face.descent() + face.leading())
+                .append(" base=").append(face.ascent())
                 .append(" scaleW=").append(width).append(" scaleH=").append(height)
                 .append(" pages=1 packed=0\n");
         out.append("page id=0 file=\"").append(name).append(".png\"\n");
@@ -233,11 +180,11 @@ public final class BitmapFontBaker {
                     .append(" xoffset=").append(glyph.left)
                     // From the top of the line rather than from the baseline,
                     // which is what the format means by yoffset.
-                    .append(" yoffset=").append(metrics.getAscent() + glyph.top)
+                    .append(" yoffset=").append(face.ascent() + glyph.top)
                     .append(" xadvance=").append(glyph.advance)
                     .append(" page=0 chnl=0\n");
         }
-        appendKerning(out, kerning, font.getSize2D());
+        appendKerning(out, kerning, face.size());
         return out.toString();
     }
 
@@ -261,7 +208,7 @@ public final class BitmapFontBaker {
     /**
      * What each pair of letters owes the pair before it, at the size it was measured at.
      *
-     * <p>AWT will not hand over a font's kerning table, so it is measured: the
+     * <p>A font's kerning table is not handed over, so it is measured: the
      * width of two letters together against the two apart. Worth it on a display
      * face — an unkerned "AV" at title size is the thing that makes lettering look
      * pasted together — and it is nearly all a bake costs, so a face baked at many
@@ -272,44 +219,35 @@ public final class BitmapFontBaker {
         record Pair(char first, char second, double amount) {
         }
 
-        static Kerning of(Font font, String characters) {
-            var measure = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics();
-            applyQuality(measure);
-            var context = measure.getFontRenderContext();
-            measure.dispose();
-            var kerned = font.deriveFont(java.util.Map.of(TextAttribute.KERNING,
-                    TextAttribute.KERNING_ON));
+        static Kerning of(Face face, String characters) {
             var alone = new double[characters.length()];
             for (int i = 0; i < characters.length(); i++) {
-                alone[i] = width(kerned, context, String.valueOf(characters.charAt(i)));
+                alone[i] = face.width(String.valueOf(characters.charAt(i)));
             }
             var pairs = new ArrayList<Pair>();
             for (int i = 0; i < characters.length(); i++) {
                 char first = characters.charAt(i);
-                if (!font.canDisplay(first)) {
+                if (!face.canDisplay(first)) {
                     continue;
                 }
                 for (int j = 0; j < characters.length(); j++) {
                     char second = characters.charAt(j);
-                    if (!font.canDisplay(second)) {
+                    if (!face.canDisplay(second)) {
                         continue;
                     }
-                    double amount = width(kerned, context, "" + first + second) - (alone[i] + alone[j]);
+                    double amount = face.width("" + first + second) - (alone[i] + alone[j]);
                     if (amount != 0.0) {
                         pairs.add(new Pair(first, second, amount));
                     }
                 }
             }
-            return new Kerning(font.getSize2D(), List.copyOf(pairs));
+            return new Kerning(face.size(), List.copyOf(pairs));
         }
-    }
-
-    private static double width(Font font, FontRenderContext context, String text) {
-        return font.getStringBounds(text, context).getWidth();
     }
 
     private static final class Glyph {
         char code;
+        GlyphImage ink;
         int x;
         int y;
         int width;
