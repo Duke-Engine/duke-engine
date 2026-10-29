@@ -1,6 +1,7 @@
 package uz.dukeengine.client3d;
 
 import com.jme3.input.InputManager;
+import com.jme3.input.MouseInput;
 import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
@@ -9,6 +10,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import uz.dukeengine.client3d.platform.HeldInput;
 import uz.dukeengine.core.view.WorldSnapshot;
 import uz.dukeengine.game.DukeGame;
 
@@ -25,7 +27,7 @@ final class CameraRig {
     private final CameraFrame cameraFrame;
     private final Visuals visuals;
     private final InputManager inputManager;
-    private final WindowDisplay windowDisplay;
+    private final HeldInput heldInput;
     private final SceneVeil veil;
     private final SkillEffects skillEffects;
     private final ListShow listShow;
@@ -57,13 +59,13 @@ final class CameraRig {
     private String scrolling;
     /** The mouse held by the window, as the scheme asks — see {@link ControlScheme.Context#holdMouse}. */
     private final MouseCapture capture = new MouseCapture();
-    /** How far the held mouse moved this frame, in pixels; and where the platform's pointer stood last. */
+    /** How far the held mouse moved this frame, in pixels, and the sum of the events it is read from. */
     private float heldDx;
     private float heldDy;
-    private double[] pointerWas;
+    private final HeldMotion motion = new HeldMotion();
 
     CameraRig(Camera cam, CameraFocus camera, CameraFrame cameraFrame, Visuals visuals, InputManager inputManager,
-            WindowDisplay windowDisplay, SceneVeil veil, SkillEffects skillEffects, ListShow listShow,
+            HeldInput heldInput, SceneVeil veil, SkillEffects skillEffects, ListShow listShow,
             com.jme3.system.Timer timer, Supplier<DukeGame> game, Supplier<WorldSnapshot> snapshot,
             Supplier<ControlScheme> scheme, BooleanSupplier inPlay, Predicate<KeyMap.Control> held,
             BooleanSupplier sceneLocked, BooleanSupplier pointerFreed, WorldMoments.Floor floor) {
@@ -72,7 +74,8 @@ final class CameraRig {
         this.cameraFrame = cameraFrame;
         this.visuals = visuals;
         this.inputManager = inputManager;
-        this.windowDisplay = windowDisplay;
+        this.heldInput = heldInput;
+        inputManager.addRawInputListener(motion);
         this.veil = veil;
         this.skillEffects = skillEffects;
         this.listShow = listShow;
@@ -180,10 +183,10 @@ final class CameraRig {
         int tall = cam.getHeight();
         // No edge while a menu is up: the pointer is being used for something else, and a view that drifted out from
         // under a choice would be its own kind of bug.
-        boolean atTheEdges = inPlay.getAsBoolean() && windowDisplay.pointerInTheWindow()
+        boolean atTheEdges = inPlay.getAsBoolean() && heldInput.pointerInside()
                 && !capture.captured(); // a held mouse scrolls nothing at the edges
-        steering.stillHeld(windowDisplay.buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_RIGHT),
-                windowDisplay.buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_MIDDLE));
+        steering.stillHeld(heldInput.buttonHeld(MouseInput.BUTTON_RIGHT),
+                heldInput.buttonHeld(MouseInput.BUTTON_MIDDLE));
         var hands = new Steering.Hands(held.test(KeyMap.Control.PAN_LEFT), held.test(KeyMap.Control.PAN_RIGHT),
                 held.test(KeyMap.Control.PAN_UP), held.test(KeyMap.Control.PAN_DOWN), at.x, tall - at.y, atTheEdges,
                 cam.getWidth(), tall);
@@ -262,30 +265,16 @@ final class CameraRig {
 
     /** The mouse held or let go as the screen asks, and how far it moved this frame read while it is held. */
     private void holdTheMouse() {
-        long window = windowDisplay.windowHandle();
         boolean was = capture.captured();
         var snapshot = this.snapshot.get();
         boolean freed = !inPlay.getAsBoolean() || pointerFreed.getAsBoolean() || snapshot == null
-                || snapshot.camera() != null || !windowDisplay.focused();
+                || snapshot.camera() != null || !heldInput.focused();
         boolean held = capture.update(freed);
-        if (held != was && window != 0L) {
-            org.lwjgl.glfw.GLFW.glfwSetInputMode(window, org.lwjgl.glfw.GLFW.GLFW_CURSOR,
-                    held ? org.lwjgl.glfw.GLFW.GLFW_CURSOR_DISABLED : org.lwjgl.glfw.GLFW.GLFW_CURSOR_NORMAL);
-            inputManager.setCursorVisible(!held);
-            pointerWas = null;
+        if (held != was) {
+            inputManager.setCursorVisible(!held); // jME's window hides and holds the pointer, or lets it go
         }
-        heldDx = 0f;
-        heldDy = 0f;
-        if (!held || window == 0L) {
-            return;
-        }
-        double[] x = new double[1];
-        double[] y = new double[1];
-        org.lwjgl.glfw.GLFW.glfwGetCursorPos(window, x, y);
-        float dx = pointerWas == null ? 0f : (float) (x[0] - pointerWas[0]);
-        float dy = pointerWas == null ? 0f : (float) (y[0] - pointerWas[1]);
-        pointerWas = new double[] {x[0], y[0]};
-        var moved = capture.motion(dx, dy);
+        var sum = motion.take(); // taken every frame, so a mouse held again starts from none
+        var moved = capture.motion(sum[0], sum[1]);
         heldDx = moved[0];
         heldDy = moved[1];
     }

@@ -37,12 +37,12 @@ public final class DesktopPlatform implements ClientPlatform {
 
     @Override
     public Window window(Supplier<JmeContext> context) {
-        throw new UnsupportedOperationException("not yet: Window");
+        return new GlfwWindow(context);
     }
 
     @Override
     public HeldInput held(Supplier<JmeContext> context) {
-        throw new UnsupportedOperationException("not yet: HeldInput");
+        return new GlfwHeldInput(context);
     }
 
     @Override

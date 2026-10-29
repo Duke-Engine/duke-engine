@@ -34,12 +34,10 @@ class NeutralModulesTest {
 
     private static final List<String> STILL_ON_A_PLATFORM = List.of(
             GAME + "DukeGame.java", GAME + "GamePlayer.java",
-            CLIENT + "BitmapFontBaker.java", CLIENT + "CameraRig.java", CLIENT + "CanvasDrawing.java",
-            CLIENT + "CanvasText.java", CLIENT + "DisplayModes.java",
-            CLIENT + "DukeRtsApp.java", CLIENT + "Lettering.java",
+            CLIENT + "BitmapFontBaker.java", CLIENT + "CanvasDrawing.java",
+            CLIENT + "CanvasText.java", CLIENT + "Lettering.java",
             CLIENT + "MovieFrames.java",
-            CLIENT + "Screens.java", CLIENT + "Screenshots.java",
-            CLIENT + "WindowDisplay.java");
+            CLIENT + "Screens.java", CLIENT + "Screenshots.java");
 
     private static final List<String> STILL_ON_FILES = List.of(
             GAME + "DukeGame.java",

@@ -21,6 +21,8 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Logger;
 
+import uz.dukeengine.client3d.platform.ClientPlatform;
+import uz.dukeengine.client3d.platform.HeldInput;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.game.Colour;
@@ -257,9 +259,12 @@ final class DukeRtsApp extends SimpleApplication {
      * What the player set, kept in a file beside him — see {@link GameSettings}.
      */
     private final GameSettings preferences = new GameSettings();
+    /** The machine under the client: its window and what is held in it — see {@link ClientPlatform}. */
+    private final ClientPlatform platform = ClientPlatform.get();
+    private final HeldInput heldInput = platform.held(this::getContext);
     /** The window itself, asked and moved where jME keeps no answer — see {@link WindowDisplay}. */
-    private final WindowDisplay windowDisplay = new WindowDisplay(this::getContext, () -> settings, preferences,
-            missing);
+    private final WindowDisplay windowDisplay = new WindowDisplay(platform.window(this::getContext), () -> settings,
+            preferences, missing);
     /** What the player chose on the settings screen, put into effect — see {@link PlayerChoices}. */
     private PlayerChoices choices;
     /** The controls bound, and the keys the player put them on — see {@link KeyBindings}. */
@@ -621,7 +626,7 @@ final class DukeRtsApp extends SimpleApplication {
         artStore = new ArtLoad.Store(assetManager, renderManager, bodies, rootNode, terrainNode,
                 soundNodes::soundNode, missing);
 
-        cameraRig = new CameraRig(cam, camera, cameraFrame, visuals, inputManager, windowDisplay, veil, skillEffects,
+        cameraRig = new CameraRig(cam, camera, cameraFrame, visuals, inputManager, heldInput, veil, skillEffects,
                 listShow, timer, () -> game, () -> snapshot, () -> scheme, this::inPlay, this::held,
                 this::sceneLocked,
                 () -> canvasInput != null && canvasInput.holdsKeys() || controls.isHeld(KeyMap.Control.FREE_POINTER),
@@ -819,7 +824,7 @@ final class DukeRtsApp extends SimpleApplication {
         @Override
         public boolean playing() {
             return inPlay() && !(canvasInput != null && canvasInput.holdsKeys())
-                    && windowDisplay.focused();
+                    && heldInput.focused();
         }
 
         @Override
@@ -863,12 +868,12 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public boolean keyHeld(char key) {
-            return windowDisplay.keyHeld(key);
+            return heldInput.keyHeld(key);
         }
 
         @Override
         public boolean leftHeld() {
-            return windowDisplay.buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
+            return heldInput.buttonHeld(com.jme3.input.MouseInput.BUTTON_LEFT);
         }
 
         @Override
@@ -1698,8 +1703,8 @@ final class DukeRtsApp extends SimpleApplication {
         }
         int width = cam.getWidth();
         int height = cam.getHeight();
-        if (getContext() instanceof com.jme3.system.lwjgl.LwjglWindow display
-                && display.getFramebufferWidth() > 0 && display.getFramebufferHeight() > 0) {
+        var display = getContext();
+        if (display != null && display.getFramebufferWidth() > 0 && display.getFramebufferHeight() > 0) {
             width = display.getFramebufferWidth();
             height = display.getFramebufferHeight();
         }
