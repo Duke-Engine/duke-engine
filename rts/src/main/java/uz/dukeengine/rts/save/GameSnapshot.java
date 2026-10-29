@@ -4,37 +4,70 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 import uz.dukeengine.core.GameLogic;
 import uz.dukeengine.core.math.Coord3D;
+import uz.dukeengine.core.network.CommandPacket;
+import uz.dukeengine.core.network.PacketCodec;
+import uz.dukeengine.core.save.ModuleStates;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.core.thing.ObjectStatus;
 import uz.dukeengine.rts.RtsSimulation;
+import uz.dukeengine.rts.network.CommandCodec;
 import uz.dukeengine.rts.player.RtsPlayer;
 
 /**
  * Saves and restores the deterministic world state as portable text, ported in
- * spirit from SAGE's {@code Snapshot}/{@code Xfer} system.
+ * spirit from SAGE's {@code Snapshot}/{@code Xfer} system: a world loaded from it
+ * goes on frame for frame as the saved one would have — the same {@link
+ * GameLogic#checksum()} at once and on every frame after.
  *
- * <p>Captures the strategic state — frame counter, where the simulation's random
- * numbers stand, players (money, weapon-bonus, upgrades, granted words, whether a computer
- * plays them, what they earned and spent) and objects (template,
- * owner, transform, health and most health, status, condition words) — enough
- * that a restored world has the same {@link GameLogic#checksum()} as the saved
- * one. Float values use {@link Float#toString}, which round-trips to identical
- * bits.
+ * <p>One line a record, its word first; the first line is {@code SNAPSHOT} and the
+ * {@link #VERSION}. The world's own lines — frame, next id, random numbers, sight,
+ * decks, players and how they stand toward each other, the scenery taken away —
+ * then each thing's {@code OBJECT} line, then each thing's {@code MODULES} line
+ * ({@link ModuleStates}: every module it carries and what it wrote of itself),
+ * then the world's own ({@link GameLogic#saveWorld}), the RTS world's ({@link
+ * RtsSimulation#saveRts}), the movers' ({@link GameLogic#saveMovers}) and the
+ * commands queued for the next frame, in the game's wire ({@link PacketCodec}).
+ * Floats are written by {@link Float#toString}, which reads back to the same bits.
  *
- * <p>Limitation: per-module in-flight state (a unit's current move goal, a
- * weapon's reload counter, a factory's build queue) is <em>not</em> yet
- * serialized — modules are rebuilt fresh on load. The checksum-relevant world is
- * faithfully restored; resuming in-progress orders is the next step (a per-module
- * {@code Saveable} hook).
+ * <p>Taken between frames, on the simulation thread; a module that cannot be
+ * written ({@link uz.dukeengine.core.save.UnsavedModuleException}) is refused. Loaded into a
+ * world made by the same rules — its templates, its module set and their
+ * revivers, its grid and its settings — before the load; what the game keeps
+ * outside the engine is the game's to save beside it.
  */
 public final class GameSnapshot {
+
+    /**
+     * The version of what is written. 2: every thing's modules, the players' stances, the scenery taken away, a thing
+     * dead, destroyed, vanished or held, who is awake, the RTS world's own state, the movers' cells and routes and the
+     * queued commands. 1, unmarked: the world's lines and the things alone, every module made afresh — refused now,
+     * as it cannot go on as it was. Any change to what a line or a module writes raises it.
+     */
+    public static final int VERSION = 2;
 
     private GameSnapshot() {
     }
 
-    /** Serialize the world to text. */
+    /** The version a snapshot's text says it is, or 1 for one from before the versions. */
+    public static int versionOf(String text) {
+        if (!text.startsWith("SNAPSHOT ")) {
+            return 1;
+        }
+        int end = text.indexOf('\n');
+        return Integer.parseInt(text.substring("SNAPSHOT ".length(), end < 0 ? text.length() : end).trim());
+    }
+
+    /** Serialize the world to text, its queued commands in the RTS wire. */
     public static String save(RtsSimulation logic) {
+        return save(logic, CommandCodec.INSTANCE);
+    }
+
+    /** Serialize the world to text, its queued commands in {@code codec}'s wire. */
+    public static String save(RtsSimulation logic, PacketCodec codec) {
         var sb = new StringBuilder();
+        sb.append("SNAPSHOT ").append(VERSION).append('\n');
         sb.append("FRAME ").append(logic.getFrame()).append('\n');
         sb.append("NEXTID ").append(logic.getNextObjectId()).append('\n');
         sb.append("RANDOM ").append(logic.random().state()).append('\n');
@@ -73,6 +106,20 @@ public final class GameSnapshot {
                     .append(p.getSpent()).append('\n');
         }
         for (int i = 0; i < players.getPlayerCount(); i++) {
+            var stances = new SaveOut();
+            var relationships = players.getPlayer(i).getRelationships();
+            stances.writeInt(relationships.size());
+            relationships.forEach((other, stance) -> stances.writeInt(other).writeEnum(stance));
+            var side = new SaveOut();
+            logic.getRtsPlayer(i).save(side);
+            sb.append("SIDE ").append(i).append('|').append(stances.text()).append('|').append(side.text())
+                    .append('\n');
+        }
+        if (!logic.getRemovedScenery().isEmpty()) {
+            sb.append("SCENERY ").append(logic.getRemovedScenery().stream().map(String::valueOf)
+                    .collect(Collectors.joining(","))).append('\n');
+        }
+        for (int i = 0; i < players.getPlayerCount(); i++) {
             var memory = logic.getSightMemory(i);
             if (memory != null && (memory.seen().length > 0 || memory.inSight().length > 0)) {
                 sb.append("SIGHT ").append(i).append('|').append(memory.width()).append('|').append(memory.height())
@@ -106,14 +153,54 @@ public final class GameSnapshot {
                     .append(o.getOwnFogRange()).append('|')
                     .append(o.getRelationOverrides().entrySet().stream()
                             .map(override -> override.getKey() + "=" + override.getValue().name())
-                            .collect(Collectors.joining(","))).append('\n');
+                            .collect(Collectors.joining(","))).append('|')
+                    .append(o.hasDied()).append('|')
+                    .append(o.isDestroyed()).append('|')
+                    .append(o.hasVanished()).append('|')
+                    .append(o.isContained()).append('|')
+                    .append(o.seesOut()).append('|')
+                    .append(o.isAnnounced()).append('\n');
+        }
+        var modules = logic.getThingFactory().getModuleFactory();
+        for (var o : logic.getObjects()) {
+            sb.append("MODULES ").append(o.getId().value()).append('|').append(ModuleStates.save(o, modules))
+                    .append('\n');
+        }
+        var world = new SaveOut();
+        logic.saveWorld(world);
+        sb.append("WORLD ").append(world.text()).append('\n');
+        var rts = new SaveOut();
+        logic.saveRts(rts);
+        sb.append("RTS ").append(rts.text()).append('\n');
+        var movers = new SaveOut();
+        logic.saveMovers(movers);
+        sb.append("MOVERS ").append(movers.text()).append('\n');
+        var queued = logic.getPendingCommands();
+        if (!queued.isEmpty()) {
+            sb.append("COMMANDS ").append(codec.encode(new CommandPacket(logic.getFrame(), 0, queued))).append('\n');
         }
         return sb.toString();
     }
 
-    /** Restore a saved world into {@code logic}, which must have the templates loaded. */
+    /** Restore a saved world into {@code logic}, its queued commands in the RTS wire. */
     public static void load(String text, RtsSimulation logic) {
+        load(text, logic, CommandCodec.INSTANCE);
+    }
+
+    /**
+     * Restore a saved world into {@code logic}, which must be made by the rules the saved one was — its templates, its
+     * module set and revivers, its grid and settings — its queued commands in {@code codec}'s wire. A snapshot of
+     * another version is refused before anything is changed.
+     */
+    public static void load(String text, RtsSimulation logic, PacketCodec codec) {
+        int version = versionOf(text);
+        if (version != VERSION) {
+            throw new IllegalArgumentException("a snapshot of version " + version + " cannot be loaded: this engine"
+                    + " reads version " + VERSION + (version == 1 ? ", and one of version 1 holds no module state" : ""));
+        }
         logic.reset(); // baseline: empty world, neutral player only
+        var modulesToCome = new java.util.LinkedHashSet<Integer>();
+        var modules = logic.getThingFactory().getModuleFactory();
         for (var line : text.split("\n")) {
             if (line.isBlank()) {
                 continue;
@@ -122,6 +209,38 @@ public final class GameSnapshot {
             var key = line.substring(0, space);
             var rest = line.substring(space + 1);
             switch (key) {
+                case "SNAPSHOT" -> {
+                }
+                case "SIDE" -> loadSide(rest, logic);
+                case "SCENERY" -> logic.setRemovedScenery(Arrays.stream(rest.trim().split(","))
+                        .map(Integer::valueOf).toList());
+                case "MODULES" -> {
+                    int bar = rest.indexOf('|');
+                    int id = Integer.parseInt(rest.substring(0, bar));
+                    var thing = logic.findObject(new ObjectId(id));
+                    if (thing == null || !modulesToCome.remove(id)) {
+                        throw new IllegalArgumentException("snapshot has modules for thing " + id
+                                + ", which it has no OBJECT line for or gave modules already");
+                    }
+                    ModuleStates.load(thing, rest.substring(bar + 1), modules);
+                }
+                case "WORLD" -> {
+                    var in = new SaveIn(rest, logic, "WORLD");
+                    logic.loadWorld(in);
+                    in.expectEnd();
+                }
+                case "RTS" -> {
+                    var in = new SaveIn(rest, logic, "RTS");
+                    logic.loadRts(in);
+                    in.expectEnd();
+                }
+                case "MOVERS" -> {
+                    var in = new SaveIn(rest, logic, "MOVERS");
+                    logic.loadMovers(in); // after the things, decks and scenery: the obstacles it lays are theirs
+                    in.expectEnd();
+                }
+                case "COMMANDS" -> codec.decode(rest).commands().forEach(logic::issueCommand);
+                case "OBJECT" -> modulesToCome.add(loadObject(rest, logic));
                 case "FRAME" -> logic.setFrame(Integer.parseInt(rest.trim()));
                 case "NEXTID" -> logic.setNextObjectId(Integer.parseInt(rest.trim()));
                 case "RANDOM" -> logic.random().restore(Long.parseLong(rest.trim()));
@@ -138,10 +257,28 @@ public final class GameSnapshot {
                 case "PLAYER" -> loadPlayer(rest, logic);
                 case "SIGHT" -> loadSight(rest, logic);
                 case "DECK" -> loadDeck(rest, logic);
-                case "OBJECT" -> loadObject(rest, logic);
                 default -> throw new IllegalArgumentException("unknown snapshot line: " + key);
             }
         }
+        if (!modulesToCome.isEmpty()) {
+            throw new IllegalArgumentException("snapshot gives no modules for things " + modulesToCome);
+        }
+    }
+
+    /** How a player stands toward each other, and its side's bonuses and price changes. */
+    private static void loadSide(String rest, RtsSimulation logic) {
+        var parts = rest.split("\\|", -1);
+        var players = logic.getPlayerList();
+        var player = players.getPlayer(Integer.parseInt(parts[0]));
+        var stances = new SaveIn(parts[1], logic, "SIDE");
+        for (int count = stances.readInt(); count > 0; count--) {
+            var other = players.getPlayer(stances.readInt());
+            player.setRelationshipTo(other, stances.readEnum(uz.dukeengine.core.player.Relationship.class));
+        }
+        stances.expectEnd();
+        var side = new SaveIn(parts[2], logic, "SIDE");
+        ((RtsPlayer) player).load(side);
+        side.expectEnd();
     }
 
     /** A player's cells as he had seen them: kept only where the world keeps cells of the same size. */
@@ -239,7 +376,8 @@ public final class GameSnapshot {
         player.setComputer(parts.length > 6 && Boolean.parseBoolean(parts[6]));
     }
 
-    private static void loadObject(String rest, RtsSimulation logic) {
+    /** A thing back in the world from its line, its template's modules made afresh for its MODULES line; its id. */
+    private static int loadObject(String rest, RtsSimulation logic) {
         var parts = rest.split("\\|", -1);
         int id = Integer.parseInt(parts[0]);
         var templateName = parts[1];
@@ -301,5 +439,19 @@ public final class GameSnapshot {
                 object.setCondition(word);
             }
         }
+        object.setContained(Boolean.parseBoolean(parts[21]));
+        object.setSeesOut(Boolean.parseBoolean(parts[22]));
+        if (!Boolean.parseBoolean(parts[23])) {
+            object.restoredUntold(); // made since its last frame: told so by the next, as in the saved world
+        }
+        if (Boolean.parseBoolean(parts[18])) {
+            object.markDied();
+        }
+        if (Boolean.parseBoolean(parts[20])) {
+            object.vanish();
+        } else if (Boolean.parseBoolean(parts[19])) {
+            object.markDestroyed();
+        }
+        return id;
     }
 }

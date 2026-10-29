@@ -933,6 +933,14 @@ public final class GameObject {
     }
 
     /**
+     * A thing brought back from a save made before its modules were told it is made: they are told by the next frame,
+     * as they would have been in the saved world.
+     */
+    public void restoredUntold() {
+        announced = false;
+    }
+
+    /**
      * Tell its modules it is made ({@link uz.dukeengine.core.module.Module#onCreated}), once: before its first
      * update, or at the end of the frame it was made in, whichever comes first — after whatever made it has set it.
      */

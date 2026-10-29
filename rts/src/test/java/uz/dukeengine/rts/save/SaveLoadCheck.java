@@ -7,8 +7,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import uz.dukeengine.core.save.ModuleStates;
-import uz.dukeengine.core.save.SaveIn;
-import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.rts.RtsSimulation;
 
 /**
@@ -55,7 +54,7 @@ final class SaveLoadCheck {
         setup.accept(played);
         play(played, orders, before);
         var forgetful = rules.get();
-        copyWithoutModules(played, forgetful);
+        copyWithoutModules(rules, played, forgetful);
         boolean parted = false;
         for (int frame = 0; frame < after && !parted; frame++) {
             play(played, orders, 1);
@@ -76,67 +75,32 @@ final class SaveLoadCheck {
         }
     }
 
-    /** Everything a save holds of {@code world}: the world's own lines, its sides', each thing's modules, the rest. */
+    /** Everything a save holds of {@code world}. */
     static String stateOf(RtsSimulation world) {
-        var text = new StringBuilder(GameSnapshot.save(world));
-        var players = world.getPlayerList();
-        for (int i = 0; i < players.getPlayerCount(); i++) {
-            var side = new SaveOut();
-            world.getRtsPlayer(i).save(side);
-            text.append("SIDE ").append(i).append('|').append(players.getPlayer(i).getRelationships()).append('|')
-                    .append(side.text()).append('\n');
-        }
-        var factory = world.getThingFactory().getModuleFactory();
-        for (var thing : world.getObjects()) {
-            text.append("MODULES ").append(thing.getId().value()).append('|')
-                    .append(ModuleStates.save(thing, factory)).append('\n');
-        }
-        var core = new SaveOut();
-        world.saveWorld(core);
-        var rts = new SaveOut();
-        world.saveRts(rts);
-        var movers = new SaveOut();
-        world.saveMovers(movers);
-        return text.append("WORLD ").append(core.text()).append("\nRTS ").append(rts.text()).append("\nMOVERS ")
-                .append(movers.text()).append('\n').toString();
+        return GameSnapshot.save(world);
     }
 
     private static void copy(RtsSimulation from, RtsSimulation to) {
-        copyWithoutModules(from, to);
-        var factory = to.getThingFactory().getModuleFactory();
-        for (var thing : from.getObjects()) {
-            ModuleStates.load(to.findObject(thing.getId()), ModuleStates.save(thing, factory), factory);
-        }
+        GameSnapshot.load(GameSnapshot.save(from), to);
     }
 
-    /** The world's lines, its sides and what it and its RTS keep — its things' modules made afresh. */
-    private static void copyWithoutModules(RtsSimulation from, RtsSimulation to) {
-        GameSnapshot.load(GameSnapshot.save(from), to);
-        for (var thing : from.getObjects()) {
-            var copy = to.findObject(thing.getId());
-            copy.setContained(thing.isContained()); // the snapshot's line for a thing will carry these
-            copy.setSeesOut(thing.seesOut());
-        }
-        var players = from.getPlayerList();
-        for (int i = 0; i < players.getPlayerCount(); i++) {
-            for (var stance : players.getPlayer(i).getRelationships().entrySet()) {
-                to.getPlayerList().getPlayer(i).setRelationshipTo(to.getPlayerList().getPlayer(stance.getKey()),
-                        stance.getValue());
+    /**
+     * {@code from}'s save loaded into {@code to} with every thing's modules as its template makes them afresh — each
+     * {@code MODULES} line put in place by one written of a thing just made, in a world of {@code rules} of its own.
+     */
+    private static <W extends RtsSimulation> void copyWithoutModules(Supplier<W> rules, RtsSimulation from,
+            RtsSimulation to) {
+        var scratch = rules.get();
+        var factory = scratch.getThingFactory().getModuleFactory();
+        var text = new StringBuilder();
+        for (var line : GameSnapshot.save(from).split("\n")) {
+            if (line.startsWith("MODULES ")) {
+                var thing = from.findObject(new ObjectId(Integer.parseInt(line.substring(8, line.indexOf('|')))));
+                var fresh = scratch.restoreObject(thing.getTemplate(), thing.getId());
+                line = "MODULES " + thing.getId().value() + "|" + ModuleStates.save(fresh, factory);
             }
-            var side = new SaveOut();
-            from.getRtsPlayer(i).save(side);
-            to.getRtsPlayer(i).load(new SaveIn(side.text(), to, "SIDE"));
+            text.append(line).append('\n');
         }
-        var rts = new SaveOut();
-        from.saveRts(rts);
-        to.loadRts(new SaveIn(rts.text(), to, "RTS"));
-        var core = new SaveOut();
-        from.saveWorld(core);
-        to.loadWorld(new SaveIn(core.text(), to, "WORLD"));
-        var movers = new SaveOut();
-        from.saveMovers(movers);
-        var in = new SaveIn(movers.text(), to, "MOVERS");
-        to.loadMovers(in); // last: the obstacles it lays are the things' as the rest of the save left them
-        in.expectEnd();
+        GameSnapshot.load(text.toString(), to);
     }
 }

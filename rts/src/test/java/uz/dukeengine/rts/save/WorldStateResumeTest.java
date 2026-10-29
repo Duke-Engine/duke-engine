@@ -10,8 +10,6 @@ import uz.dukeengine.core.Sleep;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.ActiveBody;
 import uz.dukeengine.core.player.Relationship;
-import uz.dukeengine.core.save.SaveIn;
-import uz.dukeengine.core.save.SaveOut;
 import uz.dukeengine.core.thing.Geometry;
 import uz.dukeengine.core.thing.Kind;
 import uz.dukeengine.core.thing.ObjectId;
@@ -63,19 +61,14 @@ class WorldStateResumeTest {
         setup(played);
         played.update();
         var loaded = rules();
-        GameSnapshot.load(GameSnapshot.save(played), loaded);
-        for (int i = 0; i < played.getPlayerList().getPlayerCount(); i++) {
-            var side = new SaveOut();
-            played.getRtsPlayer(i).save(side);
-            loaded.getRtsPlayer(i).load(new SaveIn(side.text(), loaded, "SIDE"));
-        }
-        var rts = new SaveOut();
-        played.saveRts(rts);
-        loaded.loadRts(new SaveIn(rts.text(), loaded, "RTS"));
-        var core = new SaveOut();
-        played.saveWorld(core);
-        loaded.loadWorld(new SaveIn(core.text(), loaded, "WORLD"));
+        var saved = GameSnapshot.save(played);
+        GameSnapshot.load(saved, loaded);
 
+        assertEquals(Relationship.ENEMIES, loaded.getPlayerList().getPlayer(1).getRelationshipTo(
+                loaded.getPlayerList().getPlayer(2)));
+        assertEquals(Relationship.ALLIES, loaded.getPlayerList().getPlayer(2).getRelationshipTo(
+                loaded.getPlayerList().getPlayer(1)));
+        assertEquals(saved, GameSnapshot.save(loaded), "the caps and the rest saved again the same");
         var red = loaded.getRtsPlayer(1);
         assertEquals(225, red.priceOf(loaded.findTemplate("Soldier")), "300 a quarter off, given twice, counted once");
         red.removePriceChange(Kind.of("INFANTRY"), -0.25f);
@@ -85,8 +78,5 @@ class WorldStateResumeTest {
         assertEquals(1.5f, red.getBonus("Armour"));
         assertTrue(loaded.isAsleep(loaded.findObject(new ObjectId(3))), "the far soldier sleeps");
         assertFalse(loaded.isAsleep(loaded.findObject(new ObjectId(2))), "the near one is awake");
-        var text = new SaveOut();
-        loaded.saveRts(text);
-        assertEquals(rts.text(), text.text(), "the caps and the rest saved again the same");
     }
 }
