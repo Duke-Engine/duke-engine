@@ -145,6 +145,41 @@ class ContainTest {
         assertEquals(uz.dukeengine.core.event.Passage.EVACUATED, evacuated.getFirst().how());
     }
 
+    /** A hold whose module refuses an evacuate or an exit lets nobody out: the reference's subdued or busy hold. */
+    @Test
+    void aHoldThatRefusesAnEvacuateOrAnExitLetsNobodyOut() {
+        var apc = logic.createObject(transport);
+        var hold = apc.findModule(ContainModule.class);
+        var a = logic.createObject(infantry);
+        hold.load(a);
+        class Shut extends uz.dukeengine.core.module.Module implements OrderListener {
+            boolean on = true;
+
+            Shut() {
+                super(apc);
+            }
+
+            @Override
+            public void onOrder(uz.dukeengine.core.message.Command order) {
+            }
+
+            @Override
+            public boolean refuses(uz.dukeengine.core.message.Command order) {
+                return on;
+            }
+        }
+        var door = new Shut();
+        apc.addModule(door);
+
+        assertFalse(ContainModule.evacuate(logic, new GameMessage.Evacuate(apc.getPlayerIndex(), apc.getId())));
+        assertFalse(ContainModule.exit(logic, new GameMessage.ExitContainer(a.getPlayerIndex(), a.getId())));
+        assertTrue(a.isContained(), "still inside");
+
+        door.on = false;
+        assertTrue(ContainModule.exit(logic, new GameMessage.ExitContainer(a.getPlayerIndex(), a.getId())));
+        assertFalse(a.isContained(), "out once the hold takes the order");
+    }
+
     /** A holder that dies lets its passengers out as they fell. */
     @Test
     void aDyingHolderLetsOutWhatFell() {

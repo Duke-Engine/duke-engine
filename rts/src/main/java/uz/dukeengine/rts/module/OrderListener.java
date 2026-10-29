@@ -20,7 +20,9 @@ public interface OrderListener {
     /**
      * Whether its unit will not take {@code order} at all — the reference's {@code isAllowedToRespondToAiCommands}, a
      * gunship that answers only its own update ({@code ForbidPlayerCommands}): left out of the order as if not named,
-     * neither moved nor told. None by default.
+     * neither moved nor told. A container asked of an evacuate naming it, or a carrier of an exit naming its
+     * passenger, that refuses lets nobody out — the reference's subdued hold, and one that makes them wait ({@code
+     * TransportContain::isExitBusy}) and lets them out itself later. None by default.
      */
     default boolean refuses(Command order) {
         return false;

@@ -360,12 +360,16 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         return true;
     }
 
-    /** Every passenger of the player's container out beside it — an {@code Evacuate} order; its riders stay on. */
+    /**
+     * Every passenger of the player's container out beside it — an {@code Evacuate} order; its riders stay on. None
+     * where a module of the container {@linkplain OrderListener#refuses refuses} it: a hold that lets them out later,
+     * or not at all.
+     */
     public static boolean evacuate(uz.dukeengine.core.thing.World world,
             uz.dukeengine.rts.message.GameMessage.Evacuate order) {
         var container = world.findObject(order.container());
-        var hold = container == null || container.getPlayerIndex() != order.playerIndex() ? null
-                : container.findModule(ContainModule.class);
+        var hold = container == null || container.getPlayerIndex() != order.playerIndex()
+                || OrderListener.refused(container, order) ? null : container.findModule(ContainModule.class);
         return hold != null && hold.letOutTheInside();
     }
 
@@ -388,7 +392,10 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         return any;
     }
 
-    /** One of the player's passengers out of whatever carries it — an {@code ExitContainer} order; not a rider. */
+    /**
+     * One of the player's passengers out of whatever carries it — an {@code ExitContainer} order; not a rider, nor one
+     * whose carrier's module {@linkplain OrderListener#refuses refuses} it.
+     */
     public static boolean exit(uz.dukeengine.core.thing.World world,
             uz.dukeengine.rts.message.GameMessage.ExitContainer order) {
         var passenger = world.findObject(order.passenger());
@@ -398,7 +405,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         for (var carrier : world.getObjects()) {
             var hold = carrier.findModule(ContainModule.class);
             if (hold != null && standing(carrier) && hold.contains(passenger.getId())) {
-                if (hold.rides(passenger)) {
+                if (hold.rides(passenger) || OrderListener.refused(carrier, order)) {
                     return false;
                 }
                 hold.unload(passenger);
