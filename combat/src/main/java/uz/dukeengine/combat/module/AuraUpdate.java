@@ -36,7 +36,7 @@ import uz.dukeengine.core.thing.ObjectStatus;
  * skill that gave it is given up.
  */
 @ModuleGroup(ModuleGroups.EFFECT)
-public final class AuraUpdate extends UpdateModule implements DieModule {
+public final class AuraUpdate extends UpdateModule implements DieModule, uz.dukeengine.core.save.Saveable {
 
     /**
      * @param radius             how far from its thing's middle it reaches, measured along the ground — the reference's
@@ -98,6 +98,19 @@ public final class AuraUpdate extends UpdateModule implements DieModule {
             look(owner);
         }
         give(owner);
+    }
+
+    /** Who it holds, in order, and the frame it looks next; the words it gave are on them already. */
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeIds(inside).writeInt(nextLook);
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        inside.clear();
+        inside.addAll(in.readIds());
+        nextLook = in.readInt();
     }
 
     /** Who it found within its reach at its last look, in the order the world keeps its things. */

@@ -43,6 +43,7 @@ public final class ModuleFactory extends SubsystemInterface {
         factory.register(ActiveBody.Data.class, ActiveBody::new);
         factory.register(MoveUpdate.Data.class, MoveUpdate::new);
         factory.register(FlyUpdate.Data.class, FlyUpdate::new);
+        factory.revives(ScriptedMove.class, ScriptedMove::revive);
         return factory;
     }
 

@@ -14,6 +14,7 @@ import uz.dukeengine.core.thing.GameObject;
  * <p>A thing without one is never run over, as a thing is in the reference unless its block says otherwise.
  */
 @ModuleGroup(ModuleGroups.BODY)
+@uz.dukeengine.core.save.Stateless
 public final class Crushable extends Module {
 
     public record Data(int crushableLevel) implements ModuleData {

@@ -35,7 +35,7 @@ import uz.dukeengine.core.thing.World;
  *     only when it must — a unit closing on something that stands still plans once
  */
 @ModuleGroup(ModuleGroups.COMBAT)
-public final class PursueUpdate extends UpdateModule {
+public final class PursueUpdate extends UpdateModule implements uz.dukeengine.core.save.Saveable {
 
     public record Data(float giveUpBeyond, int repathFrames) implements ModuleData {
     }
@@ -131,6 +131,19 @@ public final class PursueUpdate extends UpdateModule {
             return true;
         }
         return repathFrames > 0 && Math.floorMod(world.getFrame() + owner.getId().value(), repathFrames) == 0;
+    }
+
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writePlace(tookItFrom).writePlace(plannedFor).writeBoolean(goingThere).writeInt(plans);
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        tookItFrom = in.readPlace();
+        plannedFor = in.readPlace();
+        goingThere = in.readBoolean();
+        plans = in.readInt();
     }
 
     /** How many routes it has planned since it was made — what its pursuit has cost, for a game or a test to read. */

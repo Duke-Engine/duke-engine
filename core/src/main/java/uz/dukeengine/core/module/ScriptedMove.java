@@ -11,13 +11,15 @@ import uz.dukeengine.core.thing.GameObject;
  * moves it. It comes down on the point on its last frame, posts a {@link ThingLanded} for the picture, and tells the
  * story on the simulation's thread ({@link #onLanded}). In the world and so in the checksum, by where it stands.
  */
-public final class ScriptedMove extends UpdateModule {
+public final class ScriptedMove extends UpdateModule implements uz.dukeengine.core.save.Saveable {
 
     private final Coord3D from;
     private final Coord3D to;
     private final int frames;
     private final float arc;
-    private Runnable landed = () -> { };
+    private static final Runnable NOTHING = () -> { };
+
+    private Runnable landed = NOTHING;
     private int frame;
     private boolean done;
 
@@ -57,7 +59,7 @@ public final class ScriptedMove extends UpdateModule {
 
     /** What the story does when it comes down: run once, on the simulation's thread, on its last frame. */
     public ScriptedMove onLanded(Runnable landed) {
-        this.landed = landed == null ? () -> { } : landed;
+        this.landed = landed == null ? NOTHING : landed;
         return this;
     }
 
@@ -102,6 +104,34 @@ public final class ScriptedMove extends UpdateModule {
             return;
         }
         owner.setPosition(new Coord3D(x, y, z));
+    }
+
+    /**
+     * Its line and how far along it is. What the story does when it lands is the game's code and cannot be written, so
+     * a move still to land with one is refused rather than loaded without it.
+     */
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        if (!done && landed != NOTHING) {
+            throw new uz.dukeengine.core.save.UnsavedModuleException(ScriptedMove.class.getName(), "thing "
+                    + getOwner().getId().value() + " (" + getOwner().getTemplate().name() + ") is on a scripted move"
+                    + " whose landing the story hears (onLanded): that is code, which a save cannot hold");
+        }
+        out.writePlace(from).writePlace(to).writeInt(frames).writeFloat(arc).writeInt(frame).writeBoolean(done);
+    }
+
+    /** Nothing: it is made again by {@link #revive}, from all it wrote. */
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        throw new IllegalStateException("a scripted move is made again by ScriptedMove.revive, never by its template");
+    }
+
+    /** A scripted move made again from its save, on {@code owner}: what {@code ModuleFactory.revives} is given. */
+    public static ScriptedMove revive(GameObject owner, uz.dukeengine.core.save.SaveIn in) {
+        var move = new ScriptedMove(owner, in.readPlace(), in.readPlace(), in.readInt(), in.readFloat());
+        move.frame = in.readInt();
+        move.done = in.readBoolean();
+        return move;
     }
 
     private static float groundAt(GameObject thing, Coord3D at) {

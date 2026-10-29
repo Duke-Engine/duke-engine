@@ -147,6 +147,42 @@ final class Docking {
         return harvest != null && harvest.docksAt() == owner;
     }
 
+    /** Who is in, from when the next may be, the places, who has come — by id, so the save reads the same — and closed. */
+    void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeId(in).writeInt(freeFrom).writeIds(places)
+                .writeIds(come.stream().sorted(java.util.Comparator.comparingInt(ObjectId::value)).toList())
+                .writeBoolean(closed);
+    }
+
+    void load(uz.dukeengine.core.save.SaveIn in) {
+        this.in = in.readId();
+        freeFrom = in.readInt();
+        places.clear();
+        places.addAll(in.readIds());
+        come.clear();
+        come.addAll(in.readIds());
+        closed = in.readBoolean();
+    }
+
+    /** {@code docking}'s state, or a no where there is none, for a module that may have one. */
+    static void save(Docking docking, uz.dukeengine.core.save.SaveOut out) {
+        out.writeBoolean(docking != null);
+        if (docking != null) {
+            docking.save(out);
+        }
+    }
+
+    /** Read back what {@link #save(Docking, uz.dukeengine.core.save.SaveOut)} wrote, into the module's own. */
+    static void load(Docking docking, uz.dukeengine.core.save.SaveIn in, String module) {
+        if (in.readBoolean() != (docking != null)) {
+            throw new uz.dukeengine.core.save.UnsavedModuleException(module, module
+                    + " was saved with a dock where its template now has none, or none where it now has one");
+        }
+        if (docking != null) {
+            docking.load(in);
+        }
+    }
+
     private int waiting() {
         int waiting = 0;
         for (var id : places) {

@@ -30,7 +30,7 @@ import uz.dukeengine.combat.module.WeaponUpdate;
  * Where the reference crushes a car in two stages — its front, then its back — this has the one.
  */
 @ModuleGroup(ModuleGroups.MOVEMENT)
-public final class CrushUpdate extends UpdateModule {
+public final class CrushUpdate extends UpdateModule implements uz.dukeengine.core.save.Saveable {
 
     /** What running a thing over deals, which an armour may name like any other. */
     public static final DamageType CRUSH = DamageType.of("CRUSH");
@@ -53,6 +53,17 @@ public final class CrushUpdate extends UpdateModule {
     public CrushUpdate(GameObject owner, Data data) {
         super(owner);
         this.level = data.crusherLevel();
+    }
+
+    /** Where it stood last frame: it crushes only while it moves. */
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writePlace(last);
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        last = in.readPlace();
     }
 
     @Override

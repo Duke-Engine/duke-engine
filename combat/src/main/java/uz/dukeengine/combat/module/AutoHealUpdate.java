@@ -18,6 +18,7 @@ import uz.dukeengine.core.thing.GameObject;
  * health and stops there. A dead unit is never revived.
  */
 @ModuleGroup(ModuleGroups.BODY)
+@uz.dukeengine.core.save.Stateless
 public final class AutoHealUpdate extends UpdateModule {
 
     /** INI config: {@code HealPerSecond}. */

@@ -28,6 +28,7 @@ import uz.dukeengine.core.thing.GameObject;
  * }</pre>
  */
 @ModuleGroup(RtsModuleGroups.ECONOMY)
+@uz.dukeengine.core.save.Stateless
 public final class CapacityGate extends Module implements ProductionGate {
 
     /** No configuration: the rule is the same wherever it is attached. */

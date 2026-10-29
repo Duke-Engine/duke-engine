@@ -22,7 +22,7 @@ import uz.dukeengine.core.thing.ObjectStatus;
  * declaration order — deterministic.
  */
 @ModuleGroup(ModuleGroups.EFFECT)
-public final class StatusUpdate extends UpdateModule {
+public final class StatusUpdate extends UpdateModule implements uz.dukeengine.core.save.Saveable {
 
     /** No configuration. */
     public record Data() implements ModuleData {
@@ -61,6 +61,21 @@ public final class StatusUpdate extends UpdateModule {
         for (var status : expired) {
             timers.remove(status);
             getOwner().clearStatus(status);
+        }
+    }
+
+    /** Each status still timed and the frames it has left; the statuses themselves are on the thing. */
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeInt(timers.size());
+        timers.forEach((status, left) -> out.writeEnum(status).writeInt(left));
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        timers.clear();
+        for (int count = in.readInt(); count > 0; count--) {
+            timers.put(in.readEnum(ObjectStatus.class), in.readInt());
         }
     }
 }

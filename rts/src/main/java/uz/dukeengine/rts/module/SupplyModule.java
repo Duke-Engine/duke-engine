@@ -14,7 +14,7 @@ import uz.dukeengine.core.thing.GameObject;
  * hits zero the pile is exhausted.
  */
 @ModuleGroup(RtsModuleGroups.ECONOMY)
-public final class SupplyModule extends Module {
+public final class SupplyModule extends Module implements uz.dukeengine.core.save.Saveable {
 
     /** {@code Amount}, what it starts with; {@code Dock}, how it takes its harvesters — see {@link Dock} — or none. */
     public record Data(int amount, Dock dock) implements ModuleData {
@@ -59,6 +59,18 @@ public final class SupplyModule extends Module {
 
     public int getRemaining() {
         return remaining;
+    }
+
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeInt(remaining);
+        Docking.save(docking, out);
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        remaining = in.readInt();
+        Docking.load(docking, in, SupplyModule.class.getName());
     }
 
     /** Remove up to {@code requested}; returns the amount actually taken. */

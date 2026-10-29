@@ -12,7 +12,7 @@ import uz.dukeengine.core.thing.GameObject;
  * and healing to the valid range.
  */
 @ModuleGroup(ModuleGroups.BODY)
-public final class ActiveBody extends BodyModule {
+public final class ActiveBody extends BodyModule implements uz.dukeengine.core.save.Saveable {
 
     /**
      * {@code MaxHealth}, and an {@code Armor} block of damage multipliers by type:
@@ -111,6 +111,19 @@ public final class ActiveBody extends BodyModule {
         if (was > 0f) {
             healed(health - was); // a body already dead is told nothing
         }
+    }
+
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        saveBody(out);
+        out.writeFloat(maxHealth).writeFloat(health);
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        loadBody(in);
+        maxHealth = in.readFloat();
+        health = in.readFloat();
     }
 
     private float clamp(float value) {

@@ -35,7 +35,7 @@ import uz.dukeengine.core.thing.GameObject;
  * than a case inside the weapon itself.
  */
 @ModuleGroup({CombatModuleGroups.PROGRESSION, ModuleGroups.COMBAT})
-public class ExperienceModule extends Module implements DamageModifier {
+public class ExperienceModule extends Module implements DamageModifier, uz.dukeengine.core.save.Saveable {
 
     /** One rung: what it costs to reach, and what reaching it is worth. */
     public record Rank(int experience, float damageMultiplier) {
@@ -212,6 +212,18 @@ public class ExperienceModule extends Module implements DamageModifier {
             }
         }
         return 0;
+    }
+
+    /** Its experience and rung; the rung's words and most health are on its thing already. */
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeInt(experience).writeInt(level);
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        experience = in.readInt();
+        level = in.readInt();
     }
 
     /** Experience awarded to whoever destroys this unit. */

@@ -250,4 +250,26 @@ public abstract class BodyModule extends Module {
     public boolean isDead() {
         return getHealth() <= 0f;
     }
+
+    /**
+     * Write what every body holds beside its health — how it died, its damage scale, its least health and its sole
+     * healer — for a body that is {@link uz.dukeengine.core.save.Saveable}, which writes its health after it.
+     */
+    protected final void saveBody(uz.dukeengine.core.save.SaveOut out) {
+        out.writeString(death == null ? null : death.type().name());
+        if (death != null) {
+            out.writeId(death.killer()).writeInt(death.killerPlayerIndex()).writeBoolean(death.critical());
+        }
+        out.writeFloat(damageScale).writeFloat(leastHealth).writeId(soleHealer).writeInt(soleHealerUntil);
+    }
+
+    /** Read back what {@link #saveBody} wrote. */
+    protected final void loadBody(uz.dukeengine.core.save.SaveIn in) {
+        var type = in.readString();
+        death = type == null ? null : new Death(DeathType.of(type), in.readId(), in.readInt(), in.readBoolean());
+        damageScale = in.readFloat();
+        leastHealth = in.readFloat();
+        soleHealer = in.readId();
+        soleHealerUntil = in.readInt();
+    }
 }

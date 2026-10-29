@@ -22,7 +22,7 @@ import uz.dukeengine.combat.module.WeaponUpdate;
  * Friendly units are never hit.
  */
 @ModuleGroup(ModuleGroups.COMBAT)
-public final class SpecialPowerModule extends UpdateModule {
+public final class SpecialPowerModule extends UpdateModule implements uz.dukeengine.core.save.Saveable {
 
     /** INI config: {@code RechargeFrames}, {@code Radius}, {@code Damage}. */
     public record Data(int rechargeFrames, float radius, float damage) implements ModuleData {
@@ -79,5 +79,15 @@ public final class SpecialPowerModule extends UpdateModule {
         if (cooldown > 0) {
             cooldown--;
         }
+    }
+
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeInt(cooldown);
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        cooldown = in.readInt();
     }
 }

@@ -18,7 +18,7 @@ import uz.dukeengine.core.thing.GameObject;
  * keeps running — a broken mod must never crash the game.
  */
 @ModuleGroup(ModuleGroups.SCRIPT)
-public final class ScriptModule extends UpdateModule {
+public final class ScriptModule extends UpdateModule implements uz.dukeengine.core.save.Saveable {
 
     private static final Logger LOG = Logger.getLogger(ScriptModule.class.getName());
 
@@ -51,6 +51,36 @@ public final class ScriptModule extends UpdateModule {
             broken = true;
             LOG.warning(() -> "script " + script.getClass().getSimpleName() + " on unit "
                     + getOwner().getTemplate().name() + " failed and was disabled: " + e);
+        }
+    }
+
+    /**
+     * Whether it has started and broken, then what its script holds: a script is {@link uz.dukeengine.core.save.Saveable}
+     * itself, writing its own fields, or declared {@link uz.dukeengine.core.save.Stateless}; any other is refused by its
+     * class's name, as a module would be.
+     */
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeBoolean(started).writeBoolean(broken);
+        switch (script) {
+            case uz.dukeengine.core.save.Saveable saveable -> saveable.save(out);
+            default -> {
+                if (!script.getClass().isAnnotationPresent(uz.dukeengine.core.save.Stateless.class)) {
+                    var type = script.getClass().getName();
+                    throw new uz.dukeengine.core.save.UnsavedModuleException(type, "script " + type + " on thing "
+                            + getOwner().getId().value() + " (" + getOwner().getTemplate().name()
+                            + ") is neither Saveable nor declared @Stateless: a save would lose what it holds");
+                }
+            }
+        }
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        started = in.readBoolean();
+        broken = in.readBoolean();
+        if (script instanceof uz.dukeengine.core.save.Saveable saveable) {
+            saveable.load(in);
         }
     }
 

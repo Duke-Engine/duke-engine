@@ -14,7 +14,7 @@ import uz.dukeengine.core.thing.GameObject;
  * this and is still what a game with no depots gets.
  */
 @ModuleGroup(RtsModuleGroups.ECONOMY)
-public final class SupplyDepot extends Module {
+public final class SupplyDepot extends Module implements uz.dukeengine.core.save.Saveable {
 
     /** {@code Dock}: how it takes its harvesters — see {@link Dock} — or none, any number banking at once. */
     public record Data(Dock dock) implements ModuleData {
@@ -53,5 +53,15 @@ public final class SupplyDepot extends Module {
     /** Whether its dock is closed. */
     public boolean isDockClosed() {
         return docking != null && docking.isClosed();
+    }
+
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        Docking.save(docking, out);
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        Docking.load(docking, in, SupplyDepot.class.getName());
     }
 }

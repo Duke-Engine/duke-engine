@@ -15,7 +15,7 @@ import uz.dukeengine.core.thing.GameObject;
  * stalls and defenses go offline, exactly as in Generals.
  */
 @ModuleGroup(RtsModuleGroups.ECONOMY)
-public final class PowerModule extends Module {
+public final class PowerModule extends Module implements uz.dukeengine.core.save.Saveable {
 
     /** {@code Produces} / {@code Consumes} (power units). */
     public record Data(int produces, int consumes) implements ModuleData {
@@ -52,5 +52,15 @@ public final class PowerModule extends Module {
 
     public int getConsumed() {
         return consumed;
+    }
+
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeInt(bonus);
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        bonus = in.readInt();
     }
 }

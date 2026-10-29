@@ -26,7 +26,7 @@ import uz.dukeengine.core.thing.ObjectId;
  * game's; the reference's trees sink 10 over five seconds.
  */
 @ModuleGroup(ModuleGroups.MOVEMENT)
-public final class ToppleUpdate extends UpdateModule implements KeepsDead {
+public final class ToppleUpdate extends UpdateModule implements KeepsDead, uz.dukeengine.core.save.Saveable {
 
     /** The death a thing pushed over dies, as the reference's {@code DEATH_TOPPLED}. */
     public static final DeathType TOPPLED = DeathType.of("TOPPLED");
@@ -242,6 +242,39 @@ public final class ToppleUpdate extends UpdateModule implements KeepsDead {
     @Override
     public boolean keepsDead() {
         return state == State.SINKING;
+    }
+
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeEnum(state).writeBoolean(noBounce).writeBoolean(noEffects).writeFloat(side).writeFloat(velocity)
+                .writeFloat(acceleration).writeFloat(fallen).writeInt(sunk).writeFloat(groundZ).writeId(pushedBy)
+                .writeInt(pushedByPlayer);
+    }
+
+    /** Its fall read back, and drawn again as far over as it had gone — the lean is drawing, so it is not saved. */
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        state = in.readEnum(State.class);
+        noBounce = in.readBoolean();
+        noEffects = in.readBoolean();
+        side = in.readFloat();
+        velocity = in.readFloat();
+        acceleration = in.readFloat();
+        fallen = in.readFloat();
+        sunk = in.readInt();
+        groundZ = in.readFloat();
+        pushedBy = in.readId();
+        pushedByPlayer = in.readInt();
+        if (state != State.UPRIGHT) {
+            if (side == 0f) {
+                getOwner().setPitch(-fallen);
+            } else {
+                getOwner().setRoll(side * fallen);
+            }
+        }
+        if (state == State.SINKING) {
+            getOwner().setKeepsOwnHeight(true);
+        }
     }
 
     /** Whether it has begun to fall. */

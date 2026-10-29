@@ -25,7 +25,7 @@ import uz.dukeengine.core.thing.ObjectStatus;
  * orders. Deterministic: whole frames, and {@link StrictMath} for every angle.
  */
 @ModuleGroup(ModuleGroups.MOVEMENT)
-public final class FlyUpdate extends UpdateModule implements Locomotor {
+public final class FlyUpdate extends UpdateModule implements Locomotor, uz.dukeengine.core.save.Saveable {
 
     /** How a thing flies. */
     public enum Kind {
@@ -164,6 +164,25 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
     @Override
     public boolean flies() {
         return true;
+    }
+
+    /** Its speed and turning as set, how fast it goes, and where it is going; its lean is drawing, and eases back. */
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writeFloat(speed).writeFloat(turnRate).writeFloat(velocity).writePlace(goal).writeId(following)
+                .writePlace(circling).writeBoolean(arrived).writeBoolean(goingWide).writePlace(facing);
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        setSpeed(in.readFloat(), in.readFloat());
+        velocity = in.readFloat();
+        goal = in.readPlace();
+        following = in.readId();
+        circling = in.readPlace();
+        arrived = in.readBoolean();
+        goingWide = in.readBoolean();
+        facing = in.readPlace();
     }
 
     /** How fast it is going, in world units a second. */
