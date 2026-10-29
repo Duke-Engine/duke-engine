@@ -1,4 +1,4 @@
-package uz.dukeengine.client3d;
+package uz.dukeengine.client3d.desktop;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -10,9 +10,10 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import uz.dukeengine.client3d.platform.ClientPlatform;
 
 /** The game is told the name of the file a screenshot was really written to. */
-class ScreenshotsTest {
+class DesktopScreenshotsTest {
 
     @TempDir
     Path folder;
@@ -20,7 +21,7 @@ class ScreenshotsTest {
     @Test
     void theCallbackGivesTheNameOfTheFileThatWasWritten() throws IOException {
         var told = new ArrayList<String>();
-        var shots = new Screenshots(folder + File.separator, "screenshot", told::add);
+        var shots = new DesktopScreenshots(folder + File.separator, null, told::add);
         shots.reshape(null, 4, 3); // the frame's size, as the window gives it
 
         var file = folder.resolve("screenshot7.png").toFile();
@@ -33,12 +34,11 @@ class ScreenshotsTest {
     @Test
     void theGamesFolderAndNameTakeTheFirstFreeNumberInTheFormatTheNameSays() throws IOException {
         var told = new ArrayList<String>();
-        var shots = new Screenshots("", "screenshot", told::add);
-        shots.reshape(null, 4, 3);
         var userData = folder.resolve("Command and Conquer Generals Zero Hour Data");
+        var shots = new DesktopScreenshots(userData.toString(), "sshot%03d.bmp", told::add);
+        shots.reshape(null, 4, 3);
         java.nio.file.Files.createDirectories(userData);
         java.nio.file.Files.writeString(userData.resolve("sshot001.bmp"), "taken before");
-        shots.saveAs(userData, "sshot%03d.bmp");
 
         shots.writeImageFile(folder.resolve("ignored.png").toFile());
         shots.writeImageFile(folder.resolve("ignored.png").toFile());
@@ -52,8 +52,8 @@ class ScreenshotsTest {
     @Test
     void aNameWithoutItsNumberIsRefused() {
         org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
-                () -> Screenshots.checked("sshot.bmp"));
-        assertEquals("sshot%03d.bmp", Screenshots.checked("sshot%03d.bmp"));
-        assertEquals("png", Screenshots.format("screenshot"));
+                () -> ClientPlatform.checkedScreenshotName("sshot.bmp"));
+        assertEquals("sshot%03d.bmp", ClientPlatform.checkedScreenshotName("sshot%03d.bmp"));
+        assertEquals("png", DesktopScreenshots.format("screenshot"));
     }
 }

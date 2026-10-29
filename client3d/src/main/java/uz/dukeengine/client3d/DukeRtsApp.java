@@ -286,7 +286,7 @@ final class DukeRtsApp extends SimpleApplication {
     /** Shift and Alt down, beside Ctrl: a key means one thing with them and another without. */
     private boolean shiftDown;
     private boolean altDown;
-    private Screenshots screenshots;
+    private com.jme3.app.state.ScreenshotAppState screenshots;
     private volatile java.util.function.Consumer<String> screenshotSaved;
 
     /** See {@link Duke3D#onScreenshot}. */
@@ -295,15 +295,12 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /** Where the game's pictures go and their name — see {@link Duke3D#screenshots}; null for jME's own. */
-    private java.nio.file.Path screenshotFolder;
+    private String screenshotFolder;
     private String screenshotPattern;
 
-    void screenshots(java.nio.file.Path folder, String pattern) {
+    void screenshots(String folder, String pattern) {
         screenshotFolder = folder;
         screenshotPattern = pattern;
-        if (screenshots != null) {
-            screenshots.saveAs(folder, pattern);
-        }
     }
     private BitmapText hud;
     private SceneVeil veil;
@@ -2007,15 +2004,13 @@ final class DukeRtsApp extends SimpleApplication {
             case CHAT_ALLIES -> hotkeys.chat(game, false);
             case SCREENSHOT -> {
                 if (screenshots == null) {
-                    screenshots = new Screenshots("", "screenshot", name -> {
+                    screenshots = uz.dukeengine.client3d.platform.ClientPlatform.get().screenshots(screenshotFolder,
+                            screenshotPattern, name -> {
                         var told = screenshotSaved;
                         if (told != null) {
                             told.accept(name);
                         }
                     });
-                    if (screenshotPattern != null) {
-                        screenshots.saveAs(screenshotFolder, screenshotPattern);
-                    }
                     stateManager.attach(screenshots);
                 }
                 screenshots.takeScreenshot();

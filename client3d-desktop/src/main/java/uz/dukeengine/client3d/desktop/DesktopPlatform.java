@@ -24,7 +24,7 @@ public final class DesktopPlatform implements ClientPlatform {
 
     @Override
     public ImageDecoder images() {
-        throw new UnsupportedOperationException("not yet: ImageDecoder");
+        return new ImageIoDecoder();
     }
 
     @Override
@@ -52,6 +52,6 @@ public final class DesktopPlatform implements ClientPlatform {
 
     @Override
     public ScreenshotAppState screenshots(String folder, String pattern, Consumer<String> saved) {
-        throw new UnsupportedOperationException("not yet: Screenshots");
+        return new DesktopScreenshots(folder, pattern, saved);
     }
 }

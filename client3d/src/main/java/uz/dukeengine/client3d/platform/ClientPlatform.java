@@ -2,6 +2,7 @@ package uz.dukeengine.client3d.platform;
 
 import com.jme3.app.state.ScreenshotAppState;
 import com.jme3.system.JmeContext;
+import java.util.Locale;
 import java.util.ServiceLoader;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -44,6 +45,14 @@ public interface ClientPlatform {
      * {@code pattern}, telling {@code saved} the name of each file once it is written.
      */
     ScreenshotAppState screenshots(String folder, String pattern, Consumer<String> saved);
+
+    /** {@code pattern}, where it names each number apart — {@code sshot%03d.bmp} — or an error for one that does not. */
+    static String checkedScreenshotName(String pattern) {
+        if (pattern == null || String.format(Locale.ROOT, pattern, 1).equals(String.format(Locale.ROOT, pattern, 2))) {
+            throw new IllegalArgumentException("a screenshot's name needs its number, as sshot%03d.bmp: " + pattern);
+        }
+        return pattern;
+    }
 
     /** The lookup, held apart so that it runs once and only when someone asks. */
     final class Found {

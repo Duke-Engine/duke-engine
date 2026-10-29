@@ -729,9 +729,9 @@ public final class Duke3D {
      * written ({@code png}, {@code bmp}, {@code jpg}); {@link #onScreenshot} is told the file's name. Until set, {@code
      * screenshotN.png} in the folder the game runs from. A pattern without its number is refused at once.
      */
-    public Duke3D screenshots(java.nio.file.Path folder, String pattern) {
+    public Duke3D screenshots(String folder, String pattern) {
         java.util.Objects.requireNonNull(folder, "folder");
-        Screenshots.checked(pattern);
+        uz.dukeengine.client3d.platform.ClientPlatform.checkedScreenshotName(pattern);
         later(client -> client.screenshots(folder, pattern));
         return this;
     }

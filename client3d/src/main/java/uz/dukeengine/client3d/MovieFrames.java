@@ -1,6 +1,5 @@
 package uz.dukeengine.client3d;
 
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -9,7 +8,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.zip.ZipInputStream;
-import javax.imageio.ImageIO;
+import uz.dukeengine.client3d.platform.ClientPlatform;
 
 /**
  * A movie's pictures, read ahead on a thread of their own so a slow disc never holds the picture up: each decoded into
@@ -54,13 +53,12 @@ final class MovieFrames implements AutoCloseable {
                 LOG.warning("no movie there; it ends at once");
             } else {
                 var zip = new ZipInputStream(raw);
+                var images = ClientPlatform.get().images();
                 for (var entry = zip.getNextEntry(); entry != null && !closed; entry = zip.getNextEntry()) {
                     if (entry.isDirectory()) {
                         continue;
                     }
-                    // Cached in memory rather than in a file, and without touching the image reader's global switch;
-                    // closing the cache leaves the zip open for its next entry.
-                    var picture = ImageIO.read(new javax.imageio.stream.MemoryCacheImageInputStream(zip));
+                    var picture = images.decode(zip); // leaves the zip open for its next entry
                     if (picture == null) {
                         LOG.warning("a movie's " + entry.getName() + " is no picture; left out");
                         continue;
@@ -83,14 +81,14 @@ final class MovieFrames implements AutoCloseable {
     }
 
     /** A picture as the card takes it: red, green, blue, the bottom row first. */
-    private static Frame frame(int index, BufferedImage picture) {
-        int width = picture.getWidth();
-        int height = picture.getHeight();
+    private static Frame frame(int index, Picture picture) {
+        int width = picture.width();
+        int height = picture.height();
         var pixels = ByteBuffer.allocateDirect(width * height * 3);
-        int[] row = new int[width];
+        int[] argb = picture.argb();
         for (int y = height - 1; y >= 0; y--) {
-            picture.getRGB(0, y, width, 1, row, 0, width);
-            for (int rgb : row) {
+            for (int x = 0; x < width; x++) {
+                int rgb = argb[y * width + x];
                 pixels.put((byte) (rgb >>> 16)).put((byte) (rgb >>> 8)).put((byte) rgb);
             }
         }
