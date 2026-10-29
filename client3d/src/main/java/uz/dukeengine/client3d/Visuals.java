@@ -828,16 +828,29 @@ public final class Visuals {
          * A rope hung from a bone of its model down to the ground while its words best fit {@code conditions} — a
          * Chinook's {@code RopeStart}, let down only while it unloads. It reaches the ground under the bone, so it is as
          * long as the bone is high. Drawing only: the simulation never reads it.
+         *
+         * <p>Said again, another rope: every rope said under the words that best fit is let down at once, each from the
+         * bone it names — a Chinook's four, {@code RopeStart01} to {@code RopeStart04}.
          */
         public UnitVisual rope(java.util.Set<String> conditions, Rope rope) {
             wordRopes.add(new WordRope(new java.util.TreeSet<>(conditions), rope));
             return this;
         }
 
-        /** Which rope its words best fit, or null for none. */
+        /** Which rope its words best fit, or null for none: the first said of {@link #ropesFor}. */
         Rope ropeFor(java.util.Set<String> holding) {
+            var ropes = ropesFor(holding);
+            return ropes.isEmpty() ? null : ropes.getFirst();
+        }
+
+        /** Every rope said under the words that best fit, in the order said; empty for none. */
+        java.util.List<Rope> ropesFor(java.util.Set<String> holding) {
             int best = bestOf(wordRopes, WordRope::words, holding);
-            return best < 0 ? null : wordRopes.get(best).rope();
+            if (best < 0) {
+                return java.util.List.of();
+            }
+            var words = wordRopes.get(best).words();
+            return wordRopes.stream().filter(one -> one.words().equals(words)).map(WordRope::rope).toList();
         }
 
         /**

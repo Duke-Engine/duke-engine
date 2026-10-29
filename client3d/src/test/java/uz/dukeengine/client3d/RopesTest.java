@@ -52,4 +52,27 @@ class RopesTest {
         assertNull(VISUALS.of("Tank").ropeFor(Set.of("UNLOADING")));
         assertTrue(VISUALS.of("Tank").wordRopes.isEmpty());
     }
+
+    @Test
+    void aLookSaidToHaveSeveralRopesLetsThemAllDownEachFromItsOwnBone() {
+        var one = new Visuals.Rope("RopeStart01", 0xC0A060);
+        var two = new Visuals.Rope("RopeStart02", 0xC0A060);
+        var flying = new Visuals.Rope("Tail", 0xFFFFFF);
+        var visuals = Visuals.create().unit("Chinook", look -> look.model("models/chinook.glb")
+                .rope(Set.of("UNLOADING"), one).rope(Set.of("UNLOADING"), two).rope(flying));
+        var chinook = visuals.of("Chinook");
+
+        assertEquals(List.of(one, two), chinook.ropesFor(Set.of("UNLOADING")), "both, in the order said");
+        assertEquals(List.of(flying), chinook.ropesFor(Set.of()), "and those of other words not with them");
+
+        var ropes = ropes();
+        ropes.update(List.of(new Ropes.Line(1, 0, one, new Vector3f(4f, 11f, 5f)),
+                new Ropes.Line(1, 1, two, new Vector3f(6f, 21f, 5f))), (x, z) -> 1f);
+        assertEquals(10f, ropes.lengthOf(1, 0), 1e-4f);
+        assertEquals(20f, ropes.lengthOf(1, 1), 1e-4f, "each its own line, from its own bone");
+
+        ropes.update(List.of(new Ropes.Line(1, 0, one, new Vector3f(4f, 11f, 5f))), (x, z) -> 1f);
+        assertEquals(-1f, ropes.lengthOf(1, 1), "one no longer given is hauled in alone");
+        assertEquals(10f, ropes.lengthOf(1, 0), 1e-4f);
+    }
 }

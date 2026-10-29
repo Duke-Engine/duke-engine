@@ -305,11 +305,14 @@ final class UnitScene {
             if (visual.wordRopes.isEmpty()) {
                 continue;
             }
-            var rope = visual.ropeFor(visual.holding(view.healthFraction(), world(view),
+            var hanging = visual.ropesFor(visual.holding(view.healthFraction(), world(view),
                     view.conditions()));
-            var bone = rope == null ? null : boneOf(node, null, rope.bone());
-            if (bone != null) {
-                lines.add(new Ropes.Line(view.id(), rope, bone.getWorldTranslation().clone()));
+            for (int index = 0; index < hanging.size(); index++) {
+                var rope = hanging.get(index);
+                var bone = boneOf(node, null, rope.bone());
+                if (bone != null) {
+                    lines.add(new Ropes.Line(view.id(), index, rope, bone.getWorldTranslation().clone()));
+                }
             }
         }
         ropes.update(lines, floor);

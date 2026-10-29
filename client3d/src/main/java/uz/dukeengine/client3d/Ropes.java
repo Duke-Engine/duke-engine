@@ -21,13 +21,19 @@ import java.util.Map;
  */
 final class Ropes {
 
-    /** One thing's rope, and the point of the world its bone is at. */
-    record Line(int id, Visuals.Rope rope, Vector3f from) {
+    /** One of a thing's ropes — the {@code index}th it lets down — and the point of the world its bone is at. */
+    record Line(int id, int index, Visuals.Rope rope, Vector3f from) {
+
+        /** A thing's only rope. */
+        Line(int id, Visuals.Rope rope, Vector3f from) {
+            this(id, 0, rope, from);
+        }
     }
 
     private final AssetManager assets;
     private final Node root = new Node("ropes");
-    private final Map<Integer, Geometry> drawn = new HashMap<>();
+    /** Each rope drawn, by its thing and its place among the thing's ropes — see {@link #key}. */
+    private final Map<Long, Geometry> drawn = new HashMap<>();
 
     Ropes(AssetManager assets, Node parent) {
         this.assets = assets;
@@ -36,12 +42,12 @@ final class Ropes {
 
     /** Every rope as these lines say: new ones let down, the rest moved, any not in them hauled in. */
     void update(List<Line> lines, WorldMoments.Floor floor) {
-        var kept = new HashSet<Integer>();
+        var kept = new HashSet<Long>();
         for (var line : lines) {
-            kept.add(line.id());
+            kept.add(key(line.id(), line.index()));
             var from = line.from();
             float ground = floor.at(from.x, from.z);
-            var geometry = drawn.computeIfAbsent(line.id(), _ -> made());
+            var geometry = drawn.computeIfAbsent(key(line.id(), line.index()), _ -> made());
             var mesh = geometry.getMesh();
             mesh.setBuffer(VertexBuffer.Type.Position, 3,
                     BufferUtils.createFloatBuffer(from.x, from.y, from.z, from.x, ground, from.z));
@@ -61,9 +67,14 @@ final class Ropes {
         });
     }
 
-    /** How long a thing's rope is now, or -1 for none, for a test. */
+    /** How long a thing's first rope is now, or -1 for none, for a test. */
     float lengthOf(int id) {
-        var geometry = drawn.get(id);
+        return lengthOf(id, 0);
+    }
+
+    /** How long the {@code index}th of a thing's ropes is now, or -1 for none, for a test. */
+    float lengthOf(int id, int index) {
+        var geometry = drawn.get(key(id, index));
         if (geometry == null) {
             return -1f;
         }
@@ -75,6 +86,10 @@ final class Ropes {
     void clear() {
         drawn.values().forEach(Geometry::removeFromParent);
         drawn.clear();
+    }
+
+    private static long key(int id, int index) {
+        return (long) id << 32 | index;
     }
 
     private Geometry made() {
