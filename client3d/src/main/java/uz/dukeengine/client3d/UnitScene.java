@@ -647,7 +647,7 @@ final class UnitScene {
             if (hides(layer)) {
                 continue;
             }
-            layer.wear(node.root, view, world, snapshot.get().frame(), body -> paintHouseColour(body, view),
+            layer.wear(node.root, view, world, snapshot.get().frame(), body -> paintOwner(body, view),
                     clip -> missing.warn(view.templateName() + "/" + clip, "animation"),
                     bone -> boneOf(node, layer, bone));
         }
@@ -834,9 +834,20 @@ final class UnitScene {
      * condition, because a wrecked barracks is still his.
      */
     private void paintHouseColour(Spatial body, UnitView view) {
+        if (looks.visualFor(view).ownerColoured) {
+            paintOwner(body, view); // a look that says no is drawn as its file is
+        }
+    }
+
+    /**
+     * The same, whatever the thing's own look says: for a layer, which says for itself ({@code ModelLayer.ownerColoured})
+     * — a factory whose body is never painted still paints the layer that may be, when it is first drawn and again
+     * when its owner changes.
+     */
+    private void paintOwner(Spatial body, UnitView view) {
         var prefix = visuals.getHouseColour();
-        if (prefix == null || body == null || !looks.visualFor(view).ownerColoured) {
-            return; // a game that names none, or a look that says no, is drawn as its file is
+        if (prefix == null || body == null) {
+            return; // a game that names none is drawn as it always was
         }
         Bodies.paintOwner(body, prefix, Materials.colour(game.get().getColor(view.wears()))); // a disguise's to those it fools
     }
@@ -966,7 +977,7 @@ final class UnitScene {
             node.root.setUserData("wears", view.wears());
             paintHouseColour(node.body, view);
             node.layers.stream().filter(ModelLayer::ownerColoured)
-                    .forEach(layer -> paintHouseColour(layer.body(), view));
+                    .forEach(layer -> paintOwner(layer.body(), view)); // by the layer's own word, as it was first painted
         }
         if (handedOver) {
             selected.remove(view.id()); // out of the old owner's hands
@@ -1037,7 +1048,7 @@ final class UnitScene {
                 continue;
             }
             layer.wear(node.root, view, world(view), snapshot.get().frame(),
-                    body -> paintHouseColour(body, view),
+                    body -> paintOwner(body, view),
                     clip -> missing.warn(view.templateName() + "/" + clip, "animation"),
                     bone -> boneOf(node, layer, bone));
         }
