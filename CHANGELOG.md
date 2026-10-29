@@ -6,6 +6,13 @@ when it does, this page says exactly what to change and how.
 ## Unreleased
 
 - `client3d`: a game's own scene in the world (`Duke3D.scene`, `SceneLayer`), and the player's own eyes in place of the RTS camera — WASD, a held mouse, a cross and what is under it within reach (`Duke3D.firstPerson`, `FirstPersonCamera`).
+- **A player's colour is a `uz.dukeengine.game.Colour`** (one ARGB int, AWT's packing and its named colours), so the API
+  names no desktop toolkit: `addPlayer(name, Colour.RED)`, `getColour(index)`, `GamePlayer.getColour()`. The AWT
+  `Color` versions in `game` stay for now, deprecated. In `client3d` the colour-taking API takes `Colour` with no AWT
+  version left: `Visuals.UnitVisual.colour/tint`, `GhostLook`, `EffectVisual.glow`, `PanelSkin.Piece`,
+  `Duke3D.shadowColour`; `Skin.awtTint()` is gone. From an AWT colour: `new Colour(color.getRGB())`.
+- **The 2D Swing window is its own module, `game-swing`** (`uz.duke-engine:game-swing`): `DukeGame.start()` is now
+  `SwingGame.start(game)`, and `GamePanel`/`GameWindow` keep their package.
 
 ## 0.8.0
 

@@ -17,7 +17,6 @@ import java.util.function.IntConsumer;
 import java.util.function.LongSupplier;
 import java.util.function.ObjIntConsumer;
 import java.util.function.Predicate;
-import javax.swing.SwingUtilities;
 import uz.dukeengine.core.Flavour;
 import uz.dukeengine.core.GameConstants;
 import uz.dukeengine.core.GameLogic;
@@ -36,7 +35,6 @@ import uz.dukeengine.core.thing.ThingTemplateLoader;
 import uz.dukeengine.core.thing.WorldTemplate;
 import uz.dukeengine.core.view.CameraView;
 import uz.dukeengine.core.view.WorldSnapshot;
-import uz.dukeengine.game.swing.GameWindow;
 
 /**
  * The Unity-style entry point of duke-engine: build a playable RTS in a few
@@ -55,10 +53,10 @@ import uz.dukeengine.game.swing.GameWindow;
  * game.spawn("Barracks", you, 60, 60);
  * game.spawn("Tank", foe, 400, 250);
  *
- * game.start(); // opens the window and runs until closed
+ * SwingGame.start(game); // game-swing: opens the window and runs until closed
  * }</pre>
  *
- * <p>Everything configured before {@link #start()} is applied when the engine
+ * <p>Everything configured before {@link #startEngineOnly()} is applied when the engine
  * boots; callbacks ({@link #onTick}, {@link #everySeconds}, …) then run on the
  * simulation thread, where it is safe to call {@link #spawn} and
  * {@link #getLogic()} directly. {@link #runHeadless} runs the same game without
@@ -426,7 +424,7 @@ public final class DukeGame {
     }
 
     /**
-     * Place a unit or structure. Before {@link #start()} this schedules the spawn
+     * Place a unit or structure. Before {@link #startEngineOnly()} this schedules the spawn
      * for game boot; after start (from a callback, on the simulation thread) it
      * spawns immediately.
      */
@@ -491,6 +489,16 @@ public final class DukeGame {
         this.windowWidth = width;
         this.windowHeight = height;
         return this;
+    }
+
+    /** The window width asked for in {@link #window}, in pixels. */
+    public int getWindowWidth() {
+        return windowWidth;
+    }
+
+    /** The window height asked for in {@link #window}, in pixels. */
+    public int getWindowHeight() {
+        return windowHeight;
     }
 
     /** Cap the render/engine loop rate (default 45, SAGE's). */
@@ -917,37 +925,12 @@ public final class DukeGame {
      * Name, per template, the other templates it may bring into the world — what its death leaves (a hulk, rubble,
      * a burning soldier), a crate it drops — followed as a factory's build list is, so the art of what only a death
      * makes is read with the match rather than the first time one dies in the middle of a battle. Before
-     * {@link #start}; an empty list for none.
+     * {@link #startEngineOnly}; an empty list for none.
      */
     public DukeGame brings(Function<String, ? extends Collection<String>> rule) {
         requireNotStarted();
         content.brings(rule);
         return this;
-    }
-
-    /**
-     * Boot the engine, open the window, and run the game. Blocks until the
-     * window is closed (or {@link #stop()} is called).
-     */
-    public void start() {
-        var engineThread = startEngineOnly();
-
-        var windowRef = new GameWindow[1];
-        SwingUtilities.invokeLater(() -> {
-            windowRef[0] = new GameWindow(this, title, windowWidth, windowHeight);
-            windowRef[0].setVisible(true);
-        });
-
-        try {
-            engineThread.join();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        SwingUtilities.invokeLater(() -> {
-            if (windowRef[0] != null) {
-                windowRef[0].dispose();
-            }
-        });
     }
 
     /**
@@ -1166,7 +1149,7 @@ public final class DukeGame {
     }
 
     /**
-     * Ask the engine loop to exit; {@link #start()} then returns. A network match that was never run lets go of its
+     * Ask the engine loop to exit; the engine thread then ends. A network match that was never run lets go of its
      * session here, as a run one does when its loop ends.
      */
     public void stop() {
@@ -1261,7 +1244,7 @@ public final class DukeGame {
      * Mark the whole map seen by {@code player}, none of it in sight — the reference's {@code revealMapForPlayer},
      * what a skirmish or network match whose own option leaves the shroud out gives each player at its start; see
      * {@code GameLogic.markMapSeen}. The game reads its own option and decides, as it decides whether to {@link
-     * #revealMapTo}. Before {@link #start()} it is done at boot, before the first frame; after, from the simulation
+     * #revealMapTo}. Before {@link #startEngineOnly()} it is done at boot, before the first frame; after, from the simulation
      * thread, at once. His ground is drawn seen from then, and what stands on it is shown only once his own see it.
      */
     public DukeGame markMapSeen(GamePlayer player) {

@@ -58,15 +58,15 @@ var game = DukeGame.create("My RTS")
         .loadUnits(RtsFlavour.STARTER_UNITS)
         .map(70, 45);
 
-var you = game.addPlayer("USA", Color.CYAN);
-var foe = game.addPlayer("China", Color.RED);
+var you = game.addPlayer("USA", Colour.CYAN);
+var foe = game.addPlayer("China", Colour.RED);
 game.enemies(you, foe);
 game.flavour(RtsFlavour.class).money(you::getIndex, 1500);
 
 game.spawn("Barracks", you, 100, 360);
 game.spawn("Tank", foe, 550, 100);
 
-game.start(); // opens a window: select with LMB, order with RMB
+SwingGame.start(game); // game-swing: opens a window, select with LMB, order with RMB
 ```
 
 ## Two games, on purpose

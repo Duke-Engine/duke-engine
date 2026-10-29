@@ -104,8 +104,8 @@ val published = mapOf(
         + "vocabulary — the parts every RTS shares, with the rules left to the game.",
     "rpg" to "The RPG library on top of combat: a hero's skills, mana and buffs, levels and attributes, items "
         + "and loot, missions — the parts every RPG shares, with the rules left to the game.",
-    "game" to "The Unity-style API: the DukeGame facade, players, orders, a 2D Swing client and lock-step "
-        + "multiplayer over TCP.",
+    "game" to "The Unity-style API: the DukeGame facade, players, orders and lock-step multiplayer over TCP.",
+    "game-swing" to "A 2D Swing window over the DukeGame facade: select with the left button, order with the right.",
     "client3d" to "The 3D client on jMonkeyEngine: model loading, skeletal animation, positional sound, an RTS "
         + "camera, effects, menus and a minimap.",
     "rts-client-3d" to "The RTS's part of the 3D client: what its window sends that only an RTS has words for — a "

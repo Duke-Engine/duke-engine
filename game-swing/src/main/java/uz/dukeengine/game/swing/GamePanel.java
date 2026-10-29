@@ -300,7 +300,7 @@ public final class GamePanel extends JPanel {
     }
 
     private void paintUnit(Graphics2D g, UnitView unit) {
-        var color = game.getColor(unit.playerIndex());
+        var color = new Color(game.getColour(unit.playerIndex()).argb(), true);
         int sx = screenX(unit.x());
         int sy = screenY(unit.y());
 
