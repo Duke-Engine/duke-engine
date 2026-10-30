@@ -30,6 +30,7 @@ final class CanvasInputs implements RawInputListener {
 
     private final CanvasInput game;
     private final IntSupplier screenHeight;
+    private final HudScale hud;
     private CanvasInput.Mouse lastDown;
     private long lastDownAt;
     private int lastDownX;
@@ -38,8 +39,14 @@ final class CanvasInputs implements RawInputListener {
     private boolean pointerTaken;
 
     CanvasInputs(CanvasInput game, IntSupplier screenHeight) {
+        this(game, screenHeight, HudScale.NONE);
+    }
+
+    /** The same, the canvas drawn in {@code hud}'s pixels: the pointer is told in them, from the canvas's top. */
+    CanvasInputs(CanvasInput game, IntSupplier screenHeight, HudScale hud) {
         this.game = game;
         this.screenHeight = screenHeight;
+        this.hud = hud;
     }
 
     @Override
@@ -52,8 +59,8 @@ final class CanvasInputs implements RawInputListener {
 
     @Override
     public void onMouseMotionEvent(MouseMotionEvent event) {
-        int x = event.getX();
-        int y = screenHeight.getAsInt() - event.getY();
+        int x = hud.of(event.getX());
+        int y = hud.of(screenHeight.getAsInt() - event.getY());
         boolean taken = false;
         if (event.getDeltaWheel() != 0) {
             taken = game.take(new CanvasInput.Wheel(x, y, event.getDeltaWheel()));
@@ -83,8 +90,8 @@ final class CanvasInputs implements RawInputListener {
         if (button == null) {
             return; // a fourth button is nobody's yet
         }
-        int x = event.getX();
-        int y = screenHeight.getAsInt() - event.getY();
+        int x = hud.of(event.getX());
+        int y = hud.of(screenHeight.getAsInt() - event.getY());
         boolean twice = false;
         if (event.isPressed()) {
             twice = button == lastDown && event.getTime() - lastDownAt <= DOUBLE_CLICK_NANOS

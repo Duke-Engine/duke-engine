@@ -39,6 +39,7 @@ final class MinimapView {
     private final Supplier<WorldSnapshot> snapshot;
     private final CameraFocus camera;
     private final Camera cam;
+    private final HudScale hud;
     private final Renderer renderer;
     private final List<HudPart> parts;
     private final Supplier<Discovery> discovery;
@@ -124,7 +125,8 @@ final class MinimapView {
     }
 
     MinimapView(AssetManager assetManager, Visuals visuals, Supplier<DukeGame> game, Supplier<WorldSnapshot> snapshot,
-            CameraFocus camera, Camera cam, Renderer renderer, List<HudPart> parts, Supplier<Discovery> discovery,
+            CameraFocus camera, Camera cam, HudScale hud, Renderer renderer, List<HudPart> parts,
+            Supplier<Discovery> discovery,
             Function<String, com.jme3.texture.Texture> groundTexture, Function<UnitView, ColorRGBA> colourOf,
             com.jme3.system.Timer timer) {
         this.assetManager = assetManager;
@@ -133,6 +135,7 @@ final class MinimapView {
         this.snapshot = snapshot;
         this.camera = camera;
         this.cam = cam;
+        this.hud = hud;
         this.renderer = renderer;
         this.parts = parts;
         this.discovery = discovery;
@@ -172,7 +175,7 @@ final class MinimapView {
         // Until there is a map there is nothing to fence it into: the sizes above
         // are only something to draw an empty minimap at.
         camera.keepInside(grid == null ? 0f : worldW, grid == null ? 0f : worldH);
-        minimapX = cam.getWidth() - minimap.widthPixels() - 12f;
+        minimapX = hud.of(cam.getWidth()) - minimap.widthPixels() - 12f;
 
         var ground = new Geometry("mm-ground", new Quad(minimap.widthPixels(), minimap.heightPixels()));
         ground.setMaterial(Materials.picture(assetManager, minimapPicture.texture()));
@@ -240,7 +243,7 @@ final class MinimapView {
         } else {
             // In the corner, over a bar that is showing without a socket for it.
             minimapScale = 1f;
-            minimapX = cam.getWidth() - minimap.widthPixels() - 12f;
+            minimapX = hud.of(cam.getWidth()) - minimap.widthPixels() - 12f;
             minimapY = 34f + panelHeight;
         }
         minimapNode.setLocalScale(minimapScale);

@@ -11,7 +11,9 @@ Package `uz.dukeengine.client3d.platform`, public, neutral types only.
 - `ClientPlatform` — one aggregate, `static ClientPlatform get()`: loads lazily and caches
   `ServiceLoader.load(ClientPlatform.class, ClientPlatform.class.getClassLoader())` as `Flavour` does, exactly one
   provider; none is an error naming `client3d-desktop`. Hands out `glyphs()`, `images()`, `settings()`, `prompt()`,
-  `window(Supplier<JmeContext>)`, `held(Supplier<JmeContext>)`,
+  `window(Supplier<JmeContext>)`, `held(Supplier<JmeContext>)`, `float uiScale()` (default 1: the HUD's pixels per
+  design pixel; the desktop keeps 1, Android answers `displayMetrics.density`; a `default` so a platform says it only
+  when it differs, and on the aggregate rather than on `Window` because it is wanted before the window exists),
   `ScreenshotAppState screenshots(String folder, String pattern, Consumer<String> saved)` (null folder = jME's default).
   One aggregate: one lookup, one clear failure, and a platform supplies all of it or none.
   Desktop: `DesktopPlatform` plus its `META-INF/services` line.

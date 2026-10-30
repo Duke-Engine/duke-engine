@@ -26,6 +26,8 @@ class TouchHeroTest {
     private final List<String> calls = new ArrayList<>();
     private float yaw;
     private boolean playing = true;
+    /** How dense the screen is against the design: 2 emulates a phone on the desktop. */
+    private float uiScale = 1f;
     /** Whether the client arms a pressed skill and leaves it for the scheme to aim, as it does for an aimed one. */
     private boolean skillIsAimed;
     private TouchHero scheme;
@@ -34,6 +36,7 @@ class TouchHeroTest {
         InvocationHandler recorder = (proxy, method, args) -> switch (method.getName()) {
             case "input", "gui", "font", "game" -> null;
             case "playing" -> playing;
+            case "uiScale" -> uiScale;
             case "yaw" -> yaw;
             case "screenSize" -> new float[] {1000f, 600f};
             case "selected" -> List.of(new ObjectId(1));
@@ -166,5 +169,33 @@ class TouchHeroTest {
         var at = scheme.aimPoint();
         assertEquals(30f, at[0], 1e-3);
         assertEquals(28f, at[1], 1e-3, "all of a lane's reach, up the map from (30, 40)");
+    }
+
+    @Test
+    void onAScreenTwiceAsDenseTheButtonsAreTwiceAsBigAndTwiceAsFarFromTheEdge() {
+        uiScale = 2f;
+        var scheme = hero();
+        // Strike's centre is (1000 - 48 - 96, 48 + 96) = (856, 144); 90 px off is still on a 192 px button.
+        scheme.touch(DOWN, 1, 856f + 90f, 144f + 90f);
+        assertEquals(List.of("strike -90 true"), calls);
+    }
+
+    @Test
+    void theSameTouchOnTheDesignsDensityIsNoButton() {
+        var scheme = hero();
+        scheme.touch(DOWN, 1, 856f + 90f, 144f + 90f); // right half, away from the 96 px button at (928, 72)
+        scheme.frame(0f);
+        assertTrue(calls.isEmpty(), "a look finger, nothing struck");
+    }
+
+    @Test
+    void theStickReachesTwiceAsFarOnAScreenTwiceAsDense() {
+        uiScale = 2f;
+        var scheme = hero();
+        scheme.touch(DOWN, 1, 200, 300);
+        scheme.touch(MOVE, 1, 200 + VirtualStick.RADIUS, 300); // a design radius: only half way on this screen
+        scheme.frame(0f);
+        // half the scaled radius: (0.5 - 0.2) / 0.8 is told as a direction, and the knob has not reached the ring
+        assertEquals(List.of("walk 0"), calls);
     }
 }

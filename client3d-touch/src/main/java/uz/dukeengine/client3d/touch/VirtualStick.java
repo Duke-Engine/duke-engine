@@ -15,11 +15,22 @@ final class VirtualStick {
     /** The share of the radius inside which the stick says nothing. */
     static final float DEAD_ZONE = 0.2f;
 
+    /** The radius now: {@link #RADIUS} times the screen's density. */
+    private float radius = RADIUS;
     private boolean active;
     private float cx;
     private float cy;
     private float dx;
     private float dy;
+
+    /** Size the stick for a screen {@code uiScale} times as dense as the design. */
+    void scale(float uiScale) {
+        radius = RADIUS * uiScale;
+    }
+
+    float radius() {
+        return radius;
+    }
 
     void down(float x, float y) {
         active = true;
@@ -56,16 +67,16 @@ final class VirtualStick {
 
     /** The knob's place, pulled back to the radius. */
     float knobX() {
-        return cx + dx * Math.min(1f, RADIUS / Math.max(distance(), 1e-6f));
+        return cx + dx * Math.min(1f, radius / Math.max(distance(), 1e-6f));
     }
 
     float knobY() {
-        return cy + dy * Math.min(1f, RADIUS / Math.max(distance(), 1e-6f));
+        return cy + dy * Math.min(1f, radius / Math.max(distance(), 1e-6f));
     }
 
     /** 0 inside the dead zone, then growing to 1 at the radius. */
     float strength() {
-        float share = Math.min(1f, distance() / RADIUS);
+        float share = Math.min(1f, distance() / radius);
         return share <= DEAD_ZONE ? 0f : (share - DEAD_ZONE) / (1f - DEAD_ZONE);
     }
 

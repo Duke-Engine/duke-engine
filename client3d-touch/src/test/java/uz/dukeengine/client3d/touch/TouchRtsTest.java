@@ -22,6 +22,8 @@ class TouchRtsTest {
     private boolean unitUnderFinger;
     private boolean somethingSelected;
     private boolean placing;
+    /** How dense the screen is against the design: 2 emulates a phone on the desktop. */
+    private float uiScale = 1f;
     private float lookX = 50f;
     private float lookY = 50f;
 
@@ -29,6 +31,7 @@ class TouchRtsTest {
         InvocationHandler recorder = (proxy, method, args) -> switch (method.getName()) {
             case "input", "gui", "font" -> null;
             case "placing" -> placing;
+            case "uiScale" -> uiScale;
             case "floorHeight" -> 0f;
             // the ghost stands at (500, 400) on the screen, wherever it is on the ground
             case "screenOf" -> new Vector3f(500f, 400f, 0f);
@@ -196,5 +199,41 @@ class TouchRtsTest {
         assertFalse(scheme.holdsPlacement());
         assertFalse(scheme.aiming());
         assertNull(scheme.aimPoint());
+    }
+
+    @Test
+    void aDragPastTheDesignsSlopIsAPanButOnADenseScreenItIsStillATap() {
+        var plain = scheme();
+        plain.gestures().down(1, 100, 100, 0f);
+        plain.gestures().move(1, 125, 100); // 25 px, past the 16 px slop
+        assertEquals(47.5f, lookX, 1e-3, "a pan");
+
+        lookX = 50f;
+        calls.clear();
+        uiScale = 2f;
+        var dense = scheme();
+        dense.gestures().down(1, 100, 100, 1f);
+        dense.gestures().move(1, 125, 100); // inside the 32 px slop of this screen
+        dense.gestures().up(1, 125, 100, 1.1f);
+        assertEquals(50f, lookX, 1e-3, "no pan");
+        assertEquals(List.of("selectPointed [false]"), calls, "a tap");
+    }
+
+    @Test
+    void theConfirmButtonIsTwiceAsBigAndStandsTwiceAsFarFromTheGhostOnADenseScreen() {
+        // The ghost is at (500, 400). Confirm on the design's density spans x 524..684, y 312..376; at 2, 548..868 and
+        // 224..352: (800, 250) is on it only there.
+        uiScale = 2f;
+        var scheme = placementDragged();
+        scheme.gestures().down(2, 800, 250, 1f);
+        scheme.gestures().up(2, 800, 250, 1.1f);
+        assertEquals(List.of("putDownArmed"), calls);
+
+        calls.clear();
+        uiScale = 1f;
+        var plain = placementDragged();
+        plain.gestures().down(2, 800, 250, 1f);
+        plain.gestures().up(2, 800, 250, 1.1f);
+        assertTrue(calls.isEmpty(), "beyond the small button: the tap only moves the ghost");
     }
 }

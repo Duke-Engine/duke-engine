@@ -112,3 +112,33 @@ Not done / to check on a device: a touch on the HUD (skill panel, command bar) o
 96 px (3.5 scales them by density); a skill held to be cast on release (`castOnRelease` ranges, which never call `armed`)
 is not cast on lift; the Hit label is text only; no strike hold-lock on an enemy (the game's callback decides what a
 strike is); the stick centre is not clamped inside the screen. Not tried on a device, only with synthetic events.
+
+## 3.5 HUD scale by density: done (`ClientPlatform.uiScale`, `HudScale` in `client3d`, touch constants)
+
+One number, `ClientPlatform.uiScale()` (new, `default` 1f; desktop keeps 1, so its look and every test are unchanged;
+Android answers `displayMetrics.density`; see client-platform.md). `DukeRtsApp` makes a `HudScale` of it and
+`ControlScheme.Context.uiScale()` (new, `default` 1f) hands it to the schemes.
+
+- **HUD.** Laid out in "HUD pixels" = window pixels / scale and drawn `scale` times larger: the roots of the HUD hang on
+  `hudNode` (scaled), which is also `HudPart.Window.gui()`, so parts, the command bar, menus, banner, minimap, loading
+  overlay and the status text need no change of their own; the canvas node scales itself (it is shown alone when the
+  interface is hidden). Every width or height the HUD is laid out for, and the `open`/`resized` sizes a part is told, are
+  `hudScale.of(...)`; the canvas's `width()/height()`, `screenOf`, `barOf` likewise.
+- **Hits.** What tests a point against the HUD is given `hudScale.of(cursor)`: the command bar, the menu click, hover
+  and drag, a part's `covers/raiseAt/keyAt`, the minimap click and cover, the cursor in `HudPart.Frame`, and the pointer
+  the game's canvas hears (`CanvasInputs`). Picking the world, the drag box, unit bars, floating numbers and the scheme's
+  own `gui()` (the touch buttons) stay in window pixels, on `guiNode` itself.
+- **Touch.** `TouchGestures` slop 16, `VirtualStick` radius 120, `TouchHero` buttons 96 and gap 24, `TouchRts`
+  Confirm/Cancel 160 x 64 and gap 24 are all times `context.uiScale()`.
+- **Tests (desktop emulation, scale 2).** `HudScaleTest`: lengths, points and a root halved and doubled; the command
+  bar laid out for a 1000 px window equals the 500 px one at 1, a touch at the doubled place hits the same button and
+  the unhalved point does not; the canvas hears (100, 250) for a touch at (200, 100) of a 600 tall window. Touch tests:
+  a 25 px drag is a pan at 1 and a tap at 2, Confirm hits at (800, 250) only at 2, the strike button and the stick's
+  radius double.
+
+Not done / to check on a device: at a scale other than 1 nothing was seen on a screen, only asserted; the hint text,
+the status line and BitmapText sizes grow with the node but a font is not re-baked at the larger size (blurry, not
+wrong); `TURN_PER_PIXEL` (a finger turning the camera) is still per raw pixel, so on a dense screen the same swipe in
+centimetres turns further; the loading overlay is built once at the first size (as before); the movie, the scene veil,
+the world tint and the first-person crosshair stay in window pixels; the shadows of floating numbers, unit bars and
+the box are at window size by design, so their size does not follow the density.

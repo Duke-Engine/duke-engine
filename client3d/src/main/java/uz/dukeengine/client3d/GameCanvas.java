@@ -18,6 +18,7 @@ final class GameCanvas {
 
     private final AssetManager assetManager;
     private final Camera cam;
+    private final HudScale hud;
     /** The game's own drawing — see {@link Painter}; null for a game that draws nothing of its own. */
     private final Painter painter;
     private final List<HudPart> parts;
@@ -41,11 +42,12 @@ final class GameCanvas {
     /** The title card up, as the client draws it — see {@link DukeGame#titleCard}; null for none. */
     private TitleCardShow titleCard;
 
-    GameCanvas(AssetManager assetManager, Node guiNode, Camera cam, Painter painter, List<HudPart> parts,
+    GameCanvas(AssetManager assetManager, Node guiNode, Camera cam, HudScale hud, Painter painter, List<HudPart> parts,
             CanvasFrame.World world, Supplier<DukeGame> game, Supplier<WorldSnapshot> snapshot,
             Supplier<GameSounds> noises, MissingAssets missing) {
         this.assetManager = assetManager;
         this.cam = cam;
+        this.hud = hud;
         this.painter = painter;
         this.parts = parts;
         this.world = world;
@@ -55,7 +57,7 @@ final class GameCanvas {
         this.missing = missing;
         this.canvasText = new CanvasText(this::openAsset);
         this.canvasDrawing = new CanvasDrawing(assetManager, canvasText, this::portraitOf);
-        guiNode.attachChild(canvasDrawing.node());
+        guiNode.attachChild(hud.draw(canvasDrawing.node()));
         this.movieScreen = new MovieScreen(assetManager, guiNode);
     }
 
@@ -156,8 +158,8 @@ final class GameCanvas {
         if (painter == null && titleCard == null && credits == null) {
             return;
         }
-        int width = cam.getWidth();
-        int height = cam.getHeight();
+        int width = hud.of(cam.getWidth());
+        int height = hud.of(cam.getHeight());
         if (painter != null && paintedFor != width * 100_000 + height) {
             paintedFor = width * 100_000 + height;
             painter.resized(width, height);

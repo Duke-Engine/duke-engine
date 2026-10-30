@@ -193,7 +193,7 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public Node gui() {
-            return guiNode;
+            return hudNode;
         }
 
         @Override
@@ -255,6 +255,10 @@ final class DukeRtsApp extends SimpleApplication {
     private final GameSettings preferences = new GameSettings();
     /** The machine under the client: its window and what is held in it — see {@link ClientPlatform}. */
     private final ClientPlatform platform = ClientPlatform.get();
+    /** The HUD's pixels on a screen denser than the design — see {@link HudScale}. */
+    private final HudScale hudScale = new HudScale(platform.uiScale());
+    /** The root of the HUD that is laid out in those pixels; world-projected overlays stay on the GUI node itself. */
+    private Node hudNode;
     private final HeldInput heldInput = platform.held(this::getContext);
     /** The window itself, asked and moved where jME keeps no answer — see {@link WindowDisplay}. */
     private final WindowDisplay windowDisplay = new WindowDisplay(platform.window(this::getContext), () -> settings,
@@ -625,16 +629,18 @@ final class DukeRtsApp extends SimpleApplication {
         cameraRig.centreOnTheMap();
         installInput();
 
+        hudNode = hudScale.root("hud");
+        guiNode.attachChild(hudNode);
         hud = new BitmapText(guiFont);
-        hud.setLocalTranslation(10, cam.getHeight() - 10f, 0);
-        guiNode.attachChild(hud);
+        hud.setLocalTranslation(10, hudScale.of(cam.getHeight()) - 10f, 0);
+        hudNode.attachChild(hud);
 
         buildMenu = new BitmapText(guiFont);
-        buildMenu.setLocalTranslation(10, cam.getHeight() - 40f, 0);
+        buildMenu.setLocalTranslation(10, hudScale.of(cam.getHeight()) - 40f, 0);
         buildMenu.setColor(new ColorRGBA(0.8f, 1f, 0.8f, 1f));
-        guiNode.attachChild(buildMenu);
+        hudNode.attachChild(buildMenu);
 
-        banner = new BannerPanel(assetManager, guiFont, guiNode, visuals.getPanelSkin());
+        banner = new BannerPanel(assetManager, guiFont, hudNode, visuals.getPanelSkin());
 
         controlsHint = new BitmapText(guiFont);
         var hint = controlsHint;
@@ -649,30 +655,35 @@ final class DukeRtsApp extends SimpleApplication {
                 + "   wheel zoom   H halt   P pause   Esc menu");
         hint.setLocalTranslation(10, hint.getLineHeight() + 6f, 0);
         hint.setAlpha(0.6f);
-        guiNode.attachChild(hint);
+        hudNode.attachChild(hint);
 
         for (var part : parts) {
-            part.open(window, cam.getWidth(), cam.getHeight());
+            part.open(window, hudScale.of(cam.getWidth()), hudScale.of(cam.getHeight()));
         }
 
-        minimapView = new MinimapView(assetManager, visuals, () -> game, () -> snapshot, camera, cam, renderer, parts,
+        minimapView = new MinimapView(assetManager, visuals, () -> game, () -> snapshot, camera, cam, hudScale, renderer,
+                parts,
                 this::discovery, groundLooks::groundTexture, unitScene::colourOf, timer);
-        minimapView.build(guiNode);
+        minimapView.build(hudNode);
         readTheNewGrid();
         buildDragRectangle();
         orders = new Orders(() -> game, () -> snapshot, selected, visuals, hotkeys, controls, parts, () -> noises,
-                () -> mouse, pointer, unitScene, minimapView::click, orderMarkers, modelMarks, rallyMarks,
+                () -> mouse, pointer, unitScene, at -> minimapView.click(hudScale.of(at)), orderMarkers, modelMarks,
+                rallyMarks,
                 dragRectangle, cam, inputManager, timer, () -> screens.now(), this::floorHeightAt);
-        skillKeys = new SkillKeys(hotkeys, visuals, parts, orders, pointer, () -> scheme, rangeRings, () -> noises,
+        skillKeys = new SkillKeys(hotkeys, visuals, parts, orders, pointer, () -> scheme, rangeRings, hudScale,
+                () -> noises,
                 () -> game, () -> snapshot, () -> screens.now(), inputManager, timer, this::floorHeightAt);
         screens = new Screens(menusHost, shell, visuals, hotkeys, preferences, choices, windowDisplay, keyBindings,
-                controls, () -> noises, parts, () -> settings, assetManager, guiNode, guiFont, this::fontOrDefault, timer,
-                cam.getWidth(), cam.getHeight());
-        buttons = new CommandButtons(assetManager, guiNode, markerNode, visuals, looks, bodies, screens,
-                this::fontOrDefault, cam, inputManager, orders, pointer, skillKeys, () -> game, () -> snapshot,
+                controls, () -> noises, parts, () -> settings, assetManager, hudNode, guiFont,
+                this::fontOrDefault, timer,
+                hudScale.of(cam.getWidth()), hudScale.of(cam.getHeight()));
+        buttons = new CommandButtons(assetManager, hudNode, markerNode, visuals, looks, bodies, screens,
+                this::fontOrDefault, cam, hudScale, inputManager, orders, pointer, skillKeys, () -> game,
+                () -> snapshot,
                 this::clientHud, this::floorHeightAt);
-        loading = new LoadingOverlay(guiFont, assetManager, guiNode,
-                cam.getWidth(), cam.getHeight());
+        loading = new LoadingOverlay(guiFont, assetManager, hudNode,
+                hudScale.of(cam.getWidth()), hudScale.of(cam.getHeight()));
         buildSounds();
         events = new WorldEvents(visuals, unitScene, looks, layered, lists, skillEffects, controls, parts, noises,
                 soundNodes, ground, fog, hitNumbers, floatingTexts, pictureStrips, new HurtMoments(visuals::hurtRule),
@@ -732,7 +743,8 @@ final class DukeRtsApp extends SimpleApplication {
      * the client's own, since the input manager hands a consumed event to nothing after its raw listeners.
      */
     private void buildCanvas() {
-        canvas = new GameCanvas(assetManager, guiNode, cam, painter, parts, canvasWorld, () -> game, () -> snapshot,
+        canvas = new GameCanvas(assetManager, guiNode, cam, hudScale, painter, parts, canvasWorld, () -> game,
+                () -> snapshot,
                 () -> noises, missing);
         surround = renderManager.createPreView("world-surround", new com.jme3.renderer.Camera(cam.getWidth(),
                 cam.getHeight()));
@@ -745,7 +757,7 @@ final class DukeRtsApp extends SimpleApplication {
         // First of all: a title card that takes the input takes it before the game's canvas or any control.
         inputManager.addRawInputListener(new CardInput(canvas::takesInput, canvas::skip));
         if (canvasInput != null) {
-            canvasInputs = new CanvasInputs(canvasInput, () -> cam.getHeight());
+            canvasInputs = new CanvasInputs(canvasInput, () -> cam.getHeight(), hudScale);
             inputManager.addRawInputListener(canvasInputs);
         }
     }
@@ -939,6 +951,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
 
         @Override
+        public float uiScale() {
+            return hudScale.scale();
+        }
+
+        @Override
         public float[] screenSize() {
             return new float[] {cam.getWidth(), cam.getHeight()};
         }
@@ -1117,12 +1134,13 @@ final class DukeRtsApp extends SimpleApplication {
     private final CanvasFrame.World canvasWorld = new CanvasFrame.World() {
         @Override
         public Canvas.Point screenOf(float x, float y, float height) {
-            return worldShown() ? CanvasFrame.onScreen(cam, x, y, height) : null;
+            return worldShown() ? hudScale.of(CanvasFrame.onScreen(cam, x, y, height)) : null;
         }
 
         @Override
         public Canvas.Box barOf(int id) {
-            return worldShown() ? CanvasFrame.fromTheBottom(unitBars.barOf(id), cam.getHeight()) : null;
+            return worldShown()
+                    ? CanvasFrame.fromTheBottom(hudScale.of(unitBars.barOf(id)), hudScale.of(cam.getHeight())) : null;
         }
 
         @Override
@@ -1725,8 +1743,10 @@ final class DukeRtsApp extends SimpleApplication {
             return; // not initialised yet
         }
         laidOutFor = width * 100_000 + height;
-        hud.setLocalTranslation(10, height - 10f, 0);
-        buildMenu.setLocalTranslation(10, height - 40f, 0);
+        int hudWidth = hudScale.of(width);
+        int hudHeight = hudScale.of(height);
+        hud.setLocalTranslation(10, hudHeight - 10f, 0);
+        buildMenu.setLocalTranslation(10, hudHeight - 40f, 0);
         // Everything drawn out of quads is rebuilt rather than moved. Laying the
         // hero's bar out again at the new size leaves it in the scene, in the
         // right place, unculled — and not on the screen: something in what the
@@ -1734,10 +1754,10 @@ final class DukeRtsApp extends SimpleApplication {
         // size under it. The menu has always been rebuilt for the same reason, and
         // is the reason it was the one thing that came back looking right.
         for (var part : parts) {
-            part.resized(width, height);
+            part.resized(hudWidth, hudHeight);
         }
         minimapView.place();
-        screens.rebuild(width, height);
+        screens.rebuild(hudWidth, hudHeight);
     }
 
     /**
@@ -1885,7 +1905,7 @@ final class DukeRtsApp extends SimpleApplication {
                     if (screens.menu().isVisible()) {
                         if (!pressed) {
                             screens.menu().release(); // letting go lets go of the slider
-                        } else if (screens.menu().click(inputManager.getCursorPosition())) {
+                        } else if (screens.menu().click(hudScale.of(inputManager.getCursorPosition()))) {
                             noises.moment("menu_click", timer.getTimeInSeconds());
                         }
                     } else if (screens.now() == Screen.PLAYING) {
@@ -2154,9 +2174,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
     };
 
-    /** Whether a point of the window is on a part's panel. */
+    /** Whether a point of the window, in its pixels, is on a part's panel. */
     private boolean onAPanel(float x, float y) {
-        return parts.stream().anyMatch(part -> part.covers(x, y));
+        float hudX = hudScale.of(x);
+        float hudY = hudScale.of(y);
+        return parts.stream().anyMatch(part -> part.covers(hudX, hudY));
     }
 
     /** The first answer of the parts that has one, or {@code null}. */
@@ -2236,8 +2258,8 @@ final class DukeRtsApp extends SimpleApplication {
             // it makes no noise about it — a knob being pulled would be forty
             // clicks a second.
             if (screens.menu().isDragging()) {
-                screens.menu().drag(inputManager.getCursorPosition());
-            } else if (screens.menu().hover(inputManager.getCursorPosition())) {
+                screens.menu().drag(hudScale.of(inputManager.getCursorPosition()));
+            } else if (screens.menu().hover(hudScale.of(inputManager.getCursorPosition()))) {
                 noises.moment("menu_hover", timer.getTimeInSeconds());
             }
         }
@@ -2467,7 +2489,7 @@ final class DukeRtsApp extends SimpleApplication {
         var over = aiming ? null : pointer.pickUnit();
         // Over a window of the game's own canvas, or off the world's part of the window, is over the panel: the
         // arrow, as the reference shows it over any window of its interface.
-        boolean overPanel = onAPanel(at.x, at.y) || minimapView.covers(at)
+        boolean overPanel = onAPanel(at.x, at.y) || minimapView.covers(hudScale.of(at))
                 || canvasInputs != null && canvasInputs.pointerTaken() || !pointer.pointerOnTheWorld();
         var own = orders.selectedOwn();
         return new Cursors.Over(true, armed, canReach, overPanel,
@@ -2674,7 +2696,7 @@ final class DukeRtsApp extends SimpleApplication {
         // still written out along the top, which is what every game got before.
         var cursor = inputManager.getCursorPosition();
         var frame = new HudPart.Frame(snapshot, tpf, !screens.menu().isVisible() && !snapshot.paused(),
-                portraitSubject(), cursor.x, cursor.y, screens.now() == Screen.PLAYING);
+                portraitSubject(), hudScale.of(cursor.x), hudScale.of(cursor.y), screens.now() == Screen.PLAYING);
         boolean drawn = false;
         for (var part : parts) {
             drawn |= part.show(frame);
@@ -2703,7 +2725,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     private void updateBanner() {
         banner.show(snapshot.hasBanner() && !shell.isDrawnByTheGame() ? snapshot.banner() : null,
-                cam.getWidth(), cam.getHeight());
+                hudScale.of(cam.getWidth()), hudScale.of(cam.getHeight()));
     }
 
     /** A move the game gave, answered as the player's own click there is — see {@link Duke3D#answerMove}. */

@@ -22,6 +22,15 @@ public interface ClientPlatform {
         return Found.PLATFORM;
     }
 
+    /**
+     * How many pixels of this screen one pixel of the interface's design is: 1 where the screen is the density the HUD
+     * was drawn for (the desktop), a phone's {@code displayMetrics.density} where it is denser. The client scales its
+     * HUD, and the touch schemes their sizes, by it.
+     */
+    default float uiScale() {
+        return 1f;
+    }
+
     /** The glyphs of the machine's fonts and of font files. */
     GlyphRasterizer glyphs();
 

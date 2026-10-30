@@ -29,7 +29,7 @@ import uz.dukeengine.client3d.ControlScheme;
  */
 public final class TouchRts implements ControlScheme {
 
-    /** The confirm and cancel buttons, pixels: a finger's size, and how far they stand from the ghost. */
+    /** The confirm and cancel buttons, pixels at the design's density: a finger's size and their gap from the ghost. */
     private static final float BUTTON_W = 160f;
     private static final float BUTTON_H = 64f;
     private static final float GAP = 24f;
@@ -124,6 +124,7 @@ public final class TouchRts implements ControlScheme {
     @Override
     public void attach(Context context) {
         this.context = context;
+        gestures.scale(context.uiScale());
         var input = context.input();
         if (input != null) {
             input.addRawInputListener(new Fingers());
@@ -179,15 +180,28 @@ public final class TouchRts implements ControlScheme {
 
     /** Whether a point is on the confirm ({@code side} 1, right of the ghost) or cancel ({@code side} -1, left) button. */
     private boolean hits(float x, float y, int side) {
-        float left = side > 0 ? anchor.x + GAP : anchor.x - GAP - BUTTON_W;
-        float top = anchor.y - GAP;
-        return x >= left && x <= left + BUTTON_W && y <= top && y >= top - BUTTON_H;
+        float left = side > 0 ? anchor.x + gap() : anchor.x - gap() - buttonW();
+        float top = anchor.y - gap();
+        return x >= left && x <= left + buttonW() && y <= top && y >= top - buttonH();
+    }
+
+    /** The buttons' size and gap on this screen, pixels. */
+    private float buttonW() {
+        return BUTTON_W * context.uiScale();
+    }
+
+    private float buttonH() {
+        return BUTTON_H * context.uiScale();
+    }
+
+    private float gap() {
+        return GAP * context.uiScale();
     }
 
     private BitmapText label(String text, ColorRGBA colour) {
         var label = new BitmapText(context.font());
         label.setText(text);
-        label.setSize(BUTTON_H / 2f);
+        label.setSize(buttonH() / 2f);
         label.setColor(colour);
         label.setCullHint(Spatial.CullHint.Always);
         context.gui().attachChild(label);
@@ -195,7 +209,7 @@ public final class TouchRts implements ControlScheme {
     }
 
     private void lay(BitmapText label, int side) {
-        label.setLocalTranslation(side > 0 ? anchor.x + GAP : anchor.x - GAP - BUTTON_W, anchor.y - GAP, 0f);
+        label.setLocalTranslation(side > 0 ? anchor.x + gap() : anchor.x - gap() - buttonW(), anchor.y - gap(), 0f);
         label.setCullHint(confirming ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
     }
 

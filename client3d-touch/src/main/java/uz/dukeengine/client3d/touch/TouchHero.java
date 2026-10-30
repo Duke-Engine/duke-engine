@@ -40,7 +40,7 @@ public final class TouchHero implements ControlScheme {
         void strike(DukeGame game, float forward, boolean held);
     }
 
-    /** A button's size, pixels: a thumb's. */
+    /** A button's size, pixels at the design's density ({@link Context#uiScale} times it on the screen): a thumb's. */
     static final float BUTTON = 96f;
     /** The gap between buttons and from the screen's edge. */
     static final float GAP = 24f;
@@ -105,16 +105,17 @@ public final class TouchHero implements ControlScheme {
     @Override
     public void attach(Context context) {
         this.context = context;
+        stick.scale(context.uiScale());
         var input = context.input();
         if (input != null) {
             input.addRawInputListener(new Fingers());
         }
         if (context.gui() != null && context.font() != null) {
-            ring = text("O", VirtualStick.RADIUS);
-            knob = text("o", BUTTON / 2f);
-            labels.add(text("Hit", BUTTON / 2f));
+            ring = text("O", stick.radius());
+            knob = text("o", button() / 2f);
+            labels.add(text("Hit", button() / 2f));
             for (char key : skills) {
-                labels.add(text(String.valueOf(key), BUTTON / 2f));
+                labels.add(text(String.valueOf(key), button() / 2f));
             }
         }
     }
@@ -249,7 +250,7 @@ public final class TouchHero implements ControlScheme {
             return -1;
         }
         for (int button = 0; button <= skills.size(); button++) {
-            float half = BUTTON / 2f;
+            float half = button() / 2f;
             if (Math.abs(x - centreX(screen, button)) <= half && Math.abs(y - centreY()) <= half) {
                 return button;
             }
@@ -257,12 +258,21 @@ public final class TouchHero implements ControlScheme {
         return -1;
     }
 
-    private static float centreX(float[] screen, int button) {
-        return screen[0] - GAP - BUTTON / 2f - button * (BUTTON + GAP);
+    private float centreX(float[] screen, int button) {
+        return screen[0] - gap() - button() / 2f - button * (button() + gap());
     }
 
-    private static float centreY() {
-        return GAP + BUTTON / 2f;
+    private float centreY() {
+        return gap() + button() / 2f;
+    }
+
+    /** The button's size and the gap on this screen, pixels. */
+    private float button() {
+        return BUTTON * context.uiScale();
+    }
+
+    private float gap() {
+        return GAP * context.uiScale();
     }
 
     // ---- aiming a skill ----

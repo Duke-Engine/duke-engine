@@ -44,7 +44,7 @@ final class TouchGestures {
         }
     }
 
-    /** Pixels a finger may stray and still be held or tapping; the scheme of a dp-aware screen scales it (3.5). */
+    /** Pixels a finger may stray and still be held or tapping, at the design's density; {@link #scale} stretches it. */
     static final float SLOP = 16f;
     /** Seconds a finger holds before a drag becomes a box. */
     static final float LONG_PRESS = 0.4f;
@@ -58,6 +58,12 @@ final class TouchGestures {
     private float since;
     private float lastDistance;
     private float lastAngle;
+    private float uiScale = 1f;
+
+    /** Size the slop for a screen {@code uiScale} times as dense as the design. */
+    void scale(float uiScale) {
+        this.uiScale = uiScale;
+    }
 
     TouchGestures(Listener out) {
         this.out = out;
@@ -87,7 +93,7 @@ final class TouchGestures {
         finger[3] = y;
         switch (mode) {
             case UNDECIDED -> {
-                if (Math.hypot(x - finger[0], y - finger[1]) > SLOP) {
+                if (Math.hypot(x - finger[0], y - finger[1]) > SLOP * uiScale) {
                     mode = Mode.PAN;
                     out.panBegin(finger[0], finger[1]);
                     out.pan(x, y);

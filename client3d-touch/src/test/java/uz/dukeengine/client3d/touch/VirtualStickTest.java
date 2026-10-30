@@ -53,4 +53,15 @@ class VirtualStickTest {
         stick.move(100, 0); // a stray move after the lift changes nothing
         assertEquals(0f, stick.strength());
     }
+
+    @Test
+    void onADenseScreenTheRadiusAndTheDeadZoneGrowWithIt() {
+        stick.scale(2f);
+        assertEquals(2f * VirtualStick.RADIUS, stick.radius(), 1e-4);
+        stick.down(0, 0);
+        stick.move(VirtualStick.RADIUS * 1.2f, 0); // 0.6 of the doubled radius, as 0.6 of the design's was
+        assertEquals(0.5f, stick.strength(), 1e-4);
+        stick.move(VirtualStick.RADIUS * 6f, 0);
+        assertEquals(2f * VirtualStick.RADIUS, stick.knobX(), 1e-3);
+    }
 }

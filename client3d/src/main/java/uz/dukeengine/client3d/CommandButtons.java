@@ -32,6 +32,7 @@ final class CommandButtons {
     /** A font the game named, or the client's own where it names none or it will not load. */
     private final Function<String, BitmapFont> fonts;
     private final Camera cam;
+    private final HudScale hud;
     private final InputManager inputManager;
     private final Orders orders;
     private final WorldPointer pointer;
@@ -56,7 +57,7 @@ final class CommandButtons {
     private PlacementLocater locater;
 
     CommandButtons(AssetManager assetManager, Node guiNode, Node markerNode, Visuals visuals, Looks looks,
-            Bodies bodies, Screens screens, Function<String, BitmapFont> fonts, Camera cam,
+            Bodies bodies, Screens screens, Function<String, BitmapFont> fonts, Camera cam, HudScale hud,
             InputManager inputManager, Orders orders, WorldPointer pointer, SkillKeys skillKeys,
             Supplier<DukeGame> game, Supplier<WorldSnapshot> snapshot, BooleanSupplier clientHud,
             WorldMoments.Floor floor) {
@@ -69,6 +70,7 @@ final class CommandButtons {
         this.screens = screens;
         this.fonts = fonts;
         this.cam = cam;
+        this.hud = hud;
         this.inputManager = inputManager;
         this.orders = orders;
         this.pointer = pointer;
@@ -130,7 +132,7 @@ final class CommandButtons {
             guiNode.attachChild(commandBar.node());
         }
         commandBar.unhide();
-        commandBar.show(buttons, cam.getWidth());
+        commandBar.show(buttons, hud.of(cam.getWidth()));
         if (aiming.isArmed() && aiming.fromTheBar()
                 && buttons.stream().noneMatch(one -> one.id().equals(aiming.button().id()))) {
             disarmButton(); // the thing that offered it is no longer selected: nothing is waiting to build
@@ -148,7 +150,7 @@ final class CommandButtons {
         if (commandBar == null || commandBar.isEmpty() || screens.now() != Screen.PLAYING) {
             return false;
         }
-        var cursor = inputManager.getCursorPosition();
+        var cursor = hud.of(inputManager.getCursorPosition());
         var button = commandBar.at(cursor.x, cursor.y);
         if (button == null) {
             return false;

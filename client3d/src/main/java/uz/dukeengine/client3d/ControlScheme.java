@@ -100,6 +100,14 @@ public interface ControlScheme {
             return null;
         }
 
+        /**
+         * How many pixels of this screen one pixel of the interface's design is ({@code ClientPlatform.uiScale}): a scheme
+         * sizes what a finger must hit, and how far it may stray, by it. 1 where the screen is the design's density.
+         */
+        default float uiScale() {
+            return 1f;
+        }
+
         /** Where the interface is drawn, and its font. */
         Node gui();
 

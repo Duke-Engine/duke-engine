@@ -55,11 +55,13 @@ final class SkillKeys {
      * Draws how far an armed skill reaches. See RangeRings.
      */
     private final RangeRings rangeRings;
+    /** The HUD's pixels: the panels a click is tested against are laid out in them. */
+    private final HudScale hud;
     /** Whether the aim is a quick cast's, where a creature near the pointer counts as under it. */
     private boolean quickCasting;
 
     SkillKeys(Hotkeys hotkeys, Visuals visuals, List<HudPart> parts, Orders orders, WorldPointer pointer,
-            Supplier<ControlScheme> scheme, RangeRings rangeRings, Supplier<GameSounds> noises,
+            Supplier<ControlScheme> scheme, RangeRings rangeRings, HudScale hud, Supplier<GameSounds> noises,
             Supplier<DukeGame> game, Supplier<WorldSnapshot> snapshot, Supplier<Screen> screen,
             InputManager inputManager, com.jme3.system.Timer timer, WorldMoments.Floor floor) {
         this.hotkeys = hotkeys;
@@ -69,6 +71,7 @@ final class SkillKeys {
         this.pointer = pointer;
         this.scheme = scheme;
         this.rangeRings = rangeRings;
+        this.hud = hud;
         this.noises = noises;
         this.game = game;
         this.snapshot = snapshot;
@@ -367,7 +370,7 @@ final class SkillKeys {
     }
 
     boolean clickedASkillSlot() {
-        var cursor = inputManager.getCursorPosition();
+        var cursor = hud.of(inputManager.getCursorPosition());
         // The badge before the slot, because it hangs over the slot's own corner
         // and a click there means the badge. It is only ever there when a point
         // may go into that slot, so the corner of a socket with nothing to buy
