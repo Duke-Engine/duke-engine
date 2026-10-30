@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystemAlreadyExistsException;
 import java.nio.file.FileSystems;
@@ -13,6 +14,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Stream;
 
 /**
@@ -20,7 +22,8 @@ import java.util.stream.Stream;
  *
  * <p>Two places, as Generals has two — the game's own {@code Maps} folder and the player's, under his
  * documents. A map is found rather than listed: drop a folder in and it is there, which is what an editor that
- * writes maps needs and what a data file listing every map by hand cannot give. The game's own maps are read
+ * writes maps needs and what a data file listing every map by hand cannot give; the game's own are listed by the build
+ * from their folder, so that is still no hand-kept file. They are read
  * off the classpath, so they work the same whether the game is run from a folder of classes or from a jar.
  *
  * <p>Names are unique across the two: a player's map of the same name as a shipped one takes its place, the way
@@ -32,14 +35,53 @@ public final class MapPackages {
     /** Kept open for the life of the game: a path inside a jar cannot be read once its file system is closed. */
     private static final Map<URI, FileSystem> OPENED = new LinkedHashMap<>();
 
+    /** The file in a maps folder that names every file under it, one a line. */
+    public static final String LIST = "maps.list";
+
     private MapPackages() {
     }
 
     /**
      * Every map the game ships, under a folder of the classpath — {@code maps} for {@code maps/crypt/crypt.map}.
-     * A folder of that name in more than one resource root is read in classpath order, the first of a name winning.
+     *
+     * <p>Read off {@code maps/maps.list} where the folder has one: a line a file, {@code crypt/crypt.map}, which the
+     * build writes from the folder, because a classpath cannot be listed on a platform that packs it into an app
+     * (an Android APK has no folder to scan). Without a list the folder is scanned, which a jar or a folder of
+     * classes allows. shortcut: a list is read from the first resource root that has one, not merged across roots;
+     * merge them if two roots must each ship maps on a platform that cannot scan.
      */
     public static synchronized List<MapPackage> shipped(String root) {
+        var listed = listed(MapPackages.class.getClassLoader(), root);
+        return listed.isEmpty() ? scanned(root) : listed;
+    }
+
+    /** The maps {@code root/maps.list} names, or none where there is no such list. */
+    static List<MapPackage> listed(ClassLoader loader, String root) {
+        var files = new TreeMap<String, List<String>>();
+        try (var in = loader.getResourceAsStream(root + "/" + LIST)) {
+            if (in == null) {
+                return List.of();
+            }
+            for (var line : new String(in.readAllBytes(), StandardCharsets.UTF_8).split("\\R")) {
+                var at = line.strip().split("/");
+                if (at.length == 2) {
+                    files.computeIfAbsent(at[0], _ -> new ArrayList<>()).add(at[1]);
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("could not read " + root + "/" + LIST, e);
+        }
+        var found = new ArrayList<MapPackage>();
+        files.forEach((name, inside) -> {
+            var map = MapPackage.listed(loader, root, name, inside);
+            if (map != null) {
+                found.add(map);
+            }
+        });
+        return List.copyOf(found);
+    }
+
+    private static List<MapPackage> scanned(String root) {
         var found = new LinkedHashMap<String, MapPackage>();
         try {
             var roots = MapPackages.class.getClassLoader().getResources(root);

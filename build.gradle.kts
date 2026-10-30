@@ -41,6 +41,28 @@ subprojects {
         useJUnitPlatform()
     }
 
+    // A module with maps ships `maps/maps.list`, one line a file under `maps/` (`crypt/crypt.map`): a platform that packs
+    // its resources into an app cannot scan a folder, so the maps are found by this list. Written from the folder,
+    // so a new map needs no edit.
+    for (set in listOf("main", "test")) {
+        val maps = file("src/$set/resources/maps")
+        if (maps.isDirectory) {
+            val out = layout.buildDirectory.dir("generated/maplist/$set")
+            val list = tasks.register("generate${set.replaceFirstChar(Char::uppercase)}MapList") {
+                inputs.dir(maps)
+                outputs.dir(out)
+                doLast {
+                    val lines = maps.walkTopDown().filter { it.isFile }
+                        .map { it.relativeTo(maps).invariantSeparatorsPath }.sorted().toList()
+                    val target = out.get().file("maps/maps.list").asFile
+                    target.parentFile.mkdirs()
+                    target.writeText(lines.joinToString("\n", postfix = "\n"))
+                }
+            }
+            the<SourceSetContainer>()[set].resources.srcDir(files(out).builtBy(list))
+        }
+    }
+
     // Every module writes the shapes of its records, so the Binder can read data where reflection cannot. A
     // module's tests share its packages, so theirs are written under another class name.
     if (name != "processor") {

@@ -32,11 +32,20 @@ This note records what stands in the way and what has been done about it.
 ## Map source
 
 - `MapPackage` read its files straight through `java.nio.file.Files`. It now reads through `MapSource`
-  (`byte[] read(String name)`), whose only implementation is `MapSource.in(Path folder)`: same bytes, same errors.
-- Still desktop-only, on purpose: `MapPackages` (finding maps by listing folders and opening a jar's file system) and the
-  `Path` accessors `MapPackage.file()`, `extras()`, `preview()`, which games outside this repo call.
-- To load maps on a platform with no file system, the next step is a way to list the map names and build a
-  `MapPackage` from a `MapSource` instead of a folder; that is not done here.
+  (`byte[] read(String name)`), with two implementations: `MapSource.in(Path folder)` (same bytes, same errors) and
+  `MapSource.onClasspath(ClassLoader, folder)`, which reads a folder of the classpath by `getResourceAsStream`.
+- Step 4.2, maps from inside the APK: no jME `AssetManager` is needed, because Java resources of the jars are packed into
+  an APK and a class loader reads them the same on both platforms. A platform with no folder to scan finds maps by a list:
+  `maps/maps.list`, one line a file (`clearing/clearing.map`, `clearing/preview.png`). `MapPackages.shipped(root)` reads
+  that list and builds each `MapPackage` over `onClasspath`, so no file system is touched. The root `build.gradle.kts`
+  writes the list for every module that has `src/{main,test}/resources/maps` (`generateMainMapList`,
+  `generateTestMapList`), so a new map needs no edit. Desktop uses it too; there is one code path for shipped maps.
+- Kept: the directory scan, as the fallback for a game outside this repo whose build writes no list, and for the player's
+  own folder (`MapPackages.under`, `all`) which is desktop-only by nature. The list is read from the first resource root
+  that has one (not merged across roots).
+- Still desktop-only, on purpose: the `Path` accessors `MapPackage.file()`, `extras()`, `preview()` (relative names for a
+  listed map), and the scan with its jar file system.
+- Not verified: reading on a device or emulator; the class-loader path is covered by a test with an in-memory loader.
 
 ## game module
 

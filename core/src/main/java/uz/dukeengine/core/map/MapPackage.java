@@ -86,6 +86,29 @@ public final class MapPackage {
     }
 
     /**
+     * The package a list of file names holds — the files of {@code root/name/}, as {@code maps.list} names them — or
+     * null where none is the map file of that name. Read from the classpath, so nothing here asks the machine for a
+     * folder; the extras and the preview are found the way {@link #in} finds them.
+     */
+    static MapPackage listed(ClassLoader loader, String root, String name, List<String> files) {
+        if (!files.contains(name + SUFFIX)) {
+            return null;
+        }
+        var extras = new ArrayList<Path>();
+        Path preview = null;
+        for (var called : files.stream().sorted().toList()) {
+            var path = Path.of(root, name, called);
+            if (called.endsWith(".duke")) {
+                extras.add(path);
+            } else if (preview == null && (called.endsWith(".png") || called.endsWith(".jpg"))) {
+                preview = path;
+            }
+        }
+        return new MapPackage(name, Path.of(root, name, name + SUFFIX), extras, preview,
+                MapSource.onClasspath(loader, root + "/" + name)).under(root);
+    }
+
+    /**
      * The package of a map named on the command line: a folder, or a file.
      *
      * <p>A file in a folder of its own name is that whole package — its extras and its preview come with it.
