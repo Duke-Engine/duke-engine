@@ -2190,8 +2190,14 @@ final class DukeRtsApp extends SimpleApplication {
 
     // ---- per-frame sync ----
 
+    /** The frame period, logged every {@code duke.stats} seconds (see FrameStats): the frames per second and the longest frame. */
+    private final uz.dukeengine.core.FrameStats renderStats = uz.dukeengine.core.FrameStats.of("render");
+
     @Override
     public void simpleUpdate(float tpf) {
+        if (renderStats != null) {
+            renderStats.add((long) (tpf * 1e9f));
+        }
         frameOf(tpf);
         interfaceHiding.apply(interfaceHidden.getAsBoolean(), guiViewPort, guiNode,
                 List.of(veil.node(), canvas.node()), markerNode);

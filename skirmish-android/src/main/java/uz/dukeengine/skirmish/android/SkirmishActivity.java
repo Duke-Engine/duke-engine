@@ -10,6 +10,11 @@ public final class SkirmishActivity extends DukeActivity {
 
     @Override
     protected LegacyApplication application() {
+        // `am start --es stats 5`: a stats line every 5 s in logcat (FrameStats); read before the client is made
+        var stats = getIntent().getStringExtra("stats");
+        if (stats != null) {
+            System.setProperty("duke.stats", stats);
+        }
         return Main.client(null).controls(new TouchRts()).application();
     }
 }

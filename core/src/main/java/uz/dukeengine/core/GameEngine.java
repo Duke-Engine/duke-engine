@@ -39,6 +39,7 @@ public abstract class GameEngine extends SubsystemInterface {
     /** How many logic seconds pass in a wall second — see {@link #setLogicRate}; and a step asked while paused. */
     private volatile float logicRate = 1f;
     private volatile boolean stepAsked;
+    private final FrameStats logicStats = FrameStats.of("logic");
 
     /**
      * Run the simulation {@code multiplier} times as fast as the wall clock — 0.25 to 8, 0 a pause — each step still a
@@ -139,7 +140,11 @@ public abstract class GameEngine extends SubsystemInterface {
             if (!isLogicFrameReady()) {
                 break; // can't advance without peer data — keep the time, stall
             }
+            long began = System.nanoTime();
             logic.update();
+            if (logicStats != null) {
+                logicStats.add(System.nanoTime() - began);
+            }
             accumulatedNanos -= STEP_NANOS;
         }
         runBetweenFrames();

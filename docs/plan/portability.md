@@ -183,6 +183,32 @@ Measured on a scratch app (AGP 9.2.1, Gradle 9.4.1, compileSdk 36, targetSdk 35,
     clip their labels ("Barrack", "Depot 0"); the enemy side never moved (the skirmish has no computer player); no
     release (R8) APK of the launcher was built; pinch and twist were not tried on the device.
 
+- **Performance on the phone (step 4.4):** the engine had no frame timing (jME's own stat view and FPS text are switched
+  off in `Duke3D`), so `core/FrameStats` now logs `stats <name>: n x in 5.0 s (rate/s), avg ms, max ms` every N seconds
+  when the system property `duke.stats` is N (off otherwise; desktop: `-Dduke.stats=5`). `logic` times each
+  `logic.update()` on the sim thread (`GameEngine`), `render` is the gap between `simpleUpdate` calls (`DukeRtsApp`).
+  The skirmish launcher sets the property from an intent extra: `adb shell am start -W -n
+  uz.dukeengine.skirmish/.android.SkirmishActivity --es stats 5`, read with `adb logcat -v time | grep FrameStats`.
+  Vivo V2247 (Adreno 610, 1080x2388, display capped at 60 Hz), debug APK (not debuggable, so no JIT-off), 5 s windows,
+  about 60 s each:
+
+  | Scene | Render fps (avg) | Longest frame | Logic tick avg | Logic tick max |
+  |---|---|---|---|---|
+  | Menu idle | 60.0 | 22 to 26 ms | none (no sim) | none |
+  | Match start, 1 worker, 3 buildings | 60.0 | 21 to 31 ms | 0.4 to 0.7 ms | 1 to 2.5 ms |
+  | 14 units moving (about 20 units, 3 kinds) | 60.0 | 21 to 29 ms | 1.0 to 1.35 ms | 6 to 20 ms |
+
+  APK `skirmish-android-debug.apk` 22.4 MB (21.3 MiB). Start: `am start -W` TotalTime 0.7 to 0.8 s (cold, activity drawn),
+  the menu is on screen about 1.5 s after the command; the first 5 s window holds one 229 ms frame (the load).
+  - The phone holds 60 fps (vsync) with the menu and with about 20 units; the logic tick takes about 1 ms of its 33 ms,
+    so 30 Hz is far from the limit at this size. Only the limit is unmeasured: with vsync on, fps hides how much
+    headroom the render has (a run with vsync off, or a count of units in the hundreds, would show it).
+  - Every window has a render frame of 21 to 31 ms and a logic tick of 5 to 20 ms now and then (GC or JIT, not
+    looked into): one dropped frame at 60 Hz, not seen as a stutter in the screenshots, not looked at by eye either.
+  - Not measured: the desktop numbers for the same scene (no desktop run was made), a match with the enemy fighting
+    (the skirmish has no computer player, so units only moved), a thermal soak (thermal status 0, battery 53 % at
+    the start; a few minutes in all), release (R8) build.
+
 ## Summary by platform
 
 | Target | State | What stands in the way | Next step |
