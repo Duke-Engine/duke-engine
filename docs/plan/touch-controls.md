@@ -50,3 +50,27 @@ check anywhere; `client3d` gets one more `InputManager` import (jme3-core).
 - The desktop mouse-as-touch emulation must emit `TouchEvent`s and also keep the mouse events, or the cursor-based calls
   above see nothing.
 - `holdsPlacement()` leaves `placing()` true until confirm; a second press re-anchors, which is wanted, not checked.
+
+## 3.2 RTS touch: done (`client3d-touch`, `TouchRts`)
+
+`TouchGestures` (pure: finger id, x, y, time in; tap/pan/box/pinch/twist out) and `TouchRts` (the `ControlScheme`; a
+`RawInputListener` feeds the recognizer, `frame` ticks the long press). No new `Context` calls were needed.
+
+| Gesture | Meaning | Calls |
+|---|---|---|
+| Tap on a unit, or with nothing selected | select | `selectPointed(false)` |
+| Tap on ground with a selection | order there | `orderPointed()` |
+| One finger dragging (past `SLOP` = 16 px) | pan, the ground kept under the finger | `groundAt`, `lookAt` |
+| Finger held `LONG_PRESS` = 0.4 s, then dragged | box select, chosen on lift | `beginBox()`, `endBox(false)` |
+| Two fingers, distance changes | zoom, spreading comes nearer | `zoomBy(1 / factor)` |
+| Two fingers, line turns | turn the camera, the ground following the fingers | `turnBy(-radians)` |
+
+Chosen over "double-tap orders": one tap that decides by what is under the finger needs no timing window. There is no
+add-to-selection gesture yet. A press that never reached the world (a HUD button) does nothing: `left(true)` marks a
+touch as the world's. Two fingers, a second finger during a box, and a third finger never tap or pan.
+
+Not done / to check on a device: `SLOP` is in raw pixels (3.5 scales by density); the sign of `turnBy` follows the key
+turn (`TURN_LEFT` is positive) and is untested on screen; select, order and box act at the cursor, so they need the
+platform's mouse-from-touch simulation (jME Android has it; no mouse-to-touch emulation was added on desktop, where the
+mouse gives no `TouchEvent`s, so the scheme can only be tried there with the synthetic events of the tests).
+It is installed like any scheme: `Duke3D.controls(new TouchRts())`.

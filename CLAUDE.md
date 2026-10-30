@@ -77,7 +77,7 @@ core is pure Java; a render/audio backend comes later.
   depends on `kit`, and `kit` on nothing but data.
 - **Every module is one of three kinds, and stays it.**
   - *Neutral* — runs on every platform: `core`, `combat`, `rts`, `rpg`, `action`, `game`, `client3d`,
-    `rts-client-3d`, `rpg-client-3d`, `client3d-action`, `kit`. None names `java.awt`, `javax.swing`,
+    `rts-client-3d`, `rpg-client-3d`, `client3d-action`, `client3d-touch`, `kit`. None names `java.awt`, `javax.swing`,
     `javax.imageio`, `org.lwjgl`, `android.*`, `com.jme3.system.lwjgl` or `com.jme3.app.Android*`, and files
     are reached only through an interface (`core/map` is that interface for maps).
   - *Platform* — one platform's side of the interfaces, knowing no rule of any game: `game-swing` (the 2D Swing

@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 class NeutralModulesTest {
 
     private static final List<String> NEUTRAL_MODULES = List.of("core", "combat", "rts", "rpg", "action", "game",
-            "client3d", "rts-client-3d", "rpg-client-3d", "client3d-action");
+            "client3d", "rts-client-3d", "rpg-client-3d", "client3d-action", "client3d-touch");
 
     private static final Pattern PLATFORM = Pattern.compile("\\b(java\\.awt|javax\\.swing|javax\\.imageio|org\\.lwjgl"
             + "|android|com\\.jme3\\.system\\.lwjgl|com\\.jme3\\.app\\.Android\\w*)\\."
