@@ -203,4 +203,36 @@ class SightCellsTest {
         assertEquals(Sight.IN_SIGHT, cells.sight(viewer, new Coord3D(325f, 505f, 0f)),
                 "opened — another template that says nothing — and the next look sees through");
     }
+
+    /**
+     * The Particle Uplink Cannon's reveal: a place looked at this frame by no thing is the player's alone, in sight as the
+     * frame ends and for the linger after, then seen; asked again the next frame it is a look again.
+     */
+    @Test
+    void aPlaceLookedAtWithNoThingThereIsInSightToThatPlayerAloneForTheLingerAfter() {
+        var at = new Coord3D(420f, 420f, 0f);
+        var near = new Coord3D(480f, 420f, 0f); // 60 off
+        world.lookAt(viewer, at, 100f);
+        run(1);
+        assertEquals(Sight.IN_SIGHT, world.getSightCells().sight(viewer, near));
+        assertEquals(Sight.NEVER_SEEN, world.getSightCells().sight(enemy, near), "and not the enemy's");
+        assertEquals(Sight.NEVER_SEEN, world.getSightCells().sight(ally, near), "nor the ally's");
+
+        run(149);
+        assertEquals(Sight.IN_SIGHT, world.getSightCells().sight(viewer, near), "still in sight 149 frames later");
+        run(1);
+        assertEquals(Sight.SEEN, world.getSightCells().sight(viewer, near), "seen once the linger is out");
+    }
+
+    /** Where the game keeps no cells, a look at a place is asked of {@code canSee} until the frame ends, and no longer. */
+    @Test
+    void whereNoCellsAreKeptAPlaceLookedAtIsSeenOnlyUntilTheFrameEnds() {
+        world.setSightCells(0f, 150);
+        var near = new Coord3D(480f, 420f, 0f);
+        world.lookAt(viewer, new Coord3D(420f, 420f, 0f), 100f);
+        assertTrue(world.canSee(viewer, near));
+        assertFalse(world.canSee(enemy, near));
+        run(1);
+        assertFalse(world.canSee(viewer, near), "gone with the frame");
+    }
 }

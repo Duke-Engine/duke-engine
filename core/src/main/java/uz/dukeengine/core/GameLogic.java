@@ -270,6 +270,18 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         sight.markSeen(player);
     }
 
+    /**
+     * {@code player} looks at the ground within {@code reach} of {@code place} this frame, with no thing of his there —
+     * the reference's {@code doShroudReveal} and at once its {@code undoShroudReveal}, as the Particle Uplink Cannon
+     * shows its owner where its beam falls. It is a thing's look: in sight as the frame ends and for the linger after
+     * where the game keeps cells ({@link #setSightCells}); where it keeps none, {@link #canSee} says yes until the frame
+     * ends. Called on the simulation thread, each frame it is wanted. It is gone by the frame's end — a save and the
+     * checksum are made between frames — so it is part of neither: what it left is in the cells.
+     */
+    public final void lookAt(int player, Coord3D place, float reach) {
+        sight.glance(player, place, reach);
+    }
+
     /** Whether the whole map was marked seen by {@code player}. */
     public final boolean isMapMarkedSeen(int player) {
         return sight.isMarkedSeen(player);

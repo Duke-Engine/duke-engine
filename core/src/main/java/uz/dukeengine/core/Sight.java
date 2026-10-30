@@ -49,6 +49,11 @@ final class Sight {
     private boolean hiddenByStone;
     /** The sight cells things that block sight stand on this frame — see {@link Solid#blocksSight}. */
     private final Set<Long> blocked = new HashSet<>();
+    /** The places looked at this frame with no thing there, until the look at the frame's end: see {@link #glance}. */
+    private final List<Glance> glances = new ArrayList<>();
+
+    private record Glance(int player, Coord3D at, float reach) {
+    }
 
     Sight(Roster roster, Sleepers sleepers, Supplier<PathGrid> grid, Relations relations) {
         this.roster = roster;
@@ -64,6 +69,11 @@ final class Sight {
         if (cells != null) {
             return cells.inSight(viewerPlayer, position); // by its cells, the while after counted
         }
+        for (var glance : glances) {
+            if (glance.player == viewerPlayer && glance.at.distance(position) <= glance.reach) {
+                return true;
+            }
+        }
         for (var watchers : mayShow(viewerPlayer)) {
             for (var watcher : watchers) {
                 float reach = reachFor(viewerPlayer, watcher);
@@ -73,6 +83,15 @@ final class Sight {
             }
         }
         return false;
+    }
+
+    /**
+     * {@code player} looks at the disc of {@code reach} round {@code at}, with no thing of his there: this frame, and —
+     * where the game keeps cells — the while after, as a thing's look does. The reference's {@code doShroudReveal} and
+     * at once its {@code undoShroudReveal}.
+     */
+    void glance(int player, Coord3D at, float reach) {
+        glances.add(new Glance(player, at, reach));
     }
 
     /**
@@ -98,6 +117,11 @@ final class Sight {
     /** The lookers that show {@code viewerPlayer} anything, by the ground their reach covers. */
     private Lookers lookersFor(int viewerPlayer) {
         var lookers = new Lookers();
+        for (var glance : glances) {
+            if (glance.player == viewerPlayer) {
+                lookers.add(glance.at, glance.reach);
+            }
+        }
         for (var watchers : mayShow(viewerPlayer)) {
             for (var watcher : watchers) {
                 float reach = reachFor(viewerPlayer, watcher);
@@ -293,6 +317,7 @@ final class Sight {
     /** As the frame ends: every player's lookers cover their discs, as {@link #canSee} has them look. */
     void look(int frame, int players) {
         if (cells == null) {
+            glances.clear();
             return;
         }
         if (hiddenByStone) {
@@ -308,5 +333,9 @@ final class Sight {
                 }
             }
         }
+        for (var glance : glances) {
+            cells.look(glance.player, glance.at, glance.reach);
+        }
+        glances.clear();
     }
 }
