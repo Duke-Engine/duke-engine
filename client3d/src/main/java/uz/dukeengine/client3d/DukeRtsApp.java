@@ -813,6 +813,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
 
         @Override
+        public com.jme3.input.InputManager input() {
+            return inputManager;
+        }
+
+        @Override
         public boolean playing() {
             return inPlay() && !(canvasInput != null && canvasInput.holdsKeys())
                     && heldInput.focused();
@@ -849,6 +854,12 @@ final class DukeRtsApp extends SimpleApplication {
         public float[] pointedGround() {
             var click = inputManager.getCursorPosition();
             var ground = pointer.groundUnder(click.x, click.y);
+            return ground == null ? null : new float[] {ground.x, ground.z, ground.y};
+        }
+
+        @Override
+        public float[] groundAt(float screenX, float screenY) {
+            var ground = pointer.groundUnder(screenX, screenY);
             return ground == null ? null : new float[] {ground.x, ground.z, ground.y};
         }
 
@@ -930,6 +941,41 @@ final class DukeRtsApp extends SimpleApplication {
         @Override
         public Vector3f screenOf(float x, float height, float y) {
             return cam.getScreenCoordinates(new Vector3f(x, height, y));
+        }
+
+        @Override
+        public void zoomBy(float factor) {
+            camera.zoomBy(factor);
+        }
+
+        @Override
+        public void beginBox() {
+            orders.beginDrag();
+        }
+
+        @Override
+        public void endBox(boolean add) {
+            orders.endDrag(add);
+        }
+
+        @Override
+        public void selectPointed(boolean add) {
+            orders.select(add);
+        }
+
+        @Override
+        public void orderPointed() {
+            orders.order();
+        }
+
+        @Override
+        public void pressSkill(char key) {
+            skillKeys.pressHotkey(key, true); // a touch on a button is a click on its slot
+        }
+
+        @Override
+        public void putDownArmed() {
+            buttons.releaseArmedButton();
         }
 
         @Override
@@ -1847,7 +1893,9 @@ final class DukeRtsApp extends SimpleApplication {
                         } else if (pressed && buttons.armed()) {
                             buttons.aimArmedButton(); // this click is the armed button's place or thing
                         } else if (!pressed && buttons.placing()) {
-                            buttons.releaseArmedButton(); // let go: put down where it went down, turned as dragged
+                            if (!scheme.holdsPlacement()) {
+                                buttons.releaseArmedButton(); // let go: put down where it went down, turned as dragged
+                            }
                         } else if (pressed && skillKeys.armed()) {
                             // This click belongs to the armed key, not to selection.
                             // The release is swallowed with it, or letting go would

@@ -1,6 +1,7 @@
 package uz.dukeengine.client3d;
 
 import com.jme3.font.BitmapFont;
+import com.jme3.input.InputManager;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
 import java.util.List;
@@ -29,6 +30,14 @@ public interface ControlScheme {
         /** The picture now; null before the first. */
         WorldSnapshot snapshot();
 
+        /**
+         * The window's input, for a scheme that reads fingers itself: {@code addRawInputListener} gets every touch, with
+         * its pointer id, which the one mouse the client reads cannot tell apart. Null where there is none.
+         */
+        default InputManager input() {
+            return null;
+        }
+
         /** Whether the player is playing: no menu, no screen of the game's holding the keys, the window focused. */
         boolean playing();
 
@@ -46,6 +55,11 @@ public interface ControlScheme {
 
         /** The ground under the pointer, in the world's x, y and height; null off the world. */
         float[] pointedGround();
+
+        /** The ground under a point of the window ({@code screenY} up from its bottom), as {@link #pointedGround}. */
+        default float[] groundAt(float screenX, float screenY) {
+            return null;
+        }
 
         float floorHeight(float x, float y);
 
@@ -89,6 +103,34 @@ public interface ControlScheme {
         /** Where a point of the world (its x, height, y) falls on the screen; z over 1 behind the eye. */
         Vector3f screenOf(float x, float height, float y);
 
+        /** Come in or out by {@code factor}: under 1 comes nearer, kept between the camera's nearest and furthest. */
+        default void zoomBy(float factor) {
+        }
+
+        /** Begin a selecting box where the pointer is, which {@link #endBox} closes where it has got to. */
+        default void beginBox() {
+        }
+
+        /** Close the box begun: what is inside it chosen, or, where it did not move, what is pointed at. */
+        default void endBox(boolean add) {
+        }
+
+        /** Choose the thing pointed at, as the left click does; {@code add} to what is chosen already. */
+        default void selectPointed(boolean add) {
+        }
+
+        /** Give the chosen things the order the right click gives at the pointer. */
+        default void orderPointed() {
+        }
+
+        /** Press the skill on {@code key} as a click on its slot does, one the scheme aims ({@link ControlScheme#armed}) included. */
+        default void pressSkill(char key) {
+        }
+
+        /** Put down the armed button's place that {@link ControlScheme#holdsPlacement} held, where the aim now is. */
+        default void putDownArmed() {
+        }
+
         /** Cast what is armed, aimed where the scheme's {@link #aimPoint} says. */
         void castArmed();
 
@@ -110,6 +152,15 @@ public interface ControlScheme {
 
     /** The left button on the world, nothing armed: true where the scheme took it, false for the client's selecting. */
     default boolean left(boolean pressed) {
+        return false;
+    }
+
+    /**
+     * Whether letting go of a press on an armed button's place leaves it where it is — the aim ({@link #aiming}, {@link
+     * #aimPoint}) and the ghost follow, and the scheme puts it down with {@link Context#putDownArmed} — rather than
+     * putting it down as the client does.
+     */
+    default boolean holdsPlacement() {
         return false;
     }
 
