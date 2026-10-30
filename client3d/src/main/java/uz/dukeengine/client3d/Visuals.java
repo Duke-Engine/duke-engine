@@ -2462,16 +2462,53 @@ public final class Visuals {
      * A rope that hangs from the bone of a thing's model called {@code bone} straight down to the ground: {@code colour}
      * packed {@code 0xRRGGBB}, drawn {@code width} pixels wide (the reference's {@code RopeStart} is the bone, and its
      * rope runs from it to the ground).
+     *
+     * <p>Where {@code lowered} is null it hangs the whole way at once; where {@code wobble} is null it hangs still.
+     * Both are drawing only, kept by the client from the frame the rope was first let down.
      */
-    public record Rope(String bone, int colour, float width) {
+    public record Rope(String bone, int colour, float width, Lowered lowered, Wobble wobble) {
 
         public Rope {
             width = Math.max(1f, width);
         }
 
+        /** A still rope hanging the whole way at once. */
+        public Rope(String bone, int colour, float width) {
+            this(bone, colour, width, null, null);
+        }
+
         /** A rope of the usual width. */
         public Rope(String bone, int colour) {
             this(bone, colour, 2f);
+        }
+
+        /** This rope, let down as {@code lowered} says. */
+        public Rope lowered(Lowered lowered) {
+            return new Rope(bone, colour, width, lowered, wobble);
+        }
+
+        /** This rope, swaying as {@code wobble} says. */
+        public Rope wobbling(Wobble wobble) {
+            return new Rope(bone, colour, width, lowered, wobble);
+        }
+    }
+
+    /**
+     * How a rope is let down ({@code ChinookCombatDropState::update}): from 1 long, each logic frame faster by {@code
+     * accel} up to {@code topSpeed}, until it is as long as its bone is high less {@code stopShort} (at least 1 long).
+     */
+    public record Lowered(float accel, float topSpeed, float stopShort) {
+    }
+
+    /**
+     * How a rope sways ({@code W3DRopeDraw}): split into pieces about {@code len} long, each bowed out from the line
+     * down by up to {@code amplitude} along an axis of its own, the bow a sine whose phase moves {@code rate} radians
+     * each logic frame.
+     */
+    public record Wobble(float len, float amplitude, float rate) {
+
+        public Wobble {
+            len = Math.max(1f, len);
         }
     }
 

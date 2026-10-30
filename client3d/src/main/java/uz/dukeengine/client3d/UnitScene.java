@@ -315,7 +315,7 @@ final class UnitScene {
                 }
             }
         }
-        ropes.update(lines, floor);
+        ropes.update(lines, floor, snapshot.get().frame());
     }
 
     /**
