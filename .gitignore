@@ -2,6 +2,8 @@
 build/
 dist/
 *.class
+# the Android SDK's place on this machine, written by the Android plugin
+local.properties
 
 # IntelliJ
 .idea/

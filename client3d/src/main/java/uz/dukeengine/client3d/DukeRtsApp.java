@@ -445,18 +445,6 @@ final class DukeRtsApp extends SimpleApplication {
         return visuals == null ? Sunlight.DEFAULT : visuals.getSunlight();
     }
 
-    /**
-     * The simulation thread, if the player ever pressed Play.
-     */
-    Thread getSimThread() {
-        return simThread;
-    }
-
-    /** The match drawn now — the last the game started, or the one the window opened with. */
-    DukeGame currentGame() {
-        return game;
-    }
-
     private Runnable leaving;
 
     void awaitStop() throws InterruptedException {
@@ -494,6 +482,9 @@ final class DukeRtsApp extends SimpleApplication {
         parts.forEach(HudPart::close);
         sceneSlot.detach();
         super.destroy();
+        // Here rather than after the window's wait, so that a host that is not Duke3D.launch — an Android activity —
+        // stops the match as well.
+        stopTheSimulation();
         stopped.countDown();
     }
 
@@ -1408,6 +1399,11 @@ final class DukeRtsApp extends SimpleApplication {
             artLoad = null;
             loading.hide();
         }
+        stopTheSimulation();
+    }
+
+    /** The match drawn now stopped, and its thread waited for. */
+    private void stopTheSimulation() {
         game.stop();
         if (simThread != null) {
             try {

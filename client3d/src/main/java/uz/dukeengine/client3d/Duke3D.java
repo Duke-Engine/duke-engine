@@ -169,6 +169,24 @@ public final class Duke3D {
 
     /** Open the window and run the game in it; blocks until the window is closed. */
     public void launch() {
+        var client = configured();
+        client.start();
+        try {
+            client.awaitStop(); // the client has stopped its simulation by then (DukeRtsApp.destroy)
+        } catch (InterruptedException _) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * The client, configured and not started, for a host that starts it itself: an Android activity hands it to jME's
+     * harness, which starts it with settings of its own. Asked once; {@link #launch} is this and the wait.
+     */
+    public com.jme3.app.LegacyApplication application() {
+        return configured();
+    }
+
+    private DukeRtsApp configured() {
         // What the player last chose, from the file beside him — read, and a new player's window written into it,
         // before the client reads the same file. The caller's numbers are only the answer for somebody who has never
         // chosen.
@@ -199,22 +217,7 @@ public final class Duke3D {
         // controls at the bottom of the screen, and neither could be read.
         client.setDisplayFps(false);
         client.setPauseOnLostFocus(false);
-        client.start();
-
-        try {
-            client.awaitStop();
-        } catch (InterruptedException _) {
-            Thread.currentThread().interrupt();
-        }
-        client.currentGame().stop();
-        var simThread = client.getSimThread();
-        if (simThread != null) {
-            try {
-                simThread.join(5000);
-            } catch (InterruptedException _) {
-                Thread.currentThread().interrupt();
-            }
-        }
+        return client;
     }
 
     // ---- what the game asks of the client while it runs, from any thread ----

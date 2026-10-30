@@ -19,7 +19,8 @@ allprojects {
 subprojects {
     // The BOM is a `java-platform`, which is a different kind of thing: it has no sources, no tests and
     // no toolchain, and applying the java plugin to it fails outright.
-    if (name == "bom") {
+    // client3d-android is built by the Android plugin, which refuses a project the java plugin is applied to.
+    if (name == "bom" || name == "client3d-android") {
         return@subprojects
     }
     apply(plugin = "java")

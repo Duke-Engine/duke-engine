@@ -149,6 +149,11 @@ Measured on a scratch app (AGP 9.2.1, Gradle 9.4.1, compileSdk 36, targetSdk 35,
 - **Lower than 35 needs engine changes.** `Math.clamp` (API 35) is backported by D8 at minSdk 26. `List/ArrayList.getFirst/getLast/removeFirst/removeLast`, `LinkedHashSet/SortedSet.getFirst` (API 35) are not: D8, R8 and `desugar_jdk_libs` 2.1.5 all leave them, lint NewApi flags them at minSdk 26, and they would throw `NoSuchMethodError` before 35. Also flagged: `ServiceLoader.stream`, `CharSequence.isEmpty`, `InputStream.readAllBytes`, `URLEncoder.encode(String, Charset)`/`URLDecoder.decode`, `Thread.onSpinWait`, `String.formatted`, `Path.of` (API 33 to 34), `Class.isRecord`/`getRecordComponents`/`RecordComponent` in `Shapes`/`Binder` (API 34), `Files.readString` in `DukeGame.loadUnitsFile` (API 36 jar only).
 - **Headless game fails on `java.awt.Color`, as expected:** `DukeGame.create(..).loadUnits(..).map(80, 80)` works; `addPlayer(name, Color)` throws `NoClassDefFoundError: java/awt/Color`. Without a player `runHeadless` refuses to start, so no logic frame ran yet. An Android caller cannot even compile against `addPlayer` without a stub `java.awt.Color`. By `jdeps`, `java.awt`/`javax.swing` are only in `game` (`DukeGame`, `GamePlayer`, `Roster`, `swing/*`); `java.nio.file` is in `core/map` and `DukeGame`.
 - Not verified: any device below API 35 (older APIs are from lint and the dex only); the release APK was built but not run.
+- **In the repo (step 4.1, `client3d-android`):** AGP 9.2.1 refuses Gradle 9.3.1 ("Minimum supported Gradle version is
+  9.4.1"), so the wrapper is 9.4.1. The Gradle JVM need not be 25: with `java { toolchain { 25 } }` in the Android
+  module, javac and the unit tests get a JDK 25 while Gradle runs on 21 (setting `javaLauncher` on the test task
+  instead fails: AGP has made it final). Sources compile against `android.jar`, whose `ByteBuffer.flip()` still
+  answers a `Buffer`.
 
 ## Summary by platform
 

@@ -66,6 +66,31 @@ then stops the game and joins the sim thread. Split:
   (3.7 only builds `appClass` when `app == null`, then `setSettings(its own)` and `start()`: samples and vsync go
   through the harness's fields). `JmeSurfaceView.setLegacyApplication` is the alternative.
 
+Done (step 4.1): `application()` is public and `launch()` is it plus the wait; `DukeRtsApp.destroy()` stops the match
+and joins its thread (shared with `endTheMatch`), before `awaitStop` lets `launch` return, so the desktop order is kept.
+
+## Android (`client3d-android`)
+
+A platform module built by the Android Gradle Plugin (an AAR), in the build only with `-Pandroid`:
+`./gradlew -Pandroid :client3d-android:assembleRelease`. Needs the SDK (`ANDROID_HOME` or `sdk.dir` in
+`local.properties`, git-ignored; AGP writes it from `ANDROID_HOME` on the first run) and Gradle 9.4.1 (AGP 9.2.1's minimum; the wrapper was raised from 9.3.1). The root build leaves
+the java plugin off it (AGP refuses a project with it). compileSdk 36, minSdk 35.
+
+| Part | Class | How |
+|---|---|---|
+| `ClientPlatform` | `AndroidPlatform` | services file; the activity is handed to it statically (`attach`), since ServiceLoader makes it; `uiScale` = `displayMetrics.density` |
+| `GlyphRasterizer` | `PaintGlyphs` | `Paint`/`Canvas`/`Bitmap`; a font file through `fonts.Font.Builder(ByteBuffer)`; whole-pixel advances without fractional metrics |
+| `ImageDecoder` | `BitmapFactoryDecoder` | `BitmapFactory.decodeStream`, `getPixels` (unpremultiplied) |
+| `SettingsStore` | `AppFileSettingsStore` | `files/settings.properties`, the desktop's bytes |
+| `TextPrompt` | `DialogTextPrompt` | `AlertDialog` + `EditText` on the UI thread, the caller waiting on a latch; refuses the UI thread |
+| `Window` | `SurfaceWindow` | always full screen, resize refused, one mode: the window metrics' size |
+| `HeldInput` | `TouchHeldInput` | left button = a finger down (from `dispatchTouchEvent`), no keys, `pointerInside()` false |
+| screenshots | `AndroidScreenshots` | under the app's files; a pattern's file is always a png |
+| — | `DukeActivity` | abstract `AndroidHarness`: `attach(this)`, `app = application()` unless the harness retained one, `mouseEventsEnabled` |
+
+Assets come through jME's `AndroidLocator` (the APK's `assets/`) and the classpath. R8: `consumer-rules.pro` keeps
+the provider. Not verified on the device: none of it has run yet (that needs the launcher, 4.3).
+
 ## Tests and dependencies
 
 - client3d tests never start a context but need jme3-desktop at runtime (`DesktopAssetManager`, `AWTLoader` for PNG):
