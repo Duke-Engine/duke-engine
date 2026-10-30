@@ -95,6 +95,11 @@ public interface ControlScheme {
         /** How far the held mouse moved this frame, pixels across and down; none while it is not held. */
         float[] mouseMoved();
 
+        /** The window's width and height, pixels; null where unknown. */
+        default float[] screenSize() {
+            return null;
+        }
+
         /** Where the interface is drawn, and its font. */
         Node gui();
 

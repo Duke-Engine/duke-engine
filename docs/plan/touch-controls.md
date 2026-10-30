@@ -88,3 +88,27 @@ Not done: turning the building by touch (the facing stays the button's), button 
 px), a hold-then-drag does not move the ghost until the lift (box mode reports no moves), a tap on the command bar while
 placing also moves the ghost (the bar then disarms it anyway), a refused (red) confirm drops the press and the ghost
 follows the cursor again until the next touch. Not tried on a device.
+
+## 3.4 Hero by thumbs: done (`client3d-touch`, `TouchHero` + pure `VirtualStick`, one small `client3d` addition)
+
+A separate `ControlScheme` beside `TouchRts`, the touch twin of `client3d-action`'s `ActionControls` and with no
+dependency on it. Fingers are followed by pointer id, so the stick, a button and the camera work at once.
+
+| Finger | Meaning | Calls |
+|---|---|---|
+| Left half, anywhere | floating stick: touch = centre, drag = direction (dead zone 20 %, radius 120 px), lift = stop | `walk` callback, 256ths of a turn, `-1` for none, as `ActionControls.walk` |
+| Right half, drag | turn the camera (`TURN_PER_PIXEL`, right drags as the mouse does) | `turnBy` |
+| Hit button (bottom right), held | strike along the camera's forward; told again as the camera turns, `held=false` on lift | `strike` callback `(game, forward radians, held)` |
+| Skill buttons (row left of Hit, `skills('Q', ...)`) | press the skill; one that is aimed is aimed from the hero along the forward (all of a lane's reach, else two thirds) and cast when the finger lifts | `pressSkill(key)`, `armed`/`aimPoint`/`castArmed` |
+
+The game's part (`ActionOrders.along` / `toward`) comes in through the two callbacks, because `action` is not a
+dependency here: `duke.controls(new TouchHero().walk(...).strike(...).skills('Q', 'W', 'E'))`. The direction is the
+camera-turned one the keys give, so the same game callback serves both. Drawn in `gui()` as `BitmapText` (a ring and knob
+under the stick, a label per button, yellow while held). New `Context.screenSize()` (default null; `DukeRtsApp` ->
+camera width and height) to tell the halves and place the buttons.
+
+Not done / to check on a device: a touch on the HUD (skill panel, command bar) on the left half also starts the stick
+(`left(true)` is not used to gate it, since a button of the scheme's own must work regardless); button hit areas are fixed
+96 px (3.5 scales them by density); a skill held to be cast on release (`castOnRelease` ranges, which never call `armed`)
+is not cast on lift; the Hit label is text only; no strike hold-lock on an enemy (the game's callback decides what a
+strike is); the stick centre is not clamped inside the screen. Not tried on a device, only with synthetic events.

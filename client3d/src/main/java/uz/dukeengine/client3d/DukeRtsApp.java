@@ -939,6 +939,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
 
         @Override
+        public float[] screenSize() {
+            return new float[] {cam.getWidth(), cam.getHeight()};
+        }
+
+        @Override
         public Vector3f screenOf(float x, float height, float y) {
             return cam.getScreenCoordinates(new Vector3f(x, height, y));
         }
