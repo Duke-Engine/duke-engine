@@ -20,9 +20,23 @@ public abstract class DukeActivity extends AndroidHarness {
     /** The game's client, configured and not started: {@code Duke3D.of(game, visuals)...application()}. */
     protected abstract LegacyApplication application();
 
+    /**
+     * jME's buffers in native memory: ART makes a direct ByteBuffer in the Java heap's non-moving space, about 64 MB on
+     * the Vivo V2247, which a game's worth of models fills ("malloc_space fragmentation"). Before jME's BufferUtils is
+     * first loaded, which reads it once; a property already set is kept.
+     */
+    static void nativeBuffers() {
+        if (System.getProperty("com.jme3.BufferAllocatorImplementation") == null) {
+            System.setProperty("com.jme3.BufferAllocatorImplementation",
+                    com.jme3.util.AndroidNativeBufferAllocator.class.getName());
+        }
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        nativeBuffers();
         AndroidPlatform.attach(this);
+        ContentPack.mount(getExternalFilesDir(null), getClassLoader()); // a downloaded pack's files, where there is one
         if (getLastNonConfigurationInstance() == null) { // else the harness keeps the client it already runs
             app = application();
         }

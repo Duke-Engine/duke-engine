@@ -209,6 +209,17 @@ Measured on a scratch app (AGP 9.2.1, Gradle 9.4.1, compileSdk 36, targetSdk 35,
     (the skirmish has no computer player, so units only moved), a thermal soak (thermal status 0, battery 53 % at
     the start; a few minutes in all), release (R8) build.
 
+- **A game's data outside the APK (duke-generals step 5.2):** `client3d-android` has `ContentPack` (one zip downloaded
+  into `getExternalFilesDir(null)`, resumed by HTTP Range from `content.zip.part`, checked by size and SHA-256, unpacked
+  beside the old folder and renamed to `content/`, `content/.version` written last) and `ContentActivity` (the
+  launcher's first screen: bar, MB, MB/s, Retry, screen kept on; then the game's `prepare()` off the UI thread, then
+  the game's `DukeActivity`). `ContentPack.mount` puts `content/` on the app's class loader
+  (`BaseDexClassLoader.addDexPath`, hidden API, allowed on 35 with a log line), so `getResource` and jME's class-path
+  locator find its files as the desktop finds the jar's: no game or engine reading code changed. `DukeActivity` mounts
+  it when there is one, and selects jME's `AndroidNativeBufferAllocator` (direct buffers otherwise live in ART's
+  ~64 MB non-moving space, which a game's models fill). Where a real pack is hosted is not decided; Generals' data is
+  EA's and goes on no public host (development: the PC through `adb reverse`).
+
 ## Summary by platform
 
 | Target | State | What stands in the way | Next step |
