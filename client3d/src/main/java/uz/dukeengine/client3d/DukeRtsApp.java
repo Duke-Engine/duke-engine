@@ -979,6 +979,16 @@ final class DukeRtsApp extends SimpleApplication {
         }
 
         @Override
+        public boolean placing() {
+            return buttons.placing();
+        }
+
+        @Override
+        public void cancelArmed() {
+            buttons.disarmButton();
+        }
+
+        @Override
         public void castArmed() {
             skillKeys.aimArmedKey();
         }

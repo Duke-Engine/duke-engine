@@ -380,6 +380,11 @@ final class CommandButtons {
         }
         var ground = pointer.pickGround();
         var cursor = inputManager.getCursorPosition();
+        if (ground != null && placement.pressed() && pointer.schemeAim() != null) {
+            // A scheme that aims the place (a finger) moves it: the press is laid again where it aims, so a drag
+            // moves the ghost instead of turning it
+            placement.press(cursor.x, cursor.y, new Coord3D(ground.x, ground.z, 0f));
+        }
         placement.cursor(cursor.x, cursor.y, ground == null ? null : new Coord3D(ground.x, ground.z, 0f));
         layTheLocater(placement);
         var where = placement.where();

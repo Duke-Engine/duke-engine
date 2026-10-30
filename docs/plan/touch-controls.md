@@ -74,3 +74,17 @@ turn (`TURN_LEFT` is positive) and is untested on screen; select, order and box 
 platform's mouse-from-touch simulation (jME Android has it; no mouse-to-touch emulation was added on desktop, where the
 mouse gives no `TouchEvent`s, so the scheme can only be tried there with the synthetic events of the tests).
 It is installed like any scheme: `Duke3D.controls(new TouchRts())`.
+
+## 3.3 Placement by touch: done (`TouchRts`, two small `client3d` additions)
+
+While a building is armed and its place pressed (`Context.placing()`, new, default false), `holdsPlacement()` is true, so
+lifting puts nothing down. A finger drag sets `aimPoint()` (`aiming()` true) and the camera does not pan; on lift the
+ghost stays and **Confirm** / **Cancel** (`BitmapText` in `gui()`, green / red, under the ghost) come up. A tap on Confirm
+calls `putDownArmed()`; on Cancel the new `Context.cancelArmed()` (default no-op; `DukeRtsApp` -> `buttons.disarmButton()`,
+what Esc does). A tap elsewhere moves the ghost there. `CommandButtons.followTheAim` re-presses the place each frame while
+a scheme aims it, so the drag moves the ghost instead of turning it (the mouse's drag-to-turn is untouched).
+
+Not done: turning the building by touch (the facing stays the button's), button backgrounds (text only, hit area 160 x 64
+px), a hold-then-drag does not move the ghost until the lift (box mode reports no moves), a tap on the command bar while
+placing also moves the ghost (the bar then disarms it anyway), a refused (red) confirm drops the press and the ghost
+follows the cursor again until the next touch. Not tried on a device.

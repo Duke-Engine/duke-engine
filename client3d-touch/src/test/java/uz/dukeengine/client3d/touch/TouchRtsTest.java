@@ -2,8 +2,10 @@ package uz.dukeengine.client3d.touch;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.jme3.math.Vector3f;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
@@ -19,12 +21,17 @@ class TouchRtsTest {
     private final List<String> calls = new ArrayList<>();
     private boolean unitUnderFinger;
     private boolean somethingSelected;
+    private boolean placing;
     private float lookX = 50f;
     private float lookY = 50f;
 
     private ControlScheme.Context window() {
         InvocationHandler recorder = (proxy, method, args) -> switch (method.getName()) {
-            case "input" -> null;
+            case "input", "gui", "font" -> null;
+            case "placing" -> placing;
+            case "floorHeight" -> 0f;
+            // the ghost stands at (500, 400) on the screen, wherever it is on the ground
+            case "screenOf" -> new Vector3f(500f, 400f, 0f);
             case "time" -> 0f;
             case "pointedUnit" -> unitUnderFinger ? aUnit() : null;
             case "selected" -> somethingSelected ? List.of(new ObjectId(1)) : List.of();
@@ -127,5 +134,67 @@ class TouchRtsTest {
 
         assertTrue(calls.isEmpty(), "a tap on the HUD is the client's");
         assertFalse(scheme.left(true), "no input here: the client's own mouse");
+    }
+
+    /** A building armed and a finger dragged from (100, 100) to (200, 100): the ghost is 10 world units across. */
+    private TouchRts placementDragged() {
+        placing = true;
+        var scheme = scheme();
+        scheme.gestures().down(1, 100, 100, 0f);
+        scheme.gestures().move(1, 200, 100);
+        scheme.gestures().up(1, 200, 100, 0.5f);
+        scheme.frame(0f);
+        return scheme;
+    }
+
+    @Test
+    void whileABuildIsArmedADragMovesTheGhostNotTheCamera() {
+        var scheme = placementDragged();
+
+        assertTrue(scheme.holdsPlacement());
+        assertTrue(scheme.aiming());
+        assertEquals(70f, scheme.aimPoint()[0], 1e-3, "the aim is the ground under the finger");
+        assertEquals(60f, scheme.aimPoint()[1], 1e-3);
+        assertEquals(50f, lookX, 1e-3, "no pan");
+        assertTrue(calls.isEmpty(), "lifting puts nothing down and selects nothing");
+    }
+
+    @Test
+    void confirmPutsTheBuildDown() {
+        var scheme = placementDragged();
+        scheme.gestures().down(2, 600, 350, 1f); // right of the ghost, under it
+        scheme.gestures().up(2, 600, 350, 1.1f);
+
+        assertEquals(List.of("putDownArmed"), calls);
+    }
+
+    @Test
+    void cancelGivesTheBuildUp() {
+        var scheme = placementDragged();
+        scheme.gestures().down(2, 400, 350, 1f); // left of the ghost, under it
+        scheme.gestures().up(2, 400, 350, 1.1f);
+
+        assertEquals(List.of("cancelArmed"), calls);
+    }
+
+    @Test
+    void aTapElsewhereMovesTheGhostAndPutsNothingDown() {
+        var scheme = placementDragged();
+        scheme.gestures().down(2, 10, 10, 1f);
+        scheme.gestures().up(2, 10, 10, 1.1f);
+
+        assertTrue(calls.isEmpty());
+        assertEquals(51f, scheme.aimPoint()[0], 1e-3);
+    }
+
+    @Test
+    void whenNothingIsPlacingTheSchemeAimsNothing() {
+        var scheme = placementDragged();
+        placing = false;
+        scheme.frame(0f);
+
+        assertFalse(scheme.holdsPlacement());
+        assertFalse(scheme.aiming());
+        assertNull(scheme.aimPoint());
     }
 }

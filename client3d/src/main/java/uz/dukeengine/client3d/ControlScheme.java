@@ -131,6 +131,15 @@ public interface ControlScheme {
         default void putDownArmed() {
         }
 
+        /** Whether a press of the armed button's place is held now, to be put down by {@link #putDownArmed} or given up. */
+        default boolean placing() {
+            return false;
+        }
+
+        /** Give the armed button up, as Esc does: nothing sent. */
+        default void cancelArmed() {
+        }
+
         /** Cast what is armed, aimed where the scheme's {@link #aimPoint} says. */
         void castArmed();
 
