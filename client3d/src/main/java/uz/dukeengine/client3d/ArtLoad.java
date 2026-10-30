@@ -194,8 +194,14 @@ final class ArtLoad implements MatchLoad.Art {
      */
     private void readEverything() {
         int cores = Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
-        try (var readers = java.util.concurrent.Executors.newFixedThreadPool(cores,
-                Thread.ofPlatform().name("duke-art-", 0).daemon().factory())) { // a window closed mid-load must still close
+        // Not Thread.ofPlatform nor ExecutorService.close (Java 19+): Android has neither.
+        var named = new java.util.concurrent.atomic.AtomicInteger();
+        var readers = java.util.concurrent.Executors.newFixedThreadPool(cores, task -> {
+            var thread = new Thread(task, "duke-art-" + named.getAndIncrement());
+            thread.setDaemon(true); // a window closed mid-load must still close
+            return thread;
+        });
+        try {
             for (var job : files) {
                 readers.execute(() -> readOne(job));
             }
@@ -203,6 +209,14 @@ final class ArtLoad implements MatchLoad.Art {
             // later finds them in the cache, under the very key it asks with.
             for (var sound : sounds) {
                 readers.execute(() -> readSound(sound));
+            }
+        } finally {
+            readers.shutdown();
+            try {
+                readers.awaitTermination(Long.MAX_VALUE, java.util.concurrent.TimeUnit.NANOSECONDS);
+            } catch (InterruptedException _) {
+                readers.shutdownNow();
+                Thread.currentThread().interrupt();
             }
         }
         reading = "";

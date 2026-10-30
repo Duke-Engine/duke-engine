@@ -163,13 +163,32 @@ Measured on a scratch app (AGP 9.2.1, Gradle 9.4.1, compileSdk 36, targetSdk 35,
   module, javac and the unit tests get a JDK 25 while Gradle runs on 21 (setting `javaLauncher` on the test task
   instead fails: AGP has made it final). Sources compile against `android.jar`, whose `ByteBuffer.flip()` still
   answers a `Buffer`.
+- **On the phone (step 4.3, `skirmish-android`):** `./gradlew -Pandroid :skirmish-android:assembleDebug`, `adb install -r`.
+  The launcher is one activity, `Main.client(null).controls(new TouchRts()).application()`; the desktop `Main` builds the
+  same `Duke3D` and launches it. `skirmish`'s jar comes in with `client3d-desktop` excluded (no LWJGL in the APK); models,
+  textures, `.duke` files, the kit and `maps/maps.list` are Java resources of the jars and load through the class path
+  as they are, with no `assets/` folder. On the Vivo V2247 the standard menu, Play, the clearing with both bases, tap to
+  select, the build bar (train), a worker placing a depot (ghost, Confirm), a long-press box, a move order, a drag pan
+  and a match to VICTORY all worked. What it took:
+  - `Thread.ofPlatform()` and `ExecutorService.close()` (Java 19+) are in neither `android.jar` 35 nor 36: `ArtLoad`
+    crashed with `NoSuchMethodError` as a match loaded. It now makes its threads and shuts its pool down by hand. D8
+    and lint say nothing of such calls in jars, so the next ones will show only on a device.
+  - The ground drew black: `Chunks.gather` brought the terrain node up to date under a root whose light list was not,
+    so the ground kept an empty light list all match. It now updates from the top of the scene. The desktop had the
+    same order; why it showed there only on Android was not looked into.
+  - A debuggable APK has D8 compile `assert` on. jME's own asserts then fire where the desktop runs without `-ea`:
+    "Illegal light list update" (the case above) and "Illegal mat param update" in `UnitScene.heightOf`, a body
+    updated under a scene that is not. The debug build is marked not debuggable until those calls are fixed.
+  - Open: a quick `adb input tap` sometimes missed a unit (a 120 ms press always took it); the worker's build buttons
+    clip their labels ("Barrack", "Depot 0"); the enemy side never moved (the skirmish has no computer player); no
+    release (R8) APK of the launcher was built; pinch and twist were not tried on the device.
 
 ## Summary by platform
 
 | Target | State | What stands in the way | Next step |
 |---|---|---|---|
 | Desktop JVM | works | nothing | jpackage installer; GraalVM Native Image only if startup or size matters |
-| Android | jME runs on a phone; engine jars at Java 25 dex fine, minSdk 35 | `java.awt.Color` in the `game` API; below API 35 the SequencedCollection calls and a few API 33/34 calls; `client3d` has 18 desktop-only files, no Android client exists | take AWT out of `game`, split `client3d`, write the Android client |
+| Android | the skirmish plays a match to the end on a phone (`skirmish-android`, minSdk 35) | below API 35 the SequencedCollection calls and a few API 33/34 calls; jME asserts in a debuggable build; Java 19+ library calls show only on a device | fix the mid-scene `updateGeometricState` calls; a release (R8) build of the launcher |
 | Browser | `core` compiles and runs under Node (TeaVM 0.16.0, Wasm GC), for the code a probe reaches | TeaVM lacks `Class.isRecord`, record components, sealed reflection and four JDK methods; `Binder` reads generated shapes now, but `Shapes` still falls back to reflection for JDK types, and 16 private records stay reflective | built-in shapes for JDK types and no reflective fallback under TeaVM, then widen the probe to `Binder` with real data |
 | GraalVM native | not tried (`native-image` not installed) | reflection metadata only for the private records left to reflection (tracing agent can produce it) | install GraalVM CE, run a probe with the agent |
 | iOS | out of scope | no maintained Java AOT toolchain for Java 25 found | none |

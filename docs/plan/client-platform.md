@@ -89,7 +89,7 @@ the java plugin off it (AGP refuses a project with it). compileSdk 36, minSdk 35
 | — | `DukeActivity` | abstract `AndroidHarness`: `attach(this)`, `app = application()` unless the harness retained one, `mouseEventsEnabled` |
 
 Assets come through jME's `AndroidLocator` (the APK's `assets/`) and the classpath. R8: `consumer-rules.pro` keeps
-the provider. Not verified on the device: none of it has run yet (that needs the launcher, 4.3).
+the provider. On the device through `skirmish-android` (4.3): fonts, settings, the window and touch worked; see portability.md "Android".
 
 ## Tests and dependencies
 

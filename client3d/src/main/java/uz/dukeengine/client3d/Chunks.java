@@ -114,7 +114,13 @@ final class Chunks {
      */
     void gather(PathGrid grid, Cells cells) {
         over(grid);
-        root.updateGeometricState();
+        // From the top of the scene: a node brought up to date under a parent that is not takes its lights from the
+        // parent's stale list and keeps them, the ground drawn unlit all match (jME's "Illegal light list update").
+        Spatial top = root;
+        while (top.getParent() != null) {
+            top = top.getParent();
+        }
+        top.updateGeometricState();
         var gathered = new ArrayList<LinkedHashMap<ChunkGeometry.Gather, List<Geometry>>>();
         for (int chunk = 0; chunk < nodes.length; chunk++) {
             gathered.add(new LinkedHashMap<>());

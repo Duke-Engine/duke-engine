@@ -24,9 +24,17 @@ public final class Main {
     }
 
     public static void main(String[] args) {
+        client(args.length > 0 ? args[0] : null).launch();
+    }
+
+    /**
+     * The skirmish on {@code map} (null: the one {@code game.duke} names), in a client not yet launched: the desktop
+     * launches it, the Android launcher hands its {@code application()} to the activity.
+     */
+    public static Duke3D client(String map) {
         // The field, the ore on it and each side's corner all come out of maps/clearing/ — this method
         // names none of them.
-        var match = Skirmish.on(args.length > 0 ? args[0] : null, 1000);
+        var match = Skirmish.on(map, 1000);
         var game = match.game();
         var sides = java.util.List.of(match.left(), match.right());
         for (int side = 0; side < sides.size() && side < match.field().starts().size(); side++) {
@@ -40,7 +48,7 @@ public final class Main {
             game.spawn("Archer", who, Skirmish.at(start.x() + facing * 3), Skirmish.at(start.y() + 1));
         }
 
-        Duke3D.launch(game, visuals());
+        return Duke3D.of(game, visuals());
     }
 
     /** Everything the client is told, built out of the game's own files. */
