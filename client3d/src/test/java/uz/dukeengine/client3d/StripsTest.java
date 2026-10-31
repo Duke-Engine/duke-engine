@@ -119,7 +119,7 @@ class StripsTest {
                 new Coord3D(110f, 130f, 0f), 0, mapping);
         eachPoint(Strips.mesh(ground((_, _) -> 0f), List.of(trapezoid)), (where, uv) -> {
             assertEquals(mapping.u(where[0], where[1]), uv[0], 1e-4f);
-            assertEquals(mapping.v(where[0], where[1]), uv[1], 1e-4f);
+            assertEquals(1f - mapping.v(where[0], where[1]), uv[1], 1e-4f); // v down from the picture's top
         });
     }
 

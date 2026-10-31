@@ -1698,7 +1698,8 @@ public final class DukeGame {
     /**
      * A piece of a picture laid along the ground — a road's straight, its curve, its crossing — its corners going round
      * it, {@code a} to {@code b} along the picture from {@code u0} to {@code u1} and {@code a} to {@code d} across it
-     * from {@code v0} to {@code v1}, a corner's height nothing; drawn in its {@code layer}, over an earlier one.
+     * from {@code v0} to {@code v1}, a corner's height nothing; drawn in its {@code layer}, over an earlier one. A
+     * picture's {@code v} runs down from its top row, as the reference's does.
      * Or, with a {@link Mapping}, its picture laid by one straight mapping of the ground, read at every point laid, the
      * rectangle's numbers left unread — the reference's roads ({@code W3DRoadBuffer}), whose mitred ends, curves and
      * crossings keep their picture's size and are cut, not stretched.
