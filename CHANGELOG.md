@@ -3,321 +3,54 @@
 Versions are `major.minor.patch`. While the major is 0, a minor may break what came before — and
 when it does, this page says exactly what to change and how.
 
-## Unreleased
+## 0.9.0
 
-- **`Lettering(AssetManager, java.awt.Font)` is gone**, so the API names no desktop toolkit; `Lettering.of(assets, path)` and `at(pixels)` are as before, and `new Lettering(assets, typeface)` takes a `platform.Typeface`. `BitmapFontBaker.bake` takes a `platform.Face` and returns the atlas as ARGB pixels (`Baked.argb()`, `width()`, `height()`) in place of PNG bytes; its command line is now `uz.dukeengine.client3d.desktop.BakeFont`, the same arguments and the same files.
-- **`Duke3D.screenshots(Path folder, String pattern)` is now `screenshots(String folder, String pattern)`**, so the API names no file classes: a game passes `path.toString()`.
-- **`client3d-desktop`**, a new platform module (`uz.duke-engine:client3d-desktop`), and `client3d`'s `platform` package: `ClientPlatform.get()` finds the platform on the classpath. Nothing uses it yet; a launcher adds the module to its runtime classpath.
-- `client3d`: a game's own scene in the world (`Duke3D.scene`, `SceneLayer`), and the player's own eyes in place of the RTS camera — WASD, a held mouse, a cross and what is under it within reach (`Duke3D.firstPerson`, `FirstPersonCamera`).
-- **A player's colour is a `uz.dukeengine.game.Colour`** (one ARGB int, AWT's packing and its named colours), so the API
-  names no desktop toolkit: `addPlayer(name, Colour.RED)`, `getColour(index)`, `GamePlayer.getColour()`. The AWT
-  `Color` versions in `game` stay for now, deprecated. In `client3d` the colour-taking API takes `Colour` with no AWT
-  version left: `Visuals.UnitVisual.colour/tint`, `GhostLook`, `EffectVisual.glow`, `PanelSkin.Piece`,
-  `Duke3D.shadowColour`; `Skin.awtTint()` is gone. From an AWT colour: `new Colour(color.getRGB())`.
-- **The 2D Swing window is its own module, `game-swing`** (`uz.duke-engine:game-swing`): `DukeGame.start()` is now
-  `SwingGame.start(game)`, and `GamePanel`/`GameWindow` keep their package.
-
-## 0.8.0
-
-The release after 0.6.0: 0.7.0 is never published, and what its section below lists ships in this one, so a
-game coming from 0.6.0 makes the changes both lists of what to change name.
-
-The engine is split so that an RTS and an RPG are two libraries on one layer they share: `combat`, what both fight
-with, under `rts` and `rpg`, and the 3D client with each side's part of the window beside it, `rts-client-3d` and
-`rpg-client-3d`.
+The engine runs on Android. The simulation and the 3D client name no desktop toolkit: the window, fonts, pictures,
+settings and held input come from a platform module on the classpath, `client3d-desktop` or `client3d-android`, and a
+phone is played with `client3d-touch`. The sections after the list of changes are what was added since 0.8.0.
 
 ### What to change
 
-- **A new module, `combat`** (`uz.duke-engine:combat`), between `core` and `rts`. `rts` names it as part of its API, so
-  a game that depends on `rts`, `game` or `client3d` has it without naming it, and the bom lists it. Twenty-five classes
-  moved into it, each keeping its name — an import to change, and nothing else:
-
-  | Was | Is |
-  |---|---|
-  | `uz.dukeengine.rts.module.` `Weapon`, `WeaponUpdate`, `WeaponSet`, `WeaponSlot`, `WeaponStatus`, `WeaponAim`, `WeaponHold`, `Clip`, `AimOffset`, `TargetRule`, `WeaponBonus`, `DamageModifier`, `RateOfFireModifier`, `Shot`, `ProjectileLauncher`, `StatusUpdate`, `AutoHealUpdate`, `ExperienceModule`, `PursueUpdate`, `Engaging`, `GuardRules`, `Errand` | `uz.dukeengine.combat.module.` the same |
-  | `uz.dukeengine.rts.event.` `WeaponFired`, `ShotLanded` | `uz.dukeengine.combat.event.` the same |
-  | `uz.dukeengine.rts.message.OrderSource` | `uz.dukeengine.combat.message.OrderSource` |
-
-  A data file names a module by its class's simple name, so no `.duke` file changes, and a save reads as before.
-- **Move, attack and stop are the orders every side gives**: `GameMessage.MoveTo`, `AttackObject` and `StopMoving` are
-  `uz.dukeengine.combat.message.CombatOrder.MoveTo`, `AttackObject` and `StopMoving` — the same components and
-  constructors, and the same lines on the wire (`MOVE,…`, `ATTACK,…`, `STOP,…`), so a recording reads as ever. A
-  `switch` over `GameMessage` loses the three cases. An `RtsSimulation` of the game's own is told them by
-  `onCombatOrder(CombatOrder)`, no longer by `onRtsCommand`; `CommandCodec.decodeCommand` answers a `Command`, a
-  `CombatOrder` or a `GameMessage`, and `encodeCommand` takes either. `DukeGame.postCommand` takes them as it takes
-  any command.
-- `OrderListener.onOrder` is told a `Command` — a `CombatOrder` or a `GameMessage` — where it was told a `GameMessage`.
-- Whether a computer plays a side is core's: `Player.isComputer()` and `setComputer(boolean)`, which `RtsPlayer` has by
-  inheriting them, so a call reads as before.
-- `RtsModules.MODULES` begins with `CombatModules.MODULES`: the words an RTS's files may use are what they were, and
-  the aura's.
-- **The views are core's**: the records a frame is shown by moved from `uz.dukeengine.game.view` to
-  `uz.dukeengine.core.view`, each keeping its name — `UnitView`, `WorldSnapshot`, `CommandButton`, `CommandPress`,
-  `RallyView`, `Turrets`, `MomentWords`, `AimAnswer`, `AimMark`, `BeamView`, `StreamView`, `EffectView`, `CameraView`,
-  `FallingWeather` and `ViewRays`. An import to change.
-- **A word order is an order every side gives**: `GameMessage.GameOrder` is `uz.dukeengine.combat.message.GameOrder`,
-  with the same components and the same `ORDER,…` line on the wire. A `switch` over `GameMessage` loses the case.
-  `RtsSimulation.onOrder` and `ordered` are gone: `DukeGame.onOrder` hears word orders as before, and a world run
-  without the runtime hands them, with every command of no set it knows, to `GameLogic.onOtherCommands`. An
-  `RtsSimulation`'s `onOtherCommand` is core's `GameLogic.onOtherCommand`.
-- **The runtime is of no kind**: `game` depends on `combat`, not on `rts`, and runs whatever kind of game it is given.
-  `DukeGame.create(title)` runs on the one kind on the classpath — the RTS library's, for a game with `rts` or
-  `client3d` among its dependencies, so a game's `create` reads as before; one that depended on `game` alone adds
-  `rts` — and `DukeGame.create(title, flavour)` on the one it names. The RTS's own API moved off `DukeGame` onto `uz.dukeengine.rts.RtsFlavour`, which the game makes and
-  names or asks for (`game.flavour(RtsFlavour.class)`):
-
-  | Was, on `DukeGame` | Is, on `RtsFlavour` |
-  |---|---|
-  | `onProduced`, `onConstructed`, `onPlaced`, `onResearched`, `onSold`, `addUpgrades` | the same, chaining on the flavour |
-  | `money(player, amount)` | `money(player::getIndex, amount)` |
-  | `getBuildOptions(factory)`, `BuildOption` | `getBuildOptions(factory, player)`, `RtsFlavour.BuildOption` |
-  | `STARTER_UNITS` | `RtsFlavour.STARTER_UNITS` |
-  | `getLogic()`, an `RtsSimulation` | `logic()`; `DukeGame.getLogic()` answers a `GameLogic` |
-  | `postCommand(GameMessage)` | gone: `DukeGame.postCommand(Command)` takes it |
-
-  A side of the RTS is `RtsPlayer.of(game.getLogic(), index)`, and the world's armoury `Armoury.of(game.getLogic())`.
-  `UnitScript` keeps what any unit does: its `money()`, `productionQueue()`, `trainUnit()` and `setRallyPoint()` are
-  gone, and a script on a factory asks its `ProductionUpdate` and its side's `RtsPlayer` itself. The sessions and the
-  relay speak the classpath kind's wire, and their factories read as before.
-- **A view of a side's sight cells shares their chunks**: `SightCells.View`'s components are `chunks` — each chunk of
-  `SightCells.CHUNK` cells a side, null for one nothing has seen — and `everywhere`, where they were `states`. `at(x,
-  y)` reads as before, `new View(cellSize, width, height, states)` still builds one from cells given row by row, and
-  `states()` gives them back, a copy the size of the map.
-- `PathGrid.setLevel` refuses a storey below -32768 or above 32767: a cell's storey is kept in two bytes.
-- **A new module, `rpg`** (`uz.duke-engine:rpg`), beside `rts` on `combat`, and in the bom. It is duke-dungeon's RPG
-  half (its master at 7eb423d), moved and cut loose from the dungeon's settings. A game that is an RPG depends on it;
-  nothing else does, so an RTS — duke-generals, skirmish — builds as before without it. The classes, each keeping its
-  name but where the table says:
-
-  | Was, in duke-dungeon | Is |
-  |---|---|
-  | `uz.dukeengine.dungeon.skill.` `Skill`, `SkillEffect`, `Buff`, `Skills`, `SkillRanks`, `SkillBook`, `CastSkill`, `UpgradeSkill`, `Mending`, `MendingUpdate`, `Summoning`, `Summoned`, `SummoningUpdate`, `SkillTip` | `uz.dukeengine.rpg.skill.` the same |
-  | `uz.dukeengine.dungeon.loot.` `Loot`, `LootBag`, `LootTable`, `LootDrop`, `KeyDrop`, `GroundItem`, `ItemErrand`, `ItemUse`, `PickUp`, `DropItem`, `UseItem` | `uz.dukeengine.rpg.item.` the same |
-  | `uz.dukeengine.dungeon.loot.` `LootKind`, `LootExtra` | gone: an item's `Kind` and `Extra` are words, `uz.dukeengine.rpg.item.Stat` naming those a hero's figures read |
-  | `uz.dukeengine.dungeon.level.` `Levelling`, `Attribute`, `AttributeRules`, `Attributes`, `HeroAttributes`, `HeroBase`, `HeroBuild`, `HeroFigures`, `HeroProgress`, `GrowableBody`, `Recovery`, `AttackSpeed`, `FountainUpdate` | `uz.dukeengine.rpg.hero.` the same |
-  | `uz.dukeengine.dungeon.combat.LevelBonus` | `uz.dukeengine.rpg.hero.LevelBonus` |
-  | `uz.dukeengine.dungeon.combat.` `Swing`, `ArrowUpdate`, `FallingUpdate`, `Bow`, `EyesOnly` | `uz.dukeengine.rpg.fight.` the same |
-  | `uz.dukeengine.dungeon.combat.Shot` | `uz.dukeengine.rpg.fight.Arrows`, beside combat's own `Shot` |
-  | `uz.dukeengine.dungeon.run.` `Mission`, `GateUpdate` | `uz.dukeengine.rpg.mission.` the same |
-  | `uz.dukeengine.dungeon.run.Seal` | `uz.dukeengine.rpg.Seal`, an interface: the keep's rule stays the game's and answers it |
-  | `uz.dukeengine.dungeon.ai.` `SightLine`, `Facing` | `uz.dukeengine.rpg.` the same |
-
-  What the game hands in where the classes read the dungeon's settings or reached into the game:
-
-  | Was | Is |
-  |---|---|
-  | `new SkillBook(owner, skills, settings, seal)` | `new SkillBook(owner, skills, rules, seal)`, `SkillBook.Rules(muzzleOffset, shotSpeed, summonTurnDegrees, summonTurns, auraPulseFrames, buffLifeFrames, auraMarkLooks, auraMarkTickFrames)` — the `Combat` block's numbers and the heavy shot's speed |
-  | `new Bow(owner, data, settings)` | `new Bow(owner, data, new Bow.Defaults(arrowTemplate, arrowSpeed, arrowMuzzleOffset))` |
-  | `new EyesOnly(owner, settings)` | `new EyesOnly(owner, settings.storeyHeight())` |
-  | `new SummoningUpdate(owner, settings)` | `new SummoningUpdate(owner, (risen, level) -> Spawner.scale(risen, level, settings))` |
-  | the dungeon's `Seal` class | a class of the game's implementing `rpg.Seal` — `parts(world, a, b)` as before; `Seal.NONE` parts nothing |
-  | `new HeroProgress(gamePlayer, levelling, attributeRules, bannerFrames, bag)` | `new HeroProgress(gamePlayer::getIndex, banner, levelling, …)` — the side asked when wanted, so it may be made before the match binds its players — `banner` saying a word on the hero's own player's screen and `""` taking it off |
-  | `playing(HeroLook)`, `getHero()` | `playing(HeroSheet)`: `HeroLook` implements `rpg.hero.HeroSheet` — it has every accessor the sheet asks |
-  | `tick(game)`, `carryOver(game, body)` | `tick(game.getLogic())`, `carryOver(game.getLogic(), body)` |
-  | the hero's blow as his side's `RtsPlayer.setWeaponDamageBonus` | an `AttackBonus` module on the hero, added when it is first more than 1; his side's bonus is left alone |
-  | `new LootTable(catalogue, seed, drop, bossDrop, perDepth)`, `dropFor(objectId, depth, boss)` | `new LootTable(catalogue, drop, bossDrop, perTier)`, `dropFor(world.random(), tier, boss)`; `LootDrop` draws so itself |
-  | `Loot`'s `LootKind kind`, `LootExtra extra`, `minDepth` | `String kind`, `String extra` (empty for none), `minTier` — a data file's `MinDepth` line is `MinTier` |
-  | a key, `kind() == LootKind.KEY`; `bag.holds(KEY)`, `removeAll(KEY)` | an item whose `Use` is `UNLOCK`, which never joins; `bag.holds(ItemUse.UNLOCK)`, `removeAll(ItemUse.UNLOCK)` |
-  | `bag.attackPercent()` and the other totals | as they were, and `total(word)` and `extra(word)` for any word |
-  | `Mission.of(world, floor, placed, settings, owner)`, `words(run, step)` | `Mission.begin(world, key, chest, owner, gate, counted, wayIn)`: the game picks the key, the gate, what is counted and the way in; the words are the game's |
-
-  `Skill`'s `Projectile` and `Summons` and `Bow`'s `Projectile` no longer say `@Link`: what they name is a template, and
-  a link names one record, which an engine library cannot name for a game. The item modules are in the editor's group
-  `Items` (`RpgModuleGroups.ITEMS`) rather than `Economy`.
-- **The client is split: `rts-client-3d` and `rpg-client-3d`** (`uz.duke-engine:rts-client-3d`, `:rpg-client-3d`), each
-  beside `client3d` on its side's library, and both in the bom. `client3d` no longer depends on `rts`: a game that
-  plays an RTS depends on `rts-client-3d` (skirmish does now), one that plays an RPG on `rpg-client-3d`, and a game
-  with both sides on both. Each is found by the client on the classpath (`HudPart`, see below); a game names neither
-  in code. Moved, each keeping its name:
-
-  | Was | Is |
-  |---|---|
-  | `uz.dukeengine.client3d.` `HeroPanel`, `HeroPortrait`, `PortraitLook`, `PortraitMood`, `SkillTip`, `StatLook`, `PanelLook`, `PanelBlock`, `PanelPlace`, `PanelAnchor`, `IconLook` | `uz.dukeengine.client3d.rpg.` the same |
-  | `Visuals.statLook`, `panelLook`, `iconLook`, `portrait`, `portraits`, `portraitFps` and their getters | the same on `uz.dukeengine.client3d.rpg.HeroLooks`: `HeroLooks.of(visuals).statLook(…)` |
-  | `HeroPanel.iconTexture` | `uz.dukeengine.client3d.PanelSkin.texture` |
-  | `GameSounds.status`, the card's sounds | the RPG's part, hearing them off the card itself |
-  | `uz.dukeengine.rpg.skill.Skills.slots`, `Skills.Words` | `uz.dukeengine.client3d.rpg.HeroCard.skills`, `HeroCard.Words` |
-  | `uz.dukeengine.rpg.skill.SkillTip` (the tip's fields), `SkillTip.Words` | written by `HeroCard.skills`; `HeroCard.TipWords` |
-  | the client's text build menu and its digit keys, a lone factory's rally point on open ground | the same, from `rts-client-3d` (`RtsHud`); with no RTS part a lone factory takes no click |
-
-  What a game moves out of its own code into `rpg-client-3d`, from duke-dungeon at 7eb423d:
-
-  | Was, in duke-dungeon | Is |
-  |---|---|
-  | `BagScreen` | `uz.dukeengine.client3d.rpg.BagScreen`: `BagScreen.on(duke, menuStyle, words, gives, buffs)`, `show(game, bag, wire, under)` — its words a `BagScreen.Words` (the items heading, the drop, take and use hints, and the pick-up, to-the-gate and use order words, `PartyOrders`' today), `gives` the game's lines for what a thing gives (its `bonusOf` and `extraOf`, which stay the game's words), `bag` this machine's hero's bag or null, `wire` its `PartyOrders::of`, and `under` its `MissionScreen` |
-  | `BuffScreen` | `uz.dukeengine.client3d.rpg.BuffScreen`: `new BuffScreen(settings.skills(), settings.effects(), settings.menu(), settings.panelLook(), hud.buffIcon(), words)`, its words a `BuffScreen.Words` (attack, mana a second, lifesteal, attack speed, seconds); `addsOf(buff)` an instance method |
-  | `run/HeroStatus`, the card's fields | written through `uz.dukeengine.client3d.rpg.HeroCard`: `HeroCard.named(name).title(…).rank(…).health(now, most)`… — `experience`, `mana`, `refusedForMana`, `depth`, `headings`, `note`, `stat`, `attribute`, `attributeTip`, `item`, `ordersAreHis`, `order`, `points`, `skills`, `casts` (its `appendCast`) — and `field(name, value)` for the line's other fields (`deep`, `boss`, `hero`, `who`, `look`); what goes on the card stays the game's |
-  | `HeroPanel`, drawn by the client | drawn by the RPG's part as before, found on the classpath: nothing to call |
-  | `run/Watching` and a hero needing to be selected for his orders | single-hero control (below): his orders go to his hero whatever is picked out. `Watching` stays the game's, for whose card the panel shows |
-
-- **`HudPart`** (`uz.dukeengine.client3d`): a kind of game's part of the window, found on the classpath as a kind of
-  game is (a `META-INF/services/uz.dukeengine.client3d.HudPart` line). The client asks its parts what it asked the hero
-  panel and the RTS: where a panel stands, the minimap's socket, whether a point is on a panel, whether a key is ready
-  and whose the orders are, a key refused or armed, a point to spend, a creature dead, the pause menu's facts, a rally
-  point, a build menu — and who the orders go to. Every answer has a default that is the client's own with no part.
-- **`Visuals.part(type, whenNone)`**: a kind of game's own looks among the game's `Visuals`, never read by the client's
-  own drawing — the hero bar's (`HeroLooks`).
-- **`DukeGame.setOrdered(ids)`**: the things the local player's orders go to where they are not the selection, told by
-  the window; a click is judged for them — whether an attack would be taken, the word of the order it gives. `null`,
-  the default, is the selection.
-- `Lettering`, `Shade`, `NineSlice` (and their members the panel uses), `UnitBarReading` and its `read`, two
-  `Visuals.UnitVisual` fields (`idleAnim`, `dieAnim`) and `AnimationLibrary.findControl` are public, for the parts.
+- **A desktop launcher adds `client3d-desktop`** (`uz.duke-engine:client3d-desktop`) to its runtime classpath:
+  `ClientPlatform.get()` finds the platform there, and fails at start without one. `client3d`'s `platform` package
+  holds the interfaces.
+- **A player's colour is a `uz.dukeengine.game.Colour`** (one ARGB int, AWT's packing and its named colours), so the
+  API names no desktop toolkit: `addPlayer(name, Colour.RED)`, `getColour(index)`, `GamePlayer.getColour()`. The AWT
+  `Color` versions are gone. In `client3d` the colour-taking API takes `Colour` too: `Visuals.UnitVisual.colour/tint`,
+  `GhostLook`, `EffectVisual.glow`, `PanelSkin.Piece`, `Duke3D.shadowColour`; `Skin.awtTint()` is gone. From an AWT
+  colour: `new Colour(color.getRGB())`.
+- **`Lettering(AssetManager, java.awt.Font)` is gone**; `Lettering.of(assets, path)` and `at(pixels)` are as before,
+  and `new Lettering(assets, typeface)` takes a `platform.Typeface`. `BitmapFontBaker.bake` takes a `platform.Face` and
+  returns the atlas as ARGB pixels (`Baked.argb()`, `width()`, `height()`) in place of PNG bytes; its command line is
+  now `uz.dukeengine.client3d.desktop.BakeFont`, the same arguments and the same files.
+- **`Duke3D.screenshots(Path folder, String pattern)` is now `screenshots(String folder, String pattern)`**: a game
+  passes `path.toString()`.
+- **The 2D Swing window is its own module, `game-swing`** (`uz.duke-engine:game-swing`): `DukeGame.start()` is now
+  `SwingGame.start(game)`, and `GamePanel`/`GameWindow` keep their package.
+- **A game's maps are found through a list**, `maps.list` (`MapPackages.LIST`) beside them, since an APK's assets
+  cannot be listed: a build generates it.
 - `RtsFlavour.logicOrNull()`: the RTS world, or `null` before a match has made it, for code that asked
   `DukeGame.getLogic()` and checked for `null` — a menu, a front end. `logic()` throws then, as it did, and says so.
-- `Layer` has a component more, `renews`, after `follows`: a `Layer` made in code rather than read from a block passes
-  it, null where it says nothing.
 
-### One seamless world
+### Android
 
-A world a thousand cells a side and more: what a frame costs follows what is awake and near, not the size of the
-world; a route across it costs what its length does; what each side has seen is kept as small as what it walked, by the
-simulation, and saved with it; and its ground is built as far as the camera sees. Each part is the game's to take; a
-game that takes none plays, routes and draws every frame as before, which every test in the repository holds it to.
+- **`client3d-android`** (`uz.duke-engine:client3d-android`, an AAR, minSdk 35): the platform interfaces on
+  android.graphics, the app's files and a dialog, and `DukeActivity`, which a game's launcher extends with its
+  `application()`: the screen whole and kept on, the bars hidden, a 24-bit depth buffer, jME's buffers in native
+  memory. `uiScale()` is the display's density unless a game lays its screens out by resolution.
+- **A content pack downloaded on first launch** (`ContentActivity`, `ContentPack`): a game too big for its APK ships
+  its files apart, and the activity mounts them before the client starts.
+- **`Duke3D.application()`** starts the client without waiting, for a harness that runs it; `launch()` is start and
+  wait, as before.
+- **`client3d-touch`** (`uz.duke-engine:client3d-touch`), a `ControlScheme` for a finger: `TouchRts` — tap to select
+  and order, a drag to pan, a long press and drag for a box, a pinch to zoom, two fingers to turn, a building placed
+  with confirm and cancel — and `TouchHero`, a stick and skill buttons. The HUD and touch sizes scale with the
+  screen's density.
+- **`-Dduke.stats=N`** logs frame and logic timing every N seconds.
 
-- **Things far from every waker sleep** (`Sleep`, `GameLogic.setSleep`, `DukeGame.sleep`): every so many frames, from
-  where things stand and in the order they came in, the things farther than the rule's reach from every waker — the
-  game's heroes — are put to sleep. A sleeper's modules do not run and it looks at nothing, and all of it stays as it
-  was; a blow landing on it wakes it until the rule next decides, a thing marked destroyed leaves the same frame, and one
-  that dies of no blow on the rule's next frame. The same frames on every machine.
-- **A frame costs what is awake**: the partition's buckets hash apart (a diagonal of them hashed alike, and a busy frame
-  went on collisions) and answer in the order things came in, which each thing now carries (`GameObject.getEntered`);
-  the world keeps each player's things (`getObjectsOf`, `getOwners`) and what a player is shown is asked of his own and
-  his allies' things and of what stands where their reach falls; a side's defeat, its power and an aura look at its own
-  or at what is near (`World.thingsNear`); a thing marked destroyed is reaped from the list of those marked; and the
-  ground under the still things is laid again only when one of them changed what it lays, cell for cell as a ground
-  laid whole. Five thousand monsters asleep on a 900-cell world cost 0.06 ms a frame where awake they cost 5.
-- **Routes by sectors** (`Sectored`, `GameLogic.setRouteSectors`): a map that says so is kept in sectors of so many of
-  its cells a side, each sector's open cells in the pieces a step joins inside it (`Sectors`), joined to their
-  neighbours'. What reaches what is answered by them — the same cells together as the zones worked out whole
-  (`Zones.over`), kept sector by sector as the ground changes, the grid now recording where it changed
-  (`PathGrid.changesSince`). A route is found through the pieces its way crosses and then cell by cell a stretch of two
-  sectors at a time, by the search's own steps, costs and turns: corner to corner of a 1024-cell world examines some
-  nine thousand cells in about 15 ms, where the whole grid's search examined nearly half a million in 800; of a
-  4096-cell one, about a hundred thousand in 90 ms. A search's arrays on a map past two million cells hold only the
-  cells it touched, with the same answers.
-- **What each side has seen, kept small and by the simulation**: sight cells in chunks made as a side's lookers first
-  cover them, the cells in sight kept with the frame each was last covered — every answer the one the cells kept whole
-  gave. A view a client is shown shares the chunks, so the client's discovery takes again only the chunks that changed.
-  Where the game says so (`GameLogic.setSightHiddenByStone`) stone stops a line of sight and a floor above a looker's is
-  seen with nothing on it in sight — a crawler's dark kept by the simulation, the same on every machine. What a side
-  has seen is remembered and recalled (`getSightMemory`, `setSightMemory`) and saved with a game (`GameSnapshot`'s
-  `SIGHT` lines).
-- **The fog's and the minimap's pictures** send only the tiles of 64 texels that changed to the card
-  (`Renderer.modifyTexture`), the whole picture where most of it did.
-- **The ground streamed** (`Visuals.streamGround`): a kit's floor built a chunk of 16 cells at a time within so many
-  cells of where the camera looks, and chunks further off let go — each chunk corner for corner what the whole build
-  makes, its geometry kept about its own corner. A chunk is built a step at a time — its plan, a batch of its pieces,
-  its scenery, one material's merge — for as long as a frame's budget allows, the nearest first, so ground coming into
-  reach is built before it is seen; the camera's own chunk and the eight round it at once, so what is under the camera
-  is never missing. A world whose cells wear looks of their own asks each cell's look as its chunk is built, never the
-  whole world's at once. A painted map is built whole, as before.
-- **The dark kept round the camera**: on a world built round the camera, what the player has seen and sees stays two
-  bits a cell for the whole world, but how brightly each cell is drawn is kept only for a window round where the camera
-  looks, which follows it, and the fog's picture is the picture of that window, laid over the ground a copy after a
-  copy — a place of the ground always its own texel, only the ground coming into the window drawn as it moves, past it
-  drawn never seen. The fog is as sharp as the game's texels a cell (`Fog.texelsPerCell`) whatever the world's size.
-  What changed is counted where it was written, where the whole map was compared with itself every frame; over the
-  whole map every answer is the one the discovery kept whole gave.
-- **The minimap round the hero** (`Visuals.minimapSpan`): the cells round where the camera looks, its picture sliding
-  under it, the things and the view's outline on it where they stand and a click on it where it points; a map no wider
-  than the span, and a game that names none, the whole map as always.
-- **The whole world as a picture** (`Duke3D.worldPicture`), for the game to draw on its canvas where it likes — a map
-  screen, a scroll: at most as many texels a side as it asks, each the most seen of its cells in the minimap's colours,
-  kept from what changed and handed again for each new world.
-- **A haze** (`Visuals.haze`): the ground fades into nothing — the fog's own colour, the window's background — from so
-  many cells round where the camera looks to so many more, so the edge of the ground built round the camera is never
-  seen; round where the camera looks, not the eye, so zooming out fades nothing near the hero.
-- A unit some forty-one thousand units from the origin walks as one beside it, step for step: a float there is a 256th
-  of a unit.
-- The water takes the size of a new world's fog picture with the ground: made before the picture took it, it read its
-  dark from the picture's edge on a world's first build.
+### More since 0.8.0
 
-Measured on this repository's machine, without a card, the client's own work — the dark, its picture, the minimap and
-the ground built round a hero walking 2.4 cells a second: a frame 0.5 ms on a world 1024 cells a side and 0.5 ms on one
-of 4096; its first frame under 0.1 s on either, where the pictures kept whole took 1.8 s on the wider; the dark and the
-minimap laid at load 0.1 s on the wider. A frame's worst there was 12 to 21 ms, most of it the collector of a test's
-small heap; a chunk's largest step is one material's merge, about a millisecond for four hundred pieces once warm.
-
-**Where the next limit lies**, and what lifting it would take:
-
-- **Cells in memory.** The grid keeps every cell in flat arrays — some eleven bytes a cell, and more where movers,
-  zones and scenery are — so a world of 4096 cells a side holds a few hundred megabytes of them, and a cell's index
-  runs out at 46,000 a side. Past that the grid must be kept in chunks and paged from disk by where the awake things
-  and the routes need them; its seams — the change log the sectors keep up with, sight kept in chunks, the ground built
-  a chunk at a time — are the ones that paging would use.
-- **Laying a world.** A world is handed over whole, and its cells are read once when it is laid: the sectors of a world
-  4096 cells a side take about 1.6 s to build, and each pass the client makes over the map's cells at load about 0.1 s.
-  A world generated as it is walked would lay chunks ahead of the hero into a grid kept in chunks; the sectors are
-  already kept current as cells change after load (`PathGrid.changesSince`).
-- **Positions past about 100,000 units.** Positions are floats: at 131,072 a float is a 64th of a unit, and a step
-  there moves by that much. Past it the simulation needs an origin that moves — every position shifted by whole cells
-  at fixed frames, the same on every machine — or positions of more bits; the client already keeps the ground about
-  its chunks' corners, and would draw everything about an origin near the camera.
-- **Routes wider still.** Corner to corner of 4096 cells is about 90 ms, most of it the search over pieces; a world
-  four times as wide wants sectors of sectors.
-- **Who sleeps.** Deciding costs a look at every thing's cell every so many frames — nothing between — which is cheap
-  for thousands and not for hundreds of thousands; the partition could be asked for what stands round each waker instead.
-
-Not measured here: frames a second on a graphics card, which this repository's machine has none of.
-
-### A runtime of no kind
-
-The runtime — `DukeGame`, its sessions, replays, snapshots and scripts — runs a kind of game it does not know, which
-brings what only it knows through core's `Flavour`: its world (`newWorld`), the records its blocks are read into
-(`templates`), its wire and what the wire carries (`codec`, `carries`), its own setup once its players are in
-(`began`), and its parts of the picture (`ViewParts`: whether a thing is a structure and may be picked, what it has
-queued and carries, how far it is built, its turrets and rally point, a side's money and spare power). A library offers
-its kind as a service, and `Flavour.found` is the one on the classpath. What the runtime does each frame on the
-simulation thread — work and orders posted from other threads, the game's per-frame code, the annihilation rule — runs
-where the world's `simulate` is, just before it (`GameLogic.eachFrame`), in the same order as before; commands of no
-set the world knows reach the runtime by `GameLogic.onOtherCommands`. A match's art is planned from the modules whose
-data names what their thing may bring into the world (`Brings`), a factory's build list among them.
-
-### The RTS, a flavour
-
-`RtsFlavour` is the RTS as a kind of game: `RtsLogic` — the RTS world with the standard orders applied, moved into
-`rts` — `RtsTemplate`, `CommandCodec`, the RTS's view parts, and the RTS's own API beside the runtime's: what a factory
-makes and a builder finishes, what research and selling set off, a side's upgrades and starting money, a factory's
-build menu, the starter units, and the RTS world it runs (`logic()`). A callback given it after the match has begun
-reaches the world at once.
-
-### Combat, a layer of its own
-
-`combat` is what fights, whatever the genre — weapons and their bonuses, statuses, experience, healing over time,
-shots, closing on a target, the auras below and the orders every side gives — on `core` alone, so a world that is no
-RTS's fights with it: a `GameLogic` that is an `ArmedWorld`, its `armoury()` the world's arms settings — the weapons by
-name, the target rules, the weapon bonus table, how often weapons look, what is shown when hidden, the guard rules —
-with `CombatModules.withDefaults()` for its modules. `RtsSimulation` is one, and its `addWeapons`, `findWeapon`,
-`setTargetRules`, `setWeaponBonuses`, `setTargetScanFrames`, `setGuardRules` and the rest are its armoury's, doing
-what they did. A side's own damage bonus is asked of a player that is an `ArmedSide`, as `RtsPlayer` is, and a unit's
-of its `DamageModifier` modules as ever; whether a contained thing fires from its hold, of every `Hold` in the world,
-as `ContainModule` is. `CombatModuleGroups.PROGRESSION` is the editor's group for experience, the word
-`RtsModuleGroups.PROGRESSION` names.
-
-### The RPG, a library
-
-`rpg` is to an RPG what `rts` is to an RTS: the mechanisms every RPG shares, on `combat`, with the rules left to the
-game. It is duke-dungeon's own, which already ran the RPG half, and what tied it to that one game came out on the way:
-
-- **The settings it read are records it is handed** (`SkillBook.Rules`, `Bow.Defaults`, a storey height, a level
-  step), the way `rts` takes `SellRules` and `GuardRules`.
-- **A seal is the game's.** Everything that hurts, mends, moves a caster or lends an aura asks `Seal.parts`; what parts
-  two places — a keep's shut gate, a ward — is a rule, so the game answers it.
-- **Loot is drawn from the world's `LogicRandom`.** The dungeon drew each death from its own seeded generator and the
-  monster's id, so a drop did not depend on the order of deaths; the world's stream does, but it is the one every
-  machine of a lock-step match and every replay draws in the same order, and it is saved with the world. The owner's
-  call. A game that wants its drops apart from the rest of the simulation's chances keeps its own `LogicRandom` and
-  hands that in.
-- **Item kinds are open words.** `ATTACK`, `HEALTH`, `ARMOUR`, `MANA`, `ATTRIBUTE` and the three extras are the
-  ones a hero's figures read (`Stat`); any other word is the game's to add up. Being a key is what an item does —
-  `Use = UNLOCK` — not what it is.
-- **Tier, not depth**: a floor, a zone, a level — how far into the game a drop is made.
-- **A hero's blow is his own.** It was his side's weapon bonus, an `RtsPlayer`'s, standing in for him while a player
-  commands one hero; it is an `AttackBonus` on him, so `rpg` needs nothing of `rts`. A blow multiplies it among the
-  unit's modifiers rather than after them, so its last bit may differ from the dungeon's own.
-- **What stays the game's**: the run, its floors and their generation, the keep and the spawner, the world's blocks, the
-  story and the words. The hero card on the wire went with the client, beside the hero panel (`HeroCard`, below), and
-  single-hero control with it. An RPG flavour has not been made: an RPG still runs on `RtsFlavour`.
+- `client3d`: a game's own scene in the world (`Duke3D.scene`, `SceneLayer`), and the player's own eyes in place of the RTS camera — WASD, a held mouse, a cross and what is under it within reach (`Duke3D.firstPerson`, `FirstPersonCamera`).
 
 ### A painted world, drawn as Warcraft III, Dota and Generals draw theirs
 
@@ -1077,6 +810,305 @@ them on the next. The 3D client's own fog does the same where its line of sight 
 things standing in each frame's snapshot whose template blocks sight stop it as stone does, an opened gate letting it
 through the next frame. `Footprint.cellsOverlapped` is the one rule for which cells a thing covers. Pathing is
 untouched. A shut gate, a door, a curtain, a thick hedge.
+## 0.8.0
+
+The release after 0.6.0: 0.7.0 is never published, and what its section below lists ships in this one, so a
+game coming from 0.6.0 makes the changes both lists of what to change name.
+
+The engine is split so that an RTS and an RPG are two libraries on one layer they share: `combat`, what both fight
+with, under `rts` and `rpg`, and the 3D client with each side's part of the window beside it, `rts-client-3d` and
+`rpg-client-3d`.
+
+### What to change
+
+- **A new module, `combat`** (`uz.duke-engine:combat`), between `core` and `rts`. `rts` names it as part of its API, so
+  a game that depends on `rts`, `game` or `client3d` has it without naming it, and the bom lists it. Twenty-five classes
+  moved into it, each keeping its name — an import to change, and nothing else:
+
+  | Was | Is |
+  |---|---|
+  | `uz.dukeengine.rts.module.` `Weapon`, `WeaponUpdate`, `WeaponSet`, `WeaponSlot`, `WeaponStatus`, `WeaponAim`, `WeaponHold`, `Clip`, `AimOffset`, `TargetRule`, `WeaponBonus`, `DamageModifier`, `RateOfFireModifier`, `Shot`, `ProjectileLauncher`, `StatusUpdate`, `AutoHealUpdate`, `ExperienceModule`, `PursueUpdate`, `Engaging`, `GuardRules`, `Errand` | `uz.dukeengine.combat.module.` the same |
+  | `uz.dukeengine.rts.event.` `WeaponFired`, `ShotLanded` | `uz.dukeengine.combat.event.` the same |
+  | `uz.dukeengine.rts.message.OrderSource` | `uz.dukeengine.combat.message.OrderSource` |
+
+  A data file names a module by its class's simple name, so no `.duke` file changes, and a save reads as before.
+- **Move, attack and stop are the orders every side gives**: `GameMessage.MoveTo`, `AttackObject` and `StopMoving` are
+  `uz.dukeengine.combat.message.CombatOrder.MoveTo`, `AttackObject` and `StopMoving` — the same components and
+  constructors, and the same lines on the wire (`MOVE,…`, `ATTACK,…`, `STOP,…`), so a recording reads as ever. A
+  `switch` over `GameMessage` loses the three cases. An `RtsSimulation` of the game's own is told them by
+  `onCombatOrder(CombatOrder)`, no longer by `onRtsCommand`; `CommandCodec.decodeCommand` answers a `Command`, a
+  `CombatOrder` or a `GameMessage`, and `encodeCommand` takes either. `DukeGame.postCommand` takes them as it takes
+  any command.
+- `OrderListener.onOrder` is told a `Command` — a `CombatOrder` or a `GameMessage` — where it was told a `GameMessage`.
+- Whether a computer plays a side is core's: `Player.isComputer()` and `setComputer(boolean)`, which `RtsPlayer` has by
+  inheriting them, so a call reads as before.
+- `RtsModules.MODULES` begins with `CombatModules.MODULES`: the words an RTS's files may use are what they were, and
+  the aura's.
+- **The views are core's**: the records a frame is shown by moved from `uz.dukeengine.game.view` to
+  `uz.dukeengine.core.view`, each keeping its name — `UnitView`, `WorldSnapshot`, `CommandButton`, `CommandPress`,
+  `RallyView`, `Turrets`, `MomentWords`, `AimAnswer`, `AimMark`, `BeamView`, `StreamView`, `EffectView`, `CameraView`,
+  `FallingWeather` and `ViewRays`. An import to change.
+- **A word order is an order every side gives**: `GameMessage.GameOrder` is `uz.dukeengine.combat.message.GameOrder`,
+  with the same components and the same `ORDER,…` line on the wire. A `switch` over `GameMessage` loses the case.
+  `RtsSimulation.onOrder` and `ordered` are gone: `DukeGame.onOrder` hears word orders as before, and a world run
+  without the runtime hands them, with every command of no set it knows, to `GameLogic.onOtherCommands`. An
+  `RtsSimulation`'s `onOtherCommand` is core's `GameLogic.onOtherCommand`.
+- **The runtime is of no kind**: `game` depends on `combat`, not on `rts`, and runs whatever kind of game it is given.
+  `DukeGame.create(title)` runs on the one kind on the classpath — the RTS library's, for a game with `rts` or
+  `client3d` among its dependencies, so a game's `create` reads as before; one that depended on `game` alone adds
+  `rts` — and `DukeGame.create(title, flavour)` on the one it names. The RTS's own API moved off `DukeGame` onto `uz.dukeengine.rts.RtsFlavour`, which the game makes and
+  names or asks for (`game.flavour(RtsFlavour.class)`):
+
+  | Was, on `DukeGame` | Is, on `RtsFlavour` |
+  |---|---|
+  | `onProduced`, `onConstructed`, `onPlaced`, `onResearched`, `onSold`, `addUpgrades` | the same, chaining on the flavour |
+  | `money(player, amount)` | `money(player::getIndex, amount)` |
+  | `getBuildOptions(factory)`, `BuildOption` | `getBuildOptions(factory, player)`, `RtsFlavour.BuildOption` |
+  | `STARTER_UNITS` | `RtsFlavour.STARTER_UNITS` |
+  | `getLogic()`, an `RtsSimulation` | `logic()`; `DukeGame.getLogic()` answers a `GameLogic` |
+  | `postCommand(GameMessage)` | gone: `DukeGame.postCommand(Command)` takes it |
+
+  A side of the RTS is `RtsPlayer.of(game.getLogic(), index)`, and the world's armoury `Armoury.of(game.getLogic())`.
+  `UnitScript` keeps what any unit does: its `money()`, `productionQueue()`, `trainUnit()` and `setRallyPoint()` are
+  gone, and a script on a factory asks its `ProductionUpdate` and its side's `RtsPlayer` itself. The sessions and the
+  relay speak the classpath kind's wire, and their factories read as before.
+- **A view of a side's sight cells shares their chunks**: `SightCells.View`'s components are `chunks` — each chunk of
+  `SightCells.CHUNK` cells a side, null for one nothing has seen — and `everywhere`, where they were `states`. `at(x,
+  y)` reads as before, `new View(cellSize, width, height, states)` still builds one from cells given row by row, and
+  `states()` gives them back, a copy the size of the map.
+- `PathGrid.setLevel` refuses a storey below -32768 or above 32767: a cell's storey is kept in two bytes.
+- **A new module, `rpg`** (`uz.duke-engine:rpg`), beside `rts` on `combat`, and in the bom. It is duke-dungeon's RPG
+  half (its master at 7eb423d), moved and cut loose from the dungeon's settings. A game that is an RPG depends on it;
+  nothing else does, so an RTS — duke-generals, skirmish — builds as before without it. The classes, each keeping its
+  name but where the table says:
+
+  | Was, in duke-dungeon | Is |
+  |---|---|
+  | `uz.dukeengine.dungeon.skill.` `Skill`, `SkillEffect`, `Buff`, `Skills`, `SkillRanks`, `SkillBook`, `CastSkill`, `UpgradeSkill`, `Mending`, `MendingUpdate`, `Summoning`, `Summoned`, `SummoningUpdate`, `SkillTip` | `uz.dukeengine.rpg.skill.` the same |
+  | `uz.dukeengine.dungeon.loot.` `Loot`, `LootBag`, `LootTable`, `LootDrop`, `KeyDrop`, `GroundItem`, `ItemErrand`, `ItemUse`, `PickUp`, `DropItem`, `UseItem` | `uz.dukeengine.rpg.item.` the same |
+  | `uz.dukeengine.dungeon.loot.` `LootKind`, `LootExtra` | gone: an item's `Kind` and `Extra` are words, `uz.dukeengine.rpg.item.Stat` naming those a hero's figures read |
+  | `uz.dukeengine.dungeon.level.` `Levelling`, `Attribute`, `AttributeRules`, `Attributes`, `HeroAttributes`, `HeroBase`, `HeroBuild`, `HeroFigures`, `HeroProgress`, `GrowableBody`, `Recovery`, `AttackSpeed`, `FountainUpdate` | `uz.dukeengine.rpg.hero.` the same |
+  | `uz.dukeengine.dungeon.combat.LevelBonus` | `uz.dukeengine.rpg.hero.LevelBonus` |
+  | `uz.dukeengine.dungeon.combat.` `Swing`, `ArrowUpdate`, `FallingUpdate`, `Bow`, `EyesOnly` | `uz.dukeengine.rpg.fight.` the same |
+  | `uz.dukeengine.dungeon.combat.Shot` | `uz.dukeengine.rpg.fight.Arrows`, beside combat's own `Shot` |
+  | `uz.dukeengine.dungeon.run.` `Mission`, `GateUpdate` | `uz.dukeengine.rpg.mission.` the same |
+  | `uz.dukeengine.dungeon.run.Seal` | `uz.dukeengine.rpg.Seal`, an interface: the keep's rule stays the game's and answers it |
+  | `uz.dukeengine.dungeon.ai.` `SightLine`, `Facing` | `uz.dukeengine.rpg.` the same |
+
+  What the game hands in where the classes read the dungeon's settings or reached into the game:
+
+  | Was | Is |
+  |---|---|
+  | `new SkillBook(owner, skills, settings, seal)` | `new SkillBook(owner, skills, rules, seal)`, `SkillBook.Rules(muzzleOffset, shotSpeed, summonTurnDegrees, summonTurns, auraPulseFrames, buffLifeFrames, auraMarkLooks, auraMarkTickFrames)` — the `Combat` block's numbers and the heavy shot's speed |
+  | `new Bow(owner, data, settings)` | `new Bow(owner, data, new Bow.Defaults(arrowTemplate, arrowSpeed, arrowMuzzleOffset))` |
+  | `new EyesOnly(owner, settings)` | `new EyesOnly(owner, settings.storeyHeight())` |
+  | `new SummoningUpdate(owner, settings)` | `new SummoningUpdate(owner, (risen, level) -> Spawner.scale(risen, level, settings))` |
+  | the dungeon's `Seal` class | a class of the game's implementing `rpg.Seal` — `parts(world, a, b)` as before; `Seal.NONE` parts nothing |
+  | `new HeroProgress(gamePlayer, levelling, attributeRules, bannerFrames, bag)` | `new HeroProgress(gamePlayer::getIndex, banner, levelling, …)` — the side asked when wanted, so it may be made before the match binds its players — `banner` saying a word on the hero's own player's screen and `""` taking it off |
+  | `playing(HeroLook)`, `getHero()` | `playing(HeroSheet)`: `HeroLook` implements `rpg.hero.HeroSheet` — it has every accessor the sheet asks |
+  | `tick(game)`, `carryOver(game, body)` | `tick(game.getLogic())`, `carryOver(game.getLogic(), body)` |
+  | the hero's blow as his side's `RtsPlayer.setWeaponDamageBonus` | an `AttackBonus` module on the hero, added when it is first more than 1; his side's bonus is left alone |
+  | `new LootTable(catalogue, seed, drop, bossDrop, perDepth)`, `dropFor(objectId, depth, boss)` | `new LootTable(catalogue, drop, bossDrop, perTier)`, `dropFor(world.random(), tier, boss)`; `LootDrop` draws so itself |
+  | `Loot`'s `LootKind kind`, `LootExtra extra`, `minDepth` | `String kind`, `String extra` (empty for none), `minTier` — a data file's `MinDepth` line is `MinTier` |
+  | a key, `kind() == LootKind.KEY`; `bag.holds(KEY)`, `removeAll(KEY)` | an item whose `Use` is `UNLOCK`, which never joins; `bag.holds(ItemUse.UNLOCK)`, `removeAll(ItemUse.UNLOCK)` |
+  | `bag.attackPercent()` and the other totals | as they were, and `total(word)` and `extra(word)` for any word |
+  | `Mission.of(world, floor, placed, settings, owner)`, `words(run, step)` | `Mission.begin(world, key, chest, owner, gate, counted, wayIn)`: the game picks the key, the gate, what is counted and the way in; the words are the game's |
+
+  `Skill`'s `Projectile` and `Summons` and `Bow`'s `Projectile` no longer say `@Link`: what they name is a template, and
+  a link names one record, which an engine library cannot name for a game. The item modules are in the editor's group
+  `Items` (`RpgModuleGroups.ITEMS`) rather than `Economy`.
+- **The client is split: `rts-client-3d` and `rpg-client-3d`** (`uz.duke-engine:rts-client-3d`, `:rpg-client-3d`), each
+  beside `client3d` on its side's library, and both in the bom. `client3d` no longer depends on `rts`: a game that
+  plays an RTS depends on `rts-client-3d` (skirmish does now), one that plays an RPG on `rpg-client-3d`, and a game
+  with both sides on both. Each is found by the client on the classpath (`HudPart`, see below); a game names neither
+  in code. Moved, each keeping its name:
+
+  | Was | Is |
+  |---|---|
+  | `uz.dukeengine.client3d.` `HeroPanel`, `HeroPortrait`, `PortraitLook`, `PortraitMood`, `SkillTip`, `StatLook`, `PanelLook`, `PanelBlock`, `PanelPlace`, `PanelAnchor`, `IconLook` | `uz.dukeengine.client3d.rpg.` the same |
+  | `Visuals.statLook`, `panelLook`, `iconLook`, `portrait`, `portraits`, `portraitFps` and their getters | the same on `uz.dukeengine.client3d.rpg.HeroLooks`: `HeroLooks.of(visuals).statLook(…)` |
+  | `HeroPanel.iconTexture` | `uz.dukeengine.client3d.PanelSkin.texture` |
+  | `GameSounds.status`, the card's sounds | the RPG's part, hearing them off the card itself |
+  | `uz.dukeengine.rpg.skill.Skills.slots`, `Skills.Words` | `uz.dukeengine.client3d.rpg.HeroCard.skills`, `HeroCard.Words` |
+  | `uz.dukeengine.rpg.skill.SkillTip` (the tip's fields), `SkillTip.Words` | written by `HeroCard.skills`; `HeroCard.TipWords` |
+  | the client's text build menu and its digit keys, a lone factory's rally point on open ground | the same, from `rts-client-3d` (`RtsHud`); with no RTS part a lone factory takes no click |
+
+  What a game moves out of its own code into `rpg-client-3d`, from duke-dungeon at 7eb423d:
+
+  | Was, in duke-dungeon | Is |
+  |---|---|
+  | `BagScreen` | `uz.dukeengine.client3d.rpg.BagScreen`: `BagScreen.on(duke, menuStyle, words, gives, buffs)`, `show(game, bag, wire, under)` — its words a `BagScreen.Words` (the items heading, the drop, take and use hints, and the pick-up, to-the-gate and use order words, `PartyOrders`' today), `gives` the game's lines for what a thing gives (its `bonusOf` and `extraOf`, which stay the game's words), `bag` this machine's hero's bag or null, `wire` its `PartyOrders::of`, and `under` its `MissionScreen` |
+  | `BuffScreen` | `uz.dukeengine.client3d.rpg.BuffScreen`: `new BuffScreen(settings.skills(), settings.effects(), settings.menu(), settings.panelLook(), hud.buffIcon(), words)`, its words a `BuffScreen.Words` (attack, mana a second, lifesteal, attack speed, seconds); `addsOf(buff)` an instance method |
+  | `run/HeroStatus`, the card's fields | written through `uz.dukeengine.client3d.rpg.HeroCard`: `HeroCard.named(name).title(…).rank(…).health(now, most)`… — `experience`, `mana`, `refusedForMana`, `depth`, `headings`, `note`, `stat`, `attribute`, `attributeTip`, `item`, `ordersAreHis`, `order`, `points`, `skills`, `casts` (its `appendCast`) — and `field(name, value)` for the line's other fields (`deep`, `boss`, `hero`, `who`, `look`); what goes on the card stays the game's |
+  | `HeroPanel`, drawn by the client | drawn by the RPG's part as before, found on the classpath: nothing to call |
+  | `run/Watching` and a hero needing to be selected for his orders | single-hero control (below): his orders go to his hero whatever is picked out. `Watching` stays the game's, for whose card the panel shows |
+
+- **`HudPart`** (`uz.dukeengine.client3d`): a kind of game's part of the window, found on the classpath as a kind of
+  game is (a `META-INF/services/uz.dukeengine.client3d.HudPart` line). The client asks its parts what it asked the hero
+  panel and the RTS: where a panel stands, the minimap's socket, whether a point is on a panel, whether a key is ready
+  and whose the orders are, a key refused or armed, a point to spend, a creature dead, the pause menu's facts, a rally
+  point, a build menu — and who the orders go to. Every answer has a default that is the client's own with no part.
+- **`Visuals.part(type, whenNone)`**: a kind of game's own looks among the game's `Visuals`, never read by the client's
+  own drawing — the hero bar's (`HeroLooks`).
+- **`DukeGame.setOrdered(ids)`**: the things the local player's orders go to where they are not the selection, told by
+  the window; a click is judged for them — whether an attack would be taken, the word of the order it gives. `null`,
+  the default, is the selection.
+- `Lettering`, `Shade`, `NineSlice` (and their members the panel uses), `UnitBarReading` and its `read`, two
+  `Visuals.UnitVisual` fields (`idleAnim`, `dieAnim`) and `AnimationLibrary.findControl` are public, for the parts.
+- `Layer` has a component more, `renews`, after `follows`: a `Layer` made in code rather than read from a block passes
+  it, null where it says nothing.
+
+### One seamless world
+
+A world a thousand cells a side and more: what a frame costs follows what is awake and near, not the size of the
+world; a route across it costs what its length does; what each side has seen is kept as small as what it walked, by the
+simulation, and saved with it; and its ground is built as far as the camera sees. Each part is the game's to take; a
+game that takes none plays, routes and draws every frame as before, which every test in the repository holds it to.
+
+- **Things far from every waker sleep** (`Sleep`, `GameLogic.setSleep`, `DukeGame.sleep`): every so many frames, from
+  where things stand and in the order they came in, the things farther than the rule's reach from every waker — the
+  game's heroes — are put to sleep. A sleeper's modules do not run and it looks at nothing, and all of it stays as it
+  was; a blow landing on it wakes it until the rule next decides, a thing marked destroyed leaves the same frame, and one
+  that dies of no blow on the rule's next frame. The same frames on every machine.
+- **A frame costs what is awake**: the partition's buckets hash apart (a diagonal of them hashed alike, and a busy frame
+  went on collisions) and answer in the order things came in, which each thing now carries (`GameObject.getEntered`);
+  the world keeps each player's things (`getObjectsOf`, `getOwners`) and what a player is shown is asked of his own and
+  his allies' things and of what stands where their reach falls; a side's defeat, its power and an aura look at its own
+  or at what is near (`World.thingsNear`); a thing marked destroyed is reaped from the list of those marked; and the
+  ground under the still things is laid again only when one of them changed what it lays, cell for cell as a ground
+  laid whole. Five thousand monsters asleep on a 900-cell world cost 0.06 ms a frame where awake they cost 5.
+- **Routes by sectors** (`Sectored`, `GameLogic.setRouteSectors`): a map that says so is kept in sectors of so many of
+  its cells a side, each sector's open cells in the pieces a step joins inside it (`Sectors`), joined to their
+  neighbours'. What reaches what is answered by them — the same cells together as the zones worked out whole
+  (`Zones.over`), kept sector by sector as the ground changes, the grid now recording where it changed
+  (`PathGrid.changesSince`). A route is found through the pieces its way crosses and then cell by cell a stretch of two
+  sectors at a time, by the search's own steps, costs and turns: corner to corner of a 1024-cell world examines some
+  nine thousand cells in about 15 ms, where the whole grid's search examined nearly half a million in 800; of a
+  4096-cell one, about a hundred thousand in 90 ms. A search's arrays on a map past two million cells hold only the
+  cells it touched, with the same answers.
+- **What each side has seen, kept small and by the simulation**: sight cells in chunks made as a side's lookers first
+  cover them, the cells in sight kept with the frame each was last covered — every answer the one the cells kept whole
+  gave. A view a client is shown shares the chunks, so the client's discovery takes again only the chunks that changed.
+  Where the game says so (`GameLogic.setSightHiddenByStone`) stone stops a line of sight and a floor above a looker's is
+  seen with nothing on it in sight — a crawler's dark kept by the simulation, the same on every machine. What a side
+  has seen is remembered and recalled (`getSightMemory`, `setSightMemory`) and saved with a game (`GameSnapshot`'s
+  `SIGHT` lines).
+- **The fog's and the minimap's pictures** send only the tiles of 64 texels that changed to the card
+  (`Renderer.modifyTexture`), the whole picture where most of it did.
+- **The ground streamed** (`Visuals.streamGround`): a kit's floor built a chunk of 16 cells at a time within so many
+  cells of where the camera looks, and chunks further off let go — each chunk corner for corner what the whole build
+  makes, its geometry kept about its own corner. A chunk is built a step at a time — its plan, a batch of its pieces,
+  its scenery, one material's merge — for as long as a frame's budget allows, the nearest first, so ground coming into
+  reach is built before it is seen; the camera's own chunk and the eight round it at once, so what is under the camera
+  is never missing. A world whose cells wear looks of their own asks each cell's look as its chunk is built, never the
+  whole world's at once. A painted map is built whole, as before.
+- **The dark kept round the camera**: on a world built round the camera, what the player has seen and sees stays two
+  bits a cell for the whole world, but how brightly each cell is drawn is kept only for a window round where the camera
+  looks, which follows it, and the fog's picture is the picture of that window, laid over the ground a copy after a
+  copy — a place of the ground always its own texel, only the ground coming into the window drawn as it moves, past it
+  drawn never seen. The fog is as sharp as the game's texels a cell (`Fog.texelsPerCell`) whatever the world's size.
+  What changed is counted where it was written, where the whole map was compared with itself every frame; over the
+  whole map every answer is the one the discovery kept whole gave.
+- **The minimap round the hero** (`Visuals.minimapSpan`): the cells round where the camera looks, its picture sliding
+  under it, the things and the view's outline on it where they stand and a click on it where it points; a map no wider
+  than the span, and a game that names none, the whole map as always.
+- **The whole world as a picture** (`Duke3D.worldPicture`), for the game to draw on its canvas where it likes — a map
+  screen, a scroll: at most as many texels a side as it asks, each the most seen of its cells in the minimap's colours,
+  kept from what changed and handed again for each new world.
+- **A haze** (`Visuals.haze`): the ground fades into nothing — the fog's own colour, the window's background — from so
+  many cells round where the camera looks to so many more, so the edge of the ground built round the camera is never
+  seen; round where the camera looks, not the eye, so zooming out fades nothing near the hero.
+- A unit some forty-one thousand units from the origin walks as one beside it, step for step: a float there is a 256th
+  of a unit.
+- The water takes the size of a new world's fog picture with the ground: made before the picture took it, it read its
+  dark from the picture's edge on a world's first build.
+
+Measured on this repository's machine, without a card, the client's own work — the dark, its picture, the minimap and
+the ground built round a hero walking 2.4 cells a second: a frame 0.5 ms on a world 1024 cells a side and 0.5 ms on one
+of 4096; its first frame under 0.1 s on either, where the pictures kept whole took 1.8 s on the wider; the dark and the
+minimap laid at load 0.1 s on the wider. A frame's worst there was 12 to 21 ms, most of it the collector of a test's
+small heap; a chunk's largest step is one material's merge, about a millisecond for four hundred pieces once warm.
+
+**Where the next limit lies**, and what lifting it would take:
+
+- **Cells in memory.** The grid keeps every cell in flat arrays — some eleven bytes a cell, and more where movers,
+  zones and scenery are — so a world of 4096 cells a side holds a few hundred megabytes of them, and a cell's index
+  runs out at 46,000 a side. Past that the grid must be kept in chunks and paged from disk by where the awake things
+  and the routes need them; its seams — the change log the sectors keep up with, sight kept in chunks, the ground built
+  a chunk at a time — are the ones that paging would use.
+- **Laying a world.** A world is handed over whole, and its cells are read once when it is laid: the sectors of a world
+  4096 cells a side take about 1.6 s to build, and each pass the client makes over the map's cells at load about 0.1 s.
+  A world generated as it is walked would lay chunks ahead of the hero into a grid kept in chunks; the sectors are
+  already kept current as cells change after load (`PathGrid.changesSince`).
+- **Positions past about 100,000 units.** Positions are floats: at 131,072 a float is a 64th of a unit, and a step
+  there moves by that much. Past it the simulation needs an origin that moves — every position shifted by whole cells
+  at fixed frames, the same on every machine — or positions of more bits; the client already keeps the ground about
+  its chunks' corners, and would draw everything about an origin near the camera.
+- **Routes wider still.** Corner to corner of 4096 cells is about 90 ms, most of it the search over pieces; a world
+  four times as wide wants sectors of sectors.
+- **Who sleeps.** Deciding costs a look at every thing's cell every so many frames — nothing between — which is cheap
+  for thousands and not for hundreds of thousands; the partition could be asked for what stands round each waker instead.
+
+Not measured here: frames a second on a graphics card, which this repository's machine has none of.
+
+### A runtime of no kind
+
+The runtime — `DukeGame`, its sessions, replays, snapshots and scripts — runs a kind of game it does not know, which
+brings what only it knows through core's `Flavour`: its world (`newWorld`), the records its blocks are read into
+(`templates`), its wire and what the wire carries (`codec`, `carries`), its own setup once its players are in
+(`began`), and its parts of the picture (`ViewParts`: whether a thing is a structure and may be picked, what it has
+queued and carries, how far it is built, its turrets and rally point, a side's money and spare power). A library offers
+its kind as a service, and `Flavour.found` is the one on the classpath. What the runtime does each frame on the
+simulation thread — work and orders posted from other threads, the game's per-frame code, the annihilation rule — runs
+where the world's `simulate` is, just before it (`GameLogic.eachFrame`), in the same order as before; commands of no
+set the world knows reach the runtime by `GameLogic.onOtherCommands`. A match's art is planned from the modules whose
+data names what their thing may bring into the world (`Brings`), a factory's build list among them.
+
+### The RTS, a flavour
+
+`RtsFlavour` is the RTS as a kind of game: `RtsLogic` — the RTS world with the standard orders applied, moved into
+`rts` — `RtsTemplate`, `CommandCodec`, the RTS's view parts, and the RTS's own API beside the runtime's: what a factory
+makes and a builder finishes, what research and selling set off, a side's upgrades and starting money, a factory's
+build menu, the starter units, and the RTS world it runs (`logic()`). A callback given it after the match has begun
+reaches the world at once.
+
+### Combat, a layer of its own
+
+`combat` is what fights, whatever the genre — weapons and their bonuses, statuses, experience, healing over time,
+shots, closing on a target, the auras below and the orders every side gives — on `core` alone, so a world that is no
+RTS's fights with it: a `GameLogic` that is an `ArmedWorld`, its `armoury()` the world's arms settings — the weapons by
+name, the target rules, the weapon bonus table, how often weapons look, what is shown when hidden, the guard rules —
+with `CombatModules.withDefaults()` for its modules. `RtsSimulation` is one, and its `addWeapons`, `findWeapon`,
+`setTargetRules`, `setWeaponBonuses`, `setTargetScanFrames`, `setGuardRules` and the rest are its armoury's, doing
+what they did. A side's own damage bonus is asked of a player that is an `ArmedSide`, as `RtsPlayer` is, and a unit's
+of its `DamageModifier` modules as ever; whether a contained thing fires from its hold, of every `Hold` in the world,
+as `ContainModule` is. `CombatModuleGroups.PROGRESSION` is the editor's group for experience, the word
+`RtsModuleGroups.PROGRESSION` names.
+
+### The RPG, a library
+
+`rpg` is to an RPG what `rts` is to an RTS: the mechanisms every RPG shares, on `combat`, with the rules left to the
+game. It is duke-dungeon's own, which already ran the RPG half, and what tied it to that one game came out on the way:
+
+- **The settings it read are records it is handed** (`SkillBook.Rules`, `Bow.Defaults`, a storey height, a level
+  step), the way `rts` takes `SellRules` and `GuardRules`.
+- **A seal is the game's.** Everything that hurts, mends, moves a caster or lends an aura asks `Seal.parts`; what parts
+  two places — a keep's shut gate, a ward — is a rule, so the game answers it.
+- **Loot is drawn from the world's `LogicRandom`.** The dungeon drew each death from its own seeded generator and the
+  monster's id, so a drop did not depend on the order of deaths; the world's stream does, but it is the one every
+  machine of a lock-step match and every replay draws in the same order, and it is saved with the world. The owner's
+  call. A game that wants its drops apart from the rest of the simulation's chances keeps its own `LogicRandom` and
+  hands that in.
+- **Item kinds are open words.** `ATTACK`, `HEALTH`, `ARMOUR`, `MANA`, `ATTRIBUTE` and the three extras are the
+  ones a hero's figures read (`Stat`); any other word is the game's to add up. Being a key is what an item does —
+  `Use = UNLOCK` — not what it is.
+- **Tier, not depth**: a floor, a zone, a level — how far into the game a drop is made.
+- **A hero's blow is his own.** It was his side's weapon bonus, an `RtsPlayer`'s, standing in for him while a player
+  commands one hero; it is an `AttackBonus` on him, so `rpg` needs nothing of `rts`. A blow multiplies it among the
+  unit's modifiers rather than after them, so its last bit may differ from the dungeon's own.
+- **What stays the game's**: the run, its floors and their generation, the keep and the spawner, the world's blocks, the
+  story and the words. The hero card on the wire went with the client, beside the hero panel (`HeroCard`, below), and
+  single-hero control with it. An RPG flavour has not been made: an RPG still runs on `RtsFlavour`.
 
 ### The client, split
 
