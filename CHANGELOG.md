@@ -47,6 +47,8 @@ phone is played with `client3d-touch`. The sections after the list of changes ar
   with confirm and cancel — and `TouchHero`, a stick and skill buttons. The HUD and touch sizes scale with the
   screen's density.
 - **`-Dduke.stats=N`** logs frame and logic timing every N seconds.
+- **A strip (a road) reads its picture's v from the top row**, as the picture is drawn: jME loads pictures flipped, so
+  a road had been drawn from the bottom of its picture — the crossings — instead of the straight band at the top.
 
 ### More since 0.8.0
 
