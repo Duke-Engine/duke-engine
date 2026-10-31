@@ -4,7 +4,7 @@ plugins {
 
 // Every module of the engine, at one version. A game writes the version once:
 //
-//   implementation(platform("uz.duke-engine:bom:0.8.0"))
+//   implementation(platform("uz.duke-engine:bom:0.9.0"))
 //   implementation("uz.duke-engine:client3d")
 //   implementation("uz.duke-engine:kit")
 //
@@ -27,5 +27,7 @@ dependencies {
         api(project(":client3d-action"))
         api(project(":client3d-touch"))
         api(project(":kit"))
+        // Only a build with -Pandroid has it, and the release is one.
+        findProject(":client3d-android")?.let { api(it) }
     }
 }

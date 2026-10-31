@@ -5,7 +5,7 @@
 # anyone who is not. The games built on it release installers of their own, in
 # their own repositories — see Duke-Engine/duke-dungeon.
 #
-#   git tag v0.8.0 && git push origin v0.8.0
+#   git tag v0.9.0 && git push origin v0.9.0
 #
 # The tag is the version. What it publishes is whatever `version` says in
 # build.gradle.kts, so the two are kept in step by hand — a tag that disagrees
@@ -222,7 +222,8 @@ jobs:
 
       - name: Publish
         if: steps.keys.outputs.ready == 'true'
-        run: ./gradlew publishAndReleaseToMavenCentral --no-daemon --stacktrace
+        # -Pandroid: client3d-android is an AAR, built from the runner's Android SDK (ANDROID_HOME).
+        run: ./gradlew -Pandroid publishAndReleaseToMavenCentral --no-daemon --stacktrace
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}

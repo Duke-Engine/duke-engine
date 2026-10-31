@@ -2,14 +2,18 @@ plugins {
     java
     // Publishing to Maven Central's Portal: it builds the sources and javadoc jars, signs everything and
     // uploads the bundle, none of which plain `maven-publish` can do on its own.
-    id("com.vanniktech.maven.publish") version "0.30.0" apply false
+    id("com.vanniktech.maven.publish") version "0.37.0" apply false
+    // Named here so the publish plugin sees the Android plugin's classes: one class loader for both. Applied only by the
+    // Android modules, which a build has with -Pandroid alone.
+    id("com.android.library") version "9.2.1" apply false
+    id("com.android.application") version "9.2.1" apply false
 }
 
 allprojects {
     // The namespace verified at central.sonatype.com, which is the domain backwards. A Maven groupId may hold
     // a hyphen and a Java package may not, so the packages stay `uz.dukeengine.*` — the two need not match.
     group = "uz.duke-engine"
-    version = "0.8.0"
+    version = "0.9.0"
 
     repositories {
         mavenCentral()
@@ -143,6 +147,9 @@ val published = mapOf(
         + "held keys, a camera kept on him and turned by a held mouse, the left button striking, skills aimed ahead.",
     "client3d-touch" to "Touch controls for the 3D client, plugged in as a ControlScheme: tap to select and order, a "
         + "drag to pan, a long press and drag for a box, a pinch to zoom, two fingers twisting to turn the camera.",
+    // An AAR, and only in a build with -Pandroid, which is the only build that has the project.
+    "client3d-android" to "The Android side of the 3D client: the platform interfaces answered with android.graphics "
+        + "and the app's files, and the activity a game's Android launcher extends, with its content pack mounted.",
     "kit" to "The starter set a game begins from: an effects library and the particle art it is drawn with. "
         + "Data only — no code.",
 )
@@ -151,11 +158,16 @@ configure(subprojects.filter { it.name in published }) {
     apply(plugin = "com.vanniktech.maven.publish")
 
     configure<com.vanniktech.maven.publish.MavenPublishBaseExtension> {
-        // CENTRAL_PORTAL, not the default. The default is the old OSSRH at oss.sonatype.org, which works by
-        // creating a staging repository against an account this project does not have — the failure reads
-        // "Cannot get stagingProfiles for account (402)", which says nothing about the real cause. A namespace
-        // verified at central.sonatype.com is a Central Portal namespace, and the Portal takes a bundle instead.
-        publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
+        // The Central Portal, where the namespace was verified at central.sonatype.com: it takes a bundle.
+        publishToMavenCentral()
+        project.plugins.withId("com.android.library") { // applied after this block runs
+            // AGP makes an AAR's javadoc with Dokka, which cannot read the engine's Java 25 classes; Central takes an
+            // empty javadoc jar, and the AAR's classes are documented in the sources jar beside it.
+            configure(com.vanniktech.maven.publish.AndroidSingleVariantLibrary(
+                com.vanniktech.maven.publish.JavadocJar.Empty(),
+                com.vanniktech.maven.publish.SourcesJar.Sources(),
+                "release"))
+        }
         // Only when a key is there. Central will not take an unsigned artifact, but publishing to the local
         // repository to try the engine against a game must not need one — and a key is never in a repository.
         if (providers.gradleProperty("signingInMemoryKey").isPresent) {
