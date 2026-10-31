@@ -76,7 +76,12 @@ public final class BitmapFontBaker {
 
         int width = atlasSideFor(glyphs);
         var wide = new int[width * width];
-        int used = shelfPack(glyphs, width, wide);
+        int used;
+        // The side is a guess from the ink's area; shelves of mixed heights can waste more than it allows.
+        while ((used = shelfPack(glyphs, width, wide)) < 0) {
+            width *= 2;
+            wide = new int[width * width];
+        }
 
         // Cropped to the shelves that were filled. Square was only ever the
         // starting guess; half a texture of nothing costs memory on the card for
@@ -127,7 +132,7 @@ public final class BitmapFontBaker {
         return side;
     }
 
-    /** Rows of glyphs, each row as tall as its tallest. Simple, and tight enough. */
+    /** Rows of glyphs, each row as tall as its tallest. Simple, and tight enough. -1 when they overflow the side. */
     private static int shelfPack(List<Glyph> glyphs, int side, int[] atlas) {
         int x = 0;
         int y = 0;
@@ -140,6 +145,9 @@ public final class BitmapFontBaker {
                 x = 0;
                 y += shelfHeight;
                 shelfHeight = 0;
+            }
+            if (y + glyph.height > side) {
+                return -1;
             }
             glyph.x = x;
             glyph.y = y;
