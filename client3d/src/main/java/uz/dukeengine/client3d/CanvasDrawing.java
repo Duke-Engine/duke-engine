@@ -200,8 +200,10 @@ final class CanvasDrawing {
             madeTextures.put(picture, texture);
             uploads.needsUpload(picture);
         } else if (uploads.needsUpload(picture)) {
-            texture.getImage().setData(0, pixels(picture));
-            texture.getImage().setUpdateNeeded();
+            // Into the buffer it has: a new one each change is never given back on a phone, whose buffers are native.
+            var image = texture.getImage();
+            pixels(picture, image.getData(0).clear());
+            image.setUpdateNeeded();
         }
         var made = texture;
         return madeMaterials.computeIfAbsent(picture, _ -> new java.util.EnumMap<>(Canvas.Blend.class))
@@ -210,9 +212,13 @@ final class CanvasDrawing {
 
     /** A picture's pixels as the card takes them: red, green, blue, alpha, the bottom row first. */
     static ByteBuffer pixels(Picture picture) {
+        return pixels(picture, BufferUtils.createByteBuffer(picture.width() * picture.height() * 4));
+    }
+
+    /** The same, written into {@code data}, which holds exactly the picture. */
+    private static ByteBuffer pixels(Picture picture, ByteBuffer data) {
         int width = picture.width();
         var argb = picture.argb();
-        var data = BufferUtils.createByteBuffer(width * picture.height() * 4);
         for (int y = picture.height() - 1; y >= 0; y--) {
             for (int x = 0; x < width; x++) {
                 int pixel = argb[y * width + x];

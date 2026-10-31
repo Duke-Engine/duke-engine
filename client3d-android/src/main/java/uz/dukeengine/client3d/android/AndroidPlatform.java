@@ -38,7 +38,8 @@ public final class AndroidPlatform implements ClientPlatform {
 
     @Override
     public float uiScale() {
-        return activity().getResources().getDisplayMetrics().density;
+        var running = activity();
+        return running instanceof DukeActivity game ? game.uiScale() : running.getResources().getDisplayMetrics().density;
     }
 
     @Override

@@ -26,6 +26,10 @@ class TouchRtsTest {
     private float uiScale = 1f;
     private float lookX = 50f;
     private float lookY = 50f;
+    /** Where the eye looks this frame: the camera eases toward the look, so it lags while {@link #eyeLags}. */
+    private float eyeX = 50f;
+    private float eyeY = 50f;
+    private boolean eyeLags;
 
     private ControlScheme.Context window() {
         InvocationHandler recorder = (proxy, method, args) -> switch (method.getName()) {
@@ -39,11 +43,15 @@ class TouchRtsTest {
             case "pointedUnit" -> unitUnderFinger ? aUnit() : null;
             case "selected" -> somethingSelected ? List.of(new ObjectId(1)) : List.of();
             // ten pixels to a world unit, the camera's look the origin
-            case "groundAt" -> new float[] {(float) args[0] / 10f + lookX, (float) args[1] / 10f + lookY, 0f};
+            case "groundAt" -> new float[] {(float) args[0] / 10f + eyeX, (float) args[1] / 10f + eyeY, 0f};
             case "lookingAt" -> new float[] {lookX, lookY};
             case "lookAt" -> {
                 lookX = (float) args[0];
                 lookY = (float) args[1];
+                if (!eyeLags) {
+                    eyeX = lookX;
+                    eyeY = lookY;
+                }
                 yield null;
             }
             default -> {
@@ -104,6 +112,18 @@ class TouchRtsTest {
 
         assertEquals(40f, lookX, 1e-3, "the camera went left by what the ground slid under the finger");
         assertEquals(50f, lookY, 1e-3);
+    }
+
+    @Test
+    void aPanFollowsTheFingerOnceThoughTheEyeHasNotCaughtUp() {
+        eyeLags = true;
+        var scheme = scheme();
+        scheme.gestures().down(1, 100, 100, 0f);
+        scheme.gestures().move(1, 150, 100);
+        scheme.gestures().move(1, 200, 100); // 100 px in all, the eye still where it was
+        scheme.gestures().move(1, 200, 100);
+
+        assertEquals(40f, lookX, 1e-3, "10 world units, not 10 more each event");
     }
 
     @Test

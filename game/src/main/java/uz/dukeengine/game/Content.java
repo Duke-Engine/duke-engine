@@ -105,6 +105,15 @@ final class Content {
         throw new IllegalStateException(flavour.getClass().getName() + " makes a world with no weapons to give");
     }
 
+    /** Every template that stands in the world. */
+    Set<String> standingIn(GameLogic logic) {
+        var standing = new LinkedHashSet<String>();
+        for (var object : logic.getObjects()) {
+            standing.add(object.getTemplate().name());
+        }
+        return Collections.unmodifiableSet(standing);
+    }
+
     /** Every template that stands in the world, can be produced from it, or is brought in by what is. */
     Set<String> reachableFrom(GameLogic logic) {
         var seen = new LinkedHashSet<String>();

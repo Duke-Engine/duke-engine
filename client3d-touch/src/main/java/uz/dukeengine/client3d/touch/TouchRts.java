@@ -36,7 +36,9 @@ public final class TouchRts implements ControlScheme {
 
     private Context context;
     private boolean onWorld;
-    private float[] heldGround;
+    /** Where a pan's finger went down on the screen, null for no pan; and where the camera was told to look then. */
+    private float[] panFrom;
+    private float[] lookFrom;
     /** Where a finger put the armed building, the world's x and y; null before it has. */
     private float[] aimAt;
     /** Whether the confirm and cancel buttons are up: the finger has lifted off a placement. */
@@ -71,7 +73,8 @@ public final class TouchRts implements ControlScheme {
 
         @Override
         public void panBegin(float x, float y) {
-            heldGround = onWorld && !context.placing() ? context.groundAt(x, y) : null;
+            panFrom = onWorld && !context.placing() ? new float[] {x, y} : null;
+            lookFrom = context.lookingAt();
         }
 
         @Override
@@ -81,10 +84,13 @@ public final class TouchRts implements ControlScheme {
                 aim(x, y); // the finger carries the ghost, the camera stays
                 return;
             }
-            var now = heldGround == null ? null : context.groundAt(x, y);
+            // Where the finger began and where it is, both on the ground as the eye sees it now: the eye eases toward
+            // where it is told to look, so the ground it shows lags the look, and a move measured against the look
+            // was added again every event until the view ran to the map's edge.
+            var from = panFrom == null ? null : context.groundAt(panFrom[0], panFrom[1]);
+            var now = from == null ? null : context.groundAt(x, y);
             if (now != null) {
-                var look = context.lookingAt();
-                context.lookAt(look[0] + heldGround[0] - now[0], look[1] + heldGround[1] - now[1]);
+                context.lookAt(lookFrom[0] + from[0] - now[0], lookFrom[1] + from[1] - now[1]);
             }
         }
 

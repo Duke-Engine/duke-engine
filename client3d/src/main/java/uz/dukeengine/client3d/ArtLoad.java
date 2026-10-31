@@ -28,7 +28,9 @@ import java.util.function.Consumer;
  * again. Load twenty megabytes, drop it on the floor, and the collector is
  * free to undo the entire exercise before the first monster walks in — with
  * no error, no warning, and a stall in exactly the frame this exists to spare.
- * So one instance of each is kept for the life of the window.
+ * So each one's key is kept for the life of the window: the cache holds its
+ * original for as long as the key it was loaded under lives, and a kept clone
+ * would be a second whole copy of the model's nodes and materials beside it.
  */
 final class ArtLoad implements MatchLoad.Art {
 
@@ -44,23 +46,26 @@ final class ArtLoad implements MatchLoad.Art {
         private final MissingAssets missing;
 
         /**
-         * Where one of each creature stands, culled, for the life of the window.
+         * Where a creature stands, culled, while it is shown to the card.
          *
          * <p>In the scene rather than off to the side of it, because a spatial with no
          * parent has no world transform and jME says so with an assertion. Never
-         * drawn — the node is culled outright — and never emptied, because these
-         * are the references that hold the parsed models in the asset cache.
+         * drawn — the node is culled outright.
          */
         private final Node warmNode = new Node("warm");
 
         /**
-         * Textures and pieces with nothing else holding them. See {@link ArtLoad}.
+         * The keys of what was read, which hold the cache's originals. See {@link ArtLoad}.
          */
-        private final List<Object> artKeptAlive =
-                java.util.Collections.synchronizedList(new ArrayList<>());
+        private final java.util.Set<Object> artKeptAlive = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
         private void keep(Object asset) {
-            artKeptAlive.add(asset);
+            // A clone carries the very key its original is cached under (an equal key made anew holds nothing); a
+            // sound's samples are cached as themselves.
+            var held = asset instanceof com.jme3.asset.CloneableSmartAsset clone ? clone.getKey() : asset;
+            if (held != null) {
+                artKeptAlive.add(held);
+            }
         }
 
         /**
@@ -331,16 +336,26 @@ final class ArtLoad implements MatchLoad.Art {
         reading = one.path();
         try {
             var body = store.assetManager.loadModel(one.path());
+            store.keep(body);
             if (look.modelPart != null) {
                 body = store.bodies.partOf(body, look.modelPart, one.path());
             }
             store.bodies.dressModel(body, look, one.path());
-            // Left in the scene, culled, for as long as the window lasts. A
-            // clone is what holds a parsed model in jME's cache; drop it and
-            // the file is read again the first time a creature needs it.
             store.warmNode.attachChild(body);
             store.rootNode.updateGeometricState();
             store.renderManager.preloadScene(body);
+            // Let go once shown: the kept keys hold the model and the skins it was dressed in, so the next one built
+            // finds them cached and on the card, and this whole copy of its nodes and materials is not kept beside them.
+            body.depthFirstTraversal(spatial -> {
+                if (spatial instanceof com.jme3.scene.Geometry geometry && geometry.getMaterial() != null) {
+                    for (var param : geometry.getMaterial().getParams()) {
+                        if (param.getValue() instanceof com.jme3.texture.Texture texture && texture.getKey() != null) {
+                            store.keep(texture);
+                        }
+                    }
+                }
+            });
+            body.removeFromParent();
             store.warmedAlready.add(one.path());
         } catch (RuntimeException _) {
             store.missing.warn(one.path(), "model");

@@ -44,7 +44,7 @@ public final class TouchHero implements ControlScheme {
     static final float BUTTON = 96f;
     /** The gap between buttons and from the screen's edge. */
     static final float GAP = 24f;
-    /** Radians of camera turn per pixel of a finger dragged across the right half. */
+    /** Radians of camera turn per pixel at the design's density of a finger dragged across the right half. */
     static final float TURN_PER_PIXEL = 0.006f;
     /** The button of {@link #strike}; the skill buttons follow it. */
     private static final int STRIKE = 0;
@@ -197,7 +197,8 @@ public final class TouchHero implements ControlScheme {
         if (id == stickFinger) {
             stick.move(x, y);
         } else if (id == lookFinger) {
-            context.turnBy(-(x - lookX) * TURN_PER_PIXEL); // a finger dragged right turns the view as the mouse does
+            // a finger dragged right turns the view as the mouse does, as far for the same length of finger on any screen
+            context.turnBy(-(x - lookX) * TURN_PER_PIXEL / context.uiScale());
             lookX = x;
         }
     }

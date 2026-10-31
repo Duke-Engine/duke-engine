@@ -1641,8 +1641,12 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** The art a match built can draw, read ahead of its first frame — see {@link ArtLoad}. */
     private ArtLoad artLoadFor(DukeGame built) {
-        return new ArtLoad(built.templatesThisMatchCanDraw(), visuals, artStore);
+        return new ArtLoad(preloadOnlyWhatStands ? built.templatesStanding() : built.templatesThisMatchCanDraw(),
+                visuals, artStore);
     }
+
+    /** See {@link Duke3D#preloadOnlyWhatStands}; set before the window starts. */
+    boolean preloadOnlyWhatStands;
 
     private void advanceLoadingArt() {
         matchLoad.frame();

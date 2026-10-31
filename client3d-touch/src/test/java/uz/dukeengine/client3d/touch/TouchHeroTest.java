@@ -111,6 +111,16 @@ class TouchHeroTest {
     }
 
     @Test
+    void onADenseScreenTheSameLengthOfFingerTurnsAsFar() {
+        uiScale = 2f;
+        var scheme = hero();
+        scheme.touch(DOWN, 2, 600, 300);
+        scheme.touch(MOVE, 2, 800, 300); // 200 px of a screen twice as dense: 100 at the design's density
+
+        assertTrue(calls.contains("turnBy [" + -100 * TouchHero.TURN_PER_PIXEL + "]"), calls.toString());
+    }
+
+    @Test
     void holdingHitStrikesAlongTheForwardAndTurnsFollow() {
         var scheme = hero();
         scheme.touch(DOWN, 1, STRIKE_X, BUTTON_Y);

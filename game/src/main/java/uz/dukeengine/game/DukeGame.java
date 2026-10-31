@@ -921,6 +921,11 @@ public final class DukeGame {
         return !started || !skirmish.knowsItsArt() ? null : content.reachableFrom(logic);
     }
 
+    /** The templates of what stands in the world now, or {@code null} before {@link #boot}. */
+    public Set<String> templatesStanding() {
+        return !started ? null : content.standingIn(logic);
+    }
+
     /**
      * Name, per template, the other templates it may bring into the world — what its death leaves (a hulk, rubble,
      * a burning soldier), a crate it drops — followed as a factory's build list is, so the art of what only a death
