@@ -1,6 +1,5 @@
 package uz.dukeengine.game;
 
-import java.awt.Color;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -216,12 +215,6 @@ public final class DukeGame {
     public GamePlayer addPlayer(String name, Colour colour) {
         requireNotStarted();
         return roster.add(name, colour);
-    }
-
-    /** @deprecated use {@link #addPlayer(String, Colour)}; goes once the games have moved off AWT. */
-    @Deprecated
-    public GamePlayer addPlayer(String name, Color color) {
-        return addPlayer(name, new Colour(color.getRGB()));
     }
 
     /**
@@ -1221,12 +1214,6 @@ public final class DukeGame {
     /** The display colour for a player index (neutral is gray). */
     public Colour getColour(int playerIndex) {
         return roster.colourOf(playerIndex);
-    }
-
-    /** @deprecated use {@link #getColour(int)}; goes once the games have moved off AWT. */
-    @Deprecated
-    public Color getColor(int playerIndex) {
-        return new Color(getColour(playerIndex).argb(), true);
     }
 
     /** The index of the viewing player (whose units the window commands). */

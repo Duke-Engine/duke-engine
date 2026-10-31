@@ -1,7 +1,5 @@
 package uz.dukeengine.game;
 
-import java.awt.Color;
-
 /**
  * A player as game code sees it — a friendly handle over the engine's
  * {@code Player}, carrying presentation extras (display colour) the simulation
@@ -27,12 +25,6 @@ public final class GamePlayer {
 
     public Colour getColour() {
         return colour;
-    }
-
-    /** @deprecated use {@link #getColour()}; goes once the games have moved off AWT. */
-    @Deprecated
-    public Color getColor() {
-        return new Color(colour.argb(), true);
     }
 
     /** The engine player index. Only valid once the game has started. */

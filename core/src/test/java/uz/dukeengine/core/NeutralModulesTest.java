@@ -32,8 +32,7 @@ class NeutralModulesTest {
 
     private static final String GAME = "game/src/main/java/uz/dukeengine/game/";
 
-    private static final List<String> STILL_ON_A_PLATFORM = List.of(
-            GAME + "DukeGame.java", GAME + "GamePlayer.java");
+    private static final List<String> STILL_ON_A_PLATFORM = List.of();
 
     private static final List<String> STILL_ON_FILES = List.of(
             GAME + "DukeGame.java");

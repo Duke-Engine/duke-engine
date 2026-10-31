@@ -24,11 +24,9 @@ class ColourTest {
     }
 
     @Test
-    @SuppressWarnings("deprecation")
-    void theAwtOverloadsCarryTheSameColour() {
+    void aPlayerKeepsTheColourItWasAddedWith() {
         var game = DukeGame.create("Colours");
-        var player = game.addPlayer("One", java.awt.Color.CYAN);
+        var player = game.addPlayer("One", Colour.CYAN);
         assertEquals(Colour.CYAN, player.getColour());
-        assertEquals(java.awt.Color.CYAN, player.getColor());
     }
 }
