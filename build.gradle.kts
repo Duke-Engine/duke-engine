@@ -29,6 +29,11 @@ subprojects {
     }
     apply(plugin = "java")
 
+    // Javadoc is for reading, not a gate: doclint stays off, as the publish plugin kept it before 0.35.
+    tasks.withType<Javadoc>().configureEach {
+        (options as StandardJavadocDocletOptions).addStringOption("Xdoclint:none", "-quiet")
+    }
+
     java {
         toolchain {
             languageVersion.set(JavaLanguageVersion.of(25))
