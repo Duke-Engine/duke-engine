@@ -1,0 +1,40 @@
+// Fog that thins with height, and the sun scattered in it: see uz.dukeengine.render.HeightFogFilter.
+MaterialDef Height Fog {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Int NumSamples
+        Int NumSamplesDepth
+        Texture2D Texture
+        Texture2D DepthTexture
+
+        Matrix4 ViewProjectionMatrixInverse
+        // The fog's density at height 0, and how fast it thins with height, per world unit.
+        Float Density
+        Float Falloff
+        // How far the sky is taken to be.
+        Float SkyDistance
+        // Toward the sun; the light it gives; the colour of the air.
+        Vector3 ToSun
+        Vector3 Sun
+        Vector3 Air
+        // Half size: the share of the sun that reaches the air, red, and the distance it was found at, green. Absent, all of it.
+        Texture2D Shafts
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/HeightFog.frag
+
+        WorldParameters {
+            CameraPosition
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+            RESOLVE_MS : NumSamples
+            RESOLVE_DEPTH_MS : NumSamplesDepth
+            SHAFTS : Shafts
+        }
+    }
+}

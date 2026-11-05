@@ -8,6 +8,7 @@ import com.jme3.scene.Node;
 import java.util.ArrayList;
 import java.util.logging.Logger;
 import uz.dukeengine.render.AtmosphereSky;
+import uz.dukeengine.render.HeightFogFilter;
 import uz.dukeengine.render.LocalShadowFilter;
 import uz.dukeengine.render.PictureChain;
 import uz.dukeengine.render.PictureSettings;
@@ -31,6 +32,7 @@ final class PhysicalLook {
     private final Node root;
     private final AtmosphereSky atmosphere;
     private final LocalShadowFilter local;
+    private final HeightFogFilter fog;
     private LightProbe probe;
 
     PhysicalLook(AssetManager assets, RenderManager renderManager, Node root, SceneLight light, PictureSettings picture) {
@@ -52,6 +54,9 @@ final class PhysicalLook {
             finishing.add(local);
         }
         finishing.addAll(PictureChain.filters(picture));
+        // The fog is in the chain only when the picture asks for it; the sun's cascades it reads are found by SunShadows.
+        this.fog = finishing.stream().filter(HeightFogFilter.class::isInstance).map(HeightFogFilter.class::cast)
+                .findFirst().orElse(null);
         light.shadows().finishWith(finishing);
     }
 
@@ -81,9 +86,12 @@ final class PhysicalLook {
      * hour, tint it by {@link uz.dukeengine.render.Atmosphere#transmittance} when a game wants its sunset light red.
      */
     void follow(SceneLight light) {
+        var sun = light.lit();
         if (atmosphere != null) {
-            var sun = light.lit();
             atmosphere.follow(sun.direction().negate(), sun.colour());
+        }
+        if (fog != null) {
+            fog.sun(sun.direction().negate(), sun.colour(), sun.ambient());
         }
     }
 }

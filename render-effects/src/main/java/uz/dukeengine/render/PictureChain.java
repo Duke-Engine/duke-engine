@@ -16,6 +16,9 @@ public final class PictureChain {
         if (settings.ambientOcclusion()) {
             filters.add(new GtaoFilter(settings.occlusionRadius()));
         }
+        if (settings.fogDensity() > 0f) {
+            filters.add(new HeightFogFilter(settings));
+        }
         if (settings.bloom()) {
             filters.add(new MipBloomFilter());
         }

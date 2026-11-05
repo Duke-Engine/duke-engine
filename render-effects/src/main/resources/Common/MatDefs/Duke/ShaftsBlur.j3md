@@ -1,0 +1,21 @@
+// The second pass of the sun's shafts: see uz.dukeengine.render.HeightFogFilter.
+MaterialDef Shafts Blur {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        // What the first pass found: red the share of the sun that reaches the air, green the distance it was found at.
+        Texture2D Shafts
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/ShaftsBlur.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+        }
+    }
+}

@@ -21,7 +21,7 @@ class PictureChainTest {
 
     @Test
     void ambientOcclusionOffLeavesNoOcclusionFilter() {
-        var off = new PictureSettings(false, true, true, 0.7f, false, true, true, 4, 0.75f, false);
+        var off = new PictureSettings(false, true, true, 0.7f, false, true, true, 4, 0.75f, false, 0f, 0.06f, true);
         assertTrue(PictureChain.filters(off).stream().noneMatch(GtaoFilter.class::isInstance));
     }
 
@@ -39,6 +39,20 @@ class PictureChainTest {
         assertFalse(PictureSettings.FULL.autoExposure());
         assertTrue(PictureSettings.FULL.withAutoExposure(true).autoExposure());
         assertEquals(PictureSettings.FULL, PictureSettings.FULL.withAutoExposure(true).withAutoExposure(false));
+    }
+
+    @Test
+    void fogIsOffInFullAndOneFilterBeforeTheBloomWhenAsked() {
+        assertEquals(0f, PictureSettings.FULL.fogDensity());
+        assertTrue(PictureChain.filters(PictureSettings.FULL).stream().noneMatch(HeightFogFilter.class::isInstance));
+        var filters = PictureChain.filters(PictureSettings.FULL.withFog(0.01f, 0.05f));
+        assertEquals(1, filters.stream().filter(HeightFogFilter.class::isInstance).count());
+        assertTrue(filters.indexOf(filters.stream().filter(GtaoFilter.class::isInstance).findFirst().get())
+                < filters.indexOf(filters.stream().filter(HeightFogFilter.class::isInstance).findFirst().get()));
+        assertTrue(filters.indexOf(filters.stream().filter(HeightFogFilter.class::isInstance).findFirst().get())
+                < filters.indexOf(filters.stream().filter(MipBloomFilter.class::isInstance).findFirst().get()));
+        assertThrows(IllegalArgumentException.class, () -> PictureSettings.FULL.withFog(-1f, 0.05f));
+        assertThrows(IllegalArgumentException.class, () -> PictureSettings.FULL.withFog(0.01f, -0.05f));
     }
 
     @Test

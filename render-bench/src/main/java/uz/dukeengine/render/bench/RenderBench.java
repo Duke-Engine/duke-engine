@@ -48,6 +48,7 @@ import uz.dukeengine.render.Atmosphere;
 import uz.dukeengine.render.AcesToneMap;
 import uz.dukeengine.render.AtmosphereSky;
 import uz.dukeengine.render.GtaoFilter;
+import uz.dukeengine.render.HeightFogFilter;
 import uz.dukeengine.render.LocalShadowFilter;
 import uz.dukeengine.render.MipBloomFilter;
 import uz.dukeengine.render.PictureChain;
@@ -62,9 +63,10 @@ import uz.dukeengine.render.SunShadowFilter;
  * commas: no-ao, no-bloom, no-fxaa, no-pcss, no-contact, no-shadows, no-local-shadows, local-&lt;n&gt; (how many local lights have a shadow), lamp (one lamp over any scene); feet, which looks at the outdoor units' feet from close by; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
  * show-depth, show-roughness, show-velocity, which show one instead of the picture; show-ao, which shows the ambient
  * occlusion alone, and ao-radius-&lt;m&gt;, which sets its reach in world units; show-bloom, which shows the bloom alone; auto-exposure, which lets the eye adapt, and walk, which (with it) goes from a
- * dark view to a bright one and back, logging what the eye holds (EYE lines) and shooting at the cuts; move-camera, move-units;
+ * dark view to a bright one and back, logging what the eye holds (EYE lines) and shooting at the cuts; fog (height fog and the
+ * sun's shafts), fog-&lt;density&gt; (its density at height 0, per metre) and no-shafts; move-camera, move-units;
  * {@code hour-<h>}, which turns the atmosphere on with the sun where a made-up summer day has it at that hour, 6 and 18
- * being just over the horizon; sky-view, which looks toward the sun from near the ground; move-sun, which lets the sun
+ * being just over the horizon; sky-view, which looks toward the sun from near the ground, and shaft-view, which does so from behind the scene, so that what stands in it breaks the light; move-sun, which lets the sun
  * walk 0.15 degrees a frame and so prices the sky made anew), output folder. {@code -Dbench.models=<folder>} dresses the scenes
  * in real models ({@code <folder>/<name>/out/<name>.glb}); without it they are made of boxes. With an atmosphere the
  * CSV line has two more columns: the last sky's painting (off the frame) and probe baking (on it), in milliseconds.
@@ -73,6 +75,8 @@ public final class RenderBench extends SimpleApplication {
 
     private static final int WARMUP = 120;
     private static final int MEASURED = 240;
+    /** The density of the fog at height 0 that the word {@code fog} asks for: a light morning haze, 5% of the light through 750 metres. */
+    private static final float FOG = 0.004f;
 
     private final String scene;
     private final String label;
@@ -87,7 +91,10 @@ public final class RenderBench extends SimpleApplication {
     private final DirectionalLight shadowLight = new DirectionalLight();
     private ColorRGBA sunAbove;
     private ColorRGBA fill;
+    private ColorRGBA ambientNow;
+    private HeightFogFilter fog;
     private LocalShadowFilter localFilter;
+    private SunShadowFilter shadowsFilter;
     private AtmosphereSky atmosphere;
     private float hour;
     private final List<Spatial> movers = new ArrayList<>();
@@ -128,13 +135,16 @@ public final class RenderBench extends SimpleApplication {
     static PictureSettings settings(String label) {
         var full = PictureSettings.FULL;
         var left = List.of(label.split(","));
+        float fogDensity = left.stream().filter(word -> word.startsWith("fog-")).map(word -> Float.valueOf(word.substring(4)))
+                .findFirst().orElse(left.contains("fog") ? FOG : full.fogDensity());
         return new PictureSettings(full.ambientOcclusion() && !left.contains("no-ao"),
                 full.bloom() && !left.contains("no-bloom"), full.fxaa() && !left.contains("no-fxaa"), full.exposure(),
                 hourOf(left) != null, full.softShadows() && !left.contains("no-pcss"),
                 full.contactShadows() && !left.contains("no-contact"), localBudget(left, full.localShadows()),
                 left.stream().filter(word -> word.startsWith("ao-radius-")).map(word -> Float.valueOf(word.substring(10)))
                         .findFirst().orElse(full.occlusionRadius()),
-                left.contains("auto-exposure") || left.contains("walk"));
+                left.contains("auto-exposure") || left.contains("walk"), fogDensity, full.fogFalloff(),
+                full.shafts() && !left.contains("no-shafts"));
     }
 
     /** How many local lights may have a shadow: {@code no-local-shadows} none, {@code local-<n>} that many, else the default. */
@@ -235,8 +245,9 @@ public final class RenderBench extends SimpleApplication {
             sky.setShadowMode(ShadowMode.Off);
             rootNode.attachChild(sky);
         }
-        if (asked.contains("sky-view")) {
-            lookAtTheSun(toSun);
+        ambientNow = ambient;
+        if (asked.contains("sky-view") || asked.contains("shaft-view")) {
+            lookAtTheSun(toSun, asked.contains("shaft-view") ? world : null);
         }
         filters();
         shots = new ScreenshotAppState(out.toString().replace('\\', '/') + "/", scene + "_" + label.replace(',', '+'));
@@ -250,13 +261,19 @@ public final class RenderBench extends SimpleApplication {
         return new ColorRGBA(sunAbove.r * through.r, sunAbove.g * through.g, sunAbove.b * through.b, 1f);
     }
 
-    /** The camera on the ground and turned toward the sun: as high as it stands, up to 25 degrees. */
-    private void lookAtTheSun(Vector3f toSun) {
+    /**
+     * The camera on the ground and turned toward the sun: as high as it stands, up to 25 degrees. From the edge of the
+     * scene, or, with {@code throughTheScene}, from behind its middle and with a row of columns for the light to pass through.
+     */
+    private void lookAtTheSun(Vector3f toSun, Node throughTheScene) {
         var flat = new Vector3f(toSun.x, 0f, toSun.z);
         flat = flat.lengthSquared() < 1e-6f ? new Vector3f(0f, 0f, -1f) : flat.normalizeLocal();
         float pitch = FastMath.clamp(FastMath.asin(toSun.y), 4f * FastMath.DEG_TO_RAD, 25f * FastMath.DEG_TO_RAD);
         cam.setFrustumPerspective(60f, (float) cam.getWidth() / cam.getHeight(), 0.3f, 400f);
-        cam.setLocation(new Vector3f(0f, 2.5f, 30f));
+        cam.setLocation(throughTheScene != null ? new Vector3f(0f, 2.5f, 3f).subtractLocal(flat.mult(42f)) : new Vector3f(0f, 2.5f, 30f));
+        if (throughTheScene != null) {
+            colonnade(throughTheScene, flat);
+        }
         cam.lookAt(cam.getLocation().add(flat.mult(100f)).add(0f, 100f * FastMath.tan(pitch), 0f), Vector3f.UNIT_Y);
     }
 
@@ -397,6 +414,16 @@ public final class RenderBench extends SimpleApplication {
             cam.setFrustumPerspective(35f, (float) cam.getWidth() / cam.getHeight(), 0.1f, 400f);
             cam.setLocation(new Vector3f(1.6f, 1.3f, 17f));
             cam.lookAt(new Vector3f(-0.2f, 0.45f, 12.6f), Vector3f.UNIT_Y);
+        }
+    }
+
+    /** Tall columns across the way to the sun, 30 metres from the camera: the light between them falls through the air as shafts. */
+    private void colonnade(Node to, Vector3f flat) {
+        var stone = surface(new ColorRGBA(0.5f, 0.47f, 0.42f, 1f), 0.9f, 0f);
+        var across = new Vector3f(-flat.z, 0f, flat.x);
+        for (int i = -5; i <= 5; i++) {
+            var at = new Vector3f(0f, 0f, 3f).subtractLocal(flat.mult(12f)).addLocal(across.mult(i * 2.6f));
+            wall(to, stone, at.x, 9f, at.z, 0.45f, 9f, 0.45f, 3f);
         }
     }
 
@@ -635,6 +662,7 @@ public final class RenderBench extends SimpleApplication {
         if (!asked.contains("no-shadows")) {
             shadowLight.setDirection(sunDirection);
             var shadows = new SunShadowFilter(assetManager, shadowLight, picture, true, geometry -> true);
+            shadowsFilter = shadows;
             shadows.getShadowMaterial().setColor("ShadowColor", new ColorRGBA(0.2f, 0.2f, 0.2f, 1f));
             post.addFilter(shadows);
         }
@@ -648,6 +676,13 @@ public final class RenderBench extends SimpleApplication {
             post.addFilter(filter);
             if (filter instanceof AcesToneMap map) {
                 tone = map;
+            }
+            if (filter instanceof HeightFogFilter found) {
+                fog = found;
+                if (shadowsFilter != null) {
+                    found.cascadesFrom(shadowsFilter);
+                }
+                found.sun(sunDirection.negate(), sunAbove, ambientNow);
             }
         });
         viewPort.addProcessor(post);
@@ -678,6 +713,9 @@ if (asked.contains("move-sun") && atmosphere != null) {
     sunLight.setColor(atTheGround(toSun));
     shadowLight.setDirection(sunDirection);
     atmosphere.follow(toSun, sunAbove);
+    if (fog != null) {
+        fog.sun(toSun, sunAbove, ambientNow);
+    }
 }
 if (asked.contains("move-units")) {
             movers.forEach(mover -> mover.move(0.02f, 0f, 0f));

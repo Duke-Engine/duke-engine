@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.logging.Logger;
+import uz.dukeengine.render.HeightFogFilter;
 import uz.dukeengine.render.PictureSettings;
 import uz.dukeengine.render.SunShadowFilter;
 
@@ -55,6 +56,8 @@ final class SunShadows {
     private FilterPostProcessor post;
     /** What is drawn over the finished picture, always after every set of shadows. */
     private List<Filter> finishing = List.of();
+    /** The fog whose sun shafts the sun's maps cut, if the picture has one. */
+    private HeightFogFilter fog;
     private Vector3f sun;
     private ColorRGBA colour = DEFAULT_COLOUR;
     private boolean on = true;
@@ -165,6 +168,7 @@ final class SunShadows {
         group.getShadowMaterial().setColor("ShadowColor", colour);
         group.setEnabled(on);
         groups.put(least, group);
+        cutShafts();
         finishing.forEach(post()::removeFilter);
         post().addFilter(group);
         finishing.forEach(post()::addFilter);
@@ -182,8 +186,18 @@ final class SunShadows {
     /** {@code filters} over the finished picture, which is in HDR from now on: see {@link PhysicalLook}. */
     void finishWith(List<Filter> filters) {
         finishing = filters;
+        fog = filters.stream().filter(HeightFogFilter.class::isInstance).map(HeightFogFilter.class::cast).findFirst().orElse(null);
+        cutShafts();
         post().setFrameBufferFormat(Image.Format.RGB16F);
         filters.forEach(post()::addFilter);
+    }
+
+    /** The fog's shafts are cut by the maps of the lowest least height's group, where the sun stands as it is. */
+    private void cutShafts() {
+        if (fog != null) {
+            groups.values().stream().filter(SunShadowFilter.class::isInstance).map(SunShadowFilter.class::cast).findFirst()
+                    .ifPresent(fog::cascadesFrom);
+        }
     }
 
     private static float leastOf(Geometry geometry) {

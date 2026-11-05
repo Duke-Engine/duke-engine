@@ -1,0 +1,44 @@
+// The first pass of the sun's shafts: see uz.dukeengine.render.HeightFogFilter. The parameters from ShadowMap0 to ViewDepth
+// are what SunShadowFilter's material holds, copied each frame.
+MaterialDef Shafts {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Int NumSamplesDepth
+        Texture2D DepthTexture
+
+        Texture2D ShadowMap0
+        Texture2D ShadowMap1
+        Texture2D ShadowMap2
+        Texture2D ShadowMap3
+        Matrix4 LightViewProjectionMatrix0
+        Matrix4 LightViewProjectionMatrix1
+        Matrix4 LightViewProjectionMatrix2
+        Matrix4 LightViewProjectionMatrix3
+        Vector4 Splits
+        Vector4 CascadeTexels
+        Vector4 CascadeDepths
+        Vector4 ViewDepth
+
+        Matrix4 ViewProjectionMatrixInverse
+        Float Density
+        Float Falloff
+        // How far from the eye the march goes, and how far the sky is taken to be.
+        Float Reach
+        Float SkyDistance
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/Shafts.frag
+
+        WorldParameters {
+            CameraPosition
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+            RESOLVE_DEPTH_MS : NumSamplesDepth
+        }
+    }
+}
