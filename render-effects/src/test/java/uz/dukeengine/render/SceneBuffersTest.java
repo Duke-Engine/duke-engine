@@ -64,6 +64,7 @@ class SceneBuffersTest {
         assertNotSame(normals, first.normalRoughness());
         assertEquals(32, first.velocity().getImage().getWidth());
         assertEquals(32, first.reflectance().getImage().getWidth());
+        assertEquals(32, first.albedo().getImage().getWidth());
     }
 
     @Test

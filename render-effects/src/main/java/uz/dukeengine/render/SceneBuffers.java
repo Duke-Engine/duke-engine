@@ -26,7 +26,7 @@ import java.util.Optional;
 import java.util.logging.Logger;
 
 /**
- * Depth, view-space normals, roughness, the light a surface sends back head on, and screen-space motion of all that stands solid in the scene, drawn once a frame
+ * Depth, view-space normals, roughness, the light a surface sends back head on, its diffuse colour, and screen-space motion of all that stands solid in the scene, drawn once a frame
  * so that a screen-space effect reads them instead of drawing the scene again. A view nothing asks of has no such pass:
  * a filter asks in its {@code initFilter}, again at each resize as the post processor calls it then.
  *
@@ -67,6 +67,7 @@ public final class SceneBuffers implements SceneProcessor {
     private Texture2D normalRoughness;
     private Texture2D velocity;
     private Texture2D reflectance;
+    private Texture2D albedo;
 
     private SceneBuffers(AssetManager assets, RenderManager renderManager, ViewPort view) {
         this.renderManager = renderManager;
@@ -128,6 +129,15 @@ public final class SceneBuffers implements SceneProcessor {
     }
 
     /**
+     * RGBA8: rgb the colour the surface scatters light in all directions with (PBRLighting's diffuse colour: the base
+     * colour, and none of it on a metal), a 1 where it is PBRLighting's and 0 where it is not. shortcut: vertex colour does
+     * not tint it, as it does not tint {@link #reflectance}.
+     */
+    public Texture2D albedo() {
+        return albedo;
+    }
+
+    /**
      * The camera's projection is shifted by this much (normalised device coordinates) this frame, as {@link TaaFilter} does;
      * motion is told as if it were not, so a camera standing still tells none. 0 when nothing shifts it.
      */
@@ -145,6 +155,7 @@ public final class SceneBuffers implements SceneProcessor {
         normalRoughness = target(width, height, Format.RGBA16F);
         velocity = target(width, height, Format.RG16F);
         reflectance = target(width, height, Format.RGBA8);
+        albedo = target(width, height, Format.RGBA8);
         buffer = new FrameBuffer(width, height, 1);
         buffer.setName("SceneBuffers");
         buffer.setMultiTarget(true);
@@ -152,6 +163,7 @@ public final class SceneBuffers implements SceneProcessor {
         buffer.addColorTarget(FrameBufferTarget.newTarget(normalRoughness));
         buffer.addColorTarget(FrameBufferTarget.newTarget(velocity));
         buffer.addColorTarget(FrameBufferTarget.newTarget(reflectance));
+        buffer.addColorTarget(FrameBufferTarget.newTarget(albedo));
     }
 
     private static Texture2D target(int width, int height, Format format) {
@@ -242,6 +254,7 @@ public final class SceneBuffers implements SceneProcessor {
             normalRoughness.getImage().dispose();
             velocity.getImage().dispose();
             reflectance.getImage().dispose();
+            albedo.getImage().dispose();
         }
     }
 

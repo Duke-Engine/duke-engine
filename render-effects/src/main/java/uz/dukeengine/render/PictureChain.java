@@ -16,6 +16,10 @@ public final class PictureChain {
         if (settings.ambientOcclusion()) {
             filters.add(new GtaoFilter(settings.occlusionRadius()));
         }
+        // After the occlusion, whose darkening the bounce is not to be darkened by; before the reflections, which then reflect it.
+        if (settings.screenSpaceGi()) {
+            filters.add(new SsgiFilter());
+        }
         // Before the fog, which a reflection is seen through as the surface is.
         if (settings.reflections()) {
             filters.add(new SsrFilter());

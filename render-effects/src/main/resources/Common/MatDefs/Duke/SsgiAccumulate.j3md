@@ -1,0 +1,25 @@
+// The second pass of screen space global illumination: the rays of this frame summed with those of the last, see uz.dukeengine.render.SsgiFilter.
+MaterialDef SsgiAccumulate {
+
+    MaterialParameters {
+        Int Frame
+        Int BoundDrawBuffer
+        // This frame's rays (RGBA16F, half resolution, a the view depth of the pixel, 0 where there is no surface), what was summed last frame, and
+        // SceneBuffers' motion, which says where the pixel was.
+        Texture2D Raw
+        Texture2D History
+        Texture2D Velocity
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/SsgiAccumulate.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+        }
+    }
+}

@@ -2,14 +2,16 @@
 
 // GLRenderer binds each outFragData[i] to colour target i; the compat library's outFragColor stays unused.
 #if __VERSION__ >= 130
-  out vec4 outFragData[3];
+  out vec4 outFragData[4];
   #define OUT_SURFACE outFragData[0]
   #define OUT_MOTION outFragData[1]
   #define OUT_REFLECT outFragData[2]
+  #define OUT_ALBEDO outFragData[3]
 #else
   #define OUT_SURFACE gl_FragData[0]
   #define OUT_MOTION gl_FragData[1]
   #define OUT_REFLECT gl_FragData[2]
+  #define OUT_ALBEDO gl_FragData[3]
 #endif
 
 uniform float m_Roughness;
@@ -112,6 +114,7 @@ void main() {
     #endif
     OUT_SURFACE = vec4(normal, roughness);
     OUT_REFLECT = vec4(0.0);
+    OUT_ALBEDO = vec4(0.0);
     #ifdef PBR_SURFACE
         // What PBRLighting takes as fZero. shortcut: vertex colour does not tint it, give it a varying when a metal is painted by vertices.
         vec3 fZero;
@@ -144,6 +147,15 @@ void main() {
             fZero = mix(fZero, vec3(0.04), coat);
         #endif
         OUT_REFLECT = vec4(clamp(fZero, 0.0, 1.0), 1.0);
+        // What PBRLighting lights diffusely: the base colour, less the metal in it.
+        vec3 diffuse = m_BaseColor.rgb;
+        #ifdef BASECOLORMAP
+            diffuse *= texture2D(m_BaseColorMap, texCoord).rgb;
+        #endif
+        #ifndef SPECGLOSSPIPELINE
+            diffuse *= 1.0 - metallic;
+        #endif
+        OUT_ALBEDO = vec4(clamp(diffuse, 0.0, 1.0), 1.0);
     #endif
     OUT_MOTION = vec4((vClip.xy / vClip.w - vPreviousClip.xy / max(vPreviousClip.w, 1e-4)) * 0.5, 0.0, 1.0);
 }

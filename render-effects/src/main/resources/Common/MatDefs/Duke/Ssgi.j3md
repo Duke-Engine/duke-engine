@@ -1,0 +1,33 @@
+// The first pass of screen space global illumination, at half resolution: see uz.dukeengine.render.SsgiFilter.
+MaterialDef Ssgi {
+
+    MaterialParameters {
+        // Counts frames: the rays and the pixel of each block they start from turn with it.
+        Int Frame
+        Int BoundDrawBuffer
+        Int NumSamples
+        // The lit picture, whose pixels are the light the rays bring back.
+        Texture2D Texture
+        // SceneBuffers' depth, and its normals and roughness.
+        Texture2D Depth
+        Texture2D Surface
+        Matrix4 Projection
+        Matrix4 ProjectionInverse
+        Float Near
+        // How far a ray goes, in world units.
+        Float Reach
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/Ssgi.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+            RESOLVE_MS : NumSamples
+        }
+    }
+}

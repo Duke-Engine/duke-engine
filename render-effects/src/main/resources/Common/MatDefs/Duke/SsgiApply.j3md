@@ -1,0 +1,31 @@
+// The last pass of screen space global illumination: the smoothed light, by the colour of what it falls on, added to the picture; see uz.dukeengine.render.SsgiFilter.
+MaterialDef SsgiApply {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Int NumSamples
+        Texture2D Texture
+        // The light that came back (RGBA16F, half resolution, a the view depth), SceneBuffers' depth, normals and diffuse colour.
+        Texture2D Gi
+        Texture2D Depth
+        Texture2D Surface
+        Texture2D Albedo
+        Matrix4 ProjectionInverse
+        // Show the bounce alone, as it is added.
+        Boolean OnlyGi
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/SsgiApply.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+            RESOLVE_MS : NumSamples
+            ONLY_GI : OnlyGi
+        }
+    }
+}

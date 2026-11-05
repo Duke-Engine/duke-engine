@@ -64,12 +64,13 @@ import uz.dukeengine.render.PictureSettings;
 import uz.dukeengine.render.SceneBuffers;
 import uz.dukeengine.render.SsrFilter;
 import uz.dukeengine.render.SkyProbe;
+import uz.dukeengine.render.SsgiFilter;
 import uz.dukeengine.render.SunShadowFilter;
 
 /**
  * Draws one fixed scene, measures its frames, saves a picture and quits, so a change to the renderer can be seen and
- * priced. Args: scene (materials, materials-plus, interior, outdoor, night, buffers, furnace), what to leave out or add ("full", or joined by
- * commas: room-probe (the interior's room, or a box over the balls of materials, as a box probe baked from its middle: parallax reflections of its walls, its own diffuse light) and show-probe-left (what the picture holds with the probes' specular taken out: 0 where SSR's probes are PBRLighting's), no-ao, no-bloom, no-aa, fxaa, taa (the edges' smoothing; else the default of FULL), no-pcss, no-contact, no-shadows, no-local-shadows, local-&lt;n&gt; (how many local lights have a shadow), lamp (one lamp over any scene); no-clusters (the spot and point lights a pass each, the fork's way, not from clusters in one), lights-&lt;n&gt; (n small coloured lamps going round: over the field in the night instead of its torches, through the room in the interior beside its lamps) and show-clusters (how many lights each cluster has, over the picture); feet, which looks at the outdoor units' feet from close by; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
+ * priced. Args: scene (materials, materials-plus, bleed, interior, outdoor, night, buffers, furnace), what to leave out or add ("full", or joined by
+ * commas: room-probe (the interior's room, or a box over the balls of materials, as a box probe baked from its middle: parallax reflections of its walls, its own diffuse light) show-ssgi (the bounce of screen space global illumination alone, through the rest of the chain), no-ssgi, the scene bleed (a red wall and a white strip of floor before it) and show-probe-left (what the picture holds with the probes' specular taken out: 0 where SSR's probes are PBRLighting's), no-ao, no-bloom, no-aa, fxaa, taa (the edges' smoothing; else the default of FULL), no-pcss, no-contact, no-shadows, no-local-shadows, local-&lt;n&gt; (how many local lights have a shadow), lamp (one lamp over any scene); no-clusters (the spot and point lights a pass each, the fork's way, not from clusters in one), lights-&lt;n&gt; (n small coloured lamps going round: over the field in the night instead of its torches, through the room in the interior beside its lamps) and show-clusters (how many lights each cluster has, over the picture); feet, which looks at the outdoor units' feet from close by; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
  * show-depth, show-roughness, show-velocity, which show one instead of the picture; show-ao, which shows the ambient
  * occlusion alone, and ao-radius-&lt;m&gt;, which sets its reach in world units; show-bloom, which shows the bloom alone; auto-exposure, which lets the eye adapt, and walk, which (with it) goes from a
  * dark view to a bright one and back, logging what the eye holds (EYE lines) and shooting at the cuts; fog (height fog and the
@@ -175,7 +176,8 @@ public final class RenderBench extends SimpleApplication {
                 left.contains("auto-exposure") || left.contains("walk"), fogDensity, full.fogFalloff(),
                 full.shafts() && !left.contains("no-shafts"), full.reflections() && !left.contains("no-ssr"),
                 lens(scene, left), left.stream().filter(word -> word.startsWith("lut-")).map(word -> "Common/Luts/" + word.substring(4) + ".png")
-                        .findFirst().orElse(null), left.contains("vignette") ? VIGNETTE : 0f, full.clusteredLights() && !left.contains("no-clusters"));
+                        .findFirst().orElse(null), left.contains("vignette") ? VIGNETTE : 0f, full.clusteredLights() && !left.contains("no-clusters"),
+                full.screenSpaceGi() && !left.contains("no-ssgi"));
     }
 
     /**
@@ -255,6 +257,11 @@ public final class RenderBench extends SimpleApplication {
                 sun = new ColorRGBA(1f, 0.93f, 0.82f, 1f).mult(1.5f);
                 interior(world);
                 lightsAsked().ifPresent(n -> swarm(n, new Vector3f(0f, 0.1f, 0f), new Vector3f(13f, 3f, 9.6f), 1.5f));
+            }
+            case "bleed" -> {
+                sunDirection.set(-0.45f, -0.75f, -0.48f);
+                sun = new ColorRGBA(1f, 0.95f, 0.88f, 1f).mult(2f);
+                bleed(world);
             }
             case "outdoor" -> {
                 sunDirection.set(-0.45f, -0.75f, -0.48f);
@@ -490,6 +497,23 @@ public final class RenderBench extends SimpleApplication {
         cam.setFrustumPerspective(35f, (float) cam.getWidth() / cam.getHeight(), 1f, 400f);
         cam.setLocation(new Vector3f(0f, 13f, 19f));
         cam.lookAt(new Vector3f(0f, -0.5f, 0f), Vector3f.UNIT_Y);
+    }
+
+    /**
+     * A red wall in the sun, a white strip of floor and three white balls before it, grey floor round them: what is red on the
+     * strip, and on the balls' sides toward the wall, is the wall's light, and the shade sides are lit by the strip.
+     */
+    private void bleed(Node world) {
+        wall(world, surface(new ColorRGBA(0.25f, 0.25f, 0.25f, 1f), floorRoughness(0.8f), 0f), 0f, -1.1f, 0f, 16f, 0.1f, 16f, 8f);
+        wall(world, surface(new ColorRGBA(0.75f, 0.05f, 0.04f, 1f), 0.9f, 0f), 0f, 3f, -6f, 16f, 4.1f, 0.2f, 4f);
+        wall(world, surface(new ColorRGBA(0.85f, 0.85f, 0.85f, 1f), 0.9f, 0f), 0f, -1f, -2.5f, 8f, 0.02f, 3.3f, 4f);
+        var mesh = new Sphere(48, 48, 1f);
+        for (int i = 0; i < 3; i++) {
+            world.attachChild(ballAt(mesh, ball(new ColorRGBA(0.85f, 0.85f, 0.85f, 1f), 0f, 0.7f), (i - 1) * 3f, -2.6f));
+        }
+        cam.setFrustumPerspective(40f, (float) cam.getWidth() / cam.getHeight(), 0.5f, 400f);
+        cam.setLocation(new Vector3f(0f, 5f, 11f));
+        cam.lookAt(new Vector3f(0f, 0f, -3f), Vector3f.UNIT_Y);
     }
 
     /**
@@ -1059,7 +1083,7 @@ public final class RenderBench extends SimpleApplication {
             viewPort.addProcessor(post);
             return;
         }
-        var shown = asked.stream().filter(word -> word.startsWith("show-")).findFirst();
+        var shown = asked.stream().filter(word -> word.startsWith("show-") && !word.equals("show-ssgi")).findFirst();
         if (shown.isPresent()) {
             post.addFilter(new BufferView(BufferView.Shown.valueOf(shown.get().substring(5).toUpperCase(Locale.ROOT))));
             viewPort.addProcessor(post);
@@ -1079,7 +1103,7 @@ public final class RenderBench extends SimpleApplication {
             post.addFilter(local);
         }
         PictureChain.filters(picture).forEach(filter -> {
-            post.addFilter(filter);
+            post.addFilter(filter instanceof SsgiFilter bounce && asked.contains("show-ssgi") ? bounce.showBounceOnly() : filter);
             if (filter instanceof AcesToneMap map) {
                 tone = map;
             }

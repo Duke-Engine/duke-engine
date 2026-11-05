@@ -1,0 +1,20 @@
+// What the passes of uz.dukeengine.render.SsgiFilter share.
+
+// The full-resolution pixel of its 2x2 block a half-resolution pixel stands for this frame: over four frames each of the four, and
+// neighbouring pixels at different ones, so that the half-resolution picture is no pattern of the full one's. The same as
+// SsgiFilter.source in Java, which the test pins down.
+ivec2 ssgiSource(ivec2 cell, int frame) {
+    int corner = (frame + cell.x + 2 * cell.y) & 3;
+    return cell * 2 + ivec2(corner & 1, corner >> 1);
+}
+
+// Interleaved gradient noise (Jimenez 2014): a different value for each pixel, smooth enough to blur away.
+float ssgiNoise(vec2 pixel) {
+    return fract(52.9829189 * fract(dot(pixel, vec2(0.06711056, 0.00583715))));
+}
+
+// The view depth in front of the camera (positive) that a depth buffer value stands for.
+float ssgiDepth(mat4 projectionInverse, float depth) {
+    vec4 at = projectionInverse * vec4(0.0, 0.0, depth * 2.0 - 1.0, 1.0);
+    return -at.z / at.w;
+}

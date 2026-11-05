@@ -1,0 +1,22 @@
+// The third pass of screen space global illumination: the noise of the sum smoothed over what is one surface, see uz.dukeengine.render.SsgiFilter.
+MaterialDef SsgiBlur {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        // The sum (RGBA16F, half resolution, a the view depth) and SceneBuffers' normals.
+        Texture2D In
+        Texture2D Surface
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/SsgiBlur.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+        }
+    }
+}

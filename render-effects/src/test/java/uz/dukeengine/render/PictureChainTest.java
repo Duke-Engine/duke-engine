@@ -21,7 +21,7 @@ class PictureChainTest {
 
     @Test
     void ambientOcclusionOffLeavesNoOcclusionFilter() {
-        var off = new PictureSettings(false, true, AntiAliasing.TAA, 0.7f, false, true, true, 4, 0.75f, false, 0f, 0.06f, true, true, Lens.OFF, null, 0f, true);
+        var off = new PictureSettings(false, true, AntiAliasing.TAA, 0.7f, false, true, true, 4, 0.75f, false, 0f, 0.06f, true, true, Lens.OFF, null, 0f, true, true);
         assertTrue(PictureChain.filters(off).stream().noneMatch(GtaoFilter.class::isInstance));
     }
 
@@ -63,6 +63,16 @@ class PictureChainTest {
         assertTrue(filters.indexOf(filters.stream().filter(GtaoFilter.class::isInstance).findFirst().get()) < ssr);
         assertTrue(ssr < filters.indexOf(filters.stream().filter(HeightFogFilter.class::isInstance).findFirst().get()));
         assertTrue(PictureChain.filters(PictureSettings.FULL.withReflections(false)).stream().noneMatch(SsrFilter.class::isInstance));
+    }
+
+    @Test
+    void theBounceIsOneFilterAfterTheOcclusionAndBeforeTheReflectionsAndGoesWhenAskedTo() {
+        var filters = PictureChain.filters(PictureSettings.FULL.withScreenSpaceGi(true).withReflections(true));
+        assertEquals(1, filters.stream().filter(SsgiFilter.class::isInstance).count());
+        int gi = filters.indexOf(filters.stream().filter(SsgiFilter.class::isInstance).findFirst().get());
+        assertTrue(filters.indexOf(filters.stream().filter(GtaoFilter.class::isInstance).findFirst().get()) < gi);
+        assertTrue(gi < filters.indexOf(filters.stream().filter(SsrFilter.class::isInstance).findFirst().get()));
+        assertTrue(PictureChain.filters(PictureSettings.FULL.withScreenSpaceGi(false)).stream().noneMatch(SsgiFilter.class::isInstance));
     }
 
     @Test
