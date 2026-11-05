@@ -1,0 +1,28 @@
+// The last step of the bloom: see uz.dukeengine.render.MipBloomFilter.
+MaterialDef Bloom Apply {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Int NumSamples
+        Texture2D Texture
+        Texture2D Bloom
+        // The share of the bloom in the picture.
+        Float Strength
+        // Show the bloom alone.
+        Boolean OnlyBloom
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/BloomApply.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+            RESOLVE_MS : NumSamples
+            ONLY_BLOOM : OnlyBloom
+        }
+    }
+}

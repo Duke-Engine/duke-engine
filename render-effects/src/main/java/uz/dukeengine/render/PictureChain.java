@@ -1,7 +1,6 @@
 package uz.dukeengine.render;
 
 import com.jme3.post.Filter;
-import com.jme3.post.filters.BloomFilter;
 import com.jme3.post.filters.FXAAFilter;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,11 +17,7 @@ public final class PictureChain {
             filters.add(new GtaoFilter(settings.occlusionRadius()));
         }
         if (settings.bloom()) {
-            var bloom = new BloomFilter(BloomFilter.GlowMode.Scene);
-            bloom.setExposurePower(4f);
-            bloom.setBloomIntensity(0.6f);
-            bloom.setBlurScale(1.5f);
-            filters.add(bloom);
+            filters.add(new MipBloomFilter());
         }
         filters.add(new AcesToneMap(settings.exposure()));
         if (settings.fxaa()) {

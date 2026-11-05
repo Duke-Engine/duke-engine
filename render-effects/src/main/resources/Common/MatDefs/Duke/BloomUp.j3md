@@ -1,0 +1,24 @@
+// One step up the bloom chain: see uz.dukeengine.render.MipBloomFilter.
+MaterialDef Bloom Up {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        // The wider level, already joined, and the level of this size as the way down left it.
+        Texture2D Lower
+        Texture2D Same
+        // One texel of the wider level, in texture coordinates.
+        Vector2 Texel
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/BloomUp.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+        }
+    }
+}

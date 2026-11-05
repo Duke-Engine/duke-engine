@@ -1,0 +1,27 @@
+// One step down the bloom chain: see uz.dukeengine.render.MipBloomFilter.
+MaterialDef Bloom Down {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Int NumSamples
+        Texture2D Texture
+        // One texel of the picture being read, in texture coordinates.
+        Vector2 Texel
+        // The first step: reads the scene (which may be multisampled and unfiltered) and weighs against fireflies.
+        Boolean Karis
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/BloomDown.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+            RESOLVE_MS : NumSamples
+            KARIS : Karis
+        }
+    }
+}

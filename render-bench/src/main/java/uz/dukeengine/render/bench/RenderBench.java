@@ -48,6 +48,7 @@ import uz.dukeengine.render.Atmosphere;
 import uz.dukeengine.render.AtmosphereSky;
 import uz.dukeengine.render.GtaoFilter;
 import uz.dukeengine.render.LocalShadowFilter;
+import uz.dukeengine.render.MipBloomFilter;
 import uz.dukeengine.render.PictureChain;
 import uz.dukeengine.render.PictureSettings;
 import uz.dukeengine.render.SceneBuffers;
@@ -59,7 +60,7 @@ import uz.dukeengine.render.SunShadowFilter;
  * priced. Args: scene (materials, interior, outdoor, night, buffers, furnace), what to leave out or add ("full", or joined by
  * commas: no-ao, no-bloom, no-fxaa, no-pcss, no-contact, no-shadows, no-local-shadows, local-&lt;n&gt; (how many local lights have a shadow), lamp (one lamp over any scene); feet, which looks at the outdoor units' feet from close by; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
  * show-depth, show-roughness, show-velocity, which show one instead of the picture; show-ao, which shows the ambient
- * occlusion alone, and ao-radius-&lt;m&gt;, which sets its reach in world units; move-camera, move-units;
+ * occlusion alone, and ao-radius-&lt;m&gt;, which sets its reach in world units; show-bloom, which shows the bloom alone; move-camera, move-units;
  * {@code hour-<h>}, which turns the atmosphere on with the sun where a made-up summer day has it at that hour, 6 and 18
  * being just over the horizon; sky-view, which looks toward the sun from near the ground; move-sun, which lets the sun
  * walk 0.15 degrees a frame and so prices the sky made anew), output folder. {@code -Dbench.models=<folder>} dresses the scenes
@@ -608,6 +609,12 @@ public final class RenderBench extends SimpleApplication {
         if (asked.contains("show-ao")) {
             PictureChain.filters(picture).stream().filter(GtaoFilter.class::isInstance)
                     .forEach(filter -> post.addFilter(((GtaoFilter) filter).showOcclusionOnly()));
+            viewPort.addProcessor(post);
+            return;
+        }
+        if (asked.contains("show-bloom")) {
+            PictureChain.filters(picture).stream().filter(MipBloomFilter.class::isInstance)
+                    .forEach(filter -> post.addFilter(((MipBloomFilter) filter).showBloomOnly()));
             viewPort.addProcessor(post);
             return;
         }
