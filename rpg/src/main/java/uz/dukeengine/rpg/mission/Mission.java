@@ -5,6 +5,10 @@ import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.DieModule;
 import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.module.ModuleGroup;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.save.Saveable;
+import uz.dukeengine.core.save.Stateless;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.core.thing.World;
@@ -96,6 +100,16 @@ public final class Mission {
         return mission;
     }
 
+    /**
+     * The mission a load gives back, from what the floor began it with: nothing is told to report, for what was counted
+     * carries its {@link Counted} back from the save ({@link Counted#reviver}). {@link #load} then gives it where it had
+     * got to.
+     */
+    public static Mission restored(Loot key, String chest, int floorOwner, ObjectId gate, List<ObjectId> counted,
+            int leeway) {
+        return new Mission(key, chest, floorOwner, gate, List.copyOf(counted), leeway);
+    }
+
     /** One of the floor's own outside the keep has died: the last of them leaves the key where it fell. */
     private void fell(GameObject monster) {
         killed = Math.min(killed + 1, outside);
@@ -143,6 +157,17 @@ public final class Mission {
         return Step.KILL;
     }
 
+    /** How many have died and whether the key is laid: all of it that changes, the rest being what the floor began with. */
+    public void save(SaveOut out) {
+        out.writeInt(killed).writeBoolean(keyLaid);
+    }
+
+    /** Read back what {@link #save} wrote, into the mission the floor began again with the same counted and key. */
+    public void load(SaveIn in) {
+        killed = in.readInt();
+        keyLaid = in.readBoolean();
+    }
+
     /** How many monsters the floor put outside its keep. */
     public int outside() {
         return outside;
@@ -154,6 +179,7 @@ public final class Mission {
     }
 
     /** On each monster the floor put outside the keep: its death, told to the mission it belongs to. */
+    @Stateless
     @ModuleGroup(RpgModuleGroups.ITEMS)
     public static final class Counted extends Module implements DieModule {
 
@@ -167,6 +193,11 @@ public final class Mission {
         @Override
         public void onDie() {
             mission.fell(getOwner());
+        }
+
+        /** What {@code ModuleFactory.revives} is given for a floor's {@code mission}: the one thing it is told. */
+        public static Saveable.Reviver<Counted> reviver(Mission mission) {
+            return (monster, _) -> new Counted(monster, mission);
         }
     }
 }

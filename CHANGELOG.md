@@ -3,6 +3,17 @@
 Versions are `major.minor.patch`. While the major is 0, a minor may break what came before — and
 when it does, this page says exactly what to change and how.
 
+## Unreleased
+
+- **The RPG library's modules save**: every module of `rpg` is `Saveable` or `@Stateless`, so a save meeting an RPG
+  world's things no longer refuses them by name (`docs/save-load-audit.md`, section 3). The ones put on a thing while the
+  match runs come back by a reviver: `RpgModules.registerRevivers(factory)` registers those that hold only their figures
+  (`AttackBonus`, `AttackSpeed`, `CriticalStrike`, `LevelBonus`, `Summoned`); the ones that also hold something of the
+  game's take it from the game: `LootDrop.reviver(table)`, `KeyDrop.reviver(bags)`, `ItemErrand.reviver(bags, rules)` and
+  `Mission.Counted.reviver(mission)`, the mission made again by `Mission.restored(...)` and given where it had got to by
+  `Mission.save`/`load`. A ground item keeps what it holds whole (`Loot.save`/`read`, `Skill.save`/`read`). Nothing a
+  game already calls changes.
+
 ## 0.9.0
 
 The engine runs on Android. The simulation and the 3D client name no desktop toolkit: the window, fonts, pictures,

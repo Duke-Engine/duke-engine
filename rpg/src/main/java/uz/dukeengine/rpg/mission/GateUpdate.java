@@ -4,6 +4,9 @@ import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.ModuleGroups;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.save.Saveable;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.core.thing.World;
@@ -19,7 +22,7 @@ import uz.dukeengine.core.thing.World;
  * <p>Deterministic: opened by an errand an order started, on every machine on the same frame.
  */
 @ModuleGroup(ModuleGroups.EFFECT)
-public final class GateUpdate extends Module {
+public final class GateUpdate extends Module implements Saveable {
 
     /**
      * @param opens          the template that stands in its place once it is open; blank, and nothing does
@@ -91,5 +94,15 @@ public final class GateUpdate extends Module {
             world.spawn(open, owner.getPosition(), owner.getPlayerIndex()).setOrientation(owner.getOrientation());
         }
         owner.markDestroyed();
+    }
+
+    @Override
+    public void save(SaveOut out) {
+        out.writeBoolean(opened);
+    }
+
+    @Override
+    public void load(SaveIn in) {
+        opened = in.readBoolean();
     }
 }

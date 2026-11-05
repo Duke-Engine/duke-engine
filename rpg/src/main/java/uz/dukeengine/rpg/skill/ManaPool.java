@@ -1,5 +1,7 @@
 package uz.dukeengine.rpg.skill;
 
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
 import uz.dukeengine.core.GameConstants;
 
 /**
@@ -143,5 +145,19 @@ final class ManaPool {
             carry -= A_SECOND;
             mana++;
         }
+    }
+
+    void save(SaveOut out) {
+        out.writeInt(mana).writeInt(max).writeInt(tenthsPerSecond).writeInt(carry).writeBoolean(inUse)
+                .writeInt(refusedFrame);
+    }
+
+    void load(SaveIn in) {
+        mana = in.readInt();
+        max = in.readInt();
+        tenthsPerSecond = in.readInt();
+        carry = in.readInt();
+        inUse = in.readBoolean();
+        refusedFrame = in.readInt();
     }
 }

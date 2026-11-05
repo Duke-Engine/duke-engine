@@ -4,6 +4,9 @@ import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.ModuleGroups;
 import uz.dukeengine.core.module.UpdateModule;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.save.Saveable;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectId;
 
@@ -23,7 +26,7 @@ import uz.dukeengine.core.thing.ObjectId;
  * <p>No body and no geometry: nothing shoots at it and nothing walks into it.
  */
 @ModuleGroup({ModuleGroups.EFFECT, ModuleGroups.BODY})
-public final class MendingUpdate extends UpdateModule {
+public final class MendingUpdate extends UpdateModule implements Saveable {
 
     /** It reads no fields; the block only says the unit has one. */
     public record Data() implements ModuleData {
@@ -62,5 +65,18 @@ public final class MendingUpdate extends UpdateModule {
             him.getBody().heal(amount);
         }
         owner.markDestroyed();
+    }
+
+    @Override
+    public void save(SaveOut out) {
+        out.writeId(patient).writeFloat(amount).writeInt(landsIn).writeBoolean(called);
+    }
+
+    @Override
+    public void load(SaveIn in) {
+        patient = in.readId();
+        amount = in.readFloat();
+        landsIn = in.readInt();
+        called = in.readBoolean();
     }
 }

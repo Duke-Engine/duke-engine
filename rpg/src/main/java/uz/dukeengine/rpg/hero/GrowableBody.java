@@ -5,6 +5,9 @@ import uz.dukeengine.core.module.DamageType;
 import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.ModuleGroups;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.save.Saveable;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.combat.CombatModuleGroups;
 
@@ -27,7 +30,7 @@ import uz.dukeengine.combat.CombatModuleGroups;
  * reward for winning it.
  */
 @ModuleGroup({ModuleGroups.BODY, CombatModuleGroups.PROGRESSION})
-public final class GrowableBody extends BodyModule {
+public final class GrowableBody extends BodyModule implements Saveable {
 
     /** INI configuration: the same {@code MaxHealth} field every body reads. */
     public record Data(float maxHealth) implements ModuleData {
@@ -108,5 +111,19 @@ public final class GrowableBody extends BodyModule {
             return 0f;
         }
         return Math.min(value, maxHealth);
+    }
+
+    @Override
+    public void save(SaveOut out) {
+        saveBody(out);
+        out.writeFloat(maxHealth).writeFloat(health).writeFloat(damageTaken);
+    }
+
+    @Override
+    public void load(SaveIn in) {
+        loadBody(in);
+        maxHealth = in.readFloat();
+        health = in.readFloat();
+        damageTaken = in.readFloat();
     }
 }

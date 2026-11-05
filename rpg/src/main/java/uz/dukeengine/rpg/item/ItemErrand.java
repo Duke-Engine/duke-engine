@@ -1,9 +1,13 @@
 package uz.dukeengine.rpg.item;
 
+import java.util.function.Function;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.MoveUpdate;
 import uz.dukeengine.core.module.UpdateModule;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.save.Saveable;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.core.thing.World;
@@ -32,7 +36,7 @@ import uz.dukeengine.combat.module.WeaponUpdate;
  * is counted in frames — the same on every machine.
  */
 @ModuleGroup(RpgModuleGroups.ITEMS)
-public final class ItemErrand extends UpdateModule implements Errand {
+public final class ItemErrand extends UpdateModule implements Errand, Saveable {
 
     /**
      * What every errand of a game shares.
@@ -340,5 +344,33 @@ public final class ItemErrand extends UpdateModule implements Errand {
     @Override
     public void onRemoved() {
         over = true;
+    }
+
+    @Override
+    public void save(SaveOut out) {
+        out.writeEnum(act).writePlace(goal).writeId(thing).writeInt(slot).writeBoolean(over).writeFloat(nearest)
+                .writeInt(nearerAt).writeInt(standingSince).writeBoolean(heldForABody);
+    }
+
+    @Override
+    public void load(SaveIn in) {
+        throw new IllegalStateException("an item errand is made again by ItemErrand.reviver, never by its template");
+    }
+
+    /**
+     * What {@code ModuleFactory.revives} is given for a game whose heroes' bags {@code bags} finds and whose errands all
+     * follow {@code rules}: both are the game's, so a save holds only what the errand was told besides them.
+     */
+    public static Saveable.Reviver<ItemErrand> reviver(Function<GameObject, LootBag> bags, Rules rules) {
+        return (hero, in) -> {
+            var errand = new ItemErrand(hero, LootBag.of(bags, hero, ItemErrand.class), rules,
+                    in.readEnum(Act.class), in.readPlace(), in.readId(), in.readInt());
+            errand.over = in.readBoolean();
+            errand.nearest = in.readFloat();
+            errand.nearerAt = in.readInt();
+            errand.standingSince = in.readInt();
+            errand.heldForABody = in.readBoolean();
+            return errand;
+        };
     }
 }

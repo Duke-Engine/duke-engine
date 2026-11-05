@@ -4,6 +4,7 @@ import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.ModuleGroups;
 import uz.dukeengine.core.module.UpdateModule;
+import uz.dukeengine.core.save.Stateless;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.rpg.Seal;
 import uz.dukeengine.rpg.skill.SkillBook;
@@ -24,6 +25,7 @@ import uz.dukeengine.rpg.skill.SkillBook;
  * <p>Deterministic: counted on the world's own frame, and each gift a whole number of points worked out from the
  * thing's own figures, the same on every machine.
  */
+@Stateless
 @ModuleGroup({ModuleGroups.EFFECT, ModuleGroups.BODY})
 public final class FountainUpdate extends UpdateModule {
 

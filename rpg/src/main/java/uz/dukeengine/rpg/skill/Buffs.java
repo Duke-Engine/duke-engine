@@ -2,6 +2,8 @@ package uz.dukeengine.rpg.skill;
 
 import java.util.ArrayList;
 import java.util.List;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
 import uz.dukeengine.core.thing.GameObject;
 
 /**
@@ -129,5 +131,25 @@ final class Buffs {
             int frame = world.getFrame();
             lent.removeIf(buff -> buff.until() < frame);
         }
+    }
+
+    void save(SaveOut out) {
+        out.writeInt(lent.size());
+        lent.forEach(buff -> out.writeEnum(buff.kind()).writeInt(buff.source()).writeInt(buff.value())
+                .writeInt(buff.until()));
+        out.writeInt(boostFrames).writeInt(boostPercent).writeInt(guardFrames).writeInt(guardPercent)
+                .writeInt(healCarry);
+    }
+
+    void load(SaveIn in) {
+        lent.clear();
+        for (int count = in.readInt(); count > 0; count--) {
+            lent.add(new Buff(in.readEnum(SkillEffect.class), in.readInt(), in.readInt(), in.readInt()));
+        }
+        boostFrames = in.readInt();
+        boostPercent = in.readInt();
+        guardFrames = in.readInt();
+        guardPercent = in.readInt();
+        healCarry = in.readInt();
     }
 }

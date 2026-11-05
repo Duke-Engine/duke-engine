@@ -6,6 +6,8 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.ScriptedMove;
 import uz.dukeengine.core.thing.GameObject;
@@ -333,5 +335,16 @@ final class Moves {
             struck.addAll(blows.enemiesWithin(world, at, radius));
         }
         blows.strikeAll(struck, each);
+    }
+
+    void save(SaveOut out, List<Skill> skills) {
+        out.writeBoolean(charge != null);
+        if (charge != null) {
+            charge.save(out, skills);
+        }
+    }
+
+    void load(SaveIn in, List<Skill> skills) {
+        charge = in.readBoolean() ? Charge.read(in, owner, blows, seal, skills) : null;
     }
 }

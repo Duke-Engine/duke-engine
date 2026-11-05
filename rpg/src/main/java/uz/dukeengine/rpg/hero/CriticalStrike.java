@@ -4,6 +4,9 @@ import uz.dukeengine.combat.module.BlowRoll;
 import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.ModuleGroups;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.save.Saveable;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.World;
 
@@ -13,7 +16,7 @@ import uz.dukeengine.core.thing.World;
  * {@link HeroProgress}; added when first wanted, as {@link AttackSpeed} is.
  */
 @ModuleGroup(ModuleGroups.COMBAT)
-public final class CriticalStrike extends Module implements BlowRoll {
+public final class CriticalStrike extends Module implements BlowRoll, Saveable {
 
     private int chance;
     private int damage;
@@ -42,5 +45,24 @@ public final class CriticalStrike extends Module implements BlowRoll {
             return 1f;
         }
         return world.random().nextFloat() * 100f < chance ? 1f + damage / 100f : 1f;
+    }
+
+    @Override
+    public void save(SaveOut out) {
+        out.writeInt(chance).writeInt(damage);
+    }
+
+    @Override
+    public void load(SaveIn in) {
+        throw new IllegalStateException("a critical strike is made again by CriticalStrike.revive, never by its"
+                + " template");
+    }
+
+    /** One added while the match ran, made again with the figures it saved: what {@code ModuleFactory.revives} is given. */
+    public static CriticalStrike revive(GameObject owner, SaveIn in) {
+        var critical = new CriticalStrike(owner);
+        critical.chance = in.readInt();
+        critical.damage = in.readInt();
+        return critical;
     }
 }

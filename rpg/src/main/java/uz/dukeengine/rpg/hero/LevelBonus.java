@@ -3,6 +3,9 @@ package uz.dukeengine.rpg.hero;
 import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.ModuleGroups;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.save.Saveable;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.rpg.skill.Skill;
 import uz.dukeengine.combat.module.DamageModifier;
@@ -24,7 +27,7 @@ import uz.dukeengine.combat.CombatModuleGroups;
  * hits for.
  */
 @ModuleGroup({ModuleGroups.COMBAT, CombatModuleGroups.PROGRESSION})
-public final class LevelBonus extends Module implements DamageModifier {
+public final class LevelBonus extends Module implements DamageModifier, Saveable {
 
     private final int level;
     private final float multiplier;
@@ -64,5 +67,20 @@ public final class LevelBonus extends Module implements DamageModifier {
     /** What its health was grown by for its level. */
     public float healthMultiplier() {
         return healthMultiplier;
+    }
+
+    @Override
+    public void save(SaveOut out) {
+        out.writeInt(level).writeFloat(multiplier).writeFloat(healthMultiplier);
+    }
+
+    @Override
+    public void load(SaveIn in) {
+        throw new IllegalStateException("a level bonus is made again by LevelBonus.revive, never by its template");
+    }
+
+    /** One added where its creature was placed, made again as it was: what {@code ModuleFactory.revives} is given. */
+    public static LevelBonus revive(GameObject owner, SaveIn in) {
+        return new LevelBonus(owner, in.readInt(), in.readFloat(), in.readFloat());
     }
 }

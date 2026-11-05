@@ -17,6 +17,10 @@ import uz.dukeengine.core.module.MoveUpdate;
 import uz.dukeengine.core.module.SpeedModifier;
 import uz.dukeengine.core.module.UpdateModule;
 import uz.dukeengine.core.player.Relationship;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.save.Saveable;
+import uz.dukeengine.core.save.UnsavedModuleException;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.core.thing.ObjectStatus;
@@ -57,7 +61,7 @@ import uz.dukeengine.rpg.item.LootBag;
  */
 @ModuleGroup({ModuleGroups.COMBAT, ModuleGroups.MOVEMENT, ModuleGroups.EFFECT, ModuleGroups.BODY})
 public final class SkillBook extends UpdateModule implements DamageModifier, RateOfFireModifier, WeaponHold,
-        DamageListener, SpeedModifier {
+        DamageListener, SpeedModifier, Saveable {
 
     /** It reads no fields; the block only says the unit has one. */
     public record Data() implements ModuleData {
@@ -709,6 +713,53 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Rat
     @Override
     public boolean holdingFire() {
         return shots.isDrawing() || mount.isUp(); // and nothing struck from the saddle
+    }
+
+    @Override
+    public void save(SaveOut out) {
+        out.writeInt(skills.size());
+        for (int slot = 0; slot < skills.size(); slot++) {
+            out.writeInt(skills.get(slot).key()).writeInt(cooldowns[slot]);
+        }
+        out.writeInt(lastCastFrame);
+        mana.save(out);
+        buffs.save(out);
+        passives.save(out);
+        mount.save(out, skills);
+        marks.save(out);
+        blows.save(out);
+        shots.save(out, skills);
+        blasts.save(out);
+        moves.save(out, skills);
+        allies.save(out);
+    }
+
+    @Override
+    public void load(SaveIn in) {
+        int saved = in.readInt();
+        if (saved != skills.size()) {
+            throw new UnsavedModuleException(getClass().getName(), "a book saved with " + saved + " skills is loaded"
+                    + " as its template's, with " + skills.size());
+        }
+        for (int slot = 0; slot < saved; slot++) {
+            char key = (char) in.readInt();
+            if (key != skills.get(slot).key()) {
+                throw new UnsavedModuleException(getClass().getName(), "a book saved with " + key + " as skill "
+                        + slot + " is loaded as its template's, with " + skills.get(slot).key());
+            }
+            cooldowns[slot] = in.readInt();
+        }
+        lastCastFrame = in.readInt();
+        mana.load(in);
+        buffs.load(in);
+        passives.load(in);
+        mount.load(in, skills);
+        marks.load(in);
+        blows.load(in);
+        shots.load(in, skills);
+        blasts.load(in);
+        moves.load(in, skills);
+        allies.load(in);
     }
 
     @Override

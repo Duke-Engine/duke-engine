@@ -8,6 +8,9 @@ import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.ModuleGroups;
 import uz.dukeengine.core.module.UpdateModule;
 import uz.dukeengine.core.player.Relationship;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.save.Saveable;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.core.thing.ObjectStatus;
@@ -35,7 +38,7 @@ import uz.dukeengine.combat.module.StatusUpdate;
  * than shouldering monsters aside on its way past.
  */
 @ModuleGroup({ModuleGroups.MOVEMENT, ModuleGroups.COMBAT})
-public final class ArrowUpdate extends UpdateModule {
+public final class ArrowUpdate extends UpdateModule implements Saveable {
 
     /** It reads no fields; the block only says the unit has one. */
     public record Data() implements ModuleData {
@@ -166,6 +169,34 @@ public final class ArrowUpdate extends UpdateModule {
     /** A point of the flight: that place, at the shot's own height over the ground there. */
     private Coord3D overTheGround(World world, float x, float y) {
         return new Coord3D(x, y, world.groundHeight(new Coord3D(x, y, 0f)) + flight);
+    }
+
+    @Override
+    public void save(SaveOut out) {
+        out.writeId(target).writeId(shooter).writeFloat(damage).writeString(damageType.name())
+                .writeFloat(stepPerFrame).writeInt(flownFor).writeFloat(travelLeft).writeFloat(blastRadius)
+                .writeInt(stunFrames).writeFloat(flight).writePlace(loosedFrom).writeFloat(pierceWidth)
+                .writeBoolean(critical);
+        out.writeIds(struck.stream().sorted(java.util.Comparator.comparingInt(ObjectId::value)).toList());
+    }
+
+    @Override
+    public void load(SaveIn in) {
+        target = in.readId();
+        shooter = in.readId();
+        damage = in.readFloat();
+        damageType = DamageType.of(in.readString());
+        stepPerFrame = in.readFloat();
+        flownFor = in.readInt();
+        travelLeft = in.readFloat();
+        blastRadius = in.readFloat();
+        stunFrames = in.readInt();
+        flight = in.readFloat();
+        loosedFrom = in.readPlace();
+        pierceWidth = in.readFloat();
+        critical = in.readBoolean();
+        struck.clear();
+        struck.addAll(in.readIds());
     }
 
     @Override

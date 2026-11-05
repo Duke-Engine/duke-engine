@@ -88,15 +88,27 @@ Every `Module` subclass in the engine. "Template" = built from a `Data` block;
 |---|---|---|---|
 | `ScriptModule` | template | started, broken, and its `UnitScript`'s fields | Saveable; its script must be Saveable or @Stateless itself, or the save is refused by the script's name |
 
-### rpg
+### rpg (the library's own; a game registers them as it registers its others)
 
-`ArrowUpdate`, `Bow`, `EyesOnly`, `FallingUpdate`, `Swing`, `AttackBonus`,
-`AttackSpeed`, `CriticalStrike`, `FountainUpdate`, `GrowableBody`, `LevelBonus`,
-`Recovery`, `GroundItem`, `ItemErrand`, `KeyDrop`, `LootDrop`, `GateUpdate`,
-`Mission.Counted`, `MendingUpdate`, `SkillBook`, `Summoned`, `SummoningUpdate`.
-No RPG world is saved (`GameSnapshot` saves an `RtsSimulation`, and duke-generals
-builds without `rpg`), so 5.1 leaves them as they are: **not saveable, refused
-by name** if a save ever meets one.
+| Module | How | State outside the template | 7.1 |
+|---|---|---|---|
+| `ArrowUpdate` | template | whom it chases, its shooter, the figures it carries (damage and its kind, step, blast, stun, height, width), frames flown, travel left, where it was loosed from, whom a wave has hurt | Saveable |
+| `FallingUpdate`, `MendingUpdate` | template | caller or patient, the figure, frames left, where it was called from | Saveable |
+| `SummoningUpdate` | template | caller, creature, how long it lasts, experience share, level, frames to open | Saveable |
+| `Swing` | template | the frame it last struck | Saveable |
+| `Bow`, `EyesOnly`, `FountainUpdate` | template | nothing | @Stateless |
+| `GrowableBody` | template | its body line, ceiling, health, armour | Saveable |
+| `Recovery` | template | its rate and what is carried toward the next point | Saveable |
+| `GateUpdate` | template | whether it is opened | Saveable |
+| `GroundItem` | template | what it holds, whole: every field of the item, the skills it lends and the affixes it rolled (`Loot.save`, `Skill.save`), so a save needs no catalogue | Saveable |
+| `SkillBook` (+ `ManaPool`, `Buffs`, `Passives`, `Mount`, `CastMarks`, `Blows`, `Shots`, `Blasts`, `Moves`, `Charge`, `Allies`) | template | cooldowns, last cast, mana and its carry, each buff lent and the boost and guard held, ranks and souls, the scale, floor and flinch it holds, the mount, the marks, a shot being drawn, a whirlwind, a charge with whom it caught, whom it summoned. Skills are kept by their place in the book; a book loaded where its template lists others is refused | Saveable |
+| `AttackBonus`, `AttackSpeed`, `CriticalStrike`, `LevelBonus`, `Summoned` | added | their figures | Saveable + reviver (`RpgModules.registerRevivers`) |
+| `LootDrop`, `KeyDrop`, `ItemErrand`, `Mission.Counted` | added | `LootDrop`: chest, tier, boss; `KeyDrop`: chest, floor owner; `ItemErrand`: what it was sent to do, where, to what, the slot, how near it has got; `Counted`: nothing | Saveable (`Counted` @Stateless) + reviver the game registers with what it is made again with: the loot table, the bag of a hero, the errand rules, the floor's `Mission` |
+
+What the revivers are given is the game's: a `LootTable`, a `LootBag` found by hero, `ItemErrand.Rules`, a `Mission`
+(`Mission.restored` makes one again without telling the counted; `Mission.save`/`load` hold the dead counted and
+whether the key is laid). `SummoningUpdate`, `Bow`, `FountainUpdate`, `ArrowUpdate`, `FallingUpdate`, `Swing`
+and `SkillBook` are built by the game's own builders, with the seal, rules and skills it gives them, before the load.
 
 ### Game-defined modules
 
@@ -145,9 +157,9 @@ from the things), the roster's indices and partition, the sight cells' chunks.
 
 ## 6. Status
 
-Every engine module of core, combat, rts and game is Saveable or @Stateless
+Every engine module of core, combat, rts, game and rpg is Saveable or @Stateless
 (`EngineModulesAreAllSavedTest`: `RtsModules.withDefaults().unsaved()` is
-empty), and every module rts or core adds while a match runs has a reviver.
+empty, and `RpgModulesAreAllSavedTest` for the RPG library), and every module rts or core adds while a match runs has a reviver.
 `GameSnapshot.VERSION` is **3** (2 before the game's parts); a text of any other version (version 1 is the
 unmarked one before) is refused before the world is touched.
 
@@ -158,7 +170,14 @@ played world — so each family's state is shown to matter.
 
 Still open, and loud:
 
-- **rpg modules** — not Saveable; a save that meets one is refused by name.
+- **rpg modules** (7.1): no longer refused. Every module of the library is Saveable or @Stateless
+  (`RpgModulesAreAllSavedTest`) and `rpg/src/test/.../save` plays each family on after a load, in a plain RPG world
+  (`RpgSaveCheck`: things and modules as `ModuleStates` writes them, the world's own lines), since `GameSnapshot` is
+  the RTS's. What stays the game's, as a save part (`GameLogic.saveAlso`): the hero's progress and bag (`HeroProgress`,
+  `LootBag`, `QuestLog`), the wiring a load expects set before it (`Passives.lendFrom(bag)`), and the rules and tables
+  the revivers close over. Refusals that belong to modules outside the library stay and name them: a hero walked by a
+  `Steering` (core's `MoveUpdate`, `action.Stride`), a `WeaponUpdate` holding a game `PointAttack` (combat), and a push
+  still in the air, whose `ScriptedMove` has a landing the book hears.
 - **Refusals that stand**: a `ScriptedMove` whose landing the story hears; a
   mover walked by a `Steering` (`action.Stride` too); a band round a thing that
   left without dying; a `WeaponUpdate` holding a game `PointAttack`; a factory

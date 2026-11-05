@@ -5,6 +5,9 @@ import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.ModuleGroups;
 import uz.dukeengine.core.module.UpdateModule;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.save.Saveable;
 import uz.dukeengine.core.thing.GameObject;
 
 /**
@@ -20,7 +23,7 @@ import uz.dukeengine.core.thing.GameObject;
  * creature's, and a creature spawned without a hero's progress behind it heals nothing.
  */
 @ModuleGroup(ModuleGroups.BODY)
-public final class Recovery extends UpdateModule {
+public final class Recovery extends UpdateModule implements Saveable {
 
     /** It reads no fields; the block only says the unit has one. */
     public record Data() implements ModuleData {
@@ -60,5 +63,16 @@ public final class Recovery extends UpdateModule {
             carry -= A_SECOND;
             body.heal(1f);
         }
+    }
+
+    @Override
+    public void save(SaveOut out) {
+        out.writeInt(tenthsPerSecond).writeInt(carry);
+    }
+
+    @Override
+    public void load(SaveIn in) {
+        tenthsPerSecond = in.readInt();
+        carry = in.readInt();
     }
 }

@@ -5,6 +5,9 @@ import uz.dukeengine.core.module.DamageType;
 import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.ModuleGroups;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.save.Saveable;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.rpg.Seal;
 import uz.dukeengine.rpg.skill.SkillBook;
@@ -37,7 +40,7 @@ import uz.dukeengine.combat.module.ProjectileLauncher;
  * where he stands.
  */
 @ModuleGroup(ModuleGroups.COMBAT)
-public final class Swing extends Module implements ProjectileLauncher {
+public final class Swing extends Module implements ProjectileLauncher, Saveable {
 
     /** It reads no fields; the block only says the unit has one. */
     public record Data() implements ModuleData {
@@ -76,5 +79,15 @@ public final class Swing extends Module implements ProjectileLauncher {
         // striker drinks from it if a skill of its says so.
         SkillBook.drink(striker, damage);
         return false; // nothing flies; the weapon lands it where it stands
+    }
+
+    @Override
+    public void save(SaveOut out) {
+        out.writeInt(struckOn);
+    }
+
+    @Override
+    public void load(SaveIn in) {
+        struckOn = in.readInt();
     }
 }

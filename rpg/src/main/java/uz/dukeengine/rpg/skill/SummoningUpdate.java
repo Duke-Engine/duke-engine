@@ -6,6 +6,9 @@ import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.ModuleGroups;
 import uz.dukeengine.core.module.UpdateModule;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.save.Saveable;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.core.thing.World;
@@ -26,7 +29,7 @@ import uz.dukeengine.combat.module.ExperienceModule;
  * {@code MaxSummoned} for as long as it stands.
  */
 @ModuleGroup({ModuleGroups.COMBAT, ModuleGroups.EFFECT})
-public final class SummoningUpdate extends UpdateModule {
+public final class SummoningUpdate extends UpdateModule implements Saveable {
 
     /** It reads no fields; the block only says the unit has one. */
     public record Data() implements ModuleData {
@@ -100,5 +103,22 @@ public final class SummoningUpdate extends UpdateModule {
         if (book != null) {
             book.risenInPlaceOf(rift.getId(), risen.getId());
         }
+    }
+
+    @Override
+    public void save(SaveOut out) {
+        out.writeId(caller).writeString(creature).writeInt(lasts).writeInt(experiencePercent).writeInt(level)
+                .writeInt(opensIn).writeBoolean(opened);
+    }
+
+    @Override
+    public void load(SaveIn in) {
+        caller = in.readId();
+        creature = in.readString();
+        lasts = in.readInt();
+        experiencePercent = in.readInt();
+        level = in.readInt();
+        opensIn = in.readInt();
+        opened = in.readBoolean();
     }
 }

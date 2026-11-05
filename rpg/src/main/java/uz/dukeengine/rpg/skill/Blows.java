@@ -2,6 +2,8 @@ package uz.dukeengine.rpg.skill;
 
 import java.util.ArrayList;
 import java.util.List;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
 import uz.dukeengine.combat.event.WeaponFired;
 import uz.dukeengine.combat.module.BlowRoll;
 import uz.dukeengine.combat.module.StatusUpdate;
@@ -277,5 +279,13 @@ final class Blows {
             spawned.markDestroyed();
         }
         return found;
+    }
+
+    void save(SaveOut out) {
+        out.writeBoolean(rolledCritical);
+    }
+
+    void load(SaveIn in) {
+        rolledCritical = in.readBoolean();
     }
 }

@@ -4,6 +4,8 @@ import java.util.Map;
 import uz.dukeengine.core.data.Clip;
 import uz.dukeengine.core.data.Link;
 import uz.dukeengine.core.content.Effect;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
 
 /**
  * One skill as the data file describes it, and what it comes to at a given level.
@@ -180,6 +182,72 @@ public record Skill(
      * frame is not a skill, and a file is free to sharpen one too far by accident.
      */
     public static final int MIN_COOLDOWN_FRAMES = 1;
+
+    /** Every component in the order of the record, as a save holds a skill a worn thing lends. */
+    public void save(SaveOut out) {
+        out.writeString(heroTemplate).writeInt(key).writeEnum(effect).writeFloat(damage).writeFloat(damagePerLevel)
+                .writeFloat(radius).writeFloat(range).writeFloat(distance).writeFloat(hitWidth)
+                .writeInt(boostPercent).writeInt(boostPerLevel).writeInt(durationFrames).writeInt(tickFrames)
+                .writeInt(slowFrames).writeInt(cooldownFrames).writeInt(cooldownPerLevel).writeInt(maxRank)
+                .writeInt(levelPerRank).writeInt(windUpFrames).writeInt(manaCost).writeInt(manaCostPerLevel)
+                .writeString(projectile).writeString(icon).writeString(look).writeString(castAnim)
+                .writeFloat(castSeconds).writeString(name).writeString(blurb).writeFloat(projectileSpeed)
+                .writeFloat(heal).writeInt(healBelowPercent).writeInt(summons.size());
+        summons.forEach((kind, count) -> out.writeString(kind).writeInt(count));
+        out.writeInt(maxSummoned).writeInt(summonExperiencePercent).writeInt(stunFrames).writeInt(manaRegen)
+                .writeStrings(notIn).writeBoolean(endsOnCast).writeBoolean(endsOnHurt);
+    }
+
+    /** A skill as {@link #save} wrote it. */
+    public static Skill read(SaveIn in) {
+        var heroTemplate = in.readString();
+        char key = (char) in.readInt();
+        var effect = in.readEnum(SkillEffect.class);
+        float damage = in.readFloat();
+        float damagePerLevel = in.readFloat();
+        float radius = in.readFloat();
+        float range = in.readFloat();
+        float distance = in.readFloat();
+        float hitWidth = in.readFloat();
+        int boostPercent = in.readInt();
+        int boostPerLevel = in.readInt();
+        int durationFrames = in.readInt();
+        int tickFrames = in.readInt();
+        int slowFrames = in.readInt();
+        int cooldownFrames = in.readInt();
+        int cooldownPerLevel = in.readInt();
+        int maxRank = in.readInt();
+        int levelPerRank = in.readInt();
+        int windUpFrames = in.readInt();
+        int manaCost = in.readInt();
+        int manaCostPerLevel = in.readInt();
+        var projectile = in.readString();
+        var icon = in.readString();
+        var look = in.readString();
+        var castAnim = in.readString();
+        float castSeconds = in.readFloat();
+        var name = in.readString();
+        var blurb = in.readString();
+        float projectileSpeed = in.readFloat();
+        float heal = in.readFloat();
+        int healBelowPercent = in.readInt();
+        var summons = new java.util.LinkedHashMap<String, Integer>();
+        for (int kinds = in.readInt(); kinds > 0; kinds--) {
+            summons.put(in.readString(), in.readInt());
+        }
+        int maxSummoned = in.readInt();
+        int summonExperiencePercent = in.readInt();
+        int stunFrames = in.readInt();
+        int manaRegen = in.readInt();
+        var notIn = in.readStrings();
+        boolean endsOnCast = in.readBoolean();
+        boolean endsOnHurt = in.readBoolean();
+        return new Skill(heroTemplate, key, effect, damage, damagePerLevel, radius, range, distance, hitWidth,
+                boostPercent, boostPerLevel, durationFrames, tickFrames, slowFrames, cooldownFrames, cooldownPerLevel,
+                maxRank, levelPerRank, windUpFrames, manaCost, manaCostPerLevel, projectile, icon, look, castAnim,
+                castSeconds, name, blurb, projectileSpeed, heal, healBelowPercent, summons, maxSummoned,
+                summonExperiencePercent, stunFrames, manaRegen, notIn, endsOnCast, endsOnHurt);
+    }
 
     /**
      * What a {@code Skill} block leaves out: a plain strike on a three-second cooldown, four

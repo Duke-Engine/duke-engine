@@ -6,6 +6,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
 import uz.dukeengine.core.GameConstants;
 import uz.dukeengine.core.module.BodyModule;
 import uz.dukeengine.core.module.Death;
@@ -226,5 +228,29 @@ final class Passives {
         staggerClip = stagger.castAnim();
         staggerEnds = frame + stagger.stunFrames();
         staggerFrom = staggerEnds + stagger.durationFrames();
+    }
+
+    void save(SaveOut out) {
+        out.writeInt(ranks.size());
+        ranks.entrySet().stream().sorted(java.util.Map.Entry.comparingByKey())
+                .forEach(rank -> out.writeInt(rank.getKey()).writeInt(rank.getValue()));
+        out.writeInt(souls).writeBoolean(holdsTheScale).writeFloat(bloodOwed).writeBoolean(holdsTheFloor)
+                .writeBoolean(beaten).writeInt(staggerFrom).writeInt(staggerEnds).writeString(staggerClip);
+    }
+
+    void load(SaveIn in) {
+        ranks.clear();
+        for (int count = in.readInt(); count > 0; count--) {
+            ranks.put((char) in.readInt(), in.readInt());
+        }
+        souls = in.readInt();
+        holdsTheScale = in.readBoolean();
+        bloodOwed = in.readFloat();
+        holdsTheFloor = in.readBoolean();
+        beaten = in.readBoolean();
+        staggerFrom = in.readInt();
+        staggerEnds = in.readInt();
+        staggerClip = in.readString();
+        wornVersion = -1; // what is worn lends its passives again from the bag the game hands back
     }
 }

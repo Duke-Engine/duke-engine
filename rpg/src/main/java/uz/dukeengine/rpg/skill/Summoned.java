@@ -3,6 +3,9 @@ package uz.dukeengine.rpg.skill;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.ModuleGroups;
 import uz.dukeengine.core.module.UpdateModule;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.save.Saveable;
 import uz.dukeengine.core.thing.GameObject;
 
 /**
@@ -13,7 +16,7 @@ import uz.dukeengine.core.thing.GameObject;
  * worth nothing to anyone.
  */
 @ModuleGroup({ModuleGroups.EFFECT, ModuleGroups.BODY})
-public final class Summoned extends UpdateModule {
+public final class Summoned extends UpdateModule implements Saveable {
 
     private int framesLeft;
 
@@ -38,5 +41,20 @@ public final class Summoned extends UpdateModule {
         } else {
             owner.markDestroyed();
         }
+    }
+
+    @Override
+    public void save(SaveOut out) {
+        out.writeInt(framesLeft);
+    }
+
+    @Override
+    public void load(SaveIn in) {
+        throw new IllegalStateException("a summoned mark is made again by Summoned.revive, never by its template");
+    }
+
+    /** One put on what climbed out of a rift, made again with the frames it had left: what {@code ModuleFactory.revives} is given. */
+    public static Summoned revive(GameObject owner, SaveIn in) {
+        return new Summoned(owner, in.readInt());
     }
 }
