@@ -304,6 +304,9 @@ MaterialDef PBR Lighting {
         }
 
         Defines {
+            PBR_SURFACE
+            METALLICMAP : MetallicMap
+            SPECULARMAP : SpecularMap
             BASECOLORMAP : BaseColorMap
             NORMALMAP : NormalMap
             NORMALSCALE : NormalScale

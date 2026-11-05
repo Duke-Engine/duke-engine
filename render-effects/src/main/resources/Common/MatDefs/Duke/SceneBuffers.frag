@@ -2,20 +2,29 @@
 
 // GLRenderer binds each outFragData[i] to colour target i; the compat library's outFragColor stays unused.
 #if __VERSION__ >= 130
-  out vec4 outFragData[2];
+  out vec4 outFragData[3];
   #define OUT_SURFACE outFragData[0]
   #define OUT_MOTION outFragData[1]
+  #define OUT_REFLECT outFragData[2]
 #else
   #define OUT_SURFACE gl_FragData[0]
   #define OUT_MOTION gl_FragData[1]
+  #define OUT_REFLECT gl_FragData[2]
 #endif
 
 uniform float m_Roughness;
 #ifdef DISCARD_ALPHA
   uniform float m_AlphaDiscardThreshold;
   varying float vAlpha;
-  #ifdef BASECOLORMAP
-    uniform sampler2D m_BaseColorMap;
+#endif
+#if defined(BASECOLORMAP) && (defined(DISCARD_ALPHA) || defined(PBR_SURFACE))
+  uniform sampler2D m_BaseColorMap;
+#endif
+#ifdef PBR_SURFACE
+  uniform vec4 m_BaseColor;
+  uniform float m_Metallic;
+  #ifdef METALLICMAP
+    uniform sampler2D m_MetallicMap;
   #endif
 #endif
 #ifdef NORMALMAP
@@ -36,6 +45,12 @@ uniform float m_Roughness;
     uniform sampler2D m_SpecularGlossinessMap;
   #elif defined(GLOSSINESSMAP)
     uniform sampler2D m_GlossinessMap;
+  #endif
+  #ifdef PBR_SURFACE
+    uniform vec4 m_Specular;
+    #ifdef SPECULARMAP
+      uniform sampler2D m_SpecularMap;
+    #endif
   #endif
 #endif
 
@@ -87,5 +102,36 @@ void main() {
     #endif
 
     OUT_SURFACE = vec4(normal, roughness);
+    OUT_REFLECT = vec4(0.0);
+    #ifdef PBR_SURFACE
+        // What PBRLighting takes as fZero. shortcut: vertex colour does not tint it, give it a varying when a metal is painted by vertices.
+        vec3 fZero;
+        #ifdef SPECGLOSSPIPELINE
+            #ifdef USE_PACKED_SG
+                fZero = texture2D(m_SpecularGlossinessMap, texCoord).rgb * m_Specular.rgb;
+            #elif defined(SPECULARMAP)
+                fZero = texture2D(m_SpecularMap, texCoord).rgb * m_Specular.rgb;
+            #else
+                fZero = m_Specular.rgb;
+            #endif
+        #else
+            #ifdef USE_PACKED_MR
+                float metallic = texture2D(m_MetallicRoughnessMap, texCoord).b * max(m_Metallic, 0.0);
+            #elif defined(METALLICMAP)
+                float metallic = texture2D(m_MetallicMap, texCoord).r * max(m_Metallic, 0.0);
+            #else
+                float metallic = max(m_Metallic, 0.0);
+            #endif
+            fZero = vec3(0.04 * (1.0 - metallic));
+            if (metallic > 0.0) {
+                vec3 albedo = m_BaseColor.rgb;
+                #ifdef BASECOLORMAP
+                    albedo *= texture2D(m_BaseColorMap, texCoord).rgb;
+                #endif
+                fZero += albedo * metallic;
+            }
+        #endif
+        OUT_REFLECT = vec4(clamp(fZero, 0.0, 1.0), 1.0);
+    #endif
     OUT_MOTION = vec4((vClip.xy / vClip.w - vPreviousClip.xy / max(vPreviousClip.w, 1e-4)) * 0.5, 0.0, 1.0);
 }

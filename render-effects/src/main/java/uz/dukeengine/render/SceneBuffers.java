@@ -26,7 +26,7 @@ import java.util.Optional;
 import java.util.logging.Logger;
 
 /**
- * Depth, view-space normals, roughness and screen-space motion of all that stands solid in the scene, drawn once a frame
+ * Depth, view-space normals, roughness, the light a surface sends back head on, and screen-space motion of all that stands solid in the scene, drawn once a frame
  * so that a screen-space effect reads them instead of drawing the scene again. A view nothing asks of has no such pass:
  * a filter asks in its {@code initFilter}, again at each resize as the post processor calls it then.
  *
@@ -62,6 +62,7 @@ public final class SceneBuffers implements SceneProcessor {
     private Texture2D depth;
     private Texture2D normalRoughness;
     private Texture2D velocity;
+    private Texture2D reflectance;
 
     private SceneBuffers(AssetManager assets, RenderManager renderManager, ViewPort view) {
         this.renderManager = renderManager;
@@ -114,6 +115,14 @@ public final class SceneBuffers implements SceneProcessor {
         return velocity;
     }
 
+    /**
+     * RGBA8: rgb the light the surface sends back head on (about 4% of it on paint, the metal's own colour on a metal),
+     * a 1 where it reflects the probe as PBRLighting does and 0 where it does not (every other material, the sky).
+     */
+    public Texture2D reflectance() {
+        return reflectance;
+    }
+
     private void size(int width, int height) {
         if (buffer != null && buffer.getWidth() == width && buffer.getHeight() == height) {
             return;
@@ -122,12 +131,14 @@ public final class SceneBuffers implements SceneProcessor {
         depth = target(width, height, Format.Depth);
         normalRoughness = target(width, height, Format.RGBA16F);
         velocity = target(width, height, Format.RG16F);
+        reflectance = target(width, height, Format.RGBA8);
         buffer = new FrameBuffer(width, height, 1);
         buffer.setName("SceneBuffers");
         buffer.setMultiTarget(true);
         buffer.setDepthTarget(FrameBufferTarget.newTarget(depth));
         buffer.addColorTarget(FrameBufferTarget.newTarget(normalRoughness));
         buffer.addColorTarget(FrameBufferTarget.newTarget(velocity));
+        buffer.addColorTarget(FrameBufferTarget.newTarget(reflectance));
     }
 
     private static Texture2D target(int width, int height, Format format) {
@@ -214,6 +225,7 @@ public final class SceneBuffers implements SceneProcessor {
             depth.getImage().dispose();
             normalRoughness.getImage().dispose();
             velocity.getImage().dispose();
+            reflectance.getImage().dispose();
         }
     }
 

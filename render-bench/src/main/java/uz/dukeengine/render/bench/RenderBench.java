@@ -54,6 +54,7 @@ import uz.dukeengine.render.MipBloomFilter;
 import uz.dukeengine.render.PictureChain;
 import uz.dukeengine.render.PictureSettings;
 import uz.dukeengine.render.SceneBuffers;
+import uz.dukeengine.render.SsrFilter;
 import uz.dukeengine.render.SkyProbe;
 import uz.dukeengine.render.SunShadowFilter;
 
@@ -64,7 +65,7 @@ import uz.dukeengine.render.SunShadowFilter;
  * show-depth, show-roughness, show-velocity, which show one instead of the picture; show-ao, which shows the ambient
  * occlusion alone, and ao-radius-&lt;m&gt;, which sets its reach in world units; show-bloom, which shows the bloom alone; auto-exposure, which lets the eye adapt, and walk, which (with it) goes from a
  * dark view to a bright one and back, logging what the eye holds (EYE lines) and shooting at the cuts; fog (height fog and the
- * sun's shafts), fog-&lt;density&gt; (its density at height 0, per metre) and no-shafts; move-camera, move-units;
+ * sun's shafts), fog-&lt;density&gt; (its density at height 0, per metre) and no-shafts; no-ssr, show-ssr (how much of the reflection the screen gives, alone) and wet (the floor of materials and outdoor made glossy); move-camera, move-units;
  * {@code hour-<h>}, which turns the atmosphere on with the sun where a made-up summer day has it at that hour, 6 and 18
  * being just over the horizon; sky-view, which looks toward the sun from near the ground, and shaft-view, which does so from behind the scene, so that what stands in it breaks the light; move-sun, which lets the sun
  * walk 0.15 degrees a frame and so prices the sky made anew), output folder. {@code -Dbench.models=<folder>} dresses the scenes
@@ -144,7 +145,7 @@ public final class RenderBench extends SimpleApplication {
                 left.stream().filter(word -> word.startsWith("ao-radius-")).map(word -> Float.valueOf(word.substring(10)))
                         .findFirst().orElse(full.occlusionRadius()),
                 left.contains("auto-exposure") || left.contains("walk"), fogDensity, full.fogFalloff(),
-                full.shafts() && !left.contains("no-shafts"));
+                full.shafts() && !left.contains("no-shafts"), full.reflections() && !left.contains("no-ssr"));
     }
 
     /** How many local lights may have a shadow: {@code no-local-shadows} none, {@code local-<n>} that many, else the default. */
@@ -327,7 +328,7 @@ public final class RenderBench extends SimpleApplication {
 
     /** Rows of balls, smooth at the left and rough at the right: gold, iron, red paint, white paint. */
     private void materials(Node world) {
-        wall(world, surface(new ColorRGBA(0.25f, 0.25f, 0.25f, 1f), 0.8f, 0f), 0f, -1.1f, 0f, 16f, 0.1f, 16f, 8f);
+        wall(world, surface(new ColorRGBA(0.25f, 0.25f, 0.25f, 1f), floorRoughness(0.8f), 0f), 0f, -1.1f, 0f, 16f, 0.1f, 16f, 8f);
         var rows = new ColorRGBA[] {new ColorRGBA(1f, 0.77f, 0.34f, 1f), new ColorRGBA(0.56f, 0.57f, 0.58f, 1f),
             new ColorRGBA(0.7f, 0.05f, 0.05f, 1f), new ColorRGBA(0.85f, 0.85f, 0.85f, 1f)};
         var mesh = new Sphere(48, 48, 1f);
@@ -393,7 +394,7 @@ public final class RenderBench extends SimpleApplication {
 
     /** A field from high up: animated people and a few buildings. */
     private void outdoor(Node world) {
-        wall(world, surface(new ColorRGBA(0.26f, 0.31f, 0.17f, 1f), 0.95f, 0f), 0f, -0.5f, 0f, 80f, 0.5f, 80f, 40f);
+        wall(world, surface(new ColorRGBA(0.26f, 0.31f, 0.17f, 1f), floorRoughness(0.95f), 0f), 0f, -0.5f, 0f, 80f, 0.5f, 80f, 40f);
         var kinds = new String[] {"archer", "brute", "commander"};
         int n = 12;
         for (int x = 0; x < n; x++) {
@@ -591,6 +592,11 @@ public final class RenderBench extends SimpleApplication {
         return model;
     }
 
+    /** What the floor is rough by: after rain (the word {@code wet}), a glossy one. */
+    private float floorRoughness(float dry) {
+        return asked.contains("wet") ? 0.08f : dry;
+    }
+
     /** A plain surface mottled by one shared noise picture. */
     private Material surface(ColorRGBA colour, float roughness, float metallic) {
         var m = new Material(assetManager, "Common/MatDefs/Light/PBRLighting.j3md");
@@ -644,6 +650,12 @@ public final class RenderBench extends SimpleApplication {
         if (asked.contains("show-ao")) {
             PictureChain.filters(picture).stream().filter(GtaoFilter.class::isInstance)
                     .forEach(filter -> post.addFilter(((GtaoFilter) filter).showOcclusionOnly()));
+            viewPort.addProcessor(post);
+            return;
+        }
+        if (asked.contains("show-ssr")) {
+            PictureChain.filters(picture).stream().filter(SsrFilter.class::isInstance)
+                    .forEach(filter -> post.addFilter(((SsrFilter) filter).showReflectionOnly()));
             viewPort.addProcessor(post);
             return;
         }

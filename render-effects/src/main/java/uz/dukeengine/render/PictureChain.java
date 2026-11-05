@@ -16,6 +16,10 @@ public final class PictureChain {
         if (settings.ambientOcclusion()) {
             filters.add(new GtaoFilter(settings.occlusionRadius()));
         }
+        // Before the fog, which a reflection is seen through as the surface is.
+        if (settings.reflections()) {
+            filters.add(new SsrFilter());
+        }
         if (settings.fogDensity() > 0f) {
             filters.add(new HeightFogFilter(settings));
         }

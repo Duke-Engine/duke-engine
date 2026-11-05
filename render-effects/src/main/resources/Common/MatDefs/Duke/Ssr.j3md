@@ -1,0 +1,42 @@
+// Screen space reflections that give way to the light probe: see uz.dukeengine.render.SsrFilter.
+MaterialDef Ssr {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Int NumSamples
+        Texture2D Texture
+        // SceneBuffers' depth, its normals and roughness, and the light each surface sends back head on.
+        Texture2D Depth
+        Texture2D Surface
+        Texture2D Reflectance
+        Matrix4 Projection
+        Matrix4 ProjectionInverse
+        // The camera's view matrix inverted: view space to world space, which the probe's cube is in.
+        Matrix4 ViewInverse
+        // Row 2 of the projection that gives a view depth from a depth buffer value: m22 and m23.
+        Vector2 ProjectionZ
+        Float Near
+        // How far a reflected ray goes, in world units.
+        Float Reach
+        // The probe's prefiltered cube map, which PBRLighting has already added to the picture, and its mip count. Absent, nothing to take back.
+        TextureCubeMap ProbeMap
+        Float ProbeMips
+        // Show how much of the reflection the screen gives, as grey.
+        Boolean OnlyReflection
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/Ssr.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+            RESOLVE_MS : NumSamples
+            PROBE : ProbeMap
+            ONLY_REFLECTION : OnlyReflection
+        }
+    }
+}

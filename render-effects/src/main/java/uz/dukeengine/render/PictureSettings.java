@@ -23,10 +23,12 @@ package uz.dukeengine.render;
  * @param fogFalloff       how fast the fog thins with height, per world unit: its density is {@code fogDensity *
  *                         e^(-fogFalloff * height)}; 0, as thick at any height
  * @param shafts           the sun's light through the fog is cut by what stands in it, from {@link SunShadowFilter}'s maps
+ * @param reflections      glossy surfaces show the picture in themselves where it has their reflection, the light probe's
+ *                         where it has not ({@link SsrFilter})
  */
 public record PictureSettings(boolean ambientOcclusion, boolean bloom, boolean fxaa, float exposure, boolean atmosphere,
         boolean softShadows, boolean contactShadows, int localShadows, float occlusionRadius,
-        boolean autoExposure, float fogDensity, float fogFalloff, boolean shafts) {
+        boolean autoExposure, float fogDensity, float fogFalloff, boolean shafts, boolean reflections) {
 
     public PictureSettings {
         if (!(occlusionRadius > 0f)) {
@@ -42,41 +44,47 @@ public record PictureSettings(boolean ambientOcclusion, boolean bloom, boolean f
      * At this exposure the curve leaves a mid-tone where it was. Three quarters of a metre of reach is a human-scale world's crease
      * between a wall and a floor, a doorway, the underside of a table.
      */
-    public static final PictureSettings FULL = new PictureSettings(true, true, true, 0.7f, false, true, true, 4, 0.75f, false, 0f, 0.06f, true);
+    public static final PictureSettings FULL = new PictureSettings(true, true, true, 0.7f, false, true, true, 4, 0.75f, false, 0f, 0.06f, true, true);
 
     /** These settings with the atmosphere on or off. */
     public PictureSettings withAtmosphere(boolean on) {
         return new PictureSettings(ambientOcclusion, bloom, fxaa, exposure, on, softShadows, contactShadows, localShadows,
-                occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts);
+                occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections);
     }
 
     /** These settings with this many lights allowed a shadow, none for 0. */
     public PictureSettings withLocalShadows(int budget) {
         return new PictureSettings(ambientOcclusion, bloom, fxaa, exposure, atmosphere, softShadows, contactShadows,
-                Math.max(0, budget), occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts);
+                Math.max(0, budget), occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections);
     }
 
     /** These settings with creases darkened by what stands this far (world units) from them. */
     public PictureSettings withOcclusionRadius(float radius) {
         return new PictureSettings(ambientOcclusion, bloom, fxaa, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, radius, autoExposure, fogDensity, fogFalloff, shafts);
+                localShadows, radius, autoExposure, fogDensity, fogFalloff, shafts, reflections);
     }
 
     /** These settings with the eye adapting to the picture, or not. */
     public PictureSettings withAutoExposure(boolean on) {
         return new PictureSettings(ambientOcclusion, bloom, fxaa, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, occlusionRadius, on, fogDensity, fogFalloff, shafts);
+                localShadows, occlusionRadius, on, fogDensity, fogFalloff, shafts, reflections);
     }
 
     /** These settings with fog of this density at height 0 that thins by {@code falloff} per unit of height; 0 density, none. */
     public PictureSettings withFog(float density, float falloff) {
         return new PictureSettings(ambientOcclusion, bloom, fxaa, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, occlusionRadius, autoExposure, density, falloff, shafts);
+                localShadows, occlusionRadius, autoExposure, density, falloff, shafts, reflections);
     }
 
     /** These settings with the sun's shafts through the fog, or not. */
     public PictureSettings withShafts(boolean on) {
         return new PictureSettings(ambientOcclusion, bloom, fxaa, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, on);
+                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, on, reflections);
+    }
+
+    /** These settings with the reflections of the picture in glossy surfaces, or not. */
+    public PictureSettings withReflections(boolean on) {
+        return new PictureSettings(ambientOcclusion, bloom, fxaa, exposure, atmosphere, softShadows, contactShadows,
+                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, on);
     }
 }
