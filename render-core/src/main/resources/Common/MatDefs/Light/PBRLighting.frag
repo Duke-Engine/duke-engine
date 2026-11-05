@@ -3,6 +3,11 @@
 #import "Common/ShaderLib/Parallax.glsllib"
 #import "Common/ShaderLib/Lighting.glsllib"
 
+// The normal map's tangent frame is also the clear coat's own normal map's.
+#if defined(NORMALMAP) || defined(PARALLAXMAP) || defined(CLEARCOAT_NORMALMAP)
+  #define TANGENT_FRAME
+#endif
+
 varying vec2 texCoord;
 #ifdef SEPARATE_TEXCOORD
   varying vec2 texCoord2;
@@ -95,9 +100,24 @@ varying vec3 wPosition;
   uniform float m_AoStrength;
 #endif
   
-#if defined(NORMALMAP) || defined(PARALLAXMAP)
+#ifdef TANGENT_FRAME
   uniform sampler2D m_NormalMap;   
   varying vec4 wTangent;
+#endif
+#ifdef CLEARCOAT
+  uniform float m_ClearCoat;
+  uniform float m_ClearCoatRoughness;
+  #ifdef CLEARCOAT_NORMALMAP
+    uniform sampler2D m_ClearCoatNormalMap;
+  #endif
+#endif
+#ifdef SHEEN
+  uniform vec4 m_SheenColor;
+  uniform float m_SheenRoughness;
+#endif
+#ifdef SUBSURFACE
+  uniform vec4 m_Subsurface;
+  uniform float m_SubsurfaceTransmission;
 #endif
 #ifdef NORMALSCALE
   uniform float m_NormalScale;
@@ -121,7 +141,7 @@ void main(){
     vec3 viewDir = normalize(g_CameraPosition - wPosition);
 
     vec3 norm = normalize(wNormal);
-    #if defined(NORMALMAP) || defined(PARALLAXMAP)
+    #ifdef TANGENT_FRAME
         vec3 tan = normalize(wTangent.xyz);
         mat3 tbnMat = mat3(tan, wTangent.w * cross( (norm), (tan)), norm);
     #endif
@@ -271,6 +291,36 @@ void main(){
         #endif
     #endif
     float ndotv = max( dot( normal, viewDir ),0.0);
+
+    // The layers over the base, outermost last: what each lets through of what is under it, and what it adds.
+    #if defined(CLEARCOAT) || defined(SHEEN)
+        float indirectKeep = 1.0;
+        vec3 coatNormal = norm;
+        vec4 coatTerm = vec4(0.0);
+        vec3 sheenTint = vec3(0.0);
+    #endif
+    #ifdef SHEEN
+        // Below 0.2 the fit of PBR_SheenAlbedo is out of range, and a cloth that sharp is a satin, not a sheen.
+        float sheenRoughness = clamp(m_SheenRoughness, 0.2, 1.0);
+        float sheenAlbedo = PBR_SheenAlbedo(sheenRoughness, ndotv);
+        // The base gives up what the cloth takes, so a white cloth under a white sky stays under 1.
+        float sheenKeep = 1.0 - max(m_SheenColor.r, max(m_SheenColor.g, m_SheenColor.b)) * sheenAlbedo;
+        sheenTint = m_SheenColor.rgb * sheenAlbedo;
+        indirectKeep *= sheenKeep;
+    #endif
+    #ifdef CLEARCOAT
+        #ifdef CLEARCOAT_NORMALMAP
+            coatNormal = normalize(tbnMat * (texture2D(m_ClearCoatNormalMap, newTexCoord).xyz * vec3(2.0, NORMAL_TYPE * 2.0, 2.0) - vec3(1.0, NORMAL_TYPE * 1.0, 1.0)));
+        #endif
+        float coat = clamp(m_ClearCoat, 0.0, 1.0);
+        // Under 0.045 the lobe is narrower than a pixel and its peak overflows half floats.
+        float coatRoughness = max(m_ClearCoatRoughness, 0.045);
+        float ndotvCoat = max(dot(coatNormal, viewDir), 0.0);
+        coatTerm = vec4(coat, coatRoughness, ndotvCoat, 0.0);
+        float coatKeep = 1.0 - coat * integrateBRDFApprox(vec3(COAT_F0), coatRoughness, ndotvCoat).x;
+        indirectKeep *= coatKeep;
+        sheenTint *= coatKeep;
+    #endif
     for( int i = 0;i < NB_LIGHTS; i+=3){
         vec4 lightColor = g_LightData[i];
         vec4 lightData1 = g_LightData[i+1];                
@@ -306,7 +356,28 @@ void main(){
                                 directDiffuse,  directSpecular);
         #endif
 
+        #ifdef SUBSURFACE
+            directDiffuse = PBR_SubsurfaceDiffuse(dot(normal, lightDir.xyz), lightColor.rgb, m_Subsurface.rgb);
+        #endif
+
         vec3 directLighting = diffuseColor.rgb *directDiffuse + directSpecular;
+        #ifdef SUBSURFACE
+            directLighting += diffuseColor.rgb * PBR_SubsurfaceTransmission(normal, lightDir.xyz, viewDir, lightColor.rgb, m_Subsurface.rgb, m_SubsurfaceTransmission);
+        #endif
+        #ifdef SHEEN
+            directLighting = directLighting * sheenKeep + PBR_Sheen(normal, lightDir.xyz, viewDir, lightColor.rgb, m_SheenColor.rgb, sheenRoughness, ndotv);
+        #endif
+        #ifdef CLEARCOAT
+            vec3 coatDiffuse;
+            vec3 coatSpecular;
+            #ifdef SPECULAR_AA
+                PBR_ComputeDirectLightWithSpecularAA(coatNormal, lightDir.xyz, viewDir, lightColor.rgb, vec3(COAT_F0), coatRoughness, sigma, kappa, ndotvCoat, coatDiffuse, coatSpecular);
+            #else
+                PBR_ComputeDirectLight(coatNormal, lightDir.xyz, viewDir, lightColor.rgb, vec3(COAT_F0), coatRoughness, ndotvCoat, coatDiffuse, coatSpecular);
+            #endif
+            // What the coat reflects does not reach the base.
+            directLighting = directLighting * (1.0 - coat * F_Shlick(hdotv, vec3(COAT_F0)).x) + coatSpecular * coat;
+        #endif
         
         gl_FragColor.rgb += directLighting * fallOff;
     }
@@ -347,6 +418,16 @@ void main(){
             weight1 /= weightSum;
             weight2 /= weightSum;
             weight3 /= weightSum;
+        #endif
+
+        #if defined(CLEARCOAT) || defined(SHEEN)
+            color1 = color1 * indirectKeep + renderProbeLayers(viewDir, wPosition, normal, coatNormal, coatTerm, sheenTint, ao, g_LightProbeData, g_ShCoeffs, g_PrefEnvMap);
+            #if NB_PROBES >= 2
+                color2 = color2 * indirectKeep + renderProbeLayers(viewDir, wPosition, normal, coatNormal, coatTerm, sheenTint, ao, g_LightProbeData2, g_ShCoeffs2, g_PrefEnvMap2);
+            #endif
+            #if NB_PROBES == 3
+                color3 = color3 * indirectKeep + renderProbeLayers(viewDir, wPosition, normal, coatNormal, coatTerm, sheenTint, ao, g_LightProbeData3, g_ShCoeffs3, g_PrefEnvMap3);
+            #endif
         #endif
 
         #ifdef USE_AMBIENT_LIGHT

@@ -61,6 +61,21 @@ MaterialDef PBR Lighting {
         // Parallax/height map
         Texture2D ParallaxMap -LINEAR
 
+        // Clear coat: a smooth clear layer over the base (car paint, lacquer). The amount, 0 to 1; setting it turns the layer on.
+        Float ClearCoat
+        Float ClearCoatRoughness : 0.1
+        // A normal map of the layer's own; without it the layer follows the mesh normal, not the base's normal map.
+        Texture2D ClearCoatNormalMap -LINEAR
+
+        // Sheen, for cloth: the colour of the soft rim of fibres, which turns the layer on, and how wide the rim is (0.2 to 1).
+        Color SheenColor
+        Float SheenRoughness : 0.5
+
+        // Skin: how far each channel of light scatters past the terminator (red farthest, say 0.6 0.25 0.1), which turns it on;
+        // and how much of a light behind a thin part (an ear) shows through, 0 to 1.
+        Color Subsurface
+        Float SubsurfaceTransmission : 0.0
+
         // Specular-AA
         Boolean UseSpecularAA : true
         // screen space variance,Use the slider to set the strength of the geometric specular anti-aliasing effect between 0 and 1. Higher values produce a blurrier result with less aliasing.
@@ -172,6 +187,10 @@ MaterialDef PBR Lighting {
             EMISSIVE : Emissive
             SPECGLOSSPIPELINE : UseSpecGloss
             PARALLAXMAP : ParallaxMap
+            CLEARCOAT : ClearCoat
+            CLEARCOAT_NORMALMAP : ClearCoatNormalMap
+            SHEEN : SheenColor
+            SUBSURFACE : Subsurface
             NORMALMAP_PARALLAX : PackedNormalParallax
             STEEP_PARALLAX : SteepParallax
             LIGHTMAP : LightMap
@@ -305,6 +324,7 @@ MaterialDef PBR Lighting {
 
         Defines {
             PBR_SURFACE
+            CLEARCOAT : ClearCoat
             METALLICMAP : MetallicMap
             SPECULARMAP : SpecularMap
             BASECOLORMAP : BaseColorMap

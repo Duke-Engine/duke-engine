@@ -13,6 +13,10 @@
 #endif
 
 uniform float m_Roughness;
+#ifdef CLEARCOAT
+  uniform float m_ClearCoat;
+  uniform float m_ClearCoatRoughness;
+#endif
 #ifdef DISCARD_ALPHA
   uniform float m_AlphaDiscardThreshold;
   varying float vAlpha;
@@ -101,6 +105,11 @@ void main() {
         #endif
     #endif
 
+    #ifdef CLEARCOAT
+        // What a mirror ray meets first is the coat: its roughness, and below it F0 of a clear dielectric.
+        float coat = clamp(m_ClearCoat, 0.0, 1.0);
+        roughness = mix(roughness, max(m_ClearCoatRoughness, 0.045), coat);
+    #endif
     OUT_SURFACE = vec4(normal, roughness);
     OUT_REFLECT = vec4(0.0);
     #ifdef PBR_SURFACE
@@ -130,6 +139,9 @@ void main() {
                 #endif
                 fZero += albedo * metallic;
             }
+        #endif
+        #ifdef CLEARCOAT
+            fZero = mix(fZero, vec3(0.04), coat);
         #endif
         OUT_REFLECT = vec4(clamp(fZero, 0.0, 1.0), 1.0);
     #endif

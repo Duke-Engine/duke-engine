@@ -1,0 +1,126 @@
+{
+  "asset": {
+    "version": "2.0"
+  },
+  "extensionsUsed": [
+    "KHR_materials_clearcoat",
+    "KHR_materials_sheen"
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "layered"
+    },
+    {
+      "mesh": 1,
+      "name": "plain"
+    }
+  ],
+  "meshes": [
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0
+          },
+          "material": 0
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0
+          },
+          "material": 1
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 3,
+      "type": "VEC3",
+      "min": [
+        0,
+        0,
+        0
+      ],
+      "max": [
+        1,
+        1,
+        0
+      ]
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 36
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 36,
+      "uri": "data:application/octet-stream;base64,AAAAAAAAAAAAAAAAAACAPwAAAAAAAAAAAAAAAAAAgD8AAAAA"
+    }
+  ],
+  "materials": [
+    {
+      "name": "coated velvet",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.5,
+          0.1,
+          0.1,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.5
+      },
+      "extensions": {
+        "KHR_materials_clearcoat": {
+          "clearcoatFactor": 0.8,
+          "clearcoatRoughnessFactor": 0.15
+        },
+        "KHR_materials_sheen": {
+          "sheenColorFactor": [
+            0.9,
+            0.4,
+            0.5
+          ],
+          "sheenRoughnessFactor": 0.6
+        }
+      }
+    },
+    {
+      "name": "no coat",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.5,
+          0.1,
+          0.1,
+          1
+        ]
+      },
+      "extensions": {
+        "KHR_materials_clearcoat": {
+          "clearcoatFactor": 0
+        },
+        "KHR_materials_sheen": {}
+      }
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import com.jme3.app.state.ScreenshotAppState;
 import com.jme3.asset.plugins.FileLocator;
 import com.jme3.bounding.BoundingBox;
 import com.jme3.light.DirectionalLight;
+import com.jme3.light.LightProbe;
 import com.jme3.light.PointLight;
 import com.jme3.light.SpotLight;
 import com.jme3.material.Material;
@@ -16,6 +17,7 @@ import com.jme3.math.Quaternion;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.jme3.post.FilterPostProcessor;
+import com.jme3.renderer.Camera;
 import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.renderer.queue.RenderQueue.ShadowMode;
 import com.jme3.scene.Geometry;
@@ -27,6 +29,7 @@ import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Quad;
 import com.jme3.scene.shape.Sphere;
 import com.jme3.system.AppSettings;
+import com.jme3.texture.FrameBuffer;
 import com.jme3.texture.Image;
 import com.jme3.texture.Texture;
 import com.jme3.texture.Texture2D;
@@ -44,6 +47,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
+import java.util.function.Consumer;
 import uz.dukeengine.render.AntiAliasing;
 import uz.dukeengine.render.Atmosphere;
 import uz.dukeengine.render.AcesToneMap;
@@ -62,14 +66,14 @@ import uz.dukeengine.render.SunShadowFilter;
 
 /**
  * Draws one fixed scene, measures its frames, saves a picture and quits, so a change to the renderer can be seen and
- * priced. Args: scene (materials, interior, outdoor, night, buffers, furnace), what to leave out or add ("full", or joined by
+ * priced. Args: scene (materials, materials-plus, interior, outdoor, night, buffers, furnace), what to leave out or add ("full", or joined by
  * commas: no-ao, no-bloom, no-aa, fxaa, taa (the edges' smoothing; else the default of FULL), no-pcss, no-contact, no-shadows, no-local-shadows, local-&lt;n&gt; (how many local lights have a shadow), lamp (one lamp over any scene); feet, which looks at the outdoor units' feet from close by; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
  * show-depth, show-roughness, show-velocity, which show one instead of the picture; show-ao, which shows the ambient
  * occlusion alone, and ao-radius-&lt;m&gt;, which sets its reach in world units; show-bloom, which shows the bloom alone; auto-exposure, which lets the eye adapt, and walk, which (with it) goes from a
  * dark view to a bright one and back, logging what the eye holds (EYE lines) and shooting at the cuts; fog (height fog and the
  * sun's shafts), fog-&lt;density&gt; (its density at height 0, per metre) and no-shafts; no-ssr, show-ssr (how much of the reflection the screen gives, alone) and wet (the floor of materials and outdoor made glossy); move-camera, move-units, fast (them at up to 25 times the speed, to and fro);
  * dof and focus-&lt;m&gt; (a lens in focus, on the thing each scene is about or that far away), motion-blur (the shutter half open: with move-camera or move-units), lut-&lt;name&gt; (a grade
- * from Common/Luts), vignette, and cinematic, which is all four;
+ * from Common/Luts), vignette, and cinematic, which is all four; head and parallax (materials-plus from close to the bust, or low over the brick floor) no-layers (its balls and bricks without the coat, sheen, scatter and height map, to price them) and fill (with coat, cloth, skin, bricks, pom or all: 16 layers of one material over every pixel, for the cost of a layer per pixel; run it with the chain left out);
  * {@code hour-<h>}, which turns the atmosphere on with the sun where a made-up summer day has it at that hour, 6 and 18
  * being just over the horizon; sky-view, which looks toward the sun from near the ground, and shaft-view, which does so from behind the scene, so that what stands in it breaks the light; move-sun, which lets the sun
  * walk 0.15 degrees a frame and so prices the sky made anew), output folder. {@code -Dbench.models=<folder>} dresses the scenes
@@ -219,7 +223,6 @@ public final class RenderBench extends SimpleApplication {
         }
         if (scene.equals("furnace")) {
             furnace();
-            stop();
             return;
         }
         var world = new Node("world");
@@ -230,6 +233,15 @@ public final class RenderBench extends SimpleApplication {
                 sunDirection.set(-0.45f, -0.75f, -0.48f);
                 sun = new ColorRGBA(1f, 0.95f, 0.88f, 1f).mult(2f);
                 materials(world);
+            }
+            case "materials-plus" -> {
+                sunDirection.set(-0.45f, -0.75f, -0.48f);
+                sun = new ColorRGBA(1f, 0.95f, 0.88f, 1f).mult(2f);
+                if (asked.contains("fill")) {
+                    fill(world);
+                } else {
+                    materialsPlus(world);
+                }
             }
             case "interior" -> {
                 sunDirection.set(-0.3f, -0.33f, -0.9f);
@@ -340,6 +352,75 @@ public final class RenderBench extends SimpleApplication {
             boolean fine = Math.abs(baked - true_) <= 0.1f * true_;
             System.out.printf(Locale.ROOT, "RESULT furnace n=%s baked %.3f true %.3f %s%n", n, baked, true_, fine ? "ok" : "FAIL");
         }
+        furnaceSpheres(SkyProbe.bake(assetManager, renderManager, SkyProbe.paint(d -> ColorRGBA.White, 64)));
+    }
+
+    private final List<Runnable> furnaceReads = new ArrayList<>();
+
+    /**
+     * White spheres under a sky of 1 and no other light, drawn into half float targets: what each layer of PBRLighting may
+     * take from the base and put back. The plain sphere is the bound, not 1: its diffuse and its specular are not
+     * traded against each other, so it reads a little over 1 at the rim already; a layer must not read over it.
+     */
+    private void furnaceSpheres(LightProbe sky) {
+        record Case(String name, Consumer<Material> layer) {}
+        var cases = List.of(new Case("plain", m -> {}),
+                new Case("coat-0.05", m -> { m.setFloat("ClearCoat", 1f); m.setFloat("ClearCoatRoughness", 0.05f); }),
+                // A flat map of its own: the same picture as coat-0.05, which says the map's path (tangents, sampling) works.
+                new Case("coat-flat-normal-map", m -> { m.setFloat("ClearCoat", 1f); m.setFloat("ClearCoatRoughness", 0.05f);
+                    m.setTexture("ClearCoatNormalMap", picture(Image.Format.RGB8, ColorSpace.Linear, (x, y) -> new int[] {128, 128, 255})); }),
+                new Case("coat-0.5-rough-base", m -> { m.setFloat("Roughness", 0.8f); m.setFloat("ClearCoat", 1f); m.setFloat("ClearCoatRoughness", 0.5f); }),
+                new Case("sheen-0.3", m -> { m.setColor("SheenColor", ColorRGBA.White); m.setFloat("SheenRoughness", 0.3f); }),
+                new Case("sheen-1.0", m -> { m.setColor("SheenColor", ColorRGBA.White); m.setFloat("SheenRoughness", 1f); }),
+                new Case("sheen+coat", m -> { m.setColor("SheenColor", ColorRGBA.White); m.setFloat("ClearCoat", 1f); }),
+                new Case("skin", m -> m.setColor("Subsurface", new ColorRGBA(0.7f, 0.25f, 0.1f, 1f))));
+        var results = new HashMap<String, float[]>();
+        for (var one : cases) {
+            var material = new Material(assetManager, "Common/MatDefs/Light/PBRLighting.j3md");
+            material.setColor("BaseColor", ColorRGBA.White);
+            material.setFloat("Metallic", 0f);
+            material.setFloat("Roughness", 0.4f);
+            one.layer().accept(material);
+            var ball = new Geometry("ball", new Sphere(48, 48, 1f));
+            ball.setMaterial(material);
+            MikktspaceTangentGenerator.generate(ball);
+            var root = new Node("furnace " + one.name());
+            root.attachChild(ball);
+            root.addLight(sky);
+            root.updateGeometricState();
+            var camera = new Camera(96, 96);
+            camera.setFrustumPerspective(30f, 1f, 1f, 20f);
+            camera.setLocation(new Vector3f(0f, 0f, 5f));
+            camera.lookAt(Vector3f.ZERO, Vector3f.UNIT_Y);
+            var target = new FrameBuffer(96, 96, 1);
+            target.setDepthTarget(FrameBuffer.FrameBufferTarget.newTarget(Image.Format.Depth));
+            target.addColorTarget(FrameBuffer.FrameBufferTarget.newTarget(Image.Format.RGBA16F));
+            var view = renderManager.createPreView("furnace " + one.name(), camera);
+            view.setClearFlags(true, true, true);
+            view.setBackgroundColor(ColorRGBA.BlackNoAlpha);
+            view.setOutputFrameBuffer(target);
+            view.attachScene(root);
+            furnaceReads.add(() -> {
+                var bytes = BufferUtils.createByteBuffer(96 * 96 * 16);
+                renderer.readFrameBufferWithFormat(target, bytes, Image.Format.RGBA32F);
+                var floats = bytes.asFloatBuffer();
+                float max = 0f;
+                double sum = 0.0;
+                int n = 0;
+                for (int i = 0; i < 96 * 96; i++) {
+                    if (floats.get(i * 4 + 3) > 0.5f) {
+                        float v = Math.max(floats.get(i * 4), Math.max(floats.get(i * 4 + 1), floats.get(i * 4 + 2)));
+                        max = Math.max(max, v);
+                        sum += v;
+                        n++;
+                    }
+                }
+                results.put(one.name(), new float[] {max, (float) (sum / n)});
+                float bound = results.get("plain")[0];
+                boolean fine = one.name().equals("plain") || max <= bound + 0.01f;
+                System.out.printf(Locale.ROOT, "RESULT furnace sphere %s max %.3f mean %.3f %s%n", one.name(), max, sum / n, fine ? "ok" : "FAIL");
+            });
+        }
     }
 
     /** The sky's red, cosine weighted over the half sphere round {@code n}, divided by pi. */
@@ -387,6 +468,202 @@ public final class RenderBench extends SimpleApplication {
         cam.setFrustumPerspective(35f, (float) cam.getWidth() / cam.getHeight(), 1f, 400f);
         cam.setLocation(new Vector3f(0f, 13f, 19f));
         cam.lookAt(new Vector3f(0f, -0.5f, 0f), Vector3f.UNIT_Y);
+    }
+
+    /**
+     * The layers of PBRLighting on rows of balls, from the back: skin (and, with models, a bust) without and with scatter and
+     * transmission, velvet at growing sheen roughness, red car paint under a coat of growing roughness, and two patches of brick floor, flat
+     * on the left and with parallax on the right. The first ball of each row is the same without the layer. A weak light from behind lights
+     * the rims. The words {@code head} and {@code parallax} move the camera close to the bust or low over the bricks.
+     */
+    private void materialsPlus(Node world) {
+        wall(world, surface(new ColorRGBA(0.25f, 0.25f, 0.25f, 1f), floorRoughness(0.8f), 0f), 0f, -1.1f, 0f, 16f, 0.1f, 16f, 8f);
+        var mesh = new Sphere(48, 48, 1f);
+        float[] backRow = {-3.6f, -1.2f, 1.2f};
+        boolean layers = !asked.contains("no-layers");
+        for (int column = 0; column < 7; column++) {
+            float x = (column - 3f) * 2.4f;
+            // skin
+            if (column < 5) {
+                var skin = ball(new ColorRGBA(0.5f, 0.3f, 0.23f, 1f), 0f, 0.5f);
+                var scatter = new ColorRGBA[] {null, new ColorRGBA(0.4f, 0.12f, 0.05f, 1f), new ColorRGBA(0.7f, 0.25f, 0.1f, 1f),
+                    new ColorRGBA(1f, 0.4f, 0.2f, 1f), new ColorRGBA(0.7f, 0.25f, 0.1f, 1f)}[column];
+                if (scatter != null && layers) {
+                    skin.setColor("Subsurface", scatter);
+                    skin.setFloat("SubsurfaceTransmission", column == 4 ? 1f : 0f);
+                }
+                world.attachChild(ballAt(mesh, skin, x, backRow[0]));
+            }
+            // velvet
+            var cloth = ball(new ColorRGBA(0.18f, 0.015f, 0.05f, 1f), 0f, 0.9f);
+            if (column > 0 && layers) {
+                cloth.setColor("SheenColor", new ColorRGBA(0.7f, 0.33f, 0.42f, 1f));
+                cloth.setFloat("SheenRoughness", new float[] {0f, 0.2f, 0.3f, 0.4f, 0.55f, 0.75f, 1f}[column]);
+            }
+            world.attachChild(ballAt(mesh, cloth, x, backRow[1]));
+            // car paint: a red metallic flake base under a clear coat
+            var paint = ball(new ColorRGBA(0.55f, 0.02f, 0.03f, 1f), 0.5f, 0.45f);
+            if (column > 0 && layers) {
+                paint.setFloat("ClearCoat", 1f);
+                paint.setFloat("ClearCoatRoughness", new float[] {0f, 0.05f, 0.1f, 0.2f, 0.3f, 0.45f, 0.6f}[column]);
+            }
+            world.attachChild(ballAt(mesh, paint, x, backRow[2]));
+        }
+        bricks(world, layers);
+        if (models != null) {
+            var bust = place(world, "old_woman", 12f, 9.6f, -10.4f, backRow[0], -15f);
+            bust.depthFirstTraversal(s -> {
+                if (layers && s instanceof Geometry g && g.getMaterial() != null && "Skin".equals(g.getMaterial().getName())) {
+                    g.getMaterial().setColor("Subsurface", new ColorRGBA(0.7f, 0.25f, 0.1f, 1f));
+                    g.getMaterial().setFloat("SubsurfaceTransmission", 0.6f);
+                }
+            });
+        }
+        rootNode.addLight(new DirectionalLight(new Vector3f(0.4f, -0.35f, 0.85f).normalizeLocal(), new ColorRGBA(0.9f, 0.95f, 1f, 1f).mult(1.2f)));
+        cam.setFrustumPerspective(38f, (float) cam.getWidth() / cam.getHeight(), 0.3f, 400f);
+        cam.setLocation(new Vector3f(1.2f, 10f, 15.5f));
+        cam.lookAt(new Vector3f(1.2f, -0.5f, 0.8f), Vector3f.UNIT_Y);
+        if (asked.contains("head")) {
+            cam.setFrustumPerspective(25f, (float) cam.getWidth() / cam.getHeight(), 0.3f, 400f);
+            cam.setLocation(new Vector3f(9f, 1.2f, 3f));
+            cam.lookAt(new Vector3f(9.6f, 0.7f, backRow[0]), Vector3f.UNIT_Y);
+        }
+        if (asked.contains("parallax")) {
+            cam.setLocation(new Vector3f(0f, 3.4f, 13f));
+            cam.lookAt(new Vector3f(0f, -1f, 4f), Vector3f.UNIT_Y);
+        }
+    }
+
+    /** 16 quads one over the other, each covering the whole picture with the material the words ask for: what a pixel of it costs is the rest of the frame's time over 16 pixels' worth. */
+    private void fill(Node world) {
+        var material = new Material(assetManager, "Common/MatDefs/Light/PBRLighting.j3md");
+        material.setColor("BaseColor", new ColorRGBA(0.5f, 0.3f, 0.23f, 1f));
+        material.setFloat("Metallic", 0f);
+        material.setFloat("Roughness", 0.5f);
+        boolean all = asked.contains("all");
+        if (all || asked.contains("coat")) {
+            material.setFloat("ClearCoat", 1f);
+            material.setFloat("ClearCoatRoughness", 0.1f);
+        }
+        if (all || asked.contains("cloth")) {
+            material.setColor("SheenColor", new ColorRGBA(0.7f, 0.33f, 0.42f, 1f));
+            material.setFloat("SheenRoughness", 0.5f);
+        }
+        if (all || asked.contains("skin")) {
+            material.setColor("Subsurface", new ColorRGBA(0.7f, 0.25f, 0.1f, 1f));
+            material.setFloat("SubsurfaceTransmission", 0.5f);
+        }
+        if (all || asked.contains("bricks") || asked.contains("pom")) {
+            material.setTexture("BaseColorMap", noise());
+            material.setTexture("NormalMap", picture(Image.Format.RGB8, ColorSpace.Linear, (x, y) -> {
+                float dx = (brickHeight(x + 1, y) - brickHeight(x - 1, y)) * 3f;
+                float dy = (brickHeight(x, y + 1) - brickHeight(x, y - 1)) * 3f;
+                float length = FastMath.sqrt(dx * dx + dy * dy + 1f);
+                return new int[] {Math.round((-dx / length * 0.5f + 0.5f) * 255f), Math.round((dy / length * 0.5f + 0.5f) * 255f),
+                    Math.round((1f / length * 0.5f + 0.5f) * 255f), 255};
+            }));
+            material.setFloat("NormalType", 1f);
+        }
+        if (all || asked.contains("pom")) {
+            material.setTexture("ParallaxMap", picture(Image.Format.RGB8, ColorSpace.Linear, (x, y) -> {
+                int v = Math.round(brickHeight(x, y) * 255f);
+                return new int[] {v, v, v, 255};
+            }));
+            material.setBoolean("SteepParallax", true);
+            material.setFloat("ParallaxHeight", 0.1f);
+        }
+        var quad = new Quad(60f, 60f);
+        quad.scaleTextureCoordinates(new Vector2f(24f, 24f));
+        for (int i = 0; i < 16; i++) {
+            var layer = new Geometry("fill " + i, quad);
+            layer.setMaterial(material);
+            MikktspaceTangentGenerator.generate(layer);
+            layer.rotate(-FastMath.DEG_TO_RAD * 60f, 0f, 0f);
+            layer.setLocalTranslation(-30f, -32f, -5f);
+            world.attachChild(layer);
+        }
+        cam.setFrustumPerspective(35f, (float) cam.getWidth() / cam.getHeight(), 1f, 400f);
+        cam.setLocation(new Vector3f(0f, 8f, 10f));
+        cam.lookAt(new Vector3f(0f, -1f, 0f), Vector3f.UNIT_Y);
+    }
+
+    private Material ball(ColorRGBA colour, float metallic, float roughness) {
+        var material = new Material(assetManager, "Common/MatDefs/Light/PBRLighting.j3md");
+        material.setColor("BaseColor", colour);
+        material.setFloat("Metallic", metallic);
+        material.setFloat("Roughness", roughness);
+        return material;
+    }
+
+    private static Geometry ballAt(Sphere mesh, Material material, float x, float z) {
+        var ball = new Geometry("ball", mesh);
+        ball.setMaterial(material);
+        ball.setLocalTranslation(x, 0f, z);
+        return ball;
+    }
+
+    /** Brick floor patches in front of the rows: the left plain (colour and normal map), the right with the height map marched. */
+    private void bricks(Node world, boolean parallax) {
+        var colour = picture(Image.Format.RGB8, ColorSpace.sRGB, (x, y) -> {
+            float h = brickHeight(x, y);
+            float tone = 0.75f + 0.25f * hash(x / 4, y / 4);
+            return h < 0.2f ? new int[] {110, 108, 100} : new int[] {Math.round(150 * tone), Math.round(70 * tone), Math.round(52 * tone)};
+        });
+        var normals = picture(Image.Format.RGB8, ColorSpace.Linear, (x, y) -> {
+            float dx = (brickHeight(x + 1, y) - brickHeight(x - 1, y)) * 3f;
+            float dy = (brickHeight(x, y + 1) - brickHeight(x, y - 1)) * 3f;
+            float length = FastMath.sqrt(dx * dx + dy * dy + 1f);
+            // Image rows run down the quad's v axis, so the slope in y is flipped (OpenGL style map).
+            return new int[] {Math.round((-dx / length * 0.5f + 0.5f) * 255f), Math.round((dy / length * 0.5f + 0.5f) * 255f),
+                Math.round((1f / length * 0.5f + 0.5f) * 255f), 255};
+        });
+        var heights = picture(Image.Format.RGB8, ColorSpace.Linear, (x, y) -> {
+            int v = Math.round(brickHeight(x, y) * 255f);
+            return new int[] {v, v, v, 255};
+        });
+        for (int side = 0; side < 2; side++) {
+            var quad = new Quad(8f, 3.2f);
+            quad.scaleTextureCoordinates(new Vector2f(4f, 1.6f));
+            var patch = new Geometry(side == 0 ? "flat bricks" : "parallax bricks", quad);
+            var material = new Material(assetManager, "Common/MatDefs/Light/PBRLighting.j3md");
+            material.setTexture("BaseColorMap", colour);
+            material.setTexture("NormalMap", normals);
+            material.setFloat("NormalType", 1f);
+            material.setFloat("Metallic", 0f);
+            material.setFloat("Roughness", 0.8f);
+            if (side == 1 && parallax) {
+                material.setTexture("ParallaxMap", heights);
+                material.setBoolean("SteepParallax", true);
+                material.setFloat("ParallaxHeight", 0.1f);
+            }
+            patch.setMaterial(material);
+            MikktspaceTangentGenerator.generate(patch);
+            patch.rotate(-FastMath.HALF_PI, 0f, 0f);
+            patch.setLocalTranslation(side == 0 ? -8.2f : 0.2f, -0.97f, 5.7f);
+            world.attachChild(patch);
+        }
+    }
+
+    /** A running bond of bricks 64 by 32 in a 256 square, with 3 pixels of mortar, rounded at the edges; 0 to 1. */
+    private static float brickHeight(int x, int y) {
+        x = Math.floorMod(x, 256);
+        y = Math.floorMod(y, 256);
+        int row = y / 32;
+        int shifted = Math.floorMod(x + (row % 2 == 1 ? 32 : 0), 256);
+        int across = shifted % 64;
+        int down = y % 32;
+        int edge = Math.min(Math.min(across, 63 - across), Math.min(down, 31 - down));
+        if (edge < 3) {
+            return 0.05f;
+        }
+        float round = Math.min(1f, (edge - 3) / 4f);
+        return 0.35f + 0.5f * round + 0.12f * hash(shifted / 64 + row * 7, row);
+    }
+
+    private static float hash(int a, int b) {
+        int h = a * 374761393 + b * 668265263;
+        h = (h ^ (h >>> 13)) * 1274126177;
+        return ((h ^ (h >>> 16)) & 0xffff) / 65535f;
     }
 
     /** A workshop lit through one big window with one lamp: what a first-person game looks at from arm's length. */
@@ -761,6 +1038,13 @@ public final class RenderBench extends SimpleApplication {
     @Override
     public void simpleUpdate(float tpf) {
         frame++;
+        if (scene.equals("furnace")) {
+            if (frame == 4) {
+                furnaceReads.forEach(Runnable::run);
+                stop();
+            }
+            return;
+        }
         if (asked.contains("walk")) {
             walk(tpf);
             return;

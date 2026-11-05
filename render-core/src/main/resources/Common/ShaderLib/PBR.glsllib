@@ -127,6 +127,53 @@ float PBR_ComputeDirectLightWithSpecularAA(
 }
 // END-@jhonkkk
 
+// The clear coat is a dielectric (IOR 1.5) over the base: its lobe is the base's GGX with this F0, and the base is
+// seen through what its Fresnel lets pass.
+#define COAT_F0 0.04
+
+#ifdef SHEEN
+// Cloth: Charlie distribution (Estevez and Kulla 2017) with Neubelt's visibility, which has no Fresnel and no
+// masking term since fibres, not facets, scatter the light. The light is lightColor like the other lobes.
+vec3 PBR_Sheen(vec3 normal, vec3 lightDir, vec3 viewDir, vec3 lightColor, vec3 sheenColor, float roughness, float ndotv){
+    vec3 halfVec = normalize(lightDir + viewDir);
+    float ndotl = max(dot(normal, lightDir), 0.0);
+    float ndoth = max(dot(normal, halfVec), 0.0);
+    float invAlpha = 1.0 / (roughness * roughness);
+    // Floored so that pow() stays finite at the foot of a narrow lobe.
+    float sin2h = max(1.0 - ndoth * ndoth, 0.0078125);
+    float D = (2.0 + invAlpha) * pow(sin2h, invAlpha * 0.5) / (2.0 * PI);
+    float V = min(1.0, 1.0 / (4.0 * max(ndotl + ndotv - ndotl * ndotv, 1e-4)));
+    return sheenColor * lightColor * (D * V * ndotl);
+}
+
+// How much of a white environment the lobe returns. shortcut: a fit to the lobe integrated by hand (rms 0.05, roughness 0.2 to 1)
+// instead of a lookup, so it can be off by 0.1 at a grazing angle; upgrade to a DFG texture channel when the rim must be exact.
+float PBR_SheenAlbedo(float roughness, float ndotv){
+    float head = 0.2 * roughness * roughness;
+    float graze = 1.05 - 0.5 * roughness;
+    return clamp(mix(head, graze, pow(1.0 - ndotv, 2.5)), 0.0, 1.0);
+}
+#endif
+
+#ifdef SUBSURFACE
+// Lambert with the light let past the terminator as far as each channel scatters (red farthest, so the edge of the lit
+// side is warm). It is 1 head on like Lambert, so the lit side keeps the albedo and only the terminator moves.
+// shortcut: wraps the shaded normal (a blurred one would hide pores) and only the lights, not the probe; upgrade to a
+// screen-space separable pass if skin must scatter across a face.
+vec3 PBR_SubsurfaceDiffuse(float ndotl, vec3 lightColor, vec3 scatter){
+    return max((vec3(ndotl) + scatter) / (vec3(1.0) + scatter), vec3(0.0)) * lightColor;
+}
+
+// What a thin part (an ear, a finger) lets through from a light behind it, by the distorted-normal fit of Barre-Brisebois
+// and Bouchard: thin is the share let through, 0 for a thick part.
+vec3 PBR_SubsurfaceTransmission(vec3 normal, vec3 lightDir, vec3 viewDir, vec3 lightColor, vec3 scatter, float thin){
+    float through = clamp(dot(viewDir, -(lightDir + normal * 0.5)), 0.0, 1.0);
+    through *= through;
+    through *= through;
+    return lightColor * scatter * (through * thin);
+}
+#endif
+
 vec3 integrateBRDFApprox( const in vec3 specular, float roughness, float NoV ){
     const vec4 c0 = vec4( -1, -0.0275, -0.572, 0.022 );
     const vec4 c1 = vec4( 1, 0.0425, 1.04, -0.04 );
@@ -162,8 +209,9 @@ vec3 ApproximateSpecularIBLPolynomial(samplerCube envMap, vec3 SpecularColor , f
 }
 
 
-float renderProbe(vec3 viewDir, vec3 worldPos, vec3 normal, vec3 norm, float Roughness, vec4 diffuseColor, vec4 specularColor, float ndotv, vec3 ao, mat4 lightProbeData,vec3 shCoeffs[9],samplerCube prefEnvMap, inout vec3 color ){
-
+// The probe's parallax fix: rv re-aimed at where it meets the probe's bounds. Returns how deep in them worldPos stands
+// (for blending probes), 0 when there is one probe.
+float probeParallax(vec3 worldPos, mat4 lightProbeData, inout vec3 rv){
     // lightProbeData is a mat4 with this layout
     //   3x3 rot mat|
     //      0  1  2 |  3
@@ -175,10 +223,8 @@ float renderProbe(vec3 viewDir, vec3 worldPos, vec3 normal, vec3 norm, float Rou
     //    --scale--
     // parallax fix for spherical / obb bounds and probe blending from
     // from https://seblagarde.wordpress.com/2012/09/29/image-based-lighting-approaches-and-parallax-corrected-cubemap/
-    vec3 rv = reflect(-viewDir, normal);
     vec4 probePos = lightProbeData[3];
     float invRadius = fract( probePos.w);
-    float nbMipMaps = probePos.w - invRadius;
     vec3 direction = worldPos - probePos.xyz;
     float ndf = 0.0;
 
@@ -226,6 +272,14 @@ float renderProbe(vec3 viewDir, vec3 worldPos, vec3 normal, vec3 norm, float Rou
             ndf = dist * invRadius;
         #endif
     }
+    return ndf;
+}
+
+float renderProbe(vec3 viewDir, vec3 worldPos, vec3 normal, vec3 norm, float Roughness, vec4 diffuseColor, vec4 specularColor, float ndotv, vec3 ao, mat4 lightProbeData,vec3 shCoeffs[9],samplerCube prefEnvMap, inout vec3 color ){
+    vec3 rv = reflect(-viewDir, normal);
+    vec4 probePos = lightProbeData[3];
+    float nbMipMaps = probePos.w - fract( probePos.w);
+    float ndf = probeParallax(worldPos, lightProbeData, rv);
 
     vec3 indirectDiffuse = vec3(0.0);
     vec3 indirectSpecular = vec3(0.0);
@@ -247,6 +301,26 @@ float renderProbe(vec3 viewDir, vec3 worldPos, vec3 normal, vec3 norm, float Rou
     color = indirectLighting * step( 0.0, probePos.w);
     return ndf;
 }
+
+#if defined(CLEARCOAT) || defined(SHEEN)
+// What the coat and the sheen add to one probe's light, which the caller weighs like the base's. coat is (amount,
+// roughness, n.v on the coat's normal); sheenTint is the cloth's colour times its albedo.
+vec3 renderProbeLayers(vec3 viewDir, vec3 worldPos, vec3 normal, vec3 coatNormal, vec4 coat, vec3 sheenTint, vec3 ao, mat4 lightProbeData, vec3 shCoeffs[9], samplerCube prefEnvMap){
+    vec4 probePos = lightProbeData[3];
+    vec3 layers = vec3(0.0);
+    #ifdef CLEARCOAT
+        vec3 rv = reflect(-viewDir, coatNormal);
+        probeParallax(worldPos, lightProbeData, rv);
+        vec3 dominantR = getSpecularDominantDir(coatNormal, rv, coat.y * coat.y);
+        layers += ApproximateSpecularIBLPolynomial(prefEnvMap, vec3(COAT_F0), coat.y, coat.z, dominantR, probePos.w - fract(probePos.w)) * coat.x;
+    #endif
+    #ifdef SHEEN
+        // Cloth scatters like a diffuse surface: the probe's irradiance stands for the lobe in a white environment, where it returns its albedo.
+        layers += sphericalHarmonics(normal, shCoeffs) * sheenTint;
+    #endif
+    return layers * ao * step(0.0, probePos.w);
+}
+#endif
 
 
 

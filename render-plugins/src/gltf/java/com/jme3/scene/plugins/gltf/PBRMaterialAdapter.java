@@ -55,6 +55,10 @@ public abstract class PBRMaterialAdapter extends MaterialAdapter {
         addParamMapping("alphaMode", "alpha");
         addParamMapping("alphaCutoff", "AlphaDiscardThreshold");
         addParamMapping("doubleSided", "doubleSided");
+        addParamMapping("clearcoatFactor", "ClearCoat");
+        addParamMapping("clearcoatRoughnessFactor", "ClearCoatRoughness");
+        addParamMapping("sheenColorFactor", "SheenColor");
+        addParamMapping("sheenRoughnessFactor", "SheenRoughness");
     }
 
     @Override

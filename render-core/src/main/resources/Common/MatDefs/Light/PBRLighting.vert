@@ -18,13 +18,17 @@ attribute vec3 inPosition;
 attribute vec2 inTexCoord;
 attribute vec3 inNormal;
 
+#if defined(NORMALMAP) || defined(PARALLAXMAP) || defined(CLEARCOAT_NORMALMAP)
+  #define TANGENT_FRAME
+#endif
+
 #ifdef VERTEX_COLOR
   attribute vec4 inColor;
 #endif
 
 varying vec3 wNormal;
 varying vec3 wPosition;
-#if defined(NORMALMAP) || defined(PARALLAXMAP)
+#ifdef TANGENT_FRAME
     attribute vec4 inTangent;
     varying vec4 wTangent;
 #endif
@@ -33,12 +37,12 @@ void main(){
     vec4 modelSpacePos = vec4(inPosition, 1.0);
     vec3 modelSpaceNorm = inNormal;
 
-    #if  ( defined(NORMALMAP) || defined(PARALLAXMAP)) && !defined(VERTEX_LIGHTING)
+    #if defined(TANGENT_FRAME) && !defined(VERTEX_LIGHTING)
          vec3 modelSpaceTan  = inTangent.xyz;
     #endif
 
     #ifdef NUM_MORPH_TARGETS
-         #if defined(NORMALMAP) && !defined(VERTEX_LIGHTING)
+         #if defined(TANGENT_FRAME) && !defined(VERTEX_LIGHTING)
             Morph_Compute(modelSpacePos, modelSpaceNorm, modelSpaceTan);
          #else
             Morph_Compute(modelSpacePos, modelSpaceNorm);
@@ -46,7 +50,7 @@ void main(){
     #endif
 
     #ifdef NUM_BONES
-         #if defined(NORMALMAP) && !defined(VERTEX_LIGHTING)
+         #if defined(TANGENT_FRAME) && !defined(VERTEX_LIGHTING)
             Skinning_Compute(modelSpacePos, modelSpaceNorm, modelSpaceTan);
          #else
             Skinning_Compute(modelSpacePos, modelSpaceNorm);
@@ -62,7 +66,7 @@ void main(){
     wPosition = TransformWorld(modelSpacePos).xyz;
     wNormal  = TransformWorldNormal(modelSpaceNorm);
 
-    #if defined(NORMALMAP) || defined(PARALLAXMAP)
+    #ifdef TANGENT_FRAME
       wTangent = vec4(TransformWorldNormal(modelSpaceTan),inTangent.w);
     #endif
 

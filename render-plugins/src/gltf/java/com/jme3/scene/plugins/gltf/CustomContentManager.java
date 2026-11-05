@@ -63,6 +63,8 @@ public class CustomContentManager {
         defaultExtensionLoaders.put("KHR_materials_unlit", UnlitExtensionLoader.class);
         defaultExtensionLoaders.put("KHR_texture_transform", TextureTransformExtensionLoader.class);
         defaultExtensionLoaders.put("KHR_materials_emissive_strength", PBREmissiveStrengthExtensionLoader.class);
+        defaultExtensionLoaders.put("KHR_materials_clearcoat", PBRClearCoatExtensionLoader.class);
+        defaultExtensionLoaders.put("KHR_materials_sheen", PBRSheenExtensionLoader.class);
 
     }
     
@@ -171,8 +173,9 @@ public class CustomContentManager {
                 continue;
             }
 
+            // Each extension works on what the one before it made: a material has a clearcoat and a sheen at once.
             try {
-                return (T) loader.handleExtension(gltfLoader, name, el, ext.getValue(), input);
+                input = (T) loader.handleExtension(gltfLoader, name, el, ext.getValue(), input);
             } catch (ClassCastException e) {
                 throw new AssetLoadException("Extension loader " + loader.getClass().getName() + " for extension " + ext.getKey() + " is incompatible with type " + input.getClass(), e);
             }

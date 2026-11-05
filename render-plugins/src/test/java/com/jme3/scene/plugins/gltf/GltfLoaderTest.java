@@ -36,8 +36,10 @@ import com.jme3.asset.AssetManager;
 import com.jme3.light.DirectionalLight;
 import com.jme3.light.Light;
 import com.jme3.light.PointLight;
+import com.jme3.material.Material;
 import com.jme3.light.SpotLight;
 import com.jme3.material.plugin.TestMaterialWrite;
+import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
@@ -93,6 +95,26 @@ public class GltfLoaderTest {
             ex.printStackTrace();
             Assert.fail("Failed to import gltf model with lights punctual extension");
         }
+    }
+
+    @Test
+    public void testClearCoatAndSheenExtensions() {
+        Node scene = (Node) assetManager.loadModel("gltf/layers/layers.gltf");
+        Material layered = materialOf(scene.getChild("layered"));
+        Assert.assertEquals(0.8f, (float) layered.getParam("ClearCoat").getValue(), 1e-6f);
+        Assert.assertEquals(0.15f, (float) layered.getParam("ClearCoatRoughness").getValue(), 1e-6f);
+        Assert.assertEquals(new ColorRGBA(0.9f, 0.4f, 0.5f, 1f), layered.getParam("SheenColor").getValue());
+        Assert.assertEquals(0.6f, (float) layered.getParam("SheenRoughness").getValue(), 1e-6f);
+        // The base survives the extensions.
+        Assert.assertEquals(new ColorRGBA(0.5f, 0.1f, 0.1f, 1f), layered.getParam("BaseColor").getValue());
+        // A coat of 0 and a black sheen leave the shader path without the layers.
+        Material plain = materialOf(scene.getChild("plain"));
+        Assert.assertNull(plain.getParam("ClearCoat"));
+        Assert.assertNull(plain.getParam("SheenColor"));
+    }
+
+    private static Material materialOf(Spatial s) {
+        return s instanceof Geometry ? ((Geometry) s).getMaterial() : materialOf(((Node) s).getChild(0));
     }
 
     private void dumpScene(Spatial s, int indent) {

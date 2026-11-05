@@ -1,5 +1,14 @@
 #if (defined(PARALLAXMAP) || (defined(NORMALMAP_PARALLAX) && defined(NORMALMAP))) && !defined(VERTEX_LIGHTING)    
+    // The march reads inside a loop that ends at a different step in each pixel, where an implicit mip level is undefined.
+    #if __VERSION__ >= 130
+        #define texture2DGrad textureGrad
+    #else
+        #define texture2DGrad texture2DGradARB
+    #endif
+
     vec2 steepParallaxOffset(sampler2D parallaxMap, vec3 vViewDir,vec2 texCoord,float parallaxScale){
+        vec2 dx = dFdx(texCoord);
+        vec2 dy = dFdy(texCoord);
         vec2 vParallaxDirection = normalize(  vViewDir.xy );
 
         // The length of this vector determines the furthest amount of displacement: (Ati's comment)
@@ -16,8 +25,9 @@
 
        vec3 eyeDir = normalize(vViewDir).xyz;   
 
-        float nMinSamples = 6.0;
-        float nMaxSamples = 1000.0 * parallaxScale;   
+        // More steps the lower the view, where the ray crosses the most of the relief; the cap keeps a deep relief affordable.
+        float nMinSamples = 8.0;
+        float nMaxSamples = clamp(1000.0 * parallaxScale, nMinSamples, 64.0);
         float nNumSamples = mix( nMinSamples, nMaxSamples, 1.0 - eyeDir.z );   //In reference shader: int nNumSamples = (int)(lerp( nMinSamples, nMaxSamples, dot( eyeDirWS, N ) ));
         float fStepSize = 1.0 / nNumSamples;   
         float fCurrHeight = 0.0;
@@ -36,10 +46,10 @@
            
            #ifdef NORMALMAP_PARALLAX
                //parallax map is stored in the alpha channel of the normal map         
-               fCurrHeight = texture2D( parallaxMap, vTexCurrentOffset).a; 
+               fCurrHeight = texture2DGrad( parallaxMap, vTexCurrentOffset, dx, dy).a; 
            #else
                //parallax map is a texture
-               fCurrHeight = texture2D( parallaxMap, vTexCurrentOffset).r;                
+               fCurrHeight = texture2DGrad( parallaxMap, vTexCurrentOffset, dx, dy).r;                
            #endif
            
             fCurrentBound -= fStepSize;
@@ -53,7 +63,8 @@
 
         float fDenominator = fDelta2 - fDelta1;
 
-        fParallaxAmount = (pt1.x * fDelta2 - pt2.x * fDelta1 ) / fDenominator;
+        // The ray lies along the surface when both samples are as far from the bound: no crossing to interpolate.
+        fParallaxAmount = abs(fDenominator) > 1e-5 ? (pt1.x * fDelta2 - pt2.x * fDelta1 ) / fDenominator : pt1.x;
 
         vec2 vParallaxOffset = vParallaxOffsetTS * (1.0 - fParallaxAmount );
        return texCoord - vParallaxOffset;  
