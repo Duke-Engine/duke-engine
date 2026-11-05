@@ -45,6 +45,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
+import uz.dukeengine.render.Atmosphere;
+import uz.dukeengine.render.AtmosphereSky;
 import uz.dukeengine.render.PictureChain;
 import uz.dukeengine.render.PictureSettings;
 import uz.dukeengine.render.SceneBuffers;
@@ -54,9 +56,12 @@ import uz.dukeengine.render.SkyProbe;
  * Draws one fixed scene, measures its frames, saves a picture and quits, so a change to the renderer can be seen and
  * priced. Args: scene (materials, interior, outdoor, night, buffers, furnace), what to leave out or add ("full", or joined by
  * commas: no-ao, no-bloom, no-fxaa; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
- * show-depth, show-roughness, show-velocity, which show one instead of the picture; move-camera, move-units), output
- * folder. {@code -Dbench.models=<folder>} dresses the scenes in real models ({@code <folder>/<name>/out/<name>.glb});
- * without it they are made of boxes.
+ * show-depth, show-roughness, show-velocity, which show one instead of the picture; move-camera, move-units;
+ * {@code hour-<h>}, which turns the atmosphere on with the sun where a made-up summer day has it at that hour, 6 and 18
+ * being just over the horizon; sky-view, which looks toward the sun from near the ground; move-sun, which lets the sun
+ * walk 0.15 degrees a frame and so prices the sky made anew), output folder. {@code -Dbench.models=<folder>} dresses the scenes
+ * in real models ({@code <folder>/<name>/out/<name>.glb}); without it they are made of boxes. With an atmosphere the
+ * CSV line has two more columns: the last sky's painting (off the frame) and probe baking (on it), in milliseconds.
  */
 public final class RenderBench extends SimpleApplication {
 
@@ -72,6 +77,11 @@ public final class RenderBench extends SimpleApplication {
     private final List<Float> frames = new ArrayList<>();
     private final Vector3f sunDirection = new Vector3f();
     private final List<String> asked;
+    private final DirectionalLight sunLight = new DirectionalLight();
+    private final DirectionalLight shadowLight = new DirectionalLight();
+    private ColorRGBA sunAbove;
+    private AtmosphereSky atmosphere;
+    private float hour;
     private final List<Spatial> movers = new ArrayList<>();
     private Texture2D noise;
     private ScreenshotAppState shots;
@@ -106,7 +116,20 @@ public final class RenderBench extends SimpleApplication {
         var full = PictureSettings.FULL;
         var left = List.of(label.split(","));
         return new PictureSettings(full.ambientOcclusion() && !left.contains("no-ao"),
-                full.bloom() && !left.contains("no-bloom"), full.fxaa() && !left.contains("no-fxaa"), full.exposure());
+                full.bloom() && !left.contains("no-bloom"), full.fxaa() && !left.contains("no-fxaa"), full.exposure(),
+                hourOf(left) != null);
+    }
+
+    /** The hour a {@code hour-<h>} word asks for, or null. */
+    static Float hourOf(List<String> words) {
+        return words.stream().filter(word -> word.startsWith("hour-")).map(word -> Float.valueOf(word.substring(5)))
+                .findFirst().orElse(null);
+    }
+
+    /** Toward the sun at {@code hour} of a made-up summer day: 71 degrees up at noon, 8 over the horizon at 6 and 18. */
+    static Vector3f sunAt(float hour) {
+        float turn = (hour - 6f) / 12f * FastMath.PI;
+        return new Vector3f(FastMath.cos(turn), FastMath.sin(turn) * 0.9f + 0.15f, 0.35f).normalizeLocal();
     }
 
     @Override
@@ -155,43 +178,82 @@ public final class RenderBench extends SimpleApplication {
             }
             default -> throw new IllegalArgumentException("no scene called " + scene);
         }
+        var atHour = hourOf(asked);
+        if (atHour != null) {
+            sun = ColorRGBA.White.mult(sun.r); // above the air the sun is white
+            hour = atHour;
+            sunDirection.set(sunAt(hour).negateLocal());
+        }
         sunDirection.normalizeLocal();
         world.setShadowMode(ShadowMode.CastAndReceive);
         rootNode.attachChild(world);
-        rootNode.addLight(new DirectionalLight(sunDirection, sun));
+        sunAbove = sun;
         var toSun = sunDirection.negate();
-        rootNode.addLight(SkyProbe.bake(assetManager, renderManager, toSun, sun, ambient));
-        var sky = SkyProbe.sky(assetManager, toSun, sun, ambient);
-        sky.setShadowMode(ShadowMode.Off);
-        rootNode.attachChild(sky);
+        if (atHour != null) {
+            atmosphere = new AtmosphereSky(assetManager, renderManager, rootNode);
+            atmosphere.follow(toSun, sun);
+            rootNode.attachChild(atmosphere.sky());
+            sunLight.setDirection(sunDirection);
+            sunLight.setColor(atTheGround(toSun));
+            rootNode.addLight(sunLight);
+        } else {
+            rootNode.addLight(new DirectionalLight(sunDirection, sun));
+            rootNode.addLight(SkyProbe.bake(assetManager, renderManager, toSun, sun, ambient));
+            var sky = SkyProbe.sky(assetManager, toSun, sun, ambient);
+            sky.setShadowMode(ShadowMode.Off);
+            rootNode.attachChild(sky);
+        }
+        if (asked.contains("sky-view")) {
+            lookAtTheSun(toSun);
+        }
         filters();
         shots = new ScreenshotAppState(out.toString().replace('\\', '/') + "/", scene + "_" + label.replace(',', '+'));
         shots.setIsNumbered(false);
         stateManager.attach(shots);
     }
 
+    /** The sun's colour once the air has had its share, which is what the light on the ground has. */
+    private ColorRGBA atTheGround(Vector3f toSun) {
+        var through = Atmosphere.transmittance(toSun);
+        return new ColorRGBA(sunAbove.r * through.r, sunAbove.g * through.g, sunAbove.b * through.b, 1f);
+    }
+
+    /** The camera on the ground and turned toward the sun: as high as it stands, up to 25 degrees. */
+    private void lookAtTheSun(Vector3f toSun) {
+        var flat = new Vector3f(toSun.x, 0f, toSun.z);
+        flat = flat.lengthSquared() < 1e-6f ? new Vector3f(0f, 0f, -1f) : flat.normalizeLocal();
+        float pitch = FastMath.clamp(FastMath.asin(toSun.y), 4f * FastMath.DEG_TO_RAD, 25f * FastMath.DEG_TO_RAD);
+        cam.setFrustumPerspective(60f, (float) cam.getWidth() / cam.getHeight(), 0.3f, 400f);
+        cam.setLocation(new Vector3f(0f, 2.5f, 30f));
+        cam.lookAt(cam.getLocation().add(flat.mult(100f)).add(0f, 100f * FastMath.tan(pitch), 0f), Vector3f.UNIT_Y);
+    }
+
     /**
      * What a white matte surface takes from a baked probe, against the same sky integrated by hand. It says FAIL when
-     * they part by more than 10%: three bands of harmonics are a blur, but no further off than that.
+     * they part by more than 10%: three bands of harmonics are a blur, but no further off than that. With an
+     * {@code hour-<h>} word the sky is the atmosphere under that hour's sun, which has a far steeper horizon.
      */
     private void furnace() {
-        var toSun = new Vector3f(0.4f, 0.8f, 0.45f).normalizeLocal();
+        var atHour = hourOf(asked);
+        var toSun = atHour != null ? sunAt(atHour) : new Vector3f(0.4f, 0.8f, 0.45f).normalizeLocal();
         var ambient = new ColorRGBA(0.5f, 0.55f, 0.65f, 1f);
-        var probe = SkyProbe.bake(assetManager, renderManager, toSun, ColorRGBA.Black, ambient);
+        SkyProbe.Sky sky = atHour != null ? new Atmosphere(toSun, ColorRGBA.White.mult(2.4f))
+                : SkyProbe.gradient(toSun, ColorRGBA.Black, ambient);
+        var probe = SkyProbe.bake(assetManager, renderManager, SkyProbe.paint(sky, 64));
         var sh = probe.getShCoeffs();
         var normals = new Vector3f[] {Vector3f.UNIT_Y, Vector3f.UNIT_Y.negate(), Vector3f.UNIT_X, Vector3f.UNIT_Z.negate()};
         for (var n : normals) {
             float baked = sh[0].x + sh[1].x * n.y + sh[2].x * n.z + sh[3].x * n.x + sh[4].x * n.y * n.x
                     + sh[5].x * n.y * n.z + sh[6].x * (3f * n.z * n.z - 1f) + sh[7].x * n.z * n.x
                     + sh[8].x * (n.x * n.x - n.y * n.y);
-            float true_ = irradiance(n, toSun, ambient);
+            float true_ = irradiance(n, sky);
             boolean fine = Math.abs(baked - true_) <= 0.1f * true_;
             System.out.printf(Locale.ROOT, "RESULT furnace n=%s baked %.3f true %.3f %s%n", n, baked, true_, fine ? "ok" : "FAIL");
         }
     }
 
     /** The sky's red, cosine weighted over the half sphere round {@code n}, divided by pi. */
-    private static float irradiance(Vector3f n, Vector3f toSun, ColorRGBA ambient) {
+    private static float irradiance(Vector3f n, SkyProbe.Sky sky) {
         float sum = 0f;
         float weight = 0f;
         var random = new Random(1);
@@ -205,7 +267,7 @@ public final class RenderBench extends SimpleApplication {
             d.divideLocal(length);
             float cos = d.dot(n);
             if (cos > 0f) {
-                sum += SkyProbe.skyAt(d, toSun, ColorRGBA.Black, ambient).r * cos;
+                sum += sky.at(d).r * cos;
                 weight += cos;
             }
         }
@@ -500,7 +562,8 @@ public final class RenderBench extends SimpleApplication {
             return;
         }
         var shadows = new DirectionalLightShadowFilter(assetManager, 4096, 4);
-        shadows.setLight(new DirectionalLight(sunDirection));
+        shadowLight.setDirection(sunDirection);
+        shadows.setLight(shadowLight);
         shadows.setEdgeFilteringMode(EdgeFilteringMode.PCFPOISSON);
         shadows.setShadowIntensity(0.8f);
         shadows.setShadowZExtend(120f);
@@ -523,7 +586,16 @@ public final class RenderBench extends SimpleApplication {
             cam.setLocation(cam.getLocation().add(cam.getLeft().mult(0.02f)));
             cam.setRotation(new Quaternion().fromAngleAxis(0.0004f, Vector3f.UNIT_Y).mult(cam.getRotation()));
         }
-        if (asked.contains("move-units")) {
+if (asked.contains("move-sun") && atmosphere != null) {
+    hour += 0.01f;
+    var toSun = sunAt(hour);
+    sunDirection.set(toSun.negate());
+    sunLight.setDirection(sunDirection);
+    sunLight.setColor(atTheGround(toSun));
+    shadowLight.setDirection(sunDirection);
+    atmosphere.follow(toSun, sunAbove);
+}
+if (asked.contains("move-units")) {
             movers.forEach(mover -> mover.move(0.02f, 0f, 0f));
         }
         if (frame > WARMUP && frame <= WARMUP + MEASURED) {
@@ -546,8 +618,9 @@ public final class RenderBench extends SimpleApplication {
             total += f;
         }
         double p99 = sorted.get((int) (sorted.size() * 0.99)) * 1000.0;
-        var line = String.format(Locale.ROOT, "%s;%s;%d;%.2f;%.2f%n", scene, label, rootNode.getTriangleCount(),
-                total / frames.size() * 1000.0, p99);
+        var line = String.format(Locale.ROOT, "%s;%s;%d;%.2f;%.2f%s%n", scene, label, rootNode.getTriangleCount(),
+                total / frames.size() * 1000.0, p99, atmosphere == null ? ""
+                        : String.format(Locale.ROOT, ";%.1f;%.1f", atmosphere.paintMillis(), atmosphere.probeMillis()));
         try {
             Files.writeString(out.resolve("results.csv"), line, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException e) {

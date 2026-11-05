@@ -68,6 +68,11 @@ final class SceneLight {
         return ambientColour;
     }
 
+    /** The sun the scene is lit by now, with the hour it is easing through if there is one. */
+    HourOfDay.Sun lit() {
+        return hour != null ? hour.now() : new HourOfDay.Sun(sunDirection, sunColour, ambientColour);
+    }
+
     LightScales scales() {
         return scales;
     }

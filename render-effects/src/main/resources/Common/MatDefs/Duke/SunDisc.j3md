@@ -1,0 +1,25 @@
+MaterialDef Sun Disc {
+
+    MaterialParameters {
+        Vector3 Colour
+        // The disc's edge in the quad's own -1..1 coordinates.
+        Float Radius : 0.1
+    }
+
+    Technique {
+        VertexShader   GLSL300 GLSL150: Common/MatDefs/Duke/SunDisc.vert
+        FragmentShader GLSL300 GLSL150: Common/MatDefs/Duke/SunDisc.frag
+
+        WorldParameters {
+            ViewMatrix
+            ProjectionMatrix
+            WorldMatrix
+        }
+
+        RenderState {
+            DepthWrite Off
+            DepthFunc Equal
+            FaceCull Off
+        }
+    }
+}

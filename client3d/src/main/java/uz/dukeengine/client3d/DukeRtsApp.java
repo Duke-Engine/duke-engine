@@ -542,7 +542,7 @@ final class DukeRtsApp extends SimpleApplication {
 
         light.install(assetManager, viewPort, visuals.getThingSuns());
         if (visuals.isPhysicallyBased()) {
-            physicalLook = new PhysicalLook(assetManager, renderManager, rootNode, light);
+            physicalLook = new PhysicalLook(assetManager, renderManager, rootNode, light, visuals.getPicture());
         }
 
         // Before the terrain, because rebuilding a world clears what is burning in
@@ -2301,6 +2301,9 @@ final class DukeRtsApp extends SimpleApplication {
             }
         }
         light.step(tpf);
+        if (physicalLook != null) {
+            physicalLook.follow(light);
+        }
         fog.followTheLookUnderTheCamera(tpf);
         camera.focusOnOwnUnit(snapshot.units(), game.getLocalPlayerIndex());
         cameraRig.frame(tpf);

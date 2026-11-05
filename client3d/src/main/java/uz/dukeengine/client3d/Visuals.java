@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 import uz.dukeengine.game.Colour;
+import uz.dukeengine.render.PictureSettings;
 
 /**
  * Unity-style asset binding: attach models, animations and sounds to unit
@@ -2469,6 +2470,23 @@ public final class Visuals {
     }
 
     private boolean physicallyBased;
+
+    /**
+     * What the picture of a {@link #physicallyBased} game goes through and whether its sky is the atmosphere under the
+     * sun's direction rather than the ambient's gradient; {@link PictureSettings#FULL} until said. Turning the
+     * atmosphere on changes the ambient light of physically based models, and the game's {@code Sun} colour is then the
+     * sun's light above the air, not at the ground.
+     */
+    public Visuals picture(PictureSettings picture) {
+        this.picture = Objects.requireNonNull(picture);
+        return this;
+    }
+
+    public PictureSettings getPicture() {
+        return picture;
+    }
+
+    private PictureSettings picture = PictureSettings.FULL;
 
     public Sunlight getSunlight() {
         return ground.sunlight;
