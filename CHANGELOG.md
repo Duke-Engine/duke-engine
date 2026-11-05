@@ -5,6 +5,10 @@ when it does, this page says exactly what to change and how.
 
 ## Unreleased
 
+- **The shoulder camera comes back behind the hero**: after a scene or a talk the game directed, and at the start,
+  `ActionControls` turns the camera to look the way he faces, not only moves it to him. `BagScreen.onRequest(true)` draws
+  the bag's panel only while `toggle()` has it up (and then it holds the keys, so the pointer is free); what is painted
+  under it is drawn all the same. Both off or as before for every other game.
 - **A game may be played from the hero's shoulder**: `Visuals.shoulderHud(true)` takes the RTS hint of controls off the
   foot, the bar over the hero's own head (the creature the status line's `hero=` names) and, with the RPG part, the hero
   panel's bottom bar and its minimap socket, so the minimap sits in its corner and the game's canvas shows his health. Off
