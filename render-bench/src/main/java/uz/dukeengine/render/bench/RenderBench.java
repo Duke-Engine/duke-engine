@@ -50,6 +50,7 @@ import uz.dukeengine.render.AcesToneMap;
 import uz.dukeengine.render.AtmosphereSky;
 import uz.dukeengine.render.GtaoFilter;
 import uz.dukeengine.render.HeightFogFilter;
+import uz.dukeengine.render.Lens;
 import uz.dukeengine.render.LocalShadowFilter;
 import uz.dukeengine.render.MipBloomFilter;
 import uz.dukeengine.render.PictureChain;
@@ -66,7 +67,9 @@ import uz.dukeengine.render.SunShadowFilter;
  * show-depth, show-roughness, show-velocity, which show one instead of the picture; show-ao, which shows the ambient
  * occlusion alone, and ao-radius-&lt;m&gt;, which sets its reach in world units; show-bloom, which shows the bloom alone; auto-exposure, which lets the eye adapt, and walk, which (with it) goes from a
  * dark view to a bright one and back, logging what the eye holds (EYE lines) and shooting at the cuts; fog (height fog and the
- * sun's shafts), fog-&lt;density&gt; (its density at height 0, per metre) and no-shafts; no-ssr, show-ssr (how much of the reflection the screen gives, alone) and wet (the floor of materials and outdoor made glossy); move-camera, move-units;
+ * sun's shafts), fog-&lt;density&gt; (its density at height 0, per metre) and no-shafts; no-ssr, show-ssr (how much of the reflection the screen gives, alone) and wet (the floor of materials and outdoor made glossy); move-camera, move-units, fast (them at up to 25 times the speed, to and fro);
+ * dof and focus-&lt;m&gt; (a lens in focus, on the thing each scene is about or that far away), motion-blur (the shutter half open: with move-camera or move-units), lut-&lt;name&gt; (a grade
+ * from Common/Luts), vignette, and cinematic, which is all four;
  * {@code hour-<h>}, which turns the atmosphere on with the sun where a made-up summer day has it at that hour, 6 and 18
  * being just over the horizon; sky-view, which looks toward the sun from near the ground, and shaft-view, which does so from behind the scene, so that what stands in it breaks the light; move-sun, which lets the sun
  * walk 0.15 degrees a frame and so prices the sky made anew), output folder. {@code -Dbench.models=<folder>} dresses the scenes
@@ -79,10 +82,14 @@ public final class RenderBench extends SimpleApplication {
     private static final int MEASURED = 240;
     /** The density of the fog at height 0 that the word {@code fog} asks for: a light morning haze, 5% of the light through 750 metres. */
     private static final float FOG = 0.004f;
+    /** The share of a frame the shutter is open for the word {@code motion-blur}: the film's 180 degrees. */
+    private static final float SHUTTER = 0.5f;
+    /** The strength of the vignette of the word {@code vignette}. */
+    private static final float VIGNETTE = 0.4f;
 
     private final String scene;
     private final String label;
-    private final PictureSettings picture;
+    private PictureSettings picture;
     private final Path out;
     private final String models = System.getProperty("bench.models");
     private final Map<String, Spatial> loaded = new HashMap<>();
@@ -112,8 +119,8 @@ public final class RenderBench extends SimpleApplication {
     private RenderBench(String scene, String label, Path out) {
         this.scene = scene;
         this.label = label;
-        this.picture = settings(label);
-        this.asked = List.of(label.split(","));
+        this.picture = settings(scene, label);
+        this.asked = words(label);
         this.out = out;
     }
 
@@ -134,9 +141,18 @@ public final class RenderBench extends SimpleApplication {
         app.start();
     }
 
-    static PictureSettings settings(String label) {
+    /** The words of a label, {@code cinematic} (a lens in focus, a shutter, the warm grade and a vignette) spelled out. */
+    static List<String> words(String label) {
+        var words = new ArrayList<>(List.of(label.split(",")));
+        if (words.remove("cinematic")) {
+            words.addAll(List.of("dof", "motion-blur", "lut-warm-teal", "vignette"));
+        }
+        return words;
+    }
+
+    static PictureSettings settings(String scene, String label) {
         var full = PictureSettings.FULL;
-        var left = List.of(label.split(","));
+        var left = words(label);
         float fogDensity = left.stream().filter(word -> word.startsWith("fog-")).map(word -> Float.valueOf(word.substring(4)))
                 .findFirst().orElse(left.contains("fog") ? FOG : full.fogDensity());
         return new PictureSettings(full.ambientOcclusion() && !left.contains("no-ao"),
@@ -146,7 +162,22 @@ public final class RenderBench extends SimpleApplication {
                 left.stream().filter(word -> word.startsWith("ao-radius-")).map(word -> Float.valueOf(word.substring(10)))
                         .findFirst().orElse(full.occlusionRadius()),
                 left.contains("auto-exposure") || left.contains("walk"), fogDensity, full.fogFalloff(),
-                full.shafts() && !left.contains("no-shafts"), full.reflections() && !left.contains("no-ssr"));
+                full.shafts() && !left.contains("no-shafts"), full.reflections() && !left.contains("no-ssr"),
+                lens(scene, left), left.stream().filter(word -> word.startsWith("lut-")).map(word -> "Common/Luts/" + word.substring(4) + ".png")
+                        .findFirst().orElse(null), left.contains("vignette") ? VIGNETTE : 0f);
+    }
+
+    /**
+     * The words {@code dof} (an 85 mm f/1.2 lens in the interior, a 600 mm f/1.0 in the scenes that are tens of metres across), {@code focus-<m>} (its
+     * distance; without it the focus is put on the thing each scene is about, see {@link #focusOn}) and {@code motion-blur}.
+     */
+    static Lens lens(String scene, List<String> words) {
+        var lens = Lens.OFF;
+        var focus = words.stream().filter(word -> word.startsWith("focus-")).map(word -> Float.valueOf(word.substring(6))).findFirst();
+        if (words.contains("dof") || focus.isPresent()) {
+            lens = new Lens(focus.orElse(5f), scene.equals("interior") ? 1.2f : 1.0f, scene.equals("interior") ? 85f : 600f, 0f);
+        }
+        return words.contains("motion-blur") ? lens.withShutter(SHUTTER) : lens;
     }
 
     /** The word {@code no-aa}, {@code fxaa} or {@code taa}, or the default. */
@@ -653,7 +684,20 @@ public final class RenderBench extends SimpleApplication {
         return noise;
     }
 
+    /** Where the focus goes without a {@code focus-<m>} word: the drill in the interior, the middle of the third row of balls, the middle of the crowd. */
+    private float focusOn() {
+        var at = switch (scene) {
+            case "interior" -> rootNode.getChild("drill").getWorldTranslation();
+            case "materials" -> new Vector3f(0f, 0f, 1.2f);
+            default -> new Vector3f(0f, 1f, 3f);
+        };
+        return at.subtract(cam.getLocation()).dot(cam.getDirection());
+    }
+
     private void filters() {
+        if (picture.lens().depthOfField() && asked.stream().noneMatch(word -> word.startsWith("focus-"))) {
+            picture = picture.withLens(picture.lens().withFocus(focusOn()));
+        }
         var post = new FilterPostProcessor(assetManager);
         post.setFrameBufferFormat(Image.Format.RGB16F);
         if (asked.contains("show-ao")) {
@@ -722,9 +766,11 @@ public final class RenderBench extends SimpleApplication {
             return;
         }
         // By the frame, not the clock: the same frame of a run is the same picture, on any machine.
+        // With fast, the same motion at up to 25 times the speed, to and fro so that nothing leaves the scene.
+        float speed = asked.contains("fast") ? 25f * FastMath.sin(frame * 0.05f) : 1f;
         if (asked.contains("move-camera")) {
-            cam.setLocation(cam.getLocation().add(cam.getLeft().mult(0.02f)));
-            cam.setRotation(new Quaternion().fromAngleAxis(0.0004f, Vector3f.UNIT_Y).mult(cam.getRotation()));
+            cam.setLocation(cam.getLocation().add(cam.getLeft().mult(0.02f * speed)));
+            cam.setRotation(new Quaternion().fromAngleAxis(0.0004f * speed, Vector3f.UNIT_Y).mult(cam.getRotation()));
         }
 if (asked.contains("move-sun") && atmosphere != null) {
     hour += 0.01f;
@@ -739,7 +785,7 @@ if (asked.contains("move-sun") && atmosphere != null) {
     }
 }
 if (asked.contains("move-units")) {
-            movers.forEach(mover -> mover.move(0.02f, 0f, 0f));
+            movers.forEach(mover -> mover.move(0.02f * speed, 0f, 0f));
         }
         if (frame > WARMUP && frame <= WARMUP + MEASURED) {
             frames.add(tpf);

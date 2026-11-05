@@ -1,0 +1,29 @@
+// A colour grade and a vignette over the tone mapped picture: see uz.dukeengine.render.GradeFilter.
+MaterialDef Grade {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Int NumSamples
+        Texture2D Texture
+        // The colour cube (uz.dukeengine.render.ColorLut) and its steps along a side. Absent, no grade.
+        Texture3D Lut
+        Float LutSize
+        // 0 to 1: how dark the corners are. Absent, none.
+        Float Vignette
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/Grade.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+            RESOLVE_MS : NumSamples
+            LUT : Lut
+            VIGNETTE : Vignette
+        }
+    }
+}

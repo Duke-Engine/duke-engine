@@ -1,0 +1,29 @@
+// The last step of depth of field: see uz.dukeengine.render.DepthOfFieldFilter.
+MaterialDef DofComposite {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Int NumSamples
+        Texture2D Texture
+        Texture2D Depth
+        Vector2 ProjectionZ
+        Float Focus
+        Float Reach
+        // The blurred far field (colour) and near field (colour and how much of the pixel it covers), half size.
+        Texture2D Far
+        Texture2D Near
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/DofComposite.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+            RESOLVE_MS : NumSamples
+        }
+    }
+}

@@ -27,10 +27,21 @@ public final class PictureChain {
         if (settings.antiAliasing() == AntiAliasing.TAA) {
             filters.add(new TaaFilter());
         }
+        // On the settled picture, before the bloom, so that a blurred highlight spills as a blurred one. Motion after focus: a streak of a sharp picture.
+        if (settings.lens().depthOfField()) {
+            filters.add(new DepthOfFieldFilter(settings.lens()));
+        }
+        if (settings.lens().motionBlur()) {
+            filters.add(new MotionBlurFilter(settings.lens()));
+        }
         if (settings.bloom()) {
             filters.add(new MipBloomFilter());
         }
         filters.add(new AcesToneMap(settings.exposure(), settings.autoExposure()));
+        // On what the screen shows, ahead of the filters that smooth and sharpen it.
+        if (settings.lut() != null || settings.vignette() > 0f) {
+            filters.add(new GradeFilter(settings.lut(), settings.vignette()));
+        }
         switch (settings.antiAliasing()) {
             case FXAA -> filters.add(new FXAAFilter());
             case TAA -> filters.add(new SharpenFilter());

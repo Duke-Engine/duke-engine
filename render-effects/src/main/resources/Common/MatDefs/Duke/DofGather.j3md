@@ -1,0 +1,23 @@
+// Gathers the far or the near field of depth of field over a disc: see uz.dukeengine.render.DepthOfFieldFilter.
+MaterialDef DofGather {
+
+    MaterialParameters {
+        // The prefiltered half size picture (colour, and the disc each pixel spreads to) and the widest disc of each tile.
+        Texture2D Texture
+        Texture2D Tiles
+        // Gather what is in front of the focus plane, and how much of the pixel it covers; absent, what is beyond it.
+        Boolean Near
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/DofGather.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            NEAR : Near
+        }
+    }
+}

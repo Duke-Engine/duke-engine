@@ -1,0 +1,27 @@
+// The first step of depth of field: see uz.dukeengine.render.DepthOfFieldFilter.
+MaterialDef DofPrefilter {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Int NumSamples
+        Texture2D Texture
+        // SceneBuffers' depth, and what turns it into a distance and a distance into a disc.
+        Texture2D Depth
+        Vector2 ProjectionZ
+        Float Focus
+        Float Reach
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/DofPrefilter.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+            RESOLVE_MS : NumSamples
+        }
+    }
+}

@@ -26,10 +26,15 @@ package uz.dukeengine.render;
  * @param shafts           the sun's light through the fog is cut by what stands in it, from {@link SunShadowFilter}'s maps
  * @param reflections      glossy surfaces show the picture in themselves where it has their reflection, the light probe's
  *                         where it has not ({@link SsrFilter})
+ * @param lens             the camera's focus and shutter ({@link Lens}); off, the picture is as sharp at any distance and as still
+ *                         as it is drawn, and neither filter is in the chain
+ * @param lut              the asset path of a colour grade strip ({@link ColorLut}) applied after the tone curve; null, none
+ * @param vignette         how much the corners are darkened, 0 to 1 ({@link GradeFilter}); 0, none
  */
 public record PictureSettings(boolean ambientOcclusion, boolean bloom, AntiAliasing antiAliasing, float exposure, boolean atmosphere,
         boolean softShadows, boolean contactShadows, int localShadows, float occlusionRadius,
-        boolean autoExposure, float fogDensity, float fogFalloff, boolean shafts, boolean reflections) {
+        boolean autoExposure, float fogDensity, float fogFalloff, boolean shafts, boolean reflections,
+        Lens lens, String lut, float vignette) {
 
     public PictureSettings {
         if (!(occlusionRadius > 0f)) {
@@ -38,60 +43,82 @@ public record PictureSettings(boolean ambientOcclusion, boolean bloom, AntiAlias
         if (!(fogDensity >= 0f) || !(fogFalloff >= 0f)) {
             throw new IllegalArgumentException("fog density and falloff must not be below 0: " + fogDensity + ", " + fogFalloff);
         }
+        if (lens == null || !(vignette >= 0f && vignette <= 1f)) {
+            throw new IllegalArgumentException("a lens is needed and the vignette is from 0 to 1: " + lens + ", " + vignette);
+        }
     }
 
     /**
-     * Every filter on, the sky left as the game's own sun and ambient make it: a game's colours keep their look.
+     * Every filter on but the camera's and the grade (the lens and the vignette are for a game to choose), the sky left as the game's own sun and ambient make it: a game's colours keep their look.
      * At this exposure the curve leaves a mid-tone where it was. Three quarters of a metre of reach is a human-scale world's crease
      * between a wall and a floor, a doorway, the underside of a table.
      */
-    public static final PictureSettings FULL = new PictureSettings(true, true, AntiAliasing.TAA, 0.7f, false, true, true, 4, 0.75f, false, 0f, 0.06f, true, true);
+    public static final PictureSettings FULL = new PictureSettings(true, true, AntiAliasing.TAA, 0.7f, false, true, true, 4, 0.75f, false, 0f, 0.06f, true, true,
+            Lens.OFF, null, 0f);
 
     /** These settings with the atmosphere on or off. */
     public PictureSettings withAtmosphere(boolean on) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, on, softShadows, contactShadows, localShadows,
-                occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections);
+                occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette);
     }
 
     /** These settings with this many lights allowed a shadow, none for 0. */
     public PictureSettings withLocalShadows(int budget) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
-                Math.max(0, budget), occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections);
+                Math.max(0, budget), occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette);
     }
 
     /** These settings with creases darkened by what stands this far (world units) from them. */
     public PictureSettings withOcclusionRadius(float radius) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, radius, autoExposure, fogDensity, fogFalloff, shafts, reflections);
+                localShadows, radius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette);
     }
 
     /** These settings with the eye adapting to the picture, or not. */
     public PictureSettings withAutoExposure(boolean on) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, occlusionRadius, on, fogDensity, fogFalloff, shafts, reflections);
+                localShadows, occlusionRadius, on, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette);
     }
 
     /** These settings with fog of this density at height 0 that thins by {@code falloff} per unit of height; 0 density, none. */
     public PictureSettings withFog(float density, float falloff) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, occlusionRadius, autoExposure, density, falloff, shafts, reflections);
+                localShadows, occlusionRadius, autoExposure, density, falloff, shafts, reflections, lens, lut, vignette);
     }
 
     /** These settings with the sun's shafts through the fog, or not. */
     public PictureSettings withShafts(boolean on) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, on, reflections);
+                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, on, reflections, lens, lut, vignette);
     }
 
     /** These settings with the reflections of the picture in glossy surfaces, or not. */
     public PictureSettings withReflections(boolean on) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, on);
+                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, on, lens, lut, vignette);
     }
 
     /** These settings with edges smoothed this way. */
     public PictureSettings withAntiAliasing(AntiAliasing mode) {
         return new PictureSettings(ambientOcclusion, bloom, mode, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections);
+                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette);
+    }
+
+    /** These settings with the camera focused and its shutter open as {@code camera} says; {@link Lens#OFF}, neither. */
+    public PictureSettings withLens(Lens camera) {
+        return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
+                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, camera, lut, vignette);
+    }
+
+    /** These settings with the colour grade at this asset path (see {@link ColorLut}) after the tone curve; null, none. */
+    public PictureSettings withLut(String path) {
+        return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
+                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, path, vignette);
+    }
+
+    /** These settings with the corners darkened by this much, 0 to 1; 0, not at all. */
+    public PictureSettings withVignette(float strength) {
+        return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
+                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, strength);
     }
 }

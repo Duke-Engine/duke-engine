@@ -21,7 +21,7 @@ class PictureChainTest {
 
     @Test
     void ambientOcclusionOffLeavesNoOcclusionFilter() {
-        var off = new PictureSettings(false, true, AntiAliasing.TAA, 0.7f, false, true, true, 4, 0.75f, false, 0f, 0.06f, true, true);
+        var off = new PictureSettings(false, true, AntiAliasing.TAA, 0.7f, false, true, true, 4, 0.75f, false, 0f, 0.06f, true, true, Lens.OFF, null, 0f);
         assertTrue(PictureChain.filters(off).stream().noneMatch(GtaoFilter.class::isInstance));
     }
 
@@ -80,6 +80,36 @@ class PictureChainTest {
         assertTrue(fxaa.stream().noneMatch(TaaFilter.class::isInstance) && fxaa.stream().noneMatch(SharpenFilter.class::isInstance));
         var none = PictureChain.filters(PictureSettings.FULL.withAntiAliasing(AntiAliasing.NONE));
         assertTrue(none.stream().noneMatch(f -> f instanceof TaaFilter || f instanceof SharpenFilter || f instanceof com.jme3.post.filters.FXAAFilter));
+    }
+
+    @Test
+    void theCameraAndTheGradeAreOffInFullAndNotInTheChain() {
+        var filters = PictureChain.filters(PictureSettings.FULL);
+        assertTrue(filters.stream().noneMatch(f -> f instanceof DepthOfFieldFilter || f instanceof MotionBlurFilter || f instanceof GradeFilter));
+    }
+
+    @Test
+    void theCameraEffectsSitBetweenTheAntiAliasingAndTheBloomAndTheGradeFollowsTheCurve() {
+        var settings = PictureSettings.FULL.withLens(new Lens(3f, 1.8f, 50f, 0.5f)).withLut("Common/Luts/identity.png").withVignette(0.3f);
+        var filters = PictureChain.filters(settings);
+        int taa = indexOf(filters, TaaFilter.class);
+        int focus = indexOf(filters, DepthOfFieldFilter.class);
+        int motion = indexOf(filters, MotionBlurFilter.class);
+        int bloom = indexOf(filters, MipBloomFilter.class);
+        int curve = indexOf(filters, AcesToneMap.class);
+        int grade = indexOf(filters, GradeFilter.class);
+        assertTrue(taa < focus && focus < motion && motion < bloom && bloom < curve && curve < grade);
+        assertTrue(grade < indexOf(filters, SharpenFilter.class));
+        // Each one is there only for the part of the lens it needs.
+        var focusOnly = PictureChain.filters(PictureSettings.FULL.withLens(new Lens(3f, 1.8f, 50f, 0f)));
+        assertEquals(1, focusOnly.stream().filter(DepthOfFieldFilter.class::isInstance).count());
+        assertTrue(focusOnly.stream().noneMatch(MotionBlurFilter.class::isInstance));
+        var vignetteOnly = PictureChain.filters(PictureSettings.FULL.withVignette(0.4f));
+        assertEquals(1, vignetteOnly.stream().filter(GradeFilter.class::isInstance).count());
+    }
+
+    private static int indexOf(java.util.List<com.jme3.post.Filter> filters, Class<?> type) {
+        return filters.indexOf(filters.stream().filter(type::isInstance).findFirst().orElseThrow());
     }
 
     @Test

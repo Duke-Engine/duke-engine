@@ -1,0 +1,19 @@
+// The circle of confusion of a point, from the scene's depth: see uz.dukeengine.render.Lens, whose reachPixels this is the other half of.
+uniform sampler2D m_Depth;
+// Row 2 of the projection that gives a view depth from a depth buffer value: m22 and m23.
+uniform vec2 m_ProjectionZ;
+uniform float m_Focus;
+// The diameter in pixels that a point at infinity spreads to.
+uniform float m_Reach;
+
+// The widest disc that is gathered, in pixels across; also what the sky, at infinity, is limited to.
+const float MAX_DIAMETER = 48.0;
+
+// The diameter in pixels of the disc a point of this depth buffer value spreads to: positive beyond the focus plane, negative in front of it.
+float confusion(float depth) {
+    if (depth >= 1.0) {
+        return min(m_Reach, MAX_DIAMETER);
+    }
+    float metres = max(m_ProjectionZ.y / (depth * 2.0 - 1.0 + m_ProjectionZ.x), 1e-3);
+    return clamp(m_Reach * (metres - m_Focus) / metres, -MAX_DIAMETER, MAX_DIAMETER);
+}

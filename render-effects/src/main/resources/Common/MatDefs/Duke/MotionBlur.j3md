@@ -1,0 +1,30 @@
+// Motion blur along SceneBuffers' velocity: see uz.dukeengine.render.MotionBlurFilter.
+MaterialDef MotionBlur {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Int NumSamples
+        Texture2D Texture
+        // SceneBuffers' velocity and depth, and the longest velocity of each 16x16 tile.
+        Texture2D Velocity
+        Texture2D Depth
+        Texture2D Tiles
+        Vector2 Pixels
+        // How much of the time between two frames the shutter is open, 0 to 1.
+        Float Shutter
+        Vector2 ProjectionZ
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/MotionBlur.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+            RESOLVE_MS : NumSamples
+        }
+    }
+}

@@ -1,0 +1,23 @@
+// The largest of a square of pixels, one value per square: see uz.dukeengine.render.DepthOfFieldFilter and MotionBlurFilter.
+MaterialDef TileMax {
+
+    MaterialParameters {
+        Texture2D Texture
+        // The side of the squares, in pixels of Texture.
+        Int Block
+        // The size of the full picture, which a velocity in texture coordinates is long in. Set: the velocities are compared; absent: the discs are.
+        Vector2 Pixels
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/TileMax.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            VELOCITY : Pixels
+        }
+    }
+}
