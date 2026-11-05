@@ -2,6 +2,9 @@
 #import "Common/ShaderLib/PBR.glsllib"
 #import "Common/ShaderLib/Parallax.glsllib"
 #import "Common/ShaderLib/Lighting.glsllib"
+#ifdef CLUSTERED
+  #import "Common/ShaderLib/LightClusters.glsllib"
+#endif
 
 // The normal map's tangent frame is also the clear coat's own normal map's.
 #if defined(NORMALMAP) || defined(PARALLAXMAP) || defined(CLEARCOAT_NORMALMAP)
@@ -321,9 +324,33 @@ void main(){
         indirectKeep *= coatKeep;
         sheenTint *= coatKeep;
     #endif
+    #ifdef CLUSTERED
+    // The geometry's own lights, then its cluster's, with the same light for each.
+    ivec2 clustered = clusterOf(wPosition);
+    for (int i = 0; i < NB_LIGHTS + 3 * clustered.y; i += 3) {
+        vec4 lightColor;
+        vec4 lightData1;
+        vec4 lightData2;
+        if (i < NB_LIGHTS) {
+            lightColor = g_LightData[i];
+            lightData1 = g_LightData[i+1];
+            lightData2 = g_LightData[i+2];
+            // An empty slot: no light, and a direction of 0 / 0.
+            if (lightColor.rgb == vec3(0.0)) {
+                continue;
+            }
+        } else {
+            int light = 3 * int(texelFetch(g_ClusterIndices, clusterTexel(clustered.x + (i - NB_LIGHTS) / 3), 0).r);
+            lightColor = texelFetch(g_ClusterLights, clusterTexel(light), 0);
+            lightData1 = texelFetch(g_ClusterLights, clusterTexel(light + 1), 0);
+            lightData2 = texelFetch(g_ClusterLights, clusterTexel(light + 2), 0);
+        }
+    #else
     for( int i = 0;i < NB_LIGHTS; i+=3){
         vec4 lightColor = g_LightData[i];
-        vec4 lightData1 = g_LightData[i+1];                
+        vec4 lightData1 = g_LightData[i+1];
+        vec4 lightData2 = g_LightData[i+2];
+    #endif
         vec4 lightDir;
         vec3 lightVec;            
         lightComputeDir(wPosition, lightColor.w, lightData1, lightDir, lightVec);
@@ -333,7 +360,7 @@ void main(){
             // allow use of control flow
         if(lightColor.w > 1.0){
         #endif
-            fallOff =  computeSpotFalloff(g_LightData[i+2], lightVec);
+            fallOff =  computeSpotFalloff(lightData2, lightVec);
         #if __VERSION__ >= 110
         }
         #endif

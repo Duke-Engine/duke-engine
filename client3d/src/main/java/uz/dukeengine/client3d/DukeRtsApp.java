@@ -542,7 +542,7 @@ final class DukeRtsApp extends SimpleApplication {
 
         light.install(assetManager, viewPort, visuals.getThingSuns());
         if (visuals.isPhysicallyBased()) {
-            physicalLook = new PhysicalLook(assetManager, renderManager, rootNode, light, visuals.getPicture());
+            physicalLook = new PhysicalLook(assetManager, renderManager, viewPort, rootNode, light, visuals.getPicture());
         }
 
         // Before the terrain, because rebuilding a world clears what is burning in

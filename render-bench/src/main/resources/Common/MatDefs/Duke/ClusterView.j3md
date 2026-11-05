@@ -1,0 +1,25 @@
+MaterialDef Cluster View {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Int NumSamples
+        Int NumSamplesDepth
+        Texture2D Texture
+        Texture2D DepthTexture
+        Texture2D Grid -LINEAR
+        Vector4 Scale
+        Vector2 NearFar
+    }
+
+    Technique {
+        VertexShader     GLSL150: Common/MatDefs/Post/Post.vert
+        FragmentShader   GLSL150: Common/MatDefs/Duke/ClusterView.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER: BoundDrawBuffer
+        }
+    }
+}

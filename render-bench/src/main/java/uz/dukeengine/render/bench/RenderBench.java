@@ -52,6 +52,7 @@ import uz.dukeengine.render.AntiAliasing;
 import uz.dukeengine.render.Atmosphere;
 import uz.dukeengine.render.AcesToneMap;
 import uz.dukeengine.render.AtmosphereSky;
+import uz.dukeengine.render.ClusteredLights;
 import uz.dukeengine.render.GtaoFilter;
 import uz.dukeengine.render.HeightFogFilter;
 import uz.dukeengine.render.Lens;
@@ -67,7 +68,7 @@ import uz.dukeengine.render.SunShadowFilter;
 /**
  * Draws one fixed scene, measures its frames, saves a picture and quits, so a change to the renderer can be seen and
  * priced. Args: scene (materials, materials-plus, interior, outdoor, night, buffers, furnace), what to leave out or add ("full", or joined by
- * commas: no-ao, no-bloom, no-aa, fxaa, taa (the edges' smoothing; else the default of FULL), no-pcss, no-contact, no-shadows, no-local-shadows, local-&lt;n&gt; (how many local lights have a shadow), lamp (one lamp over any scene); feet, which looks at the outdoor units' feet from close by; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
+ * commas: no-ao, no-bloom, no-aa, fxaa, taa (the edges' smoothing; else the default of FULL), no-pcss, no-contact, no-shadows, no-local-shadows, local-&lt;n&gt; (how many local lights have a shadow), lamp (one lamp over any scene); no-clusters (the spot and point lights a pass each, the fork's way, not from clusters in one), lights-&lt;n&gt; (n small coloured lamps going round: over the field in the night instead of its torches, through the room in the interior beside its lamps) and show-clusters (how many lights each cluster has, over the picture); feet, which looks at the outdoor units' feet from close by; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
  * show-depth, show-roughness, show-velocity, which show one instead of the picture; show-ao, which shows the ambient
  * occlusion alone, and ao-radius-&lt;m&gt;, which sets its reach in world units; show-bloom, which shows the bloom alone; auto-exposure, which lets the eye adapt, and walk, which (with it) goes from a
  * dark view to a bright one and back, logging what the eye holds (EYE lines) and shooting at the cuts; fog (height fog and the
@@ -107,6 +108,11 @@ public final class RenderBench extends SimpleApplication {
     private ColorRGBA ambientNow;
     private HeightFogFilter fog;
     private LocalShadowFilter localFilter;
+    private ClusteredLights clusters;
+    private final List<PointLight> swarm = new ArrayList<>();
+    private final List<Vector3f> swarmAt = new ArrayList<>();
+    private double sortMillis;
+    private float circle;
     private SunShadowFilter shadowsFilter;
     private AtmosphereSky atmosphere;
     private float hour;
@@ -168,7 +174,7 @@ public final class RenderBench extends SimpleApplication {
                 left.contains("auto-exposure") || left.contains("walk"), fogDensity, full.fogFalloff(),
                 full.shafts() && !left.contains("no-shafts"), full.reflections() && !left.contains("no-ssr"),
                 lens(scene, left), left.stream().filter(word -> word.startsWith("lut-")).map(word -> "Common/Luts/" + word.substring(4) + ".png")
-                        .findFirst().orElse(null), left.contains("vignette") ? VIGNETTE : 0f);
+                        .findFirst().orElse(null), left.contains("vignette") ? VIGNETTE : 0f, full.clusteredLights() && !left.contains("no-clusters"));
     }
 
     /**
@@ -247,6 +253,7 @@ public final class RenderBench extends SimpleApplication {
                 sunDirection.set(-0.3f, -0.33f, -0.9f);
                 sun = new ColorRGBA(1f, 0.93f, 0.82f, 1f).mult(1.5f);
                 interior(world);
+                lightsAsked().ifPresent(n -> swarm(n, new Vector3f(0f, 0.1f, 0f), new Vector3f(13f, 3f, 9.6f), 1.5f));
             }
             case "outdoor" -> {
                 sunDirection.set(-0.45f, -0.75f, -0.48f);
@@ -263,7 +270,12 @@ public final class RenderBench extends SimpleApplication {
                 sun = new ColorRGBA(0.45f, 0.55f, 0.8f, 1f).mult(0.12f);
                 ambient = new ColorRGBA(0.03f, 0.04f, 0.08f, 1f);
                 outdoor(world);
-                torches();
+                var many = lightsAsked();
+                if (many.isPresent()) {
+                    swarm(many.get(), new Vector3f(0f, 1.1f, 3f), new Vector3f(44f, 1f, 42f), 4f);
+                } else {
+                    torches();
+                }
             }
             default -> throw new IllegalArgumentException("no scene called " + scene);
         }
@@ -845,6 +857,33 @@ public final class RenderBench extends SimpleApplication {
         return texture;
     }
 
+    /** The number of a {@code lights-<n>} word. */
+    private java.util.Optional<Integer> lightsAsked() {
+        return asked.stream().filter(word -> word.startsWith("lights-")).map(word -> Integer.valueOf(word.substring(7))).findFirst();
+    }
+
+    /**
+     * {@code n} small coloured lamps of this reach, spread through a box, each going round its own circle: the price of
+     * many lights. Dimmer as there are more, so that the picture stays one to look at.
+     */
+    private void swarm(int n, Vector3f centre, Vector3f size, float reach) {
+        var random = new Random(12);
+        float strength = 4f * FastMath.sqrt(16f / Math.max(n, 16));
+        circle = reach * 0.375f;
+        for (int i = 0; i < n; i++) {
+            var at = centre.add((random.nextFloat() - 0.5f) * size.x, (random.nextFloat() - 0.5f) * size.y, (random.nextFloat() - 0.5f) * size.z);
+            // A hue each, spread by the golden ratio, a fifth white.
+            float hue = (i * 0.618034f) % 1f * 6f;
+            var colour = new ColorRGBA(0.2f + 0.8f * FastMath.clamp(Math.abs(hue - 3f) - 1f, 0f, 1f),
+                    0.2f + 0.8f * FastMath.clamp(2f - Math.abs(hue - 2f), 0f, 1f),
+                    0.2f + 0.8f * FastMath.clamp(2f - Math.abs(hue - 4f), 0f, 1f), 1f).mult(strength);
+            var lamp = new PointLight(at.clone(), colour, reach);
+            rootNode.addLight(lamp);
+            swarm.add(lamp);
+            swarmAt.add(at);
+        }
+    }
+
     private void torches() {
         // A torch's colour is radiance at the flame, in the sun's units (2.4 at noon here): about 5 reads at a few metres
         // under the fixed exposure. The first versions had 40, which is white to the ACES curve (see the 3.3 report).
@@ -972,11 +1011,20 @@ public final class RenderBench extends SimpleApplication {
     }
 
     private void filters() {
+        if (picture.clusteredLights() && ClusteredLights.supported(renderer.getCaps())) {
+            clusters = new ClusteredLights();
+            viewPort.addProcessor(clusters);
+        }
         if (picture.lens().depthOfField() && asked.stream().noneMatch(word -> word.startsWith("focus-"))) {
             picture = picture.withLens(picture.lens().withFocus(focusOn()));
         }
         var post = new FilterPostProcessor(assetManager);
         post.setFrameBufferFormat(Image.Format.RGB16F);
+        if (asked.contains("show-clusters")) {
+            post.addFilter(new ClusterView(clusters));
+            viewPort.addProcessor(post);
+            return;
+        }
         if (asked.contains("show-ao")) {
             PictureChain.filters(picture).stream().filter(GtaoFilter.class::isInstance)
                     .forEach(filter -> post.addFilter(((GtaoFilter) filter).showOcclusionOnly()));
@@ -1071,8 +1119,15 @@ if (asked.contains("move-sun") && atmosphere != null) {
 if (asked.contains("move-units")) {
             movers.forEach(mover -> mover.move(0.02f * speed, 0f, 0f));
         }
+        for (int i = 0; i < swarm.size(); i++) {
+            float turn = frame * 0.03f + i;
+            swarm.get(i).setPosition(swarmAt.get(i).add(circle * FastMath.cos(turn), 0f, circle * FastMath.sin(turn)));
+        }
         if (frame > WARMUP && frame <= WARMUP + MEASURED) {
             frames.add(tpf);
+            if (clusters != null) {
+                sortMillis += clusters.sortMillis();
+            }
         }
         if (frame == WARMUP + MEASURED + 1) {
             shots.takeScreenshot();
@@ -1142,6 +1197,9 @@ if (asked.contains("move-units")) {
             throw new IllegalStateException(e);
         }
         System.out.print("RESULT " + line);
+        if (clusters != null) {
+            System.out.printf(Locale.ROOT, "clusters: %d lights sorted, %.3f ms a frame to sort them%n", clusters.sorted(), sortMillis / frames.size());
+        }
         if (localFilter != null) {
             System.out.println("local shadows: maps drawn " + localFilter.mapsDrawn() + ", kept " + localFilter.mapsKept() + " (last frame)");
         }

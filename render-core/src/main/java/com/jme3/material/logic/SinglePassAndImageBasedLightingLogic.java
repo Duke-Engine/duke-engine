@@ -51,6 +51,7 @@ public final class SinglePassAndImageBasedLightingLogic extends DefaultTechnique
     private static final String DEFINE_NB_LIGHTS = "NB_LIGHTS";
     private static final String DEFINE_NB_PROBES = "NB_PROBES";
     private static final String DEFINE_USE_AMBIENT_LIGHT = "USE_AMBIENT_LIGHT";
+    private static final String DEFINE_CLUSTERED = "CLUSTERED";
     private static final RenderState ADDITIVE_LIGHT = new RenderState();
 
     private boolean useAmbientLight;
@@ -66,6 +67,8 @@ public final class SinglePassAndImageBasedLightingLogic extends DefaultTechnique
     private final int nbLightsDefineId;
     private final int nbProbesDefineId;
     private final int useAmbientLightDefineId;
+    private final int clusteredDefineId;
+    private final LightList ownLights = new LightList(null);
 
     public SinglePassAndImageBasedLightingLogic(TechniqueDef techniqueDef) {
         super(techniqueDef);
@@ -73,6 +76,7 @@ public final class SinglePassAndImageBasedLightingLogic extends DefaultTechnique
         nbLightsDefineId = techniqueDef.addShaderUnmappedDefine(DEFINE_NB_LIGHTS, VarType.Int);
         nbProbesDefineId = techniqueDef.addShaderUnmappedDefine(DEFINE_NB_PROBES, VarType.Int);
         useAmbientLightDefineId = techniqueDef.addShaderUnmappedDefine(DEFINE_USE_AMBIENT_LIGHT, VarType.Boolean);
+        clusteredDefineId = techniqueDef.addShaderUnmappedDefine(DEFINE_CLUSTERED, VarType.Boolean);
     }
 
     @Override
@@ -80,6 +84,7 @@ public final class SinglePassAndImageBasedLightingLogic extends DefaultTechnique
             EnumSet<Caps> rendererCaps, LightList lights, DefineList defines) {
         defines.set(nbLightsDefineId, renderManager.getSinglePassLightBatchSize() * 3);
         defines.set(singlePassLightingDefineId, true);
+        defines.set(clusteredDefineId, clustersFor(renderManager, rendererCaps) != null);
 
 
         //TODO here we have a problem, this is called once before render, so the define will be set for all passes (in case we have more than NB_LIGHTS lights)
@@ -262,21 +267,55 @@ public final class SinglePassAndImageBasedLightingLogic extends DefaultTechnique
         return lastTexUnit;
     }
 
+    /**
+     * duke-engine: the clusters this draw reads, or null: none are set, they were sorted for another camera, or the GPU
+     * cannot fetch texels.
+     */
+    private static LightClusters clustersFor(RenderManager renderManager, EnumSet<Caps> caps) {
+        LightClusters clusters = renderManager.getLightClusters();
+        return clusters != null && caps.contains(Caps.GLSL150) && clusters.drawsFor(renderManager.getCurrentCamera())
+                ? clusters : null;
+    }
+
     @Override
     public void render(RenderManager renderManager, Shader shader, Geometry geometry, LightList lights, BindUnits lastBindUnits) {
         int nbRenderedLights = 0;
         Renderer renderer = renderManager.getRenderer();
         int batchSize = renderManager.getSinglePassLightBatchSize();
+        int textureUnit = lastBindUnits.textureUnit;
+        LightClusters clusters = clustersFor(renderManager, renderer.getCaps());
+        Uniform clustersLit = null;
+        if (clusters != null) {
+            // duke-engine: the first pass draws the clusters' lights from the clusters; the passes are for the rest.
+            ownLights.clear();
+            for (int i = 0; i < lights.size(); i++) {
+                if (!clusters.holds(lights.get(i))) {
+                    ownLights.add(lights.get(i));
+                }
+            }
+            lights = ownLights;
+            textureUnit = clusters.bind(renderer, shader, textureUnit);
+            clustersLit = shader.getUniform("g_ClustersLit");
+        }
         if (lights.size() == 0) {
-            updateLightListUniforms(shader, geometry, lights, batchSize, renderManager, 0, lastBindUnits.textureUnit);
+            if (clustersLit != null) {
+                clustersLit.setValue(VarType.Boolean, true);
+            }
+            updateLightListUniforms(shader, geometry, lights, batchSize, renderManager, 0, textureUnit);
             renderer.setShader(shader);
             renderMeshFromGeometry(renderer, geometry);
         } else {
             while (nbRenderedLights < lights.size()) {
-                nbRenderedLights = updateLightListUniforms(shader, geometry, lights, batchSize, renderManager, nbRenderedLights, lastBindUnits.textureUnit);
+                if (clustersLit != null) {
+                    clustersLit.setValue(VarType.Boolean, nbRenderedLights == 0);
+                }
+                nbRenderedLights = updateLightListUniforms(shader, geometry, lights, batchSize, renderManager, nbRenderedLights, textureUnit);
                 renderer.setShader(shader);
                 renderMeshFromGeometry(renderer, geometry);
             }
+        }
+        if (clusters != null) {
+            ownLights.clear();
         }
         return;
     }

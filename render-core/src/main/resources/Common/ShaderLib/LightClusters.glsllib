@@ -1,0 +1,36 @@
+// duke-engine: the view's spot and point lights sorted into clusters of its frustum (uz.dukeengine.render.ClusteredLights,
+// which must agree with these numbers): 16 x 9 tiles of the screen, 24 slices of depth spaced evenly in its logarithm.
+#define CLUSTERS_X 16
+#define CLUSTERS_Y 9
+#define CLUSTERS_Z 24
+// Every buffer is laid out in rows this wide, the widest texture a GL 3.3 GPU has to take.
+#define CLUSTER_ROW 1024
+
+// Each light as three texels, as g_LightData has it; for each cluster the first of its lights in the index list and how
+// many; the index list.
+uniform sampler2D g_ClusterLights;
+uniform sampler2D g_ClusterGrid;
+uniform sampler2D g_ClusterIndices;
+// Tiles per pixel across and up, slices per unit of the logarithm of depth, and the slice depth 1 would be in.
+uniform vec4 g_ClusterScale;
+// The view's lower left pixel.
+uniform vec2 g_ClusterOrigin;
+// Whether this pass draws them: the first of a geometry's passes does, the later ones are for its own lights.
+uniform bool g_ClustersLit;
+uniform mat4 g_ViewMatrix;
+
+ivec2 clusterTexel(int i) {
+    return ivec2(i % CLUSTER_ROW, i / CLUSTER_ROW);
+}
+
+// The first of the lights this pixel's cluster has in the index list, and how many.
+ivec2 clusterOf(vec3 worldPosition) {
+    if (!g_ClustersLit) {
+        return ivec2(0);
+    }
+    float depth = -(g_ViewMatrix * vec4(worldPosition, 1.0)).z;
+    ivec3 cell = ivec3(ivec2((gl_FragCoord.xy - g_ClusterOrigin) * g_ClusterScale.xy),
+            int(log(max(depth, 1e-6)) * g_ClusterScale.z + g_ClusterScale.w));
+    cell = clamp(cell, ivec3(0), ivec3(CLUSTERS_X - 1, CLUSTERS_Y - 1, CLUSTERS_Z - 1));
+    return ivec2(texelFetch(g_ClusterGrid, clusterTexel(cell.x + CLUSTERS_X * (cell.y + CLUSTERS_Y * cell.z)), 0).rg);
+}

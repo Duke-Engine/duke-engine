@@ -32,6 +32,7 @@
 package com.jme3.renderer;
 
 import com.jme3.light.DefaultLightFilter;
+import com.jme3.light.LightClusters;
 import com.jme3.light.LightFilter;
 import com.jme3.light.LightList;
 import com.jme3.material.MatParamOverride;
@@ -104,6 +105,7 @@ public class RenderManager {
     private LightFilter lightFilter = new DefaultLightFilter();
     private TechniqueDef.LightMode preferredLightMode = TechniqueDef.LightMode.MultiPass;
     private int singlePassLightBatchSize = 1;
+    private LightClusters lightClusters;
     private MatParamOverride boundDrawBufferId=new MatParamOverride(VarType.Int,"BoundDrawBuffer",0);
     private Predicate<Geometry> renderFilter;
 
@@ -645,13 +647,18 @@ public class RenderManager {
         // Perform light filtering if we have a light filter.
         LightList lightList = geom.getWorldLightList();
 
+        Material material = geom.getMaterial();
+
         if (lightFilter != null) {
             filteredLightList.clear();
-            lightFilter.filterLights(geom, filteredLightList);
+            // duke-engine: a forced technique that draws no light (a shadow map, the scene buffers) gets none, rather
+            // than every light of the scene tested against the geometry for nothing.
+            if (!drawsNoLight(material)) {
+                lightFilter.filterLights(geom, filteredLightList);
+            }
             lightList = filteredLightList;
         }
 
-        Material material = geom.getMaterial();
         
         // If forcedTechnique exists, we try to force it for the render.
         // If it does not exist in the mat def, we check for forcedMaterial and render the geom if not null.
@@ -695,6 +702,22 @@ public class RenderManager {
             material.render(geom, lightList, this);
         }
         this.renderer.popDebugGroup();
+    }
+
+    private boolean drawsNoLight(Material material) {
+        if (forcedTechnique == null) {
+            return false;
+        }
+        List<TechniqueDef> defs = material.getMaterialDef().getTechniqueDefs(forcedTechnique);
+        if (defs == null) {
+            return false;
+        }
+        for (int i = 0; i < defs.size(); i++) {
+            if (defs.get(i).getLightMode() != TechniqueDef.LightMode.Disable) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -936,6 +959,25 @@ public class RenderManager {
     public void setSinglePassLightBatchSize(int singlePassLightBatchSize) {
         // Ensure the batch size is no less than 1
         this.singlePassLightBatchSize = singlePassLightBatchSize < 1 ? 1 : singlePassLightBatchSize;
+    }
+
+    /**
+     * duke-engine: the clusters a view's lights are sorted into, which the physically based lighting reads for the
+     * camera they were sorted for; null, every light is drawn the fork's way.
+     *
+     * @param lightClusters the clusters, or null
+     */
+    public void setLightClusters(LightClusters lightClusters) {
+        this.lightClusters = lightClusters;
+    }
+
+    /**
+     * duke-engine: the clusters set by {@link #setLightClusters}, or null.
+     *
+     * @return the clusters, or null
+     */
+    public LightClusters getLightClusters() {
+        return lightClusters;
     }
 
 

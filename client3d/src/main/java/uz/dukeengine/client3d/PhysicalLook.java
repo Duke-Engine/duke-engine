@@ -4,10 +4,12 @@ import com.jme3.asset.AssetManager;
 import com.jme3.light.LightProbe;
 import com.jme3.post.Filter;
 import com.jme3.renderer.RenderManager;
+import com.jme3.renderer.ViewPort;
 import com.jme3.scene.Node;
 import java.util.ArrayList;
 import java.util.logging.Logger;
 import uz.dukeengine.render.AtmosphereSky;
+import uz.dukeengine.render.ClusteredLights;
 import uz.dukeengine.render.HeightFogFilter;
 import uz.dukeengine.render.LocalShadowFilter;
 import uz.dukeengine.render.PictureChain;
@@ -19,8 +21,9 @@ import uz.dukeengine.render.TaaFilter;
  * What {@link Visuals#physicallyBased} adds to a scene: the light physically based materials take their ambient from,
  * a probe baked from a sky worked out of the scene's own sun and ambient, the filters over the finished picture, and
  * the sun's shadows drawn by {@link uz.dukeengine.render.SunShadowFilter}, and the local lights' by
- * {@link LocalShadowFilter}. With {@link PictureSettings#atmosphere} the sky is the atmosphere under the sun's direction,
- * and the probe follows the sun through its hours.
+ * {@link LocalShadowFilter}; the local lights drawn in one pass from the view's {@link ClusteredLights}. With
+ * {@link PictureSettings#atmosphere} the sky is the atmosphere under the sun's direction, and the probe follows the sun
+ * through its hours.
  *
  * <p>Light is drawing. Nothing in the simulation reads it.
  */
@@ -37,7 +40,7 @@ final class PhysicalLook {
     private final TaaFilter taa;
     private LightProbe probe;
 
-    PhysicalLook(AssetManager assets, RenderManager renderManager, Node root, SceneLight light, PictureSettings picture) {
+    PhysicalLook(AssetManager assets, RenderManager renderManager, ViewPort view, Node root, SceneLight light, PictureSettings picture) {
         this.assets = assets;
         this.renderManager = renderManager;
         this.root = root;
@@ -48,6 +51,11 @@ final class PhysicalLook {
         }
         this.local = picture.localShadows() > 0 && LocalShadowFilter.supported(caps)
                 ? new LocalShadowFilter(assets, picture.localShadows()) : null;
+        if (picture.clusteredLights() && ClusteredLights.supported(caps)) {
+            view.addProcessor(new ClusteredLights());
+        } else if (picture.clusteredLights()) {
+            LOG.warning("this GPU cannot read light clusters (GLSL 1.50, float textures): each local light is a pass of its own");
+        }
         bake(light);
         light.shadows().drawnAs(picture, caps);
         var finishing = new ArrayList<Filter>();
