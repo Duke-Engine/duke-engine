@@ -44,6 +44,8 @@ games'.
   needs is that game's rule.
 - **`bom`** — the `java-platform` published beside the modules, so a game names
   one version and gets a matching set.
+- **`render-*`** — the renderer, a hard fork of jMonkeyEngine 3.7.0 (`render-core/README.md`), under its own BSD
+  license. `client3d` is the only engine module that draws through it.
 - **`kit`** — the starter set a game made in the editor begins from: today the
   effects library (27 effects in `kit/data/effects/<group>/`, and the particle art
   they are drawn with), all of it under `kit/` on the classpath. A game links a

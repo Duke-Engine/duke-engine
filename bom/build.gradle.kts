@@ -12,6 +12,14 @@ plugins {
 // mistake a multi-module library makes easy and a BOM makes impossible.
 dependencies {
     constraints {
+        api(project(":render-core"))
+        api(project(":render-effects"))
+        api(project(":render-plugins"))
+        api(project(":render-plugins-json"))
+        api(project(":render-plugins-json-gson"))
+        api(project(":render-jogg"))
+        api(project(":render-desktop"))
+        api(project(":render-lwjgl3"))
         api(project(":processor"))
         api(project(":core"))
         api(project(":combat"))
@@ -29,5 +37,6 @@ dependencies {
         api(project(":kit"))
         // Only a build with -Pandroid has it, and the release is one.
         findProject(":client3d-android")?.let { api(it) }
+        findProject(":render-android")?.let { api(it) }
     }
 }

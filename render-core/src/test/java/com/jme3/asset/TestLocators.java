@@ -36,6 +36,7 @@ public class TestLocators {
                 " stretchH=100 smooth=1 aa=1 padding=0,0,0,0 spacing=1,1 outline=0"));
     }
 
+    @org.junit.Ignore("needs the network and jme3-examples/town.zip, which was not imported")
     @Test
     public void testManyLocators() {
         AssetManager am = new DesktopAssetManager(true);

@@ -117,7 +117,7 @@ skirmish  →  rts-client-3d  →  client3d  →  game  →  combat  →  core
   levels and attributes, items and loot, missions.
 - **game** — the runtime a game boots through: the `DukeGame` facade, of whatever kind the game is,
   a built-in Swing 2D renderer, lock-step multiplayer over TCP.
-- **client3d** — the 3D client on jMonkeyEngine: glTF/Ogre model loading, skeletal animation,
+- **client3d** — the 3D client on the engine's renderer (`render-*`, forked from jMonkeyEngine): glTF/Ogre model loading, skeletal animation,
   positional sound, the camera, ray-picked selection, effects, menus and a minimap.
 - **rts-client-3d**, **rpg-client-3d** — each side's part of the window: an RTS's rally point and
   build menu; an RPG's hero bar, portrait, bag and single-hero control.

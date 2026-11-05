@@ -1,4 +1,4 @@
-# `client3d` — 3D klient (jMonkeyEngine)
+# `client3d` — 3D klient (`render-*`)
 
 **Rol: PREZENTATSIYA.** Simulyatsiyani 3D da chizadi va kirishni buyruqqa
 aylantiradi. Mantiqqa hech qachon tegmaydi — faqat `WorldSnapshot` ni o'qiydi
@@ -6,7 +6,7 @@ va `DukeGame.postCommand()` orqali buyruq qaytaradi.
 
 | | |
 |---|---|
-| Bog'liqligi | `api project(":game")` + **jMonkeyEngine 3.7.0-stable** (jme3-core / desktop / lwjgl3 / plugins / jogg) |
+| Bog'liqligi | `api project(":game")` + `render-core`, `render-plugins`, `render-jogg` (jMonkeyEngine 3.7.0 dan fork) |
 | Kim bunga bog'lanadi | `skirmish` |
 | Hajmi | 81 fayl, ~25 194 qator |
 | Testlar | 554 ta, 52 klassda — jME'siz ishlaydigan qismlar (layout, o'lchov, holat) |

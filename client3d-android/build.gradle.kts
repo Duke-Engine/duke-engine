@@ -27,8 +27,9 @@ android {
 
 dependencies {
     api(project(":client3d"))
-    api("org.jmonkeyengine:jme3-android:$jmeVersion")
-    implementation("org.jmonkeyengine:jme3-android-native:$jmeVersion")
+    api(project(":render-android"))
+    // shortcut: the C++ half is still jME's released .so files (needs the NDK to build), import it when it must change.
+    implementation("org.jmonkeyengine:jme3-android-native:$jmeVersion") { isTransitive = false }
     testImplementation("junit:junit:4.13.2")
 }
 

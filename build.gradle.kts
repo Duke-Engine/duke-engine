@@ -29,6 +29,9 @@ subprojects {
     }
     apply(plugin = "java")
 
+    // The renderer forked from jMonkeyEngine: its code keeps its own warnings and has no records for the processor.
+    val forked = name.startsWith("render-")
+
     // Javadoc is for reading, not a gate: doclint stays off, as the publish plugin kept it before 0.35.
     tasks.withType<Javadoc>().configureEach {
         (options as StandardJavadocDocletOptions).addStringOption("Xdoclint:none", "-quiet")
@@ -41,7 +44,9 @@ subprojects {
     }
 
     tasks.withType<JavaCompile>().configureEach {
-        options.compilerArgs.add("-Xlint:all")
+        if (!forked) {
+            options.compilerArgs.add("-Xlint:all")
+        }
         // The shape processor reads every type and claims no annotation, which javac would warn of in each module.
         options.compilerArgs.add("-Xlint:-processing")
     }
@@ -74,7 +79,7 @@ subprojects {
 
     // Every module writes the shapes of its records, so the Binder can read data where reflection cannot. A
     // module's tests share its packages, so theirs are written under another class name.
-    if (name != "processor") {
+    if (name != "processor" && !forked) {
         dependencies {
             "annotationProcessor"(project(":processor"))
             "testAnnotationProcessor"(project(":processor"))
@@ -102,6 +107,18 @@ subprojects {
         "testImplementation"(platform("org.junit:junit-bom:5.11.3"))
         "testImplementation"("org.junit.jupiter:junit-jupiter")
         "testRuntimeOnly"("org.junit.platform:junit-platform-launcher")
+        if (forked) { // its tests came with it, on JUnit 4 and Mockito
+            "testImplementation"("junit:junit:4.13.2")
+            "testImplementation"("org.mockito:mockito-core:5.20.0")
+            "testRuntimeOnly"("org.junit.vintage:junit-vintage-engine")
+        }
+    }
+
+    // BSD 3-clause asks every binary to carry the notice.
+    if (forked) {
+        tasks.named<Jar>("jar") {
+            from(rootProject.file("licenses/jMonkeyEngine-BSD-3.md")) { into("META-INF/${project.name}") }
+        }
     }
 }
 
@@ -138,7 +155,7 @@ val published = mapOf(
         + "and loot, missions — the parts every RPG shares, with the rules left to the game.",
     "game" to "The Unity-style API: the DukeGame facade, players, orders and lock-step multiplayer over TCP.",
     "game-swing" to "A 2D Swing window over the DukeGame facade: select with the left button, order with the right.",
-    "client3d" to "The 3D client on jMonkeyEngine: model loading, skeletal animation, positional sound, an RTS "
+    "client3d" to "The 3D client on the engine's renderer: model loading, skeletal animation, positional sound, an RTS "
         + "camera, effects, menus and a minimap.",
     "client3d-desktop" to "The desktop side of the 3D client: the platform interfaces answered with AWT, Swing and GLFW, "
         + "so a game gets fonts, picture files, settings and a window by depending on it.",
@@ -155,6 +172,15 @@ val published = mapOf(
     // An AAR, and only in a build with -Pandroid, which is the only build that has the project.
     "client3d-android" to "The Android side of the 3D client: the platform interfaces answered with android.graphics "
         + "and the app's files, and the activity a game's Android launcher extends, with its content pack mounted.",
+    "render-core" to "The renderer, forked from jMonkeyEngine 3.7.0: the scene graph, materials and shaders, lights and shadows, animation and the asset manager.",
+    "render-effects" to "The renderer's full-screen filters: ambient occlusion, bloom, tone mapping, anti-aliasing, water and the rest.",
+    "render-plugins" to "The renderer's model loaders: glTF, Ogre, FBX and XML.",
+    "render-plugins-json" to "The JSON interfaces the renderer's glTF loader reads through.",
+    "render-plugins-json-gson" to "The renderer's JSON interfaces answered with Gson.",
+    "render-jogg" to "Ogg sound loading for the renderer.",
+    "render-desktop" to "The renderer's desktop parts: AWT cursors, pictures and input keys.",
+    "render-lwjgl3" to "The renderer on OpenGL through LWJGL 3: the window, the GL calls and OpenAL.",
+    "render-android" to "The renderer's Android parts: the harness, GL ES and sound. An ordinary jar, in a build with -Pandroid.",
     "kit" to "The starter set a game begins from: an effects library and the particle art it is drawn with. "
         + "Data only — no code.",
 )
@@ -185,8 +211,10 @@ configure(subprojects.filter { it.name in published }) {
             url.set("https://duke-engine.uz")
             licenses {
                 license {
-                    name.set("MIT License")
-                    url.set("https://github.com/Duke-Engine/duke-engine/blob/master/LICENSE")
+                    val forked = project.name.startsWith("render-")
+                    name.set(if (forked) "BSD 3-Clause License" else "MIT License")
+                    url.set("https://github.com/Duke-Engine/duke-engine/blob/master/"
+                        + if (forked) "licenses/jMonkeyEngine-BSD-3.md" else "LICENSE")
                     distribution.set("repo")
                 }
             }

@@ -3,6 +3,17 @@
 Versions are `major.minor.patch`. While the major is 0, a minor may break what came before — and
 when it does, this page says exactly what to change and how.
 
+## Unreleased
+
+The renderer is the engine's own: jMonkeyEngine 3.7.0's code now lives here as the `render-*` modules, published as
+`uz.duke-engine:render-*`, and nothing draws differently yet. See `render-core/README.md`.
+
+### What to change
+
+- **A game that names `org.jmonkeyengine:jme3-*` itself** switches to the same module under `uz.duke-engine:render-*`
+  (`jme3-effects` is `render-effects`, and so on, through the BOM). Packages are still `com.jme3.*`, so no source
+  changes; keeping both puts every class on the classpath twice.
+
 ## 0.9.0
 
 The engine runs on Android. The simulation and the 3D client name no desktop toolkit: the window, fonts, pictures,
