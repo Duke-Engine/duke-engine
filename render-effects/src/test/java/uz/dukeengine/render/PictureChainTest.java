@@ -21,7 +21,7 @@ class PictureChainTest {
 
     @Test
     void ambientOcclusionOffLeavesNoOcclusionFilter() {
-        var off = new PictureSettings(false, true, true, 0.7f, false, true, true, 4, 0.75f, false, 0f, 0.06f, true, true);
+        var off = new PictureSettings(false, true, AntiAliasing.TAA, 0.7f, false, true, true, 4, 0.75f, false, 0f, 0.06f, true, true);
         assertTrue(PictureChain.filters(off).stream().noneMatch(GtaoFilter.class::isInstance));
     }
 
@@ -63,6 +63,23 @@ class PictureChainTest {
         assertTrue(filters.indexOf(filters.stream().filter(GtaoFilter.class::isInstance).findFirst().get()) < ssr);
         assertTrue(ssr < filters.indexOf(filters.stream().filter(HeightFogFilter.class::isInstance).findFirst().get()));
         assertTrue(PictureChain.filters(PictureSettings.FULL.withReflections(false)).stream().noneMatch(SsrFilter.class::isInstance));
+    }
+
+    @Test
+    void edgesAreSmoothedByTheOneFilterTheModeNamesAndTaaSitsBetweenTheEffectsAndTheBloom() {
+        var taa = PictureChain.filters(PictureSettings.FULL.withAntiAliasing(AntiAliasing.TAA).withFog(0.01f, 0.05f));
+        assertEquals(1, taa.stream().filter(TaaFilter.class::isInstance).count());
+        assertEquals(1, taa.stream().filter(SharpenFilter.class::isInstance).count());
+        assertTrue(taa.stream().noneMatch(com.jme3.post.filters.FXAAFilter.class::isInstance));
+        int at = taa.indexOf(taa.stream().filter(TaaFilter.class::isInstance).findFirst().get());
+        assertTrue(taa.indexOf(taa.stream().filter(HeightFogFilter.class::isInstance).findFirst().get()) < at);
+        assertTrue(at < taa.indexOf(taa.stream().filter(MipBloomFilter.class::isInstance).findFirst().get()));
+        assertTrue(taa.indexOf(taa.stream().filter(AcesToneMap.class::isInstance).findFirst().get()) < taa.indexOf(taa.stream().filter(SharpenFilter.class::isInstance).findFirst().get()));
+        var fxaa = PictureChain.filters(PictureSettings.FULL.withAntiAliasing(AntiAliasing.FXAA));
+        assertEquals(1, fxaa.stream().filter(com.jme3.post.filters.FXAAFilter.class::isInstance).count());
+        assertTrue(fxaa.stream().noneMatch(TaaFilter.class::isInstance) && fxaa.stream().noneMatch(SharpenFilter.class::isInstance));
+        var none = PictureChain.filters(PictureSettings.FULL.withAntiAliasing(AntiAliasing.NONE));
+        assertTrue(none.stream().noneMatch(f -> f instanceof TaaFilter || f instanceof SharpenFilter || f instanceof com.jme3.post.filters.FXAAFilter));
     }
 
     @Test

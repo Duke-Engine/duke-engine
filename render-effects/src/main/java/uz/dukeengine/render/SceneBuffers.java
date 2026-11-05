@@ -52,10 +52,14 @@ public final class SceneBuffers implements SceneProcessor {
     private final Picture farQuad = new Picture("scene buffers far");
     private final PoseMemory poses = new PoseMemory();
     private final Matrix4f previousViewProjection = new Matrix4f();
+    private final Matrix4f unjittered = new Matrix4f();
+    private final Matrix4f lastUnjittered = new Matrix4f();
     private final Matrix4f inverse = new Matrix4f();
     private final Matrix4f reprojection = new Matrix4f();
     private final Matrix4f[] world = new Matrix4f[1];
     private final int vertexUniformVectors;
+    private float jitterX;
+    private float jitterY;
     private boolean cameraSeen;
     private boolean warnedOfBones;
     private FrameBuffer buffer;
@@ -123,6 +127,15 @@ public final class SceneBuffers implements SceneProcessor {
         return reflectance;
     }
 
+    /**
+     * The camera's projection is shifted by this much (normalised device coordinates) this frame, as {@link TaaFilter} does;
+     * motion is told as if it were not, so a camera standing still tells none. 0 when nothing shifts it.
+     */
+    void jittered(float x, float y) {
+        jitterX = x;
+        jitterY = y;
+    }
+
     private void size(int width, int height) {
         if (buffer != null && buffer.getWidth() == width && buffer.getHeight() == height) {
             return;
@@ -152,10 +165,13 @@ public final class SceneBuffers implements SceneProcessor {
     public void postQueue(RenderQueue queue) {
         var camera = view.getCamera();
         var viewProjection = camera.getViewProjectionMatrix();
+        Jitter.shift(unjittered.set(viewProjection), -jitterX, -jitterY);
         if (!cameraSeen) {
-            previousViewProjection.set(viewProjection);
+            lastUnjittered.set(unjittered);
             cameraSeen = true;
         }
+        // Last frame's matrix carries this frame's shift, so that the shift cancels in the difference of the two positions.
+        Jitter.shift(previousViewProjection.set(lastUnjittered), jitterX, jitterY);
         renderer.setFrameBuffer(buffer);
         renderer.clearBuffers(true, true, false);
         renderManager.setForcedTechnique(TECHNIQUE);
@@ -172,7 +188,7 @@ public final class SceneBuffers implements SceneProcessor {
         farQuad.updateGeometricState();
         renderManager.renderGeometry(farQuad);
 
-        previousViewProjection.set(viewProjection);
+        lastUnjittered.set(unjittered);
         poses.endFrame();
         renderer.setFrameBuffer(view.getOutputFrameBuffer());
     }

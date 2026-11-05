@@ -3,6 +3,8 @@
 MaterialDef Shafts {
 
     MaterialParameters {
+        // Counts frames while TAA sums them, 0 otherwise: the pattern of this grain turns with it.
+        Int Frame
         Int BoundDrawBuffer
         Int NumSamplesDepth
         Texture2D DepthTexture

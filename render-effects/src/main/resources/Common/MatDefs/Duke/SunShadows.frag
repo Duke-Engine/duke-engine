@@ -12,6 +12,7 @@ uniform mat4 m_LightViewProjectionMatrix1;
 uniform mat4 m_LightViewProjectionMatrix2;
 uniform mat4 m_LightViewProjectionMatrix3;
 uniform mat4 m_ViewProjectionMatrixInverse;
+uniform int m_Frame;
 uniform vec4 m_ViewDepth;
 uniform vec4 m_Splits;
 uniform float m_SplitStart;
@@ -212,8 +213,8 @@ float light(float depth) {
     face = faceAt(depth);
     toLight = -dot(face, m_LightDir);
     // Interleaved gradient noise (Jimenez 2014): evenly spread, so it never bands. shortcut: a fine grain is left in wide
-    // penumbras and a thin caster's shadow comes out dashed, turn it with the frame once TAA (3.9) can average it away.
-    dither = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+    // penumbras and a thin caster's shadow comes out dashed, which TAA averages away as the frame turns it.
+    dither = fract(52.9829189 * fract(dot(gl_FragCoord.xy + 5.588238 * float(m_Frame), vec2(0.06711056, 0.00583715))));
     spin = vec2(cos(dither * 6.2831853), sin(dither * 6.2831853));
 
     // Toward the sun, as shaded: the smooth normal, not the face, where there is one.

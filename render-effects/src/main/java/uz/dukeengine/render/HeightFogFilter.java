@@ -216,6 +216,7 @@ public final class HeightFogFilter extends Filter {
         material.setVector3("Air", airColour);
         if (march != null) {
             shaftMaterial.setMatrix4("ViewProjectionMatrixInverse", inverse);
+            shaftMaterial.setInt("Frame", TaaFilter.turn(processor));
         }
         // The source's postQueue has run before this one: if it has no maps for this frame, it has taken them off.
         boolean now = canMarch();

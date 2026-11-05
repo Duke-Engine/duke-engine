@@ -1,0 +1,28 @@
+// Temporal anti-aliasing: see uz.dukeengine.render.TaaFilter.
+MaterialDef Taa {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Int NumSamples
+        Texture2D Texture
+        // What the last frames made of the picture, RGBA16F; SceneBuffers' depth and its motion (this frame's place less last frame's, in uv).
+        Texture2D History
+        Texture2D Depth
+        Texture2D Velocity
+        // 1 when there is no history to trust: the first frame, after a resize or a cut.
+        Float Fresh
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/Taa.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+            RESOLVE_MS : NumSamples
+        }
+    }
+}

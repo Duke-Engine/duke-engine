@@ -8,6 +8,7 @@ import com.jme3.math.Vector3f;
 import com.jme3.renderer.Caps;
 import com.jme3.renderer.RenderManager;
 import com.jme3.renderer.ViewPort;
+import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.scene.Geometry;
 import com.jme3.shadow.AbstractShadowFilter;
 import com.jme3.shadow.CompareMode;
@@ -59,6 +60,12 @@ public final class SunShadowFilter extends AbstractShadowFilter<SunCascades> {
     /** Whether this GPU can draw these shadows: what it cannot is drawn as it was, by the fork's own filter. */
     public static boolean supported(EnumSet<Caps> caps) {
         return caps.contains(Caps.GLSL150);
+    }
+
+    @Override
+    protected void postQueue(RenderQueue queue) {
+        super.postQueue(queue);
+        material.setInt("Frame", TaaFilter.turn(processor));
     }
 
     /** The sun that lights the scene, where the light these are drawn from is another. */

@@ -11,6 +11,7 @@ uniform mat4 m_LightViewProjectionMatrix1;
 uniform mat4 m_LightViewProjectionMatrix2;
 uniform mat4 m_LightViewProjectionMatrix3;
 uniform mat4 m_ViewProjectionMatrixInverse;
+uniform int m_Frame;
 uniform vec4 m_ViewDepth;
 uniform vec4 m_Splits;
 uniform vec4 m_CascadeTexels;
@@ -68,7 +69,8 @@ void main() {
     float reach = min(seen, m_Reach);
 
     ivec2 cell = ivec2(gl_FragCoord.xy) & 3;
-    float jitter = (BAYER[cell.y * 4 + cell.x] + 0.5) / 16.0;
+    // Turned by the golden ratio each frame, which keeps the 16 values evenly spread whatever the frame.
+    float jitter = fract((BAYER[cell.y * 4 + cell.x] + 0.5) / 16.0 + float(m_Frame) * 0.6180339887);
     float stride = reach / float(STEPS);
     float optical = 0.0;
     float reached = 0.0;

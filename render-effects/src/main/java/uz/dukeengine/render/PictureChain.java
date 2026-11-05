@@ -23,12 +23,18 @@ public final class PictureChain {
         if (settings.fogDensity() > 0f) {
             filters.add(new HeightFogFilter(settings));
         }
+        // After every effect that draws its grain and before the bloom and the curve, which would hold a bright pixel's flicker.
+        if (settings.antiAliasing() == AntiAliasing.TAA) {
+            filters.add(new TaaFilter());
+        }
         if (settings.bloom()) {
             filters.add(new MipBloomFilter());
         }
         filters.add(new AcesToneMap(settings.exposure(), settings.autoExposure()));
-        if (settings.fxaa()) {
-            filters.add(new FXAAFilter());
+        switch (settings.antiAliasing()) {
+            case FXAA -> filters.add(new FXAAFilter());
+            case TAA -> filters.add(new SharpenFilter());
+            case NONE -> { }
         }
         return filters;
     }

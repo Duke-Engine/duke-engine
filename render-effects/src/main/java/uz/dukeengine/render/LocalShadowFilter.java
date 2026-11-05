@@ -289,6 +289,7 @@ public final class LocalShadowFilter extends Filter {
 
     @Override
     protected void postQueue(RenderQueue queue) {
+        material.setInt("Frame", TaaFilter.turn(processor));
         var renderer = renderManager.getRenderer();
         boolean any = false;
         redrawn = 0;

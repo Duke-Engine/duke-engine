@@ -1,0 +1,24 @@
+// A light sharpen over a finished picture: see uz.dukeengine.render.SharpenFilter.
+MaterialDef Sharpen {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Int NumSamples
+        Texture2D Texture
+        // 0 to 1: how far the picture is pushed from its neighbours where it has room to be.
+        Float Strength : 0.3
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/Sharpen.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+            RESOLVE_MS : NumSamples
+        }
+    }
+}

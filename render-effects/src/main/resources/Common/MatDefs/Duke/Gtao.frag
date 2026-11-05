@@ -5,6 +5,7 @@ uniform sampler2D m_Surface;
 uniform mat4 m_ProjectionInverse;
 uniform float m_Radius;
 uniform float m_Focal;
+uniform int m_Frame;
 
 varying vec2 texCoord;
 
@@ -48,7 +49,7 @@ void main() {
     // The nine pixels of a 3x3 patch hold nine of the half turn's eighteen directions (a slice more of each, half a turn
     // on) and nine offsets along the steps: the patch averaged in the next pass has all of them.
     ivec2 cell = ivec2(centre) % 3;
-    int index = cell.x + 3 * cell.y;
+    int index = (cell.x + 3 * cell.y + m_Frame) % 9;
     float stepJitter = (float((index * 7) % 9) + 0.5) / 9.0;
 
     float visibility = 0.0;

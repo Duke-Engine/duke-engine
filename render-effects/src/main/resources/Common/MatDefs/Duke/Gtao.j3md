@@ -2,6 +2,8 @@
 MaterialDef Gtao {
 
     MaterialParameters {
+        // Counts frames while TAA sums them, 0 otherwise: the pattern of this grain turns with it.
+        Int Frame
         Int BoundDrawBuffer
         // SceneBuffers' depth and its normals and roughness.
         Texture2D Depth

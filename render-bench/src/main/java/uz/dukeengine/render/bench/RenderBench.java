@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
+import uz.dukeengine.render.AntiAliasing;
 import uz.dukeengine.render.Atmosphere;
 import uz.dukeengine.render.AcesToneMap;
 import uz.dukeengine.render.AtmosphereSky;
@@ -61,7 +62,7 @@ import uz.dukeengine.render.SunShadowFilter;
 /**
  * Draws one fixed scene, measures its frames, saves a picture and quits, so a change to the renderer can be seen and
  * priced. Args: scene (materials, interior, outdoor, night, buffers, furnace), what to leave out or add ("full", or joined by
- * commas: no-ao, no-bloom, no-fxaa, no-pcss, no-contact, no-shadows, no-local-shadows, local-&lt;n&gt; (how many local lights have a shadow), lamp (one lamp over any scene); feet, which looks at the outdoor units' feet from close by; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
+ * commas: no-ao, no-bloom, no-aa, fxaa, taa (the edges' smoothing; else the default of FULL), no-pcss, no-contact, no-shadows, no-local-shadows, local-&lt;n&gt; (how many local lights have a shadow), lamp (one lamp over any scene); feet, which looks at the outdoor units' feet from close by; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
  * show-depth, show-roughness, show-velocity, which show one instead of the picture; show-ao, which shows the ambient
  * occlusion alone, and ao-radius-&lt;m&gt;, which sets its reach in world units; show-bloom, which shows the bloom alone; auto-exposure, which lets the eye adapt, and walk, which (with it) goes from a
  * dark view to a bright one and back, logging what the eye holds (EYE lines) and shooting at the cuts; fog (height fog and the
@@ -139,13 +140,21 @@ public final class RenderBench extends SimpleApplication {
         float fogDensity = left.stream().filter(word -> word.startsWith("fog-")).map(word -> Float.valueOf(word.substring(4)))
                 .findFirst().orElse(left.contains("fog") ? FOG : full.fogDensity());
         return new PictureSettings(full.ambientOcclusion() && !left.contains("no-ao"),
-                full.bloom() && !left.contains("no-bloom"), full.fxaa() && !left.contains("no-fxaa"), full.exposure(),
+                full.bloom() && !left.contains("no-bloom"), antiAliasing(left, full.antiAliasing()), full.exposure(),
                 hourOf(left) != null, full.softShadows() && !left.contains("no-pcss"),
                 full.contactShadows() && !left.contains("no-contact"), localBudget(left, full.localShadows()),
                 left.stream().filter(word -> word.startsWith("ao-radius-")).map(word -> Float.valueOf(word.substring(10)))
                         .findFirst().orElse(full.occlusionRadius()),
                 left.contains("auto-exposure") || left.contains("walk"), fogDensity, full.fogFalloff(),
                 full.shafts() && !left.contains("no-shafts"), full.reflections() && !left.contains("no-ssr"));
+    }
+
+    /** The word {@code no-aa}, {@code fxaa} or {@code taa}, or the default. */
+    static AntiAliasing antiAliasing(List<String> words, AntiAliasing fallback) {
+        if (words.contains("no-aa")) {
+            return AntiAliasing.NONE;
+        }
+        return words.contains("fxaa") ? AntiAliasing.FXAA : words.contains("taa") ? AntiAliasing.TAA : fallback;
     }
 
     /** How many local lights may have a shadow: {@code no-local-shadows} none, {@code local-<n>} that many, else the default. */

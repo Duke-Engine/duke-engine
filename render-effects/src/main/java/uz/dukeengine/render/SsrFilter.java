@@ -100,6 +100,7 @@ public final class SsrFilter extends Filter {
         material.setMatrix4("ViewInverse", camera.getViewMatrix().invert(viewInverse));
         material.setVector2("ProjectionZ", depthToView.set(projection.m22, projection.m23));
         material.setFloat("Near", camera.getFrustumNear());
+        material.setInt("Frame", TaaFilter.turn(processor));
         var probe = probeIn(view.getScenes());
         if (probe == null) {
             material.clearParam("ProbeMap");

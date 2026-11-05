@@ -81,6 +81,7 @@ public final class GtaoFilter extends Filter {
             return;
         }
         var projection = view.getCamera().getProjectionMatrix();
+        occlusion.setInt("Frame", TaaFilter.turn(processor));
         occlusion.setMatrix4("ProjectionInverse", projection.invert(inverse));
         // Pixels a world unit makes at a distance of 1: the focal length of the picture.
         occlusion.setFloat("Focal", projection.m11 * view.getCamera().getHeight() * 0.5f);

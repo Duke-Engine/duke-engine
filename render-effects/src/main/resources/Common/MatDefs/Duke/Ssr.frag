@@ -11,6 +11,7 @@ uniform mat4 m_ViewInverse;
 uniform vec2 m_ProjectionZ;
 uniform float m_Near;
 uniform float m_Reach;
+uniform int m_Frame;
 #ifdef PROBE
     uniform samplerCube m_ProbeMap;
     uniform float m_ProbeMips;
@@ -134,7 +135,7 @@ void main() {
     vec3 toSurface = normalize(position);
     vec3 ray = reflect(toSurface, normal);
     weight *= 1.0 - smoothstep(EYE_FROM, EYE_TO, ray.z);
-    float jitter = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+    float jitter = fract(52.9829189 * fract(dot(gl_FragCoord.xy + 5.588238 * float(m_Frame), vec2(0.06711056, 0.00583715))));
 
     vec2 hitPixel;
     vec3 hitView;

@@ -6,6 +6,7 @@ uniform DEPTHTEXTURE m_DepthTexture;
 uniform sampler2D m_Atlas;
 uniform vec2 m_AtlasSize;
 uniform mat4 m_ViewProjectionMatrixInverse;
+uniform int m_Frame;
 uniform vec2 g_ResolutionInverse;
 uniform vec4 m_LightPos[SLOTS];
 uniform vec4 m_LightAim[SLOTS];
@@ -127,7 +128,7 @@ void main() {
         return;
     }
     point = worldAt(texCoord, depth);
-    float dither = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+    float dither = fract(52.9829189 * fract(dot(gl_FragCoord.xy + 5.588238 * float(m_Frame), vec2(0.06711056, 0.00583715))));
     spin = vec2(cos(dither * 6.2831853), sin(dither * 6.2831853));
     vec3 normal = vec3(0.0);
     bool known = false;
