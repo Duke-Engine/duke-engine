@@ -20,11 +20,19 @@ MaterialDef Ssr {
         Float Near
         // How far a reflected ray goes, in world units.
         Float Reach
-        // The probe's prefiltered cube map, which PBRLighting has already added to the picture, and its mip count. Absent, nothing to take back.
+        // The probes PBRLighting has lit the view with, narrowest first, as it blends them: how many (the filter has nothing to take back
+        // for 0), and for each its matrix (LightProbe#getUniformMatrix, which holds its bounds) and its prefiltered cube map.
+        Int Probes
+        Matrix4 ProbeData
         TextureCubeMap ProbeMap
-        Float ProbeMips
+        Matrix4 ProbeData2
+        TextureCubeMap ProbeMap2
+        Matrix4 ProbeData3
+        TextureCubeMap ProbeMap3
         // Show how much of the reflection the screen gives, as grey.
         Boolean OnlyReflection
+        // Show what is left of the picture once the probes' specular is taken out of it: for the bench to check the probes are the ones PBRLighting used.
+        Boolean ProbeLeft
     }
 
     Technique {
@@ -37,8 +45,9 @@ MaterialDef Ssr {
         Defines {
             BOUND_DRAW_BUFFER : BoundDrawBuffer
             RESOLVE_MS : NumSamples
-            PROBE : ProbeMap
+            NB_PROBES : Probes
             ONLY_REFLECTION : OnlyReflection
+            PROBE_LEFT : ProbeLeft
         }
     }
 }

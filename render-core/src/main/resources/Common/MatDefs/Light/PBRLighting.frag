@@ -413,39 +413,20 @@ void main(){
         vec3 color1 = vec3(0.0);
         vec3 color2 = vec3(0.0);
         vec3 color3 = vec3(0.0);
-        float weight1 = 1.0;
-        float weight2 = 0.0;
-        float weight3 = 0.0;
-
-        float ndf = renderProbe(viewDir, wPosition, normal, norm, Roughness, diffuseColor, specularColor, ndotv, ao, g_LightProbeData, g_ShCoeffs, g_PrefEnvMap, color1);
+        float depth1 = renderProbe(viewDir, wPosition, normal, norm, Roughness, diffuseColor, specularColor, ndotv, ao, g_LightProbeData, g_ShCoeffs, g_PrefEnvMap, color1);
+        float depth2 = 0.0;
         #if NB_PROBES >= 2
-            float ndf2 = renderProbe(viewDir, wPosition, normal, norm, Roughness, diffuseColor, specularColor, ndotv, ao, g_LightProbeData2, g_ShCoeffs2, g_PrefEnvMap2, color2);
+            depth2 = renderProbe(viewDir, wPosition, normal, norm, Roughness, diffuseColor, specularColor, ndotv, ao, g_LightProbeData2, g_ShCoeffs2, g_PrefEnvMap2, color2);
         #endif
         #if NB_PROBES == 3
-            float ndf3 = renderProbe(viewDir, wPosition, normal, norm, Roughness, diffuseColor, specularColor, ndotv, ao, g_LightProbeData3, g_ShCoeffs3, g_PrefEnvMap3, color3);
+            renderProbe(viewDir, wPosition, normal, norm, Roughness, diffuseColor, specularColor, ndotv, ao, g_LightProbeData3, g_ShCoeffs3, g_PrefEnvMap3, color3);
         #endif
 
-        #if NB_PROBES >= 2
-            float invNdf =  max(1.0 - ndf,0.0);
-            float invNdf2 =  max(1.0 - ndf2,0.0);
-            float sumNdf = ndf + ndf2;
-            float sumInvNdf = invNdf + invNdf2;
-            #if NB_PROBES == 3
-                float invNdf3 = max(1.0 - ndf3,0.0);
-                sumNdf += ndf3;
-                sumInvNdf += invNdf3;
-                weight3 =  ((1.0 - (ndf3 / sumNdf)) / (NB_PROBES - 1)) *  (invNdf3 / sumInvNdf);
-            #endif
-
-            weight1 = ((1.0 - (ndf / sumNdf)) / (NB_PROBES - 1)) *  (invNdf / sumInvNdf);
-            weight2 = ((1.0 - (ndf2 / sumNdf)) / (NB_PROBES - 1)) *  (invNdf2 / sumInvNdf);
-
-            float weightSum = weight1 + weight2 + weight3;
-
-            weight1 /= weightSum;
-            weight2 /= weightSum;
-            weight3 /= weightSum;
-        #endif
+        // Probes come narrowest first: a room is its walls' worth of the pixel, what the room leaves is the sky's.
+        vec3 weights = probeWeights(depth1, depth2, NB_PROBES);
+        float weight1 = weights.x;
+        float weight2 = weights.y;
+        float weight3 = weights.z;
 
         #if defined(CLEARCOAT) || defined(SHEEN)
             color1 = color1 * indirectKeep + renderProbeLayers(viewDir, wPosition, normal, coatNormal, coatTerm, sheenTint, ao, g_LightProbeData, g_ShCoeffs, g_PrefEnvMap);

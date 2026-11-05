@@ -1,0 +1,61 @@
+// Local light probes: bounds that are a box with the reflection re-aimed at its walls, and how the probes that reach a pixel
+// share it. A probe's mat4 is laid out as LightProbe#getUniformMatrix says: columns 0 to 2 the box's axes with its half extents in
+// row 3 (0 for a sphere), column 3 the position and, in w, the mip count plus 1 / radius.
+// The same arithmetic in Java, pinned by a test: uz.dukeengine.render.ProbeBlend.
+
+// A probe's area (LightProbe#getArea, what the light filter and the matrix hold) reaches this much further than the box its
+// reflections are projected on, and the probe fades out over the difference: the walls and the floor of a room stand on the
+// projection box's faces and are the probe's whole, and a thing that the area does not touch is not lit with the probe at all.
+const float PROBE_FEATHER = 0.15;
+
+// How deep in the probe's bounds worldPos stands, in units of the projection box (or the sphere's radius over 1 + feather): 0 at
+// the centre, 1 on the faces of the box, 1 + feather where the area ends.
+float probeDepth(vec3 worldPos, mat4 lightProbeData) {
+    vec4 probePos = lightProbeData[3];
+    if (lightProbeData[0][3] != 0.0) {
+        vec3 scale = vec3(lightProbeData[0][3], lightProbeData[1][3], lightProbeData[2][3]);
+        vec3 local = abs(transpose(mat3_sub(lightProbeData)) * (worldPos - probePos.xyz)) * (1.0 + PROBE_FEATHER) / scale;
+        return max(max(local.x, local.y), local.z);
+    }
+    return length(worldPos - probePos.xyz) * fract(probePos.w) * (1.0 + PROBE_FEATHER);
+}
+
+// How much of a pixel the probe lights by itself: all within the projection box, fading to nothing over the feather beyond it.
+float probeInfluence(float depth) {
+    return 1.0 - smoothstep(1.0, 1.0 + PROBE_FEATHER, depth);
+}
+
+// The weights of up to three probes at a pixel, the narrowest first: each takes its influence of what the narrower ones left
+// and the last all that is left, so that a room in a sky is the room within its walls and the sky outside them.
+vec3 probeWeights(float depth1, float depth2, int count) {
+    float first = probeInfluence(depth1);
+    if (count < 2) {
+        return vec3(1.0, 0.0, 0.0);
+    }
+    if (count == 2) {
+        return vec3(first, 1.0 - first, 0.0);
+    }
+    float second = (1.0 - first) * probeInfluence(depth2);
+    return vec3(first, second, 1.0 - first - second);
+}
+
+// direction, taken from worldPos, re-aimed from the probe's centre at where it meets the probe's bounds (Lagarde 2012): the
+// reflection a cube baked at the centre would show if its walls stood where the projection box's do. A point beyond the box is taken
+// at the nearest point of it. Returns a vector to fetch the cube with, not a unit one.
+vec3 probeParallax(vec3 worldPos, mat4 lightProbeData, vec3 direction) {
+    vec4 probePos = lightProbeData[3];
+    if (lightProbeData[0][3] != 0.0) {
+        mat3 axes = mat3_sub(lightProbeData);
+        mat3 toLocal = transpose(axes);
+        vec3 scale = vec3(lightProbeData[0][3], lightProbeData[1][3], lightProbeData[2][3]) / (1.0 + PROBE_FEATHER);
+        vec3 ray = toLocal * direction / scale;
+        // A ray along a face would divide 0 by 0.
+        ray += step(abs(ray), vec3(1e-6)) * 1e-6;
+        vec3 at = clamp(toLocal * (worldPos - probePos.xyz) / scale, -1.0, 1.0);
+        vec3 far = max((vec3(1.0) - at) / ray, (vec3(-1.0) - at) / ray);
+        float reach = min(min(far.x, far.y), far.z);
+        return axes * ((at + ray * reach) * scale);
+    }
+    // A sphere: the reach bends the direction toward where the pixel is.
+    return fract(probePos.w) * (worldPos - probePos.xyz) + direction;
+}

@@ -1,5 +1,6 @@
 #import "Common/ShaderLib/GLSLCompat.glsllib"
 #import "Common/ShaderLib/MultiSample.glsllib"
+#import "Common/ShaderLib/LightProbes.glsllib"
 
 uniform COLORTEXTURE m_Texture;
 uniform sampler2D m_Depth;
@@ -12,9 +13,18 @@ uniform vec2 m_ProjectionZ;
 uniform float m_Near;
 uniform float m_Reach;
 uniform int m_Frame;
-#ifdef PROBE
+// The probes PBRLighting has lit this view with, narrowest first, as it has them.
+#if NB_PROBES >= 1
     uniform samplerCube m_ProbeMap;
-    uniform float m_ProbeMips;
+    uniform mat4 m_ProbeData;
+#endif
+#if NB_PROBES >= 2
+    uniform samplerCube m_ProbeMap2;
+    uniform mat4 m_ProbeData2;
+#endif
+#if NB_PROBES >= 3
+    uniform samplerCube m_ProbeMap3;
+    uniform mat4 m_ProbeData3;
 #endif
 
 varying vec2 texCoord;
@@ -118,6 +128,44 @@ bool trace(vec3 from, vec3 direction, float jitter, out vec2 hitPixel, out vec3 
     return false;
 }
 
+#if NB_PROBES >= 1
+// One probe's specular at a pixel, as renderProbe in PBR.glsllib has it, times the pixel's share of the environment; depth is
+// how deep in the probe's bounds the pixel stands.
+vec3 probeSpecular(samplerCube map, mat4 data, vec3 worldPosition, vec3 worldNormal, vec3 worldRay, float roughness, vec3 brdf, out float depth) {
+    float alpha = roughness * roughness;
+    float smoothness = 1.0 - alpha;
+    vec3 dominant = mix(worldNormal, worldRay, smoothness * (sqrt(smoothness) + alpha));
+    depth = probeDepth(worldPosition, data);
+    float mips = data[3].w - fract(data[3].w);
+    return textureCubeLod(map, probeParallax(worldPosition, data, dominant), sqrt(roughness) * (mips - 1.0)).rgb * brdf;
+}
+#endif
+
+// What PBRLighting has put in the picture from the probes: their lookups again, to take back as much as the screen gives.
+vec3 probeTerm(vec3 position, vec3 normal, vec3 ray, float roughness, vec3 spec) {
+    vec3 probe = vec3(0.0);
+    #if NB_PROBES >= 1
+        vec3 worldNormal = mat3(m_ViewInverse) * normal;
+        vec3 worldRay = mat3(m_ViewInverse) * ray;
+        vec3 worldPosition = (m_ViewInverse * vec4(position, 1.0)).xyz;
+        float depth1;
+        float depth2 = 0.0;
+        vec3 probe1 = probeSpecular(m_ProbeMap, m_ProbeData, worldPosition, worldNormal, worldRay, roughness, spec, depth1);
+        vec3 probe2 = vec3(0.0);
+        vec3 probe3 = vec3(0.0);
+        #if NB_PROBES >= 2
+            probe2 = probeSpecular(m_ProbeMap2, m_ProbeData2, worldPosition, worldNormal, worldRay, roughness, spec, depth2);
+        #endif
+        #if NB_PROBES >= 3
+            float depth3;
+            probe3 = probeSpecular(m_ProbeMap3, m_ProbeData3, worldPosition, worldNormal, worldRay, roughness, spec, depth3);
+        #endif
+        vec3 shares = probeWeights(depth1, depth2, NB_PROBES);
+        probe = probe1 * shares.x + probe2 * shares.y + probe3 * shares.z;
+    #endif
+    return probe;
+}
+
 vec3 viewAt(vec2 uv, float depth) {
     vec4 at = m_ProjectionInverse * vec4(vec3(uv, depth) * 2.0 - 1.0, 1.0);
     return at.xyz / at.w;
@@ -137,6 +185,13 @@ void main() {
     weight *= 1.0 - smoothstep(EYE_FROM, EYE_TO, ray.z);
     float jitter = fract(52.9829189 * fract(dot(gl_FragCoord.xy + 5.588238 * float(m_Frame), vec2(0.06711056, 0.00583715))));
 
+    #ifdef PROBE_LEFT
+        // What the picture holds once the probes' specular is out of it, as it is where a mirror reflects nothing but them: 0 if this is the probes' term.
+        float aimedHere = max(dot(normal, -toSurface), 1e-3);
+        vec3 left = colour.rgb - probeTerm(position, normal, ray, roughness, specularBrdf(reflects.rgb, roughness, aimedHere));
+        gl_FragColor = vec4(reflects.a < 0.5 || depth >= 1.0 ? vec3(0.0) : abs(left), 1.0);
+        return;
+    #endif
     vec2 hitPixel;
     vec3 hitView;
     if (reflects.a < 0.5 || depth >= 1.0 || weight <= 0.0 || !trace(position, ray, jitter, hitPixel, hitView)) {
@@ -156,16 +211,7 @@ void main() {
 
     float aimed = max(dot(normal, -toSurface), 1e-3);
     vec3 spec = specularBrdf(reflects.rgb, roughness, aimed);
-    vec3 probe = vec3(0.0);
-    #ifdef PROBE
-        // What PBRLighting has put in the picture from the probe: its lookup again, to take back as much as the screen gives.
-        vec3 worldNormal = mat3(m_ViewInverse) * normal;
-        vec3 worldRay = mat3(m_ViewInverse) * ray;
-        float alpha = roughness * roughness;
-        float smoothness = 1.0 - alpha;
-        vec3 dominant = mix(worldNormal, worldRay, smoothness * (sqrt(smoothness) + alpha));
-        probe = textureCubeLod(m_ProbeMap, dominant, sqrt(roughness) * (m_ProbeMips - 1.0)).rgb * spec;
-    #endif
+    vec3 probe = probeTerm(position, normal, ray, roughness, spec);
     #ifdef ONLY_REFLECTION
         gl_FragColor = vec4(vec3(pow(weight, 2.2)), 1.0);
     #else

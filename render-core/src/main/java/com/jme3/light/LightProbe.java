@@ -70,6 +70,13 @@ import java.util.logging.Logger;
  */
 public class LightProbe extends Light implements Savable {
 
+    /**
+     * duke-engine: probes in the order PBRLighting blends them, the one with the narrowest reach first, so that a room
+     * takes its walls' worth of a pixel and the sky what the room leaves.
+     */
+    public static final java.util.Comparator<LightProbe> NARROWEST_FIRST =
+            java.util.Comparator.comparingDouble(probe -> probe.area.getRadius());
+
     private static final Logger logger = Logger.getLogger(LightProbe.class.getName());
     public static final Matrix4f FALLBACK_MATRIX = new Matrix4f(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1);
 

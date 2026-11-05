@@ -149,6 +149,7 @@ public final class SinglePassAndImageBasedLightingLogic extends DefaultTechnique
             ambientColor.setValue(VarType.Vector4, ColorRGBA.Black);
         } else {
             extractIndirectLights(lightList,true);
+            lightProbes.sort(LightProbe.NARROWEST_FIRST);
             ambientColor.setValue(VarType.Vector4, ambientLightColor);
         }
 

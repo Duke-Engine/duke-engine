@@ -1,7 +1,6 @@
 package uz.dukeengine.render;
 
 import com.jme3.asset.AssetManager;
-import com.jme3.light.LightProbe;
 import com.jme3.material.Material;
 import com.jme3.math.Matrix4f;
 import com.jme3.math.Vector2f;
@@ -10,8 +9,6 @@ import com.jme3.renderer.Caps;
 import com.jme3.renderer.RenderManager;
 import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue;
-import com.jme3.scene.Spatial;
-import java.util.List;
 import java.util.logging.Logger;
 
 /**
@@ -23,13 +20,15 @@ import java.util.logging.Logger;
  * to put the hit in its place: where the ray misses, leaves the picture, goes toward the eye or the surface is rough,
  * the weight is 0 and the picture is the probe's, as it was. Fades, not cuts, in between.
  *
- * <p>The probe is the first ready one on the view's scenes; without one nothing is taken back and the hit is added. A
- * view without scene buffers has no filter (it turns itself off).
+ * <p>The probes are those PBRLighting blends at the pixel ({@link LocalProbes#seenFrom}, in its order, weighted by
+ * {@code LightProbes.glsllib} as it does, parallax and all), so that what is taken back is what it put there: a room's
+ * probe inside its box, the sky's outside. Without one nothing is taken back and the hit is added. A view without scene
+ * buffers has no filter (it turns itself off).
  *
  * <p>shortcut: the sun's shadow and the occlusion multiply the whole picture, ambient and its probe's reflection with it,
  * so in a shadow the probe term taken back is more than the picture has and the pixel keeps only the hit (it is never
  * taken below 0); upgrade when clustered forward (3.12) lights in one pass and leaves the probe's term in a buffer of its
- * own. Parallax, horizon fade and more than one probe are not followed, nor is the reflection blurred by roughness: it
+ * own. The horizon fade is not followed, nor is the reflection blurred by roughness: it
  * fades out instead, to the probe's blur. The hit has no thickness behind it, so a thin thing's reflection can leak onto
  * the surface behind it. Orthographic cameras are not covered.
  */
@@ -38,11 +37,13 @@ public final class SsrFilter extends Filter {
     private static final Logger LOG = Logger.getLogger(SsrFilter.class.getName());
     /** How far a reflected ray goes, in world units; it fades out over the last 40%. */
     private static final float REACH = 100f;
+    private static final String[] SUFFIX = {"", "2", "3"};
 
     private final Matrix4f inverse = new Matrix4f();
     private final Matrix4f viewInverse = new Matrix4f();
     private final Vector2f depthToView = new Vector2f();
     private boolean onlyReflection;
+    private boolean probeLeft;
     private ViewPort view;
 
     public SsrFilter() {
@@ -55,16 +56,10 @@ public final class SsrFilter extends Filter {
         return this;
     }
 
-    /** The first probe ready to light with among the roots of {@code scenes}, or none (null). */
-    static LightProbe probeIn(List<Spatial> scenes) {
-        for (var scene : scenes) {
-            for (var light : scene.getLocalLightList()) {
-                if (light instanceof LightProbe probe && probe.isReady() && probe.getPrefilteredEnvMap() != null) {
-                    return probe;
-                }
-            }
-        }
-        return null;
+    /** Shows what is left of the picture with the probes' specular taken out, 0 where theirs is the one PBRLighting used: for the bench to check. */
+    public SsrFilter showProbeLeft() {
+        probeLeft = true;
+        return this;
     }
 
     @Override
@@ -86,6 +81,7 @@ public final class SsrFilter extends Filter {
         material.setTexture("Reflectance", buffers.get().reflectance());
         material.setFloat("Reach", REACH);
         material.setBoolean("OnlyReflection", onlyReflection);
+        material.setBoolean("ProbeLeft", probeLeft);
     }
 
     @Override
@@ -101,12 +97,15 @@ public final class SsrFilter extends Filter {
         material.setVector2("ProjectionZ", depthToView.set(projection.m22, projection.m23));
         material.setFloat("Near", camera.getFrustumNear());
         material.setInt("Frame", TaaFilter.turn(processor));
-        var probe = probeIn(view.getScenes());
-        if (probe == null) {
-            material.clearParam("ProbeMap");
+        var probes = LocalProbes.seenFrom(view.getScenes(), camera);
+        if (probes.isEmpty()) {
+            material.clearParam("Probes");
         } else {
-            material.setTexture("ProbeMap", probe.getPrefilteredEnvMap());
-            material.setFloat("ProbeMips", probe.getNbMipMaps());
+            material.setInt("Probes", probes.size());
+            for (int i = 0; i < probes.size(); i++) {
+                material.setMatrix4("ProbeData" + SUFFIX[i], probes.get(i).getUniformMatrix());
+                material.setTexture("ProbeMap" + SUFFIX[i], probes.get(i).getPrefilteredEnvMap());
+            }
         }
     }
 
