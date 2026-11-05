@@ -2429,7 +2429,7 @@ final class DukeRtsApp extends SimpleApplication {
      * put them away.
      */
     private void showOnlyWhilePlaying() {
-        var hint = clientHud() ? Spatial.CullHint.Never : Spatial.CullHint.Always;
+        var hint = clientHud() && !visuals.isShoulderHud() ? Spatial.CullHint.Never : Spatial.CullHint.Always;
         minimapView.show(clientHud());
         if (controlsHint != null) {
             controlsHint.setCullHint(hint);

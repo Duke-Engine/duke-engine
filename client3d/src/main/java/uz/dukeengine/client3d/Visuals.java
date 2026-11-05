@@ -1377,6 +1377,18 @@ public final class Visuals {
             return this;
         }
 
+        /** How much of its own colour it keeps where no sun reaches it; see {@link #shadeKeeps}. */
+        float ambientShare = Bodies.CREATURE_AMBIENT;
+
+        /**
+         * How much of its own colour it keeps in the shade, {@code share} of what the light there is: 0.55 as every
+         * model's (the default), more for a model whose colours are so dark that the shaded side of it reads as black.
+         */
+        public UnitVisual shadeKeeps(float share) {
+            this.ambientShare = share;
+            return this;
+        }
+
         /** Extra rotation when the model file doesn't face the engine's +X. */
         public UnitVisual facing(float degrees) {
             this.facingDegrees = degrees;
@@ -3457,6 +3469,22 @@ public final class Visuals {
 
     public boolean isDragSelecting() {
         return controls.dragSelects;
+    }
+
+    /**
+     * A game played from one hero's shoulder, not as an RTS: the client draws no hint of RTS controls along the foot,
+     * no bar over the hero's own head (his health is the game's to show at a corner), and the hero panel's bottom bar
+     * is left to the game's own canvas -- a part such as the RPG's draws none and leaves no socket, so the minimap
+     * sits in its corner. Off unless said; creatures other than the hero keep their bars.
+     */
+    public Visuals shoulderHud(boolean on) {
+        controls.shoulderHud = on;
+        return this;
+    }
+
+    /** See {@link #shoulderHud}. */
+    public boolean isShoulderHud() {
+        return controls.shoulderHud;
     }
 
 

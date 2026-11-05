@@ -254,10 +254,12 @@ final class UnitScene {
         var standing = new ArrayList<UnitBars.Standing>(unitNodes.size());
         int mine = game.get().getLocalPlayerIndex();
         var plain = visuals.getUnitBars().plain();
+        var barReading = UnitBarReading.read(snapshot.get().status());
         for (var node : unitNodes.values()) {
             if (node.view == null || node.view.maxHealth() <= 0f || node.view.remembered()
-                    || riderOf.containsKey(node.view.id())) {
-                continue; // a prop or an arrow, a thing remembered through the fog, or a mount barred as its rider
+                    || riderOf.containsKey(node.view.id())
+                    || visuals.isShoulderHud() && node.view.id() == barReading.heroId()) {
+                continue; // a prop or an arrow, a thing remembered through the fog, a mount barred as its rider, or the hero of a shoulder HUD
             }
             var template = game.get().getLogic().getThingFactory().findTemplate(node.view.templateName());
             var shape = template == null ? null : uz.dukeengine.core.thing.Solid.of(template);
@@ -267,7 +269,6 @@ final class UnitScene {
             standing.add(new UnitBars.Standing(node.view, top, foot, node.view.playerIndex() == mine,
                     badgesOf(node), sizeOf(shape), picked));
         }
-        var barReading = UnitBarReading.read(snapshot.get().status());
         var eye = cam.getLocation();
         unitBars.update(cam, standing, barReading, eye.y - floor.at(eye.x, eye.z), visuals.getBarColours());
         return barReading;
@@ -493,8 +494,9 @@ final class UnitScene {
         if (node == null || node.view == null) {
             return;
         }
-        var tint = looks.visualFor(node.view).tint;
-        var own = (tint == null ? ColorRGBA.White : Materials.colour(tint)).mult(Bodies.CREATURE_AMBIENT);
+        var look = looks.visualFor(node.view);
+        var tint = look.tint;
+        var own = (tint == null ? ColorRGBA.White : Materials.colour(tint)).mult(look.ambientShare);
         hitFlash.struck(unitId, node.root, own);
     }
 

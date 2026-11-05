@@ -18,6 +18,7 @@ final class ControlLooks {
     Visuals.DragBoxLook dragBox;
     float dragDistance = SelectionBox.DRAG_THRESHOLD_PIXELS;
     boolean dragSelects = true;
+    boolean shoulderHud;
     boolean selectionRings = true;
     Visuals.GhostLook ghostLook;
     Visuals.LocaterLook locaters;
