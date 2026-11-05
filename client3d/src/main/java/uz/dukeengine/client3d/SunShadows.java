@@ -9,6 +9,7 @@ import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
 import com.jme3.post.Filter;
 import com.jme3.post.FilterPostProcessor;
+import com.jme3.renderer.Caps;
 import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.GeometryList;
 import com.jme3.renderer.queue.RenderQueue;
@@ -19,9 +20,13 @@ import com.jme3.shadow.DirectionalLightShadowRenderer;
 import com.jme3.shadow.EdgeFilteringMode;
 import com.jme3.texture.Image;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.logging.Logger;
+import uz.dukeengine.render.PictureSettings;
+import uz.dukeengine.render.SunShadowFilter;
 
 /**
  * Shadows cast from the sun onto the ground and every drawn model, the caster's own included — the reference's volume
@@ -32,6 +37,7 @@ import java.util.TreeMap;
  */
 final class SunShadows {
 
+    private static final Logger LOG = Logger.getLogger(SunShadows.class.getName());
     /** The reference's shadow colour where a map names none ({@code W3DShadow.cpp}: {@code 7FA0A0A0}). */
     static final ColorRGBA DEFAULT_COLOUR = new ColorRGBA(0xA0 / 255f, 0xA0 / 255f, 0xA0 / 255f, 1f);
     private static final String LEAST = "shadow.least";
@@ -41,7 +47,11 @@ final class SunShadows {
     private final AssetManager assets;
     private final ViewPort view;
     /** Each least height's shadows, 0 for the sun as it stands; made as the first caster of it is drawn. */
-    private final Map<Float, Group> groups = new TreeMap<>();
+    private final Map<Float, AbstractShadowFilter<?>> groups = new TreeMap<>();
+    /** What each of them is cast from. */
+    private final Map<Float, DirectionalLight> lights = new TreeMap<>();
+    /** What a physically based picture asks of its shadows; null, they are drawn as they always were. */
+    private PictureSettings picture;
     private FilterPostProcessor post;
     /** What is drawn over the finished picture, always after every set of shadows. */
     private List<Filter> finishing = List.of();
@@ -74,7 +84,12 @@ final class SunShadows {
     /** The sun moved — a new map's hour: every set of shadows cast from it, raised as each is. */
     void sun(Vector3f direction) {
         this.sun = direction.normalize();
-        groups.forEach((least, group) -> group.light.setDirection(raised(sun, least)));
+        lights.forEach((least, light) -> light.setDirection(raised(sun, least)));
+        groups.values().forEach(group -> {
+            if (group instanceof SunShadowFilter soft) {
+                soft.sun(sun);
+            }
+        });
     }
 
     /** What shadows multiply what they fall on by: the map's colour. */
@@ -117,13 +132,36 @@ final class SunShadows {
         }
     }
 
-    /** The shadows cast from a sun no lower than {@code least} degrees, made the first time a caster asks. */
-    Group groupFor(float least) {
-        var group = groups.get(least);
-        if (group != null) {
-            return group;
+    /**
+     * Shadows made from now on drawn as {@code picture} asks, by {@link SunShadowFilter}; left as they were where this GPU
+     * cannot draw them.
+     */
+    void drawnAs(PictureSettings picture, EnumSet<Caps> caps) {
+        if (SunShadowFilter.supported(caps)) {
+            this.picture = picture;
+        } else {
+            LOG.warning("this GPU has no GLSL 1.50: the sun's shadows stay hard edged, with no contact shadows");
         }
-        group = new Group(assets, least, raised(sun, least));
+    }
+
+    /** The shadows cast from a sun no lower than {@code least} degrees, made the first time a caster asks. */
+    AbstractShadowFilter<?> groupFor(float least) {
+        var made = groups.get(least);
+        if (made != null) {
+            return made;
+        }
+        AbstractShadowFilter<?> group;
+        if (picture == null) {
+            var drawn = new Group(assets, least, raised(sun, least));
+            lights.put(least, drawn.light);
+            group = drawn;
+        } else {
+            var light = new DirectionalLight(raised(sun, least));
+            lights.put(least, light);
+            var soft = new SunShadowFilter(assets, light, picture, groups.isEmpty(), geometry -> least == leastOf(geometry));
+            soft.sun(sun);
+            group = soft;
+        }
         group.getShadowMaterial().setColor("ShadowColor", colour);
         group.setEnabled(on);
         groups.put(least, group);
@@ -146,6 +184,11 @@ final class SunShadows {
         finishing = filters;
         post().setFrameBufferFormat(Image.Format.RGB16F);
         filters.forEach(post()::addFilter);
+    }
+
+    private static float leastOf(Geometry geometry) {
+        Float its = geometry.getUserData(LEAST);
+        return its == null ? 0f : its;
     }
 
     /** One least height's shadows: the sun raised to it, its casters alone, multiplied by the colour. */
@@ -185,8 +228,7 @@ final class SunShadows {
             }
             shadowMapOccluders.clear();
             for (var geometry : all) {
-                Float its = geometry.getUserData(LEAST);
-                if ((its == null ? 0f : its) == least) {
+                if (leastOf(geometry) == least) {
                     shadowMapOccluders.add(geometry);
                 }
             }

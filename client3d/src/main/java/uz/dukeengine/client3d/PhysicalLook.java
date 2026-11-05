@@ -11,8 +11,8 @@ import uz.dukeengine.render.SkyProbe;
 
 /**
  * What {@link Visuals#physicallyBased} adds to a scene: the light physically based materials take their ambient from,
- * a probe baked from a sky worked out of the scene's own sun and ambient, and the filters over the finished picture.
- * With {@link PictureSettings#atmosphere} the sky is the atmosphere under the sun's direction, and the probe follows
+ * a probe baked from a sky worked out of the scene's own sun and ambient, the filters over the finished picture, and
+ * the sun's shadows drawn by {@link uz.dukeengine.render.SunShadowFilter}. With {@link PictureSettings#atmosphere} the sky is the atmosphere under the sun's direction, and the probe follows
  * the sun through its hours.
  *
  * <p>Light is drawing. Nothing in the simulation reads it.
@@ -31,6 +31,7 @@ final class PhysicalLook {
         this.root = root;
         this.atmosphere = picture.atmosphere() ? new AtmosphereSky(assets, renderManager, root) : null;
         bake(light);
+        light.shadows().drawnAs(picture, renderManager.getRenderer().getCaps());
         light.shadows().finishWith(PictureChain.filters(picture));
     }
 

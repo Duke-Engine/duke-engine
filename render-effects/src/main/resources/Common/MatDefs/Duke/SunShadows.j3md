@@ -1,0 +1,86 @@
+// What the sun's cascades darken in the finished picture: see uz.dukeengine.render.SunShadowFilter. The parameters from
+// BoundDrawBuffer to BackfaceShadows are what jMonkeyEngine's AbstractShadowRenderer sets on any post shadow material.
+MaterialDef Sun Shadows {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Int FilterMode
+        Boolean HardwareShadows
+
+        Texture2D ShadowMap0
+        Texture2D ShadowMap1
+        Texture2D ShadowMap2
+        Texture2D ShadowMap3
+
+        Float ShadowIntensity
+        Vector4 Splits
+        Vector2 FadeInfo
+
+        Matrix4 LightViewProjectionMatrix0
+        Matrix4 LightViewProjectionMatrix1
+        Matrix4 LightViewProjectionMatrix2
+        Matrix4 LightViewProjectionMatrix3
+        Vector3 LightDir
+
+        Float PCFEdge
+        Float ShadowMapSize
+
+        Matrix4 ViewProjectionMatrixInverse
+        Vector4 ViewProjectionMatrixRow2
+
+        Int NumSamples
+        Int NumSamplesDepth
+        Texture2D Texture
+        Texture2D DepthTexture
+
+        Boolean BackfaceShadows : true
+
+        // What a shadow multiplies what it falls on by, once however many overlap.
+        Color ShadowColor
+
+        Matrix4 ViewProjection
+        // A point's distance along the view: this row dotted with it.
+        Vector4 ViewDepth
+        // Where the first cascade starts along the view; Splits holds where each ends.
+        Float SplitStart
+        // Each cascade's texel across and depth range, in world units.
+        Vector4 CascadeTexels
+        Vector4 CascadeDepths
+        // The maps' x and y axes in the world.
+        Vector3 LightRight
+        Vector3 LightUp
+        // Toward the sun that really lights the scene, in the world and in view space.
+        Vector3 ToSun
+        Vector3 SunInView
+
+        // Half the sun's angular size: its tangent. Absent, the edge is one fixed filter.
+        Float SunTangent
+        // This filter also draws what must be drawn once a picture: what faces away from the sun, contact shadows.
+        Boolean Once
+        // RGBA16F: view-space normal, as SceneBuffers holds it.
+        Texture2D Surface
+        // Depth, as SceneBuffers holds it. Absent, no contact shadows.
+        Texture2D SolidDepth
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Shadow/PostShadowFilter.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/SunShadows.frag
+
+        WorldParameters {
+            ResolutionInverse
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+            RESOLVE_MS : NumSamples
+            RESOLVE_DEPTH_MS : NumSamplesDepth
+            SHADOWMAP_SIZE : ShadowMapSize
+            FADE : FadeInfo
+            SOFT : SunTangent
+            ONCE : Once
+            SURFACE : Surface
+            CONTACT : SolidDepth
+        }
+    }
+}

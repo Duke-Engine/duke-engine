@@ -2,6 +2,7 @@ package uz.dukeengine.client3d;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.jme3.asset.DesktopAssetManager;
@@ -11,12 +12,16 @@ import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
+import com.jme3.renderer.Caps;
 import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.shape.Box;
+import java.util.EnumSet;
 import org.junit.jupiter.api.Test;
+import uz.dukeengine.render.PictureSettings;
+import uz.dukeengine.render.SunShadowFilter;
 
 /** The sun's shadows, as the reference's volumes cast them ({@code W3DVolumetricShadowManager}). */
 class SunShadowsTest {
@@ -84,6 +89,25 @@ class SunShadowsTest {
         assertEquals(RenderQueue.ShadowMode.Receive, standing.getChild("hull").getShadowMode(),
                 "one that does not cast is darkened where the shadow falls on it");
         assertEquals(1, view.getProcessors().size());
+    }
+
+    @Test
+    void aPhysicallyBasedPictureDrawsItsShadowsAnewAndAnyOtherAsTheyWere() {
+        var plain = new SunShadows(ASSETS, new ViewPort("world", new Camera(800, 600)), sunAt(45f));
+        assertInstanceOf(SunShadows.Group.class, plain.groupFor(0f));
+
+        var old = new SunShadows(ASSETS, new ViewPort("world", new Camera(800, 600)), sunAt(45f));
+        old.drawnAs(PictureSettings.FULL, EnumSet.noneOf(Caps.class));
+        assertInstanceOf(SunShadows.Group.class, old.groupFor(0f), "a GPU without what they take");
+
+        var soft = new SunShadows(ASSETS, new ViewPort("world", new Camera(800, 600)), sunAt(45f));
+        soft.drawnAs(PictureSettings.FULL, EnumSet.of(Caps.GLSL150));
+        var first = soft.groupFor(0f);
+        assertInstanceOf(SunShadowFilter.class, first);
+        assertEquals(0.627f, ((ColorRGBA) first.getShadowMaterial().getParam("ShadowColor").getValue()).r, 0.001f);
+        assertEquals(Boolean.TRUE, first.getShadowMaterial().getParam("Once").getValue());
+        assertEquals(Boolean.FALSE, soft.groupFor(45f).getShadowMaterial().getParam("Once").getValue(),
+                "what falls once a pixel falls from one set of shadows alone");
     }
 
     @Test

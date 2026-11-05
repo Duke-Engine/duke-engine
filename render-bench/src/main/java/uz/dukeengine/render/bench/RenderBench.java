@@ -25,8 +25,6 @@ import com.jme3.scene.instancing.InstancedNode;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Quad;
 import com.jme3.scene.shape.Sphere;
-import com.jme3.shadow.DirectionalLightShadowFilter;
-import com.jme3.shadow.EdgeFilteringMode;
 import com.jme3.system.AppSettings;
 import com.jme3.texture.Image;
 import com.jme3.texture.Texture;
@@ -51,11 +49,12 @@ import uz.dukeengine.render.PictureChain;
 import uz.dukeengine.render.PictureSettings;
 import uz.dukeengine.render.SceneBuffers;
 import uz.dukeengine.render.SkyProbe;
+import uz.dukeengine.render.SunShadowFilter;
 
 /**
  * Draws one fixed scene, measures its frames, saves a picture and quits, so a change to the renderer can be seen and
  * priced. Args: scene (materials, interior, outdoor, night, buffers, furnace), what to leave out or add ("full", or joined by
- * commas: no-ao, no-bloom, no-fxaa; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
+ * commas: no-ao, no-bloom, no-fxaa, no-pcss, no-contact, no-shadows; feet, which looks at the outdoor units' feet from close by; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
  * show-depth, show-roughness, show-velocity, which show one instead of the picture; move-camera, move-units;
  * {@code hour-<h>}, which turns the atmosphere on with the sun where a made-up summer day has it at that hour, 6 and 18
  * being just over the horizon; sky-view, which looks toward the sun from near the ground; move-sun, which lets the sun
@@ -117,7 +116,8 @@ public final class RenderBench extends SimpleApplication {
         var left = List.of(label.split(","));
         return new PictureSettings(full.ambientOcclusion() && !left.contains("no-ao"),
                 full.bloom() && !left.contains("no-bloom"), full.fxaa() && !left.contains("no-fxaa"), full.exposure(),
-                hourOf(left) != null);
+                hourOf(left) != null, full.softShadows() && !left.contains("no-pcss"),
+                full.contactShadows() && !left.contains("no-contact"));
     }
 
     /** The hour a {@code hour-<h>} word asks for, or null. */
@@ -352,6 +352,11 @@ public final class RenderBench extends SimpleApplication {
         cam.setFrustumPerspective(35f, (float) cam.getWidth() / cam.getHeight(), 1f, 400f);
         cam.setLocation(new Vector3f(0f, 30f, 44f));
         cam.lookAt(new Vector3f(0f, 0f, 2f), Vector3f.UNIT_Y);
+        if (asked.contains("feet")) {
+            cam.setFrustumPerspective(35f, (float) cam.getWidth() / cam.getHeight(), 0.1f, 400f);
+            cam.setLocation(new Vector3f(1.6f, 1.3f, 17f));
+            cam.lookAt(new Vector3f(-0.2f, 0.45f, 12.6f), Vector3f.UNIT_Y);
+        }
     }
 
     private static void animate(Spatial unit) {
@@ -561,14 +566,12 @@ public final class RenderBench extends SimpleApplication {
             viewPort.addProcessor(post);
             return;
         }
-        var shadows = new DirectionalLightShadowFilter(assetManager, 4096, 4);
-        shadowLight.setDirection(sunDirection);
-        shadows.setLight(shadowLight);
-        shadows.setEdgeFilteringMode(EdgeFilteringMode.PCFPOISSON);
-        shadows.setShadowIntensity(0.8f);
-        shadows.setShadowZExtend(120f);
-        shadows.setLambda(0.9f);
-        post.addFilter(shadows);
+        if (!asked.contains("no-shadows")) {
+            shadowLight.setDirection(sunDirection);
+            var shadows = new SunShadowFilter(assetManager, shadowLight, picture, true, geometry -> true);
+            shadows.getShadowMaterial().setColor("ShadowColor", new ColorRGBA(0.2f, 0.2f, 0.2f, 1f));
+            post.addFilter(shadows);
+        }
         PictureChain.filters(picture).forEach(post::addFilter);
         viewPort.addProcessor(post);
         if (asked.contains("buffers")) {
