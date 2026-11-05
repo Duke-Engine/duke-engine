@@ -1,6 +1,7 @@
 package uz.dukeengine.rpg.item;
 
 import java.util.function.Function;
+import uz.dukeengine.core.GameConstants;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.MoveUpdate;
@@ -67,6 +68,9 @@ public final class ItemErrand extends UpdateModule implements Errand, Saveable {
         /** Say what he makes of the keep's gate. */
         LOOK
     }
+
+    /** How often he looks again for a way shut by bodies: once a second. */
+    private static final int LOOK_AGAIN_FRAMES = GameConstants.LOGICFRAMES_PER_SECOND;
 
     private final LootBag bag;
     private final Rules rules;
@@ -200,8 +204,16 @@ public final class ItemErrand extends UpdateModule implements Errand, Saveable {
                     // stopped still takes him on where the engine's own one look did not. He looks again, by the walk
                     // his brain takes a walk up again with -- to the place, which ends on the block beside a thing with
                     // a shape -- and only a look that finds nowhere nearer than where he stands is as near as he gets.
+                    // Where the ground joins him to it and only bodies shut the way, he stands and looks again once a
+                    // second, until the rules' patience is gone (counted off as ever by how near he gets).
+                    if (shutByBodies(hero, legs, world) && standingSince % LOOK_AGAIN_FRAMES != 0) {
+                        return;
+                    }
                     legs.moveTo(goal);
                     if (legs.isMoving() && !within(hero.getPosition(), legs.getDestination(), legs.closeEnough())) {
+                        return;
+                    }
+                    if (shutByBodies(hero, legs, world)) {
                         return;
                     }
                 }
@@ -209,9 +221,6 @@ public final class ItemErrand extends UpdateModule implements Errand, Saveable {
             // As near as he can get. A place he could not reach is where he got to, and a thing lying there that he
             // cannot reach stays where it is, and he says so -- but a thing with a shape is walked up to rather than
             // onto, and its edge is there.
-            // ponytail: a way shut only by bodies (a pack standing where the road runs) ends it here too, at once.
-            // Waiting it out -- standing, looking again every HeroRepathFrames -- is the upgrade. Its first try sent a
-            // hero round a loop for good, which counting how near he gets now ends; not tried again.
             if (there != null && !atItsEdge(hero, there)) {
                 end(legs);
                 bag.say(rules.noWayWord(), world.getFrame(), rules.noteFrames());
@@ -256,6 +265,14 @@ public final class ItemErrand extends UpdateModule implements Errand, Saveable {
                 }
             }
         }
+    }
+
+    /**
+     * Whether the way is shut by bodies alone: his legs found nowhere nearer, yet the ground joins him to it, so what
+     * stops him is something that can move away. A way the stone shuts is not.
+     */
+    private boolean shutByBodies(GameObject hero, MoveUpdate legs, World world) {
+        return legs.stoppedShort() && world.joined(hero.getPosition(), goal);
     }
 
     /**

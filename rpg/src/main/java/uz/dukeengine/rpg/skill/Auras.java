@@ -1,5 +1,8 @@
 package uz.dukeengine.rpg.skill;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.rpg.Seal;
 import uz.dukeengine.rpg.hero.LevelBonus;
@@ -31,8 +34,9 @@ final class Auras {
      * pulse, so what it lends to one still in reach holds on until the next pulse gives it again, whichever of the two
      * books is updated first on that frame.
      *
-     * <p>ponytail: one buff a kind from each lender, so of two auras of one kind on one bearer the later in its file
-     * is what is lent; no file gives a bearer two, and giving them weakest first would keep the stronger if one does.
+     * <p>A lender holds one buff of a kind, so of two auras of one kind on one bearer they are lent weakest first, the
+     * order in its file breaking a tie: the stronger replaces the weaker for everyone within its reach, and whoever
+     * stands beyond it but within the weaker's keeps the weaker.
      */
     void lend() {
         var world = owner.getWorld();
@@ -43,11 +47,8 @@ final class Auras {
         }
         var here = owner.getPosition();
         int until = world.getFrame() + rules.buffLifeFrames() - 1;
-        for (var skill : passives.all()) {
-            if (!skill.effect().isAura() || LevelBonus.rankOf(owner, skill) <= 0) {
-                continue;
-            }
-            int worth = skill.effect() == SkillEffect.MANA_AURA ? skill.manaRegen() : skill.boostPercent();
+        for (var skill : weakestFirst()) {
+            int worth = worthOf(skill);
             for (var one : world.objectsInRange(here, skill.radius(),
                     candidate -> candidate.getPlayerIndex() == owner.getPlayerIndex()
                             && !candidate.isEffectivelyDead() && !seal.parts(world, here, candidate.getPosition()))) {
@@ -57,6 +58,24 @@ final class Auras {
                 }
             }
         }
+    }
+
+    /** Its opened auras by kind in the order the kinds first appear, the weakest of a kind first. */
+    private List<Skill> weakestFirst() {
+        var opened = passives.all().stream()
+                .filter(skill -> skill.effect().isAura() && LevelBonus.rankOf(owner, skill) > 0).toList();
+        var ordered = new ArrayList<Skill>();
+        for (var skill : opened) {
+            if (ordered.stream().noneMatch(done -> done.effect() == skill.effect())) {
+                opened.stream().filter(same -> same.effect() == skill.effect())
+                        .sorted(Comparator.comparingInt(Auras::worthOf)).forEach(ordered::add);
+            }
+        }
+        return ordered;
+    }
+
+    private static int worthOf(Skill skill) {
+        return skill.effect() == SkillEffect.MANA_AURA ? skill.manaRegen() : skill.boostPercent();
     }
 
     /**
