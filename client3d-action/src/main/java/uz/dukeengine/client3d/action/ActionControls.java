@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import uz.dukeengine.client3d.ControlScheme;
+import uz.dukeengine.client3d.KeyMap;
 import uz.dukeengine.client3d.SkillRange;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.game.DukeGame;
@@ -36,6 +37,14 @@ public final class ActionControls implements ControlScheme {
 
     private boolean holdMouse;
 
+    private BiConsumer<DukeGame, Boolean> sprinted;
+    /** Whether the sprint was held when it was last told. */
+    private boolean sprinting;
+
+    private boolean rightStrikes;
+    /** Whether the right button is held as a strike, which keeps a held swing going as the left does. */
+    private boolean rightHeld;
+
     private boolean aimAhead;
     private boolean releaseToCast;
     private ForwardAim aim;
@@ -58,6 +67,25 @@ public final class ActionControls implements ControlScheme {
     public ActionControls walk(DirectionKeys keys, BiConsumer<DukeGame, Integer> changed) {
         this.walkKeys = keys == null ? DirectionKeys.WASD : keys;
         this.walked = changed;
+        return this;
+    }
+
+    /**
+     * Sprint while {@link KeyMap.Control#SPRINT} is held (the game puts it on a key): {@code changed} told only when it
+     * changes — and {@code false} once while a menu, a screen of the game's or another window has the keys. The game
+     * sends it on as an order of its own.
+     */
+    public ActionControls sprint(BiConsumer<DukeGame, Boolean> changed) {
+        this.sprinted = changed;
+        return this;
+    }
+
+    /**
+     * The right button strikes as the left does, held; the client's order by it is given up. Left alone, the right
+     * button is the client's.
+     */
+    public ActionControls rightStrikes(boolean strikes) {
+        this.rightStrikes = strikes;
         return this;
     }
 
@@ -129,6 +157,7 @@ public final class ActionControls implements ControlScheme {
             aim.nudge(window.mouseMoved()[1]); // up and down: further and nearer
         }
         tellTheDirection();
+        tellTheSprint();
         followTheSwing();
         offerTheNearest();
     }
@@ -177,6 +206,18 @@ public final class ActionControls implements ControlScheme {
         }
     }
 
+    /** Whether the sprint is held, told the game when it changes. */
+    private void tellTheSprint() {
+        if (sprinted == null) {
+            return;
+        }
+        boolean now = window.playing() && window.controlHeld(KeyMap.Control.SPRINT);
+        if (now != sprinting) {
+            sprinting = now;
+            sprinted.accept(window.game(), now);
+        }
+    }
+
     /** The prompt drawn over the nearest thing worth an order. */
     private void offerTheNearest() {
         if (interact == null) {
@@ -213,6 +254,16 @@ public final class ActionControls implements ControlScheme {
             return true;
         }
         return false;
+    }
+
+    @Override
+    public boolean right(boolean pressed) {
+        if (!rightStrikes || !window.playing() && pressed) {
+            return false;
+        }
+        rightHeld = pressed;
+        leftAhead(pressed);
+        return true;
     }
 
     @Override
@@ -269,7 +320,7 @@ public final class ActionControls implements ControlScheme {
         var hero = window.selected();
         if (mouse.action()) {
             var at = hero.isEmpty() ? null : window.drawnAt(hero.getFirst().value());
-            if (!window.playing() || !window.leftHeld() || at == null) {
+            if (!window.playing() || !window.leftHeld() && !rightHeld || at == null) {
                 swing.releaseAhead(me, hero).forEach(window.game()::postCommand);
                 return;
             }

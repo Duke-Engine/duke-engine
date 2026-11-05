@@ -882,6 +882,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
 
         @Override
+        public boolean controlHeld(KeyMap.Control control) {
+            return held(control);
+        }
+
+        @Override
         public float time() {
             return timer.getTimeInSeconds();
         }
@@ -1949,6 +1954,10 @@ final class DukeRtsApp extends SimpleApplication {
                 case "Order" -> {
                     if (screens.now() != Screen.PLAYING) {
                         break;
+                    }
+                    if (!screens.menu().isVisible() && !buttons.armed() && !skillKeys.armed()
+                            && scheme.right(pressed)) {
+                        break; // the scheme's: a strike, and no order by the right button
                     }
                     var over = inputManager.getCursorPosition();
                     if (visuals.getRightDrag().wanted()) {

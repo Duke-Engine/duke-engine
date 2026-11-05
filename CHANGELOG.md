@@ -3,6 +3,13 @@
 Versions are `major.minor.patch`. While the major is 0, a minor may break what came before — and
 when it does, this page says exactly what to change and how.
 
+## Unreleased
+
+- **A scheme may take the right button and read a held control**: `ControlScheme.right(pressed)` (true where it took
+  the press, so no order is given by it) and `Context.controlHeld(KeyMap.Control)`; `KeyMap.Control.SPRINT`, a held
+  control on no key until the game puts it on one. `ActionControls.rightStrikes(true)` makes the right button strike as
+  the left does, and `ActionControls.sprint((game, held) -> ...)` tells the game when the sprint is held or let go.
+
 ## 0.9.0
 
 The engine runs on Android. The simulation and the 3D client name no desktop toolkit: the window, fonts, pictures,

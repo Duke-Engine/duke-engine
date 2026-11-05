@@ -19,6 +19,7 @@ class TestWindow implements ControlScheme.Context {
     float pitch = 0.9f;
     boolean held;
     float[] moved = {0f, 0f};
+    boolean sprint;
 
     @Override
     public DukeGame game() {
@@ -73,6 +74,11 @@ class TestWindow implements ControlScheme.Context {
     @Override
     public boolean leftHeld() {
         return false;
+    }
+
+    @Override
+    public boolean controlHeld(uz.dukeengine.client3d.KeyMap.Control control) {
+        return sprint && control == uz.dukeengine.client3d.KeyMap.Control.SPRINT;
     }
 
     @Override

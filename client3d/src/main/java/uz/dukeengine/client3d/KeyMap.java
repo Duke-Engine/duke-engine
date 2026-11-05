@@ -78,13 +78,15 @@ public final class KeyMap {
         LATEST_ALERT,
         OPTIONS, TOGGLE_COMMAND_BAR, CHAT_ALL, CHAT_ALLIES, SCREENSHOT, PAUSE, FULLSCREEN,
         /** Held: the pointer let go while the mouse is captured — see {@code ControlScheme.Context.holdMouse}. */
-        FREE_POINTER;
+        FREE_POINTER,
+        /** Held: a scheme that walks the hero by keys runs him faster — see {@code ControlScheme.Context.controlHeld}. */
+        SPRINT;
 
         /** Whether it is held down rather than pressed: it lasts as long as its key does. */
         public boolean isHeld() {
             return switch (this) {
                 case PAN_UP, PAN_LEFT, PAN_DOWN, PAN_RIGHT, TURN_LEFT, TURN_RIGHT, ZOOM_IN, ZOOM_OUT, FORCE_ATTACK,
-                        QUEUE_WAYPOINTS, FORCE_MOVE, ADD_TO_SELECTION, FREE_POINTER -> true;
+                        QUEUE_WAYPOINTS, FORCE_MOVE, ADD_TO_SELECTION, FREE_POINTER, SPRINT -> true;
                 default -> false;
             };
         }

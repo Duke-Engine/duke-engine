@@ -69,6 +69,11 @@ public interface ControlScheme {
         /** Whether the left button is down now. */
         boolean leftHeld();
 
+        /** Whether a held control of the client's ({@link KeyMap.Control#isHeld}) is down now, in play. */
+        default boolean controlHeld(KeyMap.Control control) {
+            return false;
+        }
+
         /** The client's clock, seconds. */
         float time();
 
@@ -174,6 +179,14 @@ public interface ControlScheme {
 
     /** The left button on the world, nothing armed: true where the scheme took it, false for the client's selecting. */
     default boolean left(boolean pressed) {
+        return false;
+    }
+
+    /**
+     * The right button on the world, nothing armed, pressed or let go: true where the scheme took it, false for the
+     * client's order ({@link #rightOrders} then says whether it gives one).
+     */
+    default boolean right(boolean pressed) {
         return false;
     }
 
