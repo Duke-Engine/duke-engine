@@ -67,6 +67,11 @@ public final class FirstPersonCamera implements ControlScheme {
         config = config.blocking(footprints);
     }
 
+    /** Walks by these rules from now on, walls and all: the player has gone through to another place. */
+    public void setWalk(FirstPerson walk) {
+        config = walk;
+    }
+
     /** Puts the eye at {@code eye} looking {@code yaw} across and {@code pitch} up: sitting down, a cut scene. */
     public void moveTo(Vector3f eye, float yaw, float pitch) {
         this.eye = eye.clone();
