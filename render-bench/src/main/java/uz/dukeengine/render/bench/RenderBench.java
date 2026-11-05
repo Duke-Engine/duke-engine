@@ -46,6 +46,7 @@ import java.util.Map;
 import java.util.Random;
 import uz.dukeengine.render.Atmosphere;
 import uz.dukeengine.render.AtmosphereSky;
+import uz.dukeengine.render.GtaoFilter;
 import uz.dukeengine.render.LocalShadowFilter;
 import uz.dukeengine.render.PictureChain;
 import uz.dukeengine.render.PictureSettings;
@@ -57,7 +58,8 @@ import uz.dukeengine.render.SunShadowFilter;
  * Draws one fixed scene, measures its frames, saves a picture and quits, so a change to the renderer can be seen and
  * priced. Args: scene (materials, interior, outdoor, night, buffers, furnace), what to leave out or add ("full", or joined by
  * commas: no-ao, no-bloom, no-fxaa, no-pcss, no-contact, no-shadows, no-local-shadows, local-&lt;n&gt; (how many local lights have a shadow), lamp (one lamp over any scene); feet, which looks at the outdoor units' feet from close by; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
- * show-depth, show-roughness, show-velocity, which show one instead of the picture; move-camera, move-units;
+ * show-depth, show-roughness, show-velocity, which show one instead of the picture; show-ao, which shows the ambient
+ * occlusion alone, and ao-radius-&lt;m&gt;, which sets its reach in world units; move-camera, move-units;
  * {@code hour-<h>}, which turns the atmosphere on with the sun where a made-up summer day has it at that hour, 6 and 18
  * being just over the horizon; sky-view, which looks toward the sun from near the ground; move-sun, which lets the sun
  * walk 0.15 degrees a frame and so prices the sky made anew), output folder. {@code -Dbench.models=<folder>} dresses the scenes
@@ -121,7 +123,9 @@ public final class RenderBench extends SimpleApplication {
         return new PictureSettings(full.ambientOcclusion() && !left.contains("no-ao"),
                 full.bloom() && !left.contains("no-bloom"), full.fxaa() && !left.contains("no-fxaa"), full.exposure(),
                 hourOf(left) != null, full.softShadows() && !left.contains("no-pcss"),
-                full.contactShadows() && !left.contains("no-contact"), localBudget(left, full.localShadows()));
+                full.contactShadows() && !left.contains("no-contact"), localBudget(left, full.localShadows()),
+                left.stream().filter(word -> word.startsWith("ao-radius-")).map(word -> Float.valueOf(word.substring(10)))
+                        .findFirst().orElse(full.occlusionRadius()));
     }
 
     /** How many local lights may have a shadow: {@code no-local-shadows} none, {@code local-<n>} that many, else the default. */
@@ -601,6 +605,12 @@ public final class RenderBench extends SimpleApplication {
     private void filters() {
         var post = new FilterPostProcessor(assetManager);
         post.setFrameBufferFormat(Image.Format.RGB16F);
+        if (asked.contains("show-ao")) {
+            PictureChain.filters(picture).stream().filter(GtaoFilter.class::isInstance)
+                    .forEach(filter -> post.addFilter(((GtaoFilter) filter).showOcclusionOnly()));
+            viewPort.addProcessor(post);
+            return;
+        }
         var shown = asked.stream().filter(word -> word.startsWith("show-")).findFirst();
         if (shown.isPresent()) {
             post.addFilter(new BufferView(BufferView.Shown.valueOf(shown.get().substring(5).toUpperCase(Locale.ROOT))));

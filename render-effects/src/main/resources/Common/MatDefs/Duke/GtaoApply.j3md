@@ -1,0 +1,27 @@
+// The second pass of ground truth ambient occlusion: see uz.dukeengine.render.GtaoFilter.
+MaterialDef Gtao Apply {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Int NumSamples
+        Texture2D Texture
+        // What the first pass found: red the visibility, green the distance along the view, 0 where nothing solid stands.
+        Texture2D Occlusion
+        // Show the visibility alone, as grey.
+        Boolean OnlyOcclusion
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/GtaoApply.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+            RESOLVE_MS : NumSamples
+            ONLY_OCCLUSION : OnlyOcclusion
+        }
+    }
+}

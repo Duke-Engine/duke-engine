@@ -3,7 +3,6 @@ package uz.dukeengine.render;
 import com.jme3.post.Filter;
 import com.jme3.post.filters.BloomFilter;
 import com.jme3.post.filters.FXAAFilter;
-import com.jme3.post.ssao.SSAOFilter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,11 +12,10 @@ public final class PictureChain {
     private PictureChain() {
     }
 
-    /** shortcut: one SSAO radius for every game's world size, make it a setting when a game needs another. */
     public static List<Filter> filters(PictureSettings settings) {
         var filters = new ArrayList<Filter>();
         if (settings.ambientOcclusion()) {
-            filters.add(new SSAOFilter(1.6f, 1.4f, 0.6f, 0.1f));
+            filters.add(new GtaoFilter(settings.occlusionRadius()));
         }
         if (settings.bloom()) {
             var bloom = new BloomFilter(BloomFilter.GlowMode.Scene);

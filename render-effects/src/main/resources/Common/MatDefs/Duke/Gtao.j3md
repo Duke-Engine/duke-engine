@@ -1,0 +1,26 @@
+// The first pass of ground truth ambient occlusion: see uz.dukeengine.render.GtaoFilter.
+MaterialDef Gtao {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        // SceneBuffers' depth and its normals and roughness.
+        Texture2D Depth
+        Texture2D Surface
+        Matrix4 ProjectionInverse
+        // How far a crease is darkened by what stands near it, in world units, and the pixels a unit makes at a distance of 1.
+        Float Radius
+        Float Focal
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/Gtao.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+        }
+    }
+}
