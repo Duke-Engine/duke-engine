@@ -12,18 +12,26 @@ package uz.dukeengine.render;
  *                         the game asks for is no longer read for the sky's probe; off, the sky is the ambient's gradient
  * @param softShadows      the sun's shadows grow softer the further they fall; off, one narrow filter
  * @param contactShadows   a short ray over the screen's depth finds the shadow at a foot or in a crease
+ * @param localShadows     how many spot and point lights may have a shadow at once, the ones that matter most to the
+ *                         view picked each frame ({@link LocalShadowFilter}); the others stay lit, without one. 0, none
  */
 public record PictureSettings(boolean ambientOcclusion, boolean bloom, boolean fxaa, float exposure, boolean atmosphere,
-        boolean softShadows, boolean contactShadows) {
+        boolean softShadows, boolean contactShadows, int localShadows) {
 
     /**
      * Every filter on, the sky left as the game's own sun and ambient make it: a game's colours keep their look.
      * At this exposure the curve leaves a mid-tone where it was.
      */
-    public static final PictureSettings FULL = new PictureSettings(true, true, true, 0.7f, false, true, true);
+    public static final PictureSettings FULL = new PictureSettings(true, true, true, 0.7f, false, true, true, 4);
 
     /** These settings with the atmosphere on or off. */
     public PictureSettings withAtmosphere(boolean on) {
-        return new PictureSettings(ambientOcclusion, bloom, fxaa, exposure, on, softShadows, contactShadows);
+        return new PictureSettings(ambientOcclusion, bloom, fxaa, exposure, on, softShadows, contactShadows, localShadows);
+    }
+
+    /** These settings with this many lights allowed a shadow, none for 0. */
+    public PictureSettings withLocalShadows(int budget) {
+        return new PictureSettings(ambientOcclusion, bloom, fxaa, exposure, atmosphere, softShadows, contactShadows,
+                Math.max(0, budget));
     }
 }

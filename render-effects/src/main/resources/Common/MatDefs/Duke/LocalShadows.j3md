@@ -1,0 +1,48 @@
+// What the spot and point lights' shadows darken in the finished picture: see uz.dukeengine.render.LocalShadowFilter.
+MaterialDef Local Shadows {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Int NumSamples
+        Int NumSamplesDepth
+        Texture2D Texture
+        Texture2D DepthTexture
+
+        Matrix4 ViewProjectionMatrixInverse
+
+        // How many lights can have a shadow at once.
+        Int Slots
+        // The depth of every light's maps, side by side, and its size in texels.
+        Texture2D Atlas
+        Vector2 AtlasSize
+        // Each slot: position and reach; spot direction and the cosine of its outer angle; nothing, how much of the
+        // shadow is shown, a texel a metre away, the nearest depth drawn; its colour; cosine of the inner angle and 1 for a spot;
+        // and where its first face lies in the atlas, with a face's size, as texture coordinates.
+        Vector4Array LightPos
+        Vector4Array LightAim
+        Vector4Array LightLook
+        Vector4Array LightColour
+        Vector4Array LightCone
+        Vector4Array LightTile
+        // Each slot's six faces: from the world to that face's own texture coordinates and depth.
+        Matrix4Array FaceMatrix
+        // The colour everything but the local lights adds to a surface.
+        Vector3 Fill
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Shadow/PostShadowFilter.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/LocalShadows.frag
+
+        WorldParameters {
+            ResolutionInverse
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+            RESOLVE_MS : NumSamples
+            RESOLVE_DEPTH_MS : NumSamplesDepth
+            SLOTS : Slots
+        }
+    }
+}

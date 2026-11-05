@@ -2,9 +2,13 @@ package uz.dukeengine.client3d;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.light.LightProbe;
+import com.jme3.post.Filter;
 import com.jme3.renderer.RenderManager;
 import com.jme3.scene.Node;
+import java.util.ArrayList;
+import java.util.logging.Logger;
 import uz.dukeengine.render.AtmosphereSky;
+import uz.dukeengine.render.LocalShadowFilter;
 import uz.dukeengine.render.PictureChain;
 import uz.dukeengine.render.PictureSettings;
 import uz.dukeengine.render.SkyProbe;
@@ -12,17 +16,21 @@ import uz.dukeengine.render.SkyProbe;
 /**
  * What {@link Visuals#physicallyBased} adds to a scene: the light physically based materials take their ambient from,
  * a probe baked from a sky worked out of the scene's own sun and ambient, the filters over the finished picture, and
- * the sun's shadows drawn by {@link uz.dukeengine.render.SunShadowFilter}. With {@link PictureSettings#atmosphere} the sky is the atmosphere under the sun's direction, and the probe follows
- * the sun through its hours.
+ * the sun's shadows drawn by {@link uz.dukeengine.render.SunShadowFilter}, and the local lights' by
+ * {@link LocalShadowFilter}. With {@link PictureSettings#atmosphere} the sky is the atmosphere under the sun's direction,
+ * and the probe follows the sun through its hours.
  *
  * <p>Light is drawing. Nothing in the simulation reads it.
  */
 final class PhysicalLook {
 
+    private static final Logger LOG = Logger.getLogger(PhysicalLook.class.getName());
+
     private final AssetManager assets;
     private final RenderManager renderManager;
     private final Node root;
     private final AtmosphereSky atmosphere;
+    private final LocalShadowFilter local;
     private LightProbe probe;
 
     PhysicalLook(AssetManager assets, RenderManager renderManager, Node root, SceneLight light, PictureSettings picture) {
@@ -30,13 +38,29 @@ final class PhysicalLook {
         this.renderManager = renderManager;
         this.root = root;
         this.atmosphere = picture.atmosphere() ? new AtmosphereSky(assets, renderManager, root) : null;
+        var caps = renderManager.getRenderer().getCaps();
+        if (picture.localShadows() > 0 && !LocalShadowFilter.supported(caps)) {
+            LOG.warning("this GPU cannot draw the local lights' shadows (GLSL 1.50, frame buffers, depth textures): they stay unshadowed");
+        }
+        this.local = picture.localShadows() > 0 && LocalShadowFilter.supported(caps)
+                ? new LocalShadowFilter(assets, picture.localShadows()) : null;
         bake(light);
-        light.shadows().drawnAs(picture, renderManager.getRenderer().getCaps());
-        light.shadows().finishWith(PictureChain.filters(picture));
+        light.shadows().drawnAs(picture, caps);
+        var finishing = new ArrayList<Filter>();
+        // After the sun's shadows, which are put in front of what finishes the picture, and before it.
+        if (local != null) {
+            finishing.add(local);
+        }
+        finishing.addAll(PictureChain.filters(picture));
+        light.shadows().finishWith(finishing);
     }
 
     /** The probe baked anew from the sun the scene is lit by now: when a new world brings its own. */
     void bake(SceneLight light) {
+        if (local != null) {
+            // What else lights a surface when a local light's shadow takes its own share away: the ambient and some of the sun.
+            local.fill(light.ambientColour().add(light.sunColour().mult(0.5f)));
+        }
         if (atmosphere != null) {
             follow(light);
             return;

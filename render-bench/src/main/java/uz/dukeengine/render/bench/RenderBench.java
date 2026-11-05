@@ -7,6 +7,7 @@ import com.jme3.asset.plugins.FileLocator;
 import com.jme3.bounding.BoundingBox;
 import com.jme3.light.DirectionalLight;
 import com.jme3.light.PointLight;
+import com.jme3.light.SpotLight;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState;
 import com.jme3.math.ColorRGBA;
@@ -45,6 +46,7 @@ import java.util.Map;
 import java.util.Random;
 import uz.dukeengine.render.Atmosphere;
 import uz.dukeengine.render.AtmosphereSky;
+import uz.dukeengine.render.LocalShadowFilter;
 import uz.dukeengine.render.PictureChain;
 import uz.dukeengine.render.PictureSettings;
 import uz.dukeengine.render.SceneBuffers;
@@ -54,7 +56,7 @@ import uz.dukeengine.render.SunShadowFilter;
 /**
  * Draws one fixed scene, measures its frames, saves a picture and quits, so a change to the renderer can be seen and
  * priced. Args: scene (materials, interior, outdoor, night, buffers, furnace), what to leave out or add ("full", or joined by
- * commas: no-ao, no-bloom, no-fxaa, no-pcss, no-contact, no-shadows; feet, which looks at the outdoor units' feet from close by; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
+ * commas: no-ao, no-bloom, no-fxaa, no-pcss, no-contact, no-shadows, no-local-shadows, local-&lt;n&gt; (how many local lights have a shadow), lamp (one lamp over any scene); feet, which looks at the outdoor units' feet from close by; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
  * show-depth, show-roughness, show-velocity, which show one instead of the picture; move-camera, move-units;
  * {@code hour-<h>}, which turns the atmosphere on with the sun where a made-up summer day has it at that hour, 6 and 18
  * being just over the horizon; sky-view, which looks toward the sun from near the ground; move-sun, which lets the sun
@@ -79,6 +81,8 @@ public final class RenderBench extends SimpleApplication {
     private final DirectionalLight sunLight = new DirectionalLight();
     private final DirectionalLight shadowLight = new DirectionalLight();
     private ColorRGBA sunAbove;
+    private ColorRGBA fill;
+    private LocalShadowFilter localFilter;
     private AtmosphereSky atmosphere;
     private float hour;
     private final List<Spatial> movers = new ArrayList<>();
@@ -117,7 +121,16 @@ public final class RenderBench extends SimpleApplication {
         return new PictureSettings(full.ambientOcclusion() && !left.contains("no-ao"),
                 full.bloom() && !left.contains("no-bloom"), full.fxaa() && !left.contains("no-fxaa"), full.exposure(),
                 hourOf(left) != null, full.softShadows() && !left.contains("no-pcss"),
-                full.contactShadows() && !left.contains("no-contact"));
+                full.contactShadows() && !left.contains("no-contact"), localBudget(left, full.localShadows()));
+    }
+
+    /** How many local lights may have a shadow: {@code no-local-shadows} none, {@code local-<n>} that many, else the default. */
+    static int localBudget(List<String> words, int fallback) {
+        if (words.contains("no-local-shadows")) {
+            return 0;
+        }
+        return words.stream().filter(word -> word.startsWith("local-")).map(word -> Integer.valueOf(word.substring(6)))
+                .findFirst().orElse(fallback);
     }
 
     /** The hour a {@code hour-<h>} word asks for, or null. */
@@ -185,6 +198,12 @@ public final class RenderBench extends SimpleApplication {
             sunDirection.set(sunAt(hour).negateLocal());
         }
         sunDirection.normalizeLocal();
+        // What lights a surface but the local lights: the ambient, and the sun at about half its strength.
+        fill = ambient.add(sun.mult(0.5f));
+        if (asked.contains("lamp")) {
+            // One lamp over any scene, for the casters of that scene to throw a shadow from (the buffers scene has instanced ones).
+            rootNode.addLight(new PointLight(new Vector3f(-3f, 6f, 7f), new ColorRGBA(1f, 0.7f, 0.4f, 1f).mult(14f), 22f));
+        }
         world.setShadowMode(ShadowMode.CastAndReceive);
         rootNode.attachChild(world);
         sunAbove = sun;
@@ -327,7 +346,16 @@ public final class RenderBench extends SimpleApplication {
         place(room, "cardboard_box", 0.5f, 2.15f, 0f, -1.55f, -25f);
         place(room, "rubber_roll", 1f, -2.6f, 0f, -1.2f, 0f);
         place(room, "rebar_bundle", 3f, 3.4f, 0.1f, -3.4f, 90f);
-        rootNode.addLight(new PointLight(new Vector3f(-1f, 1.6f, -1f), new ColorRGBA(1f, 0.82f, 0.6f, 1f).mult(22f), 9f));
+        rootNode.addLight(new PointLight(new Vector3f(-1f, 1.6f, -1f), new ColorRGBA(1f, 0.82f, 0.6f, 1f).mult(10f), 9f));
+        // A second lamp, a spot lamp over the table, and one outside the back wall that the wall must keep out.
+        rootNode.addLight(new PointLight(new Vector3f(4f, 1.5f, -2.5f), new ColorRGBA(0.7f, 0.85f, 1f, 1f).mult(6f), 7f));
+        var spot = new SpotLight(new Vector3f(-0.2f, 1.9f, -0.4f), new Vector3f(0f, -1f, -0.35f).normalizeLocal(),
+                new ColorRGBA(1f, 0.9f, 0.7f, 1f).mult(12f));
+        spot.setSpotRange(6f);
+        spot.setSpotInnerAngle(22f * FastMath.DEG_TO_RAD);
+        spot.setSpotOuterAngle(36f * FastMath.DEG_TO_RAD);
+        rootNode.addLight(spot);
+        rootNode.addLight(new PointLight(new Vector3f(-2f, 1f, -7.5f), new ColorRGBA(1f, 0.3f, 0.2f, 1f).mult(40f), 10f));
         cam.setFrustumPerspective(70f, (float) cam.getWidth() / cam.getHeight(), 0.05f, 200f);
         cam.setLocation(new Vector3f(0.35f, 0.02f, 0.75f));
         cam.lookAt(new Vector3f(-0.2f, -0.55f, -1.6f), Vector3f.UNIT_Y);
@@ -460,10 +488,23 @@ public final class RenderBench extends SimpleApplication {
     }
 
     private void torches() {
-        var warm = new ColorRGBA(1f, 0.6f, 0.3f, 1f).mult(40f);
+        // A torch's colour is radiance at the flame, in the sun's units (2.4 at noon here): about 5 reads at a few metres
+        // under the fixed exposure. The first versions had 40, which is white to the ACES curve (see the 3.3 report).
+        float torch = Float.parseFloat(System.getProperty("bench.torch", "5"));
+        var warm = new ColorRGBA(1f, 0.6f, 0.3f, 1f).mult(torch);
         rootNode.addLight(new PointLight(new Vector3f(-8f, 3f, 6f), warm, 18f));
         rootNode.addLight(new PointLight(new Vector3f(8f, 3f, 6f), warm, 18f));
         rootNode.addLight(new PointLight(new Vector3f(0f, 3f, -6f), warm, 18f));
+        // More than the budget has shadows for: three by the houses, and a floodlight from a tower, a spot.
+        rootNode.addLight(new PointLight(new Vector3f(-17f, 3f, -9f), warm, 14f));
+        rootNode.addLight(new PointLight(new Vector3f(18f, 3f, -11f), warm, 14f));
+        rootNode.addLight(new PointLight(new Vector3f(-17f, 3f, 14f), warm, 14f));
+        var flood = new SpotLight(new Vector3f(0f, 10f, 20f), new Vector3f(0f, -10f, -18f).normalizeLocal(),
+                new ColorRGBA(0.7f, 0.8f, 1f, 1f).mult(torch * 12f));
+        flood.setSpotRange(30f);
+        flood.setSpotInnerAngle(14f * FastMath.DEG_TO_RAD);
+        flood.setSpotOuterAngle(24f * FastMath.DEG_TO_RAD);
+        rootNode.addLight(flood);
     }
 
     private void wall(Node to, Material m, float x, float y, float z, float hx, float hy, float hz, float tile) {
@@ -572,6 +613,12 @@ public final class RenderBench extends SimpleApplication {
             shadows.getShadowMaterial().setColor("ShadowColor", new ColorRGBA(0.2f, 0.2f, 0.2f, 1f));
             post.addFilter(shadows);
         }
+        if (picture.localShadows() > 0 && LocalShadowFilter.supported(renderer.getCaps())) {
+            var local = new LocalShadowFilter(assetManager, picture.localShadows());
+            localFilter = local;
+            local.fill(fill);
+            post.addFilter(local);
+        }
         PictureChain.filters(picture).forEach(post::addFilter);
         viewPort.addProcessor(post);
         if (asked.contains("buffers")) {
@@ -630,5 +677,8 @@ if (asked.contains("move-units")) {
             throw new IllegalStateException(e);
         }
         System.out.print("RESULT " + line);
+        if (localFilter != null) {
+            System.out.println("local shadows: maps drawn " + localFilter.mapsDrawn() + ", kept " + localFilter.mapsKept() + " (last frame)");
+        }
     }
 }
