@@ -1,0 +1,26 @@
+// The last step of the eye's measure, which moves the eye toward it: see uz.dukeengine.render.AcesToneMap.
+MaterialDef Exposure Adapt {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        // The reduced measure, and what the eye held a frame ago (1x1).
+        Texture2D Texture
+        Texture2D Previous
+        // The share of the way to the measure the eye goes this frame, when the picture is brighter than the eye holds
+        // and when it is darker.
+        Float BrighterRate
+        Float DarkerRate
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/ExposureAdapt.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+        }
+    }
+}

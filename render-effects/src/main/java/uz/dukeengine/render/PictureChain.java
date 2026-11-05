@@ -19,7 +19,7 @@ public final class PictureChain {
         if (settings.bloom()) {
             filters.add(new MipBloomFilter());
         }
-        filters.add(new AcesToneMap(settings.exposure()));
+        filters.add(new AcesToneMap(settings.exposure(), settings.autoExposure()));
         if (settings.fxaa()) {
             filters.add(new FXAAFilter());
         }

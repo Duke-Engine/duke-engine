@@ -3,6 +3,9 @@
 
 uniform COLORTEXTURE m_Texture;
 uniform float m_Exposure;
+#ifdef AUTO_EXPOSURE
+uniform sampler2D m_Adapted;
+#endif
 varying vec2 texCoord;
 
 // Narkowicz's fit of the ACES film curve: https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
@@ -12,5 +15,9 @@ vec3 aces(vec3 x) {
 
 void main() {
     vec4 colour = getColor(m_Texture, texCoord);
-    gl_FragColor = vec4(aces(colour.rgb * m_Exposure), colour.a);
+    float exposure = m_Exposure;
+    #ifdef AUTO_EXPOSURE
+        exposure *= texture2D(m_Adapted, vec2(0.5)).g;
+    #endif
+    gl_FragColor = vec4(aces(colour.rgb * exposure), colour.a);
 }

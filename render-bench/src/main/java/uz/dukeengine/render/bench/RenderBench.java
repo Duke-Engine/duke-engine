@@ -45,6 +45,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import uz.dukeengine.render.Atmosphere;
+import uz.dukeengine.render.AcesToneMap;
 import uz.dukeengine.render.AtmosphereSky;
 import uz.dukeengine.render.GtaoFilter;
 import uz.dukeengine.render.LocalShadowFilter;
@@ -60,7 +61,8 @@ import uz.dukeengine.render.SunShadowFilter;
  * priced. Args: scene (materials, interior, outdoor, night, buffers, furnace), what to leave out or add ("full", or joined by
  * commas: no-ao, no-bloom, no-fxaa, no-pcss, no-contact, no-shadows, no-local-shadows, local-&lt;n&gt; (how many local lights have a shadow), lamp (one lamp over any scene); feet, which looks at the outdoor units' feet from close by; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
  * show-depth, show-roughness, show-velocity, which show one instead of the picture; show-ao, which shows the ambient
- * occlusion alone, and ao-radius-&lt;m&gt;, which sets its reach in world units; show-bloom, which shows the bloom alone; move-camera, move-units;
+ * occlusion alone, and ao-radius-&lt;m&gt;, which sets its reach in world units; show-bloom, which shows the bloom alone; auto-exposure, which lets the eye adapt, and walk, which (with it) goes from a
+ * dark view to a bright one and back, logging what the eye holds (EYE lines) and shooting at the cuts; move-camera, move-units;
  * {@code hour-<h>}, which turns the atmosphere on with the sun where a made-up summer day has it at that hour, 6 and 18
  * being just over the horizon; sky-view, which looks toward the sun from near the ground; move-sun, which lets the sun
  * walk 0.15 degrees a frame and so prices the sky made anew), output folder. {@code -Dbench.models=<folder>} dresses the scenes
@@ -92,6 +94,11 @@ public final class RenderBench extends SimpleApplication {
     private Texture2D noise;
     private ScreenshotAppState shots;
     private int frame;
+    private AcesToneMap tone;
+    private Geometry dark;
+    private float clock;
+    private float lastLogged;
+    private int walkStep;
 
     private RenderBench(String scene, String label, Path out) {
         this.scene = scene;
@@ -126,7 +133,8 @@ public final class RenderBench extends SimpleApplication {
                 hourOf(left) != null, full.softShadows() && !left.contains("no-pcss"),
                 full.contactShadows() && !left.contains("no-contact"), localBudget(left, full.localShadows()),
                 left.stream().filter(word -> word.startsWith("ao-radius-")).map(word -> Float.valueOf(word.substring(10)))
-                        .findFirst().orElse(full.occlusionRadius()));
+                        .findFirst().orElse(full.occlusionRadius()),
+                left.contains("auto-exposure") || left.contains("walk"));
     }
 
     /** How many local lights may have a shadow: {@code no-local-shadows} none, {@code local-<n>} that many, else the default. */
@@ -636,7 +644,12 @@ public final class RenderBench extends SimpleApplication {
             local.fill(fill);
             post.addFilter(local);
         }
-        PictureChain.filters(picture).forEach(post::addFilter);
+        PictureChain.filters(picture).forEach(filter -> {
+            post.addFilter(filter);
+            if (filter instanceof AcesToneMap map) {
+                tone = map;
+            }
+        });
         viewPort.addProcessor(post);
         if (asked.contains("buffers")) {
             SceneBuffers.on(assetManager, renderManager, viewPort, cam.getWidth(), cam.getHeight());
@@ -648,6 +661,10 @@ public final class RenderBench extends SimpleApplication {
     @Override
     public void simpleUpdate(float tpf) {
         frame++;
+        if (asked.contains("walk")) {
+            walk(tpf);
+            return;
+        }
         // By the frame, not the clock: the same frame of a run is the same picture, on any machine.
         if (asked.contains("move-camera")) {
             cam.setLocation(cam.getLocation().add(cam.getLeft().mult(0.02f)));
@@ -673,6 +690,48 @@ if (asked.contains("move-units")) {
         }
         if (frame == WARMUP + MEASURED + 5) {
             report();
+            stop();
+        }
+    }
+
+    /**
+     * A dark box round the camera, off from 2 s to 5 s: the eye goes from dark to bright and back, the first by a cut and the
+     * eye catching up after it. Shots at each cut and once the eye has settled; EYE lines say what it holds.
+     */
+    private void walk(float tpf) {
+        clock += Math.min(tpf, 0.1f);
+        if (dark == null) {
+            dark = new Geometry("dark", new Box(0.6f, 0.6f, 0.6f));
+            var black = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+            black.setColor("Color", new ColorRGBA(0.01f, 0.01f, 0.01f, 1f));
+            black.getAdditionalRenderState().setFaceCullMode(RenderState.FaceCullMode.Off);
+            dark.setMaterial(black);
+            dark.setShadowMode(ShadowMode.Off);
+            dark.setLocalTranslation(cam.getLocation());
+            rootNode.attachChild(dark);
+        }
+        boolean inTheDark = clock < 2f || clock >= 5f;
+        if (inTheDark != (dark.getParent() != null)) {
+            if (inTheDark) {
+                rootNode.attachChild(dark);
+            } else {
+                dark.removeFromParent();
+            }
+        }
+        float[] shotAt = {1.5f, 2.1f, 4.5f, 5.1f, 11f};
+        String[] named = {"dark", "cut-to-bright", "bright-settled", "cut-to-dark", "dark-settled"};
+        if (walkStep < shotAt.length && clock >= shotAt[walkStep]) {
+            shots.setFileName(scene + "_walk_" + named[walkStep]);
+            shots.takeScreenshot();
+            walkStep++;
+        }
+        if (tone != null && clock - lastLogged >= 0.25f && frame > 3) {
+            lastLogged = clock;
+            var eye = tone.eyeNow(renderer);
+            System.out.printf(Locale.ROOT, "EYE t=%.2f frame=%d held=%.2f stops (luminance %.3f) exposure x%.2f measured %.2f stops%n", clock,
+                    frame, eye[0], Math.pow(2.0, eye[0]), eye[1], eye[2]);
+        }
+        if (clock > 11.3f) {
             stop();
         }
     }

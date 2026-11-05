@@ -1,6 +1,7 @@
 package uz.dukeengine.render;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -20,7 +21,7 @@ class PictureChainTest {
 
     @Test
     void ambientOcclusionOffLeavesNoOcclusionFilter() {
-        var off = new PictureSettings(false, true, true, 0.7f, false, true, true, 4, 0.75f);
+        var off = new PictureSettings(false, true, true, 0.7f, false, true, true, 4, 0.75f, false);
         assertTrue(PictureChain.filters(off).stream().noneMatch(GtaoFilter.class::isInstance));
     }
 
@@ -31,6 +32,13 @@ class PictureChainTest {
         assertTrue(filters.stream().noneMatch(BloomFilter.class::isInstance));
         assertTrue(filters.indexOf(filters.stream().filter(MipBloomFilter.class::isInstance).findFirst().get())
                 < filters.indexOf(filters.stream().filter(AcesToneMap.class::isInstance).findFirst().get()));
+    }
+
+    @Test
+    void theEyeIsOffInFullAndOnWhenAsked() {
+        assertFalse(PictureSettings.FULL.autoExposure());
+        assertTrue(PictureSettings.FULL.withAutoExposure(true).autoExposure());
+        assertEquals(PictureSettings.FULL, PictureSettings.FULL.withAutoExposure(true).withAutoExposure(false));
     }
 
     @Test

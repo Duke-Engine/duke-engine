@@ -1,0 +1,20 @@
+// The second step of the eye's measure: see uz.dukeengine.render.AcesToneMap.
+MaterialDef Exposure Reduce {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Texture2D Texture
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 : Common/MatDefs/Post/Post.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 : Common/MatDefs/Duke/ExposureReduce.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+        }
+    }
+}

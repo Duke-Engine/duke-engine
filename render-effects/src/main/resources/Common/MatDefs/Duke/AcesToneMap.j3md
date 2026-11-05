@@ -6,6 +6,8 @@ MaterialDef Aces Tone Map {
         Int NumSamplesDepth
         Texture2D Texture
         Float Exposure : 1.0
+        // 1x1: what AcesToneMap's eye has adapted to, green the multiplier it asks of the exposure.
+        Texture2D Adapted
     }
 
     Technique {
@@ -17,7 +19,8 @@ MaterialDef Aces Tone Map {
 
         Defines {
             BOUND_DRAW_BUFFER: BoundDrawBuffer
-            NUM_SAMPLES : NumSamples
+            RESOLVE_MS : NumSamples
+            AUTO_EXPOSURE : Adapted
         }
     }
 }
