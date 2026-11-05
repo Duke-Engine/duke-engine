@@ -1,5 +1,7 @@
 # `[ … ]` sintaksisi: map va vergul
 
+> **Holat (2026-11-05 tekshirildi): BAJARILGAN, 0.3.0 da chiqqan.** `DukeText`/`Binder` `Armor = [FLAME = 0.5]` va blokli ro'yxatdagi vergulni o'qiydi (`DukeTextTest`, `BinderTest`), CHANGELOG 0.3.0 ko'chirish buyrug'ini beradi, `duke-generals` ning `armor.duke` fayli yangi shaklda. Quyida — nima uchun shunday qilingani; "883 ta test" o'sha kunning soni.
+
 **0.3.0 uchun. Ikkita format o'zgarishi, bir vaqtda.**
 
 Ikkalasi ham bitta narsaga tegadi — `[ … ]` nima ekaniga — shuning uchun birga chiqadi. Alohida

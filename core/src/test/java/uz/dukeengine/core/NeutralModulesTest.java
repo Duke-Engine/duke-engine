@@ -1,6 +1,7 @@
 package uz.dukeengine.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -45,6 +46,16 @@ class NeutralModulesTest {
     @Test
     void neutralModulesReachFilesOnlyThroughTheMapPackage() throws IOException {
         assertEquals(STILL_ON_FILES, offenders(FILES, MAP));
+    }
+
+
+    @Test
+    void thePlatformPatternCatchesTheDesktopHalvesOfJmeToo() {
+        for (var named : List.of("com.jme3.texture.plugins.AWTLoader", "com.jme3.system.JmeDesktopSystem",
+                "com.jme3.system.lwjgl.LwjglWindow", "java.awt.Color")) {
+            assertTrue(PLATFORM.matcher("import " + named + ";").find(), named);
+        }
+        assertFalse(PLATFORM.matcher("import com.jme3.texture.Image; import com.jme3.system.AppSettings;").find());
     }
 
     /** The sources of the neutral modules that match {@code pattern} outside the one folder allowed to. */

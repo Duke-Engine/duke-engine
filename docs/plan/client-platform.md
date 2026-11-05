@@ -99,6 +99,9 @@ the provider. On the device through `skirmish-android` (4.3): fonts, settings, t
 - Desktop launchers: `runtimeOnly(project(":client3d-desktop"))` (skirmish; games through the BOM).
 - `NeutralModulesTest` scans `src/main` only. Its regex misses `com.jme3.texture.plugins.AWTLoader` and
   `com.jme3.system.JmeDesktopSystem`: widen it when jme3-desktop leaves client3d (move 9).
+  **Stale (checked 2026-11-05):** done. `client3d/build.gradle.kts` has neither jme3-desktop nor jme3-lwjgl3 (they are
+  `client3d-desktop`'s), the regex names both classes (`NeutralModulesTest.PLATFORM`, held by
+  `thePlatformPatternCatchesTheDesktopHalvesOfJmeToo`), and its platform list is empty.
 
 ## Risks
 
@@ -112,7 +115,7 @@ the provider. On the device through `skirmish-android` (4.3): fonts, settings, t
 ## Order of moves (each commit builds and shrinks the test's lists)
 
 1. Empty `client3d-desktop` (settings, publish map, BOM), `ClientPlatform`, `DesktopPlatform`, services file; wire
-   client3d tests, other client tests, skirmish. client3d keeps its desktop deps for now.
+   client3d tests, other client tests, skirmish. client3d keeps its desktop deps for now. **Stale:** it no longer does (move 9 is done).
 2. `Window` and `HeldInput`: WindowDisplay's GLFW half moves; DisplayModes, CameraRig, DukeRtsApp use the seams;
    mouse capture and `getFramebufferWidth`.
 3. `SettingsStore`: GameSettings, Duke3D, Shell; `PREFS` → desktop store.
