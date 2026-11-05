@@ -1,0 +1,22 @@
+MaterialDef Buffer View {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        Int Mode
+        Texture2D Buffer
+        Vector2 NearFar
+    }
+
+    Technique {
+        VertexShader     GLSL300 GLSL150 GLSL100: Common/MatDefs/Post/Post.vert
+        FragmentShader   GLSL300 GLSL150 GLSL100: Common/MatDefs/Duke/BufferView.frag
+
+        WorldParameters {
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER: BoundDrawBuffer
+            MODE : Mode
+        }
+    }
+}

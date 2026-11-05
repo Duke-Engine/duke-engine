@@ -137,6 +137,11 @@ MaterialDef PBR Lighting {
         Boolean UseVertexColor
 
         Boolean BackfaceShadows : false
+
+        // Last frame's pose, for the motion the SceneBuffers technique below tells.
+        Matrix4Array PreviousBoneMatrices
+        Matrix4 PreviousWorldMatrix
+        Matrix4 PreviousViewProjection
     }
 
     Technique {
@@ -282,6 +287,40 @@ MaterialDef PBR Lighting {
             NUM_TARGETS_BUFFERS: NumberOfTargetsBuffers
         }
 
+    }
+
+    // uz.dukeengine.render.SceneBuffers reads this material's own maps and bones, which a forced material could not.
+    Technique SceneBuffers {
+
+        VertexShader   GLSL300 GLSL150 GLSL110: Common/MatDefs/Duke/SceneBuffers.vert
+        FragmentShader GLSL300 GLSL150 GLSL110: Common/MatDefs/Duke/SceneBuffers.frag
+
+        WorldParameters {
+            WorldViewProjectionMatrix
+            ViewProjectionMatrix
+            ViewMatrix
+            WorldMatrix
+            NormalMatrix
+        }
+
+        Defines {
+            BASECOLORMAP : BaseColorMap
+            NORMALMAP : NormalMap
+            NORMALSCALE : NormalScale
+            NORMAL_TYPE: NormalType
+            ROUGHNESSMAP : RoughnessMap
+            USE_PACKED_MR: MetallicRoughnessMap
+            SPECGLOSSPIPELINE : UseSpecGloss
+            USE_PACKED_SG: SpecularGlossinessMap
+            GLOSSINESSMAP : GlossinessMap
+            DISCARD_ALPHA : AlphaDiscardThreshold
+            VERTEX_COLOR : UseVertexColor
+            NUM_BONES : NumberOfBones
+            PREVIOUS_BONES : PreviousBoneMatrices
+            INSTANCING : UseInstancing
+            NUM_MORPH_TARGETS: NumberOfMorphTargets
+            NUM_TARGETS_BUFFERS: NumberOfTargetsBuffers
+        }
     }
 
     Technique Glow {

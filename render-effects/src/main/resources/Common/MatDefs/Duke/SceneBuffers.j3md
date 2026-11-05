@@ -1,0 +1,44 @@
+// What SceneBuffers draws a material with that has no SceneBuffers technique of its own: its shape, bones and all, and
+// nothing of its surface. The Far technique fills what no geometry covers with the camera's motion alone.
+MaterialDef Scene Buffers {
+
+    MaterialParameters {
+        Float Roughness : 1.0
+        Int NumberOfBones
+        Matrix4Array BoneMatrices
+        Matrix4Array PreviousBoneMatrices
+        Matrix4 PreviousWorldMatrix
+        Matrix4 PreviousViewProjection
+        FloatArray MorphWeights
+        Int NumberOfMorphTargets
+        Int NumberOfTargetsBuffers
+        Boolean UseInstancing
+        Matrix4 Reprojection
+    }
+
+    Technique {
+        VertexShader   GLSL300 GLSL150 GLSL110: Common/MatDefs/Duke/SceneBuffers.vert
+        FragmentShader GLSL300 GLSL150 GLSL110: Common/MatDefs/Duke/SceneBuffers.frag
+
+        WorldParameters {
+            WorldViewProjectionMatrix
+            ViewProjectionMatrix
+            ViewMatrix
+            WorldMatrix
+            NormalMatrix
+        }
+
+        Defines {
+            NUM_BONES : NumberOfBones
+            PREVIOUS_BONES : PreviousBoneMatrices
+            INSTANCING : UseInstancing
+            NUM_MORPH_TARGETS: NumberOfMorphTargets
+            NUM_TARGETS_BUFFERS: NumberOfTargetsBuffers
+        }
+    }
+
+    Technique Far {
+        VertexShader   GLSL300 GLSL150 GLSL110: Common/MatDefs/Duke/SceneBuffersFar.vert
+        FragmentShader GLSL300 GLSL150 GLSL110: Common/MatDefs/Duke/SceneBuffersFar.frag
+    }
+}
