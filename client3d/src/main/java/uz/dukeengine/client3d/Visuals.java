@@ -3373,6 +3373,16 @@ public final class Visuals {
         return ground.instancedScenery;
     }
 
+    /** Scenery's models read with the rest of the art, behind the loading picture, not when the first of each comes into view. */
+    public Visuals sceneryReadFirst(java.util.List<String> models) {
+        ground.sceneryReadFirst = java.util.List.copyOf(models);
+        return this;
+    }
+
+    java.util.List<String> getSceneryReadFirst() {
+        return ground.sceneryReadFirst;
+    }
+
     /** Which models of the instanced scenery cast the sun's shadow; none until asked. */
     public Visuals scenerySunCasts(java.util.function.Predicate<String> casts) {
         ground.scenerySunCasts = casts == null ? _ -> false : casts;

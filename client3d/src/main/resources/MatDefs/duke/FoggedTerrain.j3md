@@ -102,6 +102,7 @@ MaterialDef Fogged Terrain {
             WorldMatrix
             ViewMatrix
             ViewProjectionMatrix
+            CameraPosition
         }
 
         Defines {

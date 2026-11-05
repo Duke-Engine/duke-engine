@@ -10,7 +10,7 @@ when it does, this page says exactly what to change and how.
   `Visuals.instancedScenery(farOf)` draws a painted world's scenery a draw a model a chunk, instances written once, with a far
   mesh past the camera's own chunks; `scenerySunCasts` names what casts the sun's shadow, `sunShadowsReach` how far they are
   drawn. `wideWorldEyes(sight, remembered, forMap)` opens a third-person world further than the shroud's `VisionRange`, for the
-  picture alone. Ground cover's instances are written once too. Nothing changes until asked.
+  picture alone. `sceneryReadFirst` reads scenery models behind the loading picture. Ground cover's instances are written once too. Nothing changes until asked.
 - **The shoulder camera comes back behind the hero**: after a scene or a talk the game directed, and at the start,
   `ActionControls` turns the camera to look the way he faces, not only moves it to him. `BagScreen.onRequest(true)` draws
   the bag's panel only while `toggle()` has it up (and then it holds the keys, so the pointer is free); what is painted
