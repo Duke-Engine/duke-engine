@@ -1,10 +1,8 @@
 package uz.dukeengine.render;
 
-import com.jme3.math.Vector3f;
 import com.jme3.post.Filter;
 import com.jme3.post.filters.BloomFilter;
 import com.jme3.post.filters.FXAAFilter;
-import com.jme3.post.filters.ToneMapFilter;
 import com.jme3.post.ssao.SSAOFilter;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,9 +26,7 @@ public final class PictureChain {
             bloom.setBlurScale(1.5f);
             filters.add(bloom);
         }
-        var toneMap = new ToneMapFilter(new Vector3f(4f, 4f, 4f));
-        toneMap.setExposure(settings.exposure());
-        filters.add(toneMap);
+        filters.add(new AcesToneMap(settings.exposure()));
         if (settings.fxaa()) {
             filters.add(new FXAAFilter());
         }

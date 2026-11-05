@@ -11,6 +11,6 @@ package uz.dukeengine.render;
  */
 public record PictureSettings(boolean ambientOcclusion, boolean bloom, boolean fxaa, float exposure) {
 
-    /** Every effect on, with a mid-tone colour kept where it was: {@link com.jme3.post.filters.ToneMapFilter#setExposure}. */
-    public static final PictureSettings FULL = new PictureSettings(true, true, true, 1.47f);
+    /** Every effect on. At this exposure the curve leaves a mid-tone where it was: a game's colours keep their look. */
+    public static final PictureSettings FULL = new PictureSettings(true, true, true, 0.7f);
 }
