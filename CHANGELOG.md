@@ -5,6 +5,10 @@ when it does, this page says exactly what to change and how.
 
 ## Unreleased
 
+- **A model may keep its maps**: `UnitVisual.keepsMaps(true)` dresses the unit's model with its glTF normal map and a
+  highlight made from its metallic-roughness picture (smooth or metal shines, cloth does not), on the client's own sun
+  and flat ambient; the client still has no light probe, so nothing is lit as PBR. Emissive pictures are not drawn.
+  Off by default: every model is drawn in its colour alone, as before.
 - **A scheme may take the right button and read a held control**: `ControlScheme.right(pressed)` (true where it took
   the press, so no order is given by it) and `Context.controlHeld(KeyMap.Control)`; `KeyMap.Control.SPRINT`, a held
   control on no key until the game puts it on one. `ActionControls.rightStrikes(true)` makes the right button strike as

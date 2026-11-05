@@ -1364,6 +1364,19 @@ public final class Visuals {
             return this;
         }
 
+        /** Whether the model's normal and metallic-roughness pictures are drawn; see {@link MappedSkin}. */
+        boolean keepsMaps;
+
+        /**
+         * Draw the model with its normal map and a highlight from its metallic-roughness picture, on the client's
+         * own lighting. Off, as it always was: a model is drawn in its colour alone, so a game whose files carry maps
+         * for another renderer is unchanged until it asks.
+         */
+        public UnitVisual keepsMaps(boolean keeps) {
+            this.keepsMaps = keeps;
+            return this;
+        }
+
         /** Extra rotation when the model file doesn't face the engine's +X. */
         public UnitVisual facing(float degrees) {
             this.facingDegrees = degrees;

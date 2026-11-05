@@ -178,7 +178,9 @@ final class Bodies {
                 var coloured = ownColour(loaded, colours, modelPath).mult(tint);
                 // A marked light or shadow stays as unlit as the file made it; the rest is lit as it always was.
                 var dressed = blend != null && ModelBlends.unlit(loaded)
-                        ? unlitMaterial(colours, coloured) : creatureMaterial(colours, coloured);
+                        ? unlitMaterial(colours, coloured)
+                        : visual.keepsMaps ? mappedMaterial(loaded, colours, coloured)
+                        : creatureMaterial(colours, coloured);
                 ModelBlends.carryOver(loaded, dressed, geometry, blend);
                 geometry.setMaterial(dressed);
             }
@@ -371,6 +373,33 @@ final class Bodies {
         return material;
     }
 
+    /** The highlight pictures made from metallic-roughness pictures, one for each; see {@link MappedSkin}. */
+    private final Map<com.jme3.texture.Texture, com.jme3.texture.Texture> glosses =
+            java.util.Collections.synchronizedMap(new java.util.IdentityHashMap<>());
+
+    /**
+     * The same flat lighting for a model that keeps its maps: its normal map as the file has it, and its
+     * metallic-roughness picture as a highlight strength per texel (see {@link MappedSkin}). A picture the file
+     * does not have is simply not there, and the piece is lit as any other is.
+     */
+    private Material mappedMaterial(Material loaded, com.jme3.texture.Texture skin, ColorRGBA colour) {
+        var material = creatureMaterial(skin, colour);
+        if (loaded == null) {
+            return material;
+        }
+        var normal = loaded.getTextureParam("NormalMap");
+        if (normal != null && normal.getTextureValue() != null) {
+            material.setTexture("NormalMap", normal.getTextureValue());
+            material.setFloat("NormalType", 1f); // glTF's normals are OpenGL's, not DirectX's
+        }
+        var roughness = loaded.getTextureParam("MetallicRoughnessMap");
+        if (roughness != null && roughness.getTextureValue() != null) {
+            material.setTexture("SpecularMap", glosses.computeIfAbsent(roughness.getTextureValue(), MappedSkin::gloss));
+            material.setColor("Specular", ColorRGBA.White);
+            material.setFloat("Shininess", MappedSkin.SHININESS);
+        }
+        return material;
+    }
 
     /**
      * The parts of {@code body} named with {@code prefix} painted {@code owner}: the colour each was drawn with, kept
