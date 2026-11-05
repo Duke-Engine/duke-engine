@@ -9,6 +9,15 @@ when it does, this page says exactly what to change and how.
   the press, so no order is given by it) and `Context.controlHeld(KeyMap.Control)`; `KeyMap.Control.SPRINT`, a held
   control on no key until the game puts it on one. `ActionControls.rightStrikes(true)` makes the right button strike as
   the left does, and `ActionControls.sprint((game, held) -> ...)` tells the game when the sprint is held or let go.
+- **A game may time its own swings**: `WeaponUpdate.blow(victims, share)` strikes one swing now at the victims the game
+  chose, each for `share` of the weapon's damage (bonuses and the critical roll counted once for the swing), with no
+  wind-up, no reach check and no reload begun, told as fired and landed as any blow is; `Shot.scaled(share)`.
+  `ActionControls.strikes((game, heavy) -> taken)` offers each press of the left (light) and right (heavy) button to the
+  game before the swing toward the camera's forward; a press it takes sends and holds nothing. All additions.
+- **A steered hero busy at a clip is drawn standing**: `MoveUpdate.standsAtWork()`, and the match client no longer
+  marks such a unit as walking, so a combo's or a roll's clip is shown while a direction key is held (the walk was
+  already held and went on after). Only a steered unit (`Stride`) is affected.
+- **`Dodge` is `Saveable`**: a snapshot taken mid-roll keeps the roll.
 
 ## 0.9.0
 

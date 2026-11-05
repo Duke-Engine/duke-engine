@@ -63,6 +63,29 @@ class ActionControlsTest {
     }
 
     @Test
+    void aGameThatTakesTheStrikesIsAskedPerPressAndTheRightButtonIsHeavy() {
+        var asked = new java.util.ArrayList<Boolean>();
+        var window = new TestWindow();
+        var controls = new ActionControls().mouse(MouseScheme.ACTION).rightStrikes(true)
+                .strikes((_, heavy) -> asked.add(heavy));
+        controls.attach(window);
+        assertTrue(controls.left(true));
+        assertTrue(controls.left(false));
+        assertTrue(controls.right(true));
+        assertTrue(controls.right(false));
+        assertEquals(List.of(false, true), asked, "asked on a press only: light on the left, heavy on the right");
+    }
+
+    @Test
+    void aStrikeTheGameLeavesGoesOnAsTheSwingAhead() {
+        var asked = new java.util.ArrayList<Boolean>();
+        var controls = new ActionControls().mouse(MouseScheme.ACTION).strikes((_, heavy) -> !asked.add(heavy));
+        controls.attach(new TestWindow());
+        assertTrue(controls.left(true), "still the controls' own button");
+        assertEquals(List.of(false), asked);
+    }
+
+    @Test
     void aSkillAimedAheadPointsAlongTheForwardAtADistanceTheMouseSets() {
         var spot = new ForwardAim(60f, SkillRange.Shape.AT_A_SPOT);
         assertEquals(40f, spot.distance(), 1e-4f, "two thirds of its reach at a spot");

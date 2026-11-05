@@ -45,6 +45,12 @@ public record Shot(ObjectId shooter, int side, Weapon weapon, int slot, float da
         this(shooter, side, weapon, slot, damage, radius, secondaryDamage, secondaryRadius, null);
     }
 
+    /** This shot worth {@code share} of what it is: both rings' damage, nothing else changed. */
+    public Shot scaled(float share) {
+        return new Shot(shooter, side, weapon, slot, damage * share, radius, secondaryDamage * share, secondaryRadius,
+                wentOff, critical);
+    }
+
     /** This shot gone off as {@code template} — the shell a launcher made of it — rather than as its shooter. */
     public Shot wentOffAs(String template) {
         return new Shot(shooter, side, weapon, slot, damage, radius, secondaryDamage, secondaryRadius, template,

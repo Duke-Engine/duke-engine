@@ -26,7 +26,7 @@ import uz.dukeengine.rpg.skill.SkillEffect;
  * seal as a dash is, nothing spent; not while held, and it cuts his own weapon's wind-up.
  */
 @ModuleGroup(ModuleGroups.MOVEMENT)
-public final class Dodge extends UpdateModule implements SkillCaster {
+public final class Dodge extends UpdateModule implements SkillCaster, uz.dukeengine.core.save.Saveable {
 
     /** No configuration: the skill says how far, how long and how long unharmed. */
     public record Data() implements ModuleData {
@@ -100,6 +100,20 @@ public final class Dodge extends UpdateModule implements SkillCaster {
         if (gone >= frames) {
             to = null;
         }
+    }
+
+    /** The roll under way: where it began and ends, over how many frames and how many are gone; or none. */
+    @Override
+    public void save(uz.dukeengine.core.save.SaveOut out) {
+        out.writePlace(from).writePlace(to).writeInt(frames).writeInt(gone);
+    }
+
+    @Override
+    public void load(uz.dukeengine.core.save.SaveIn in) {
+        from = in.readPlace();
+        to = in.readPlace();
+        frames = in.readInt();
+        gone = in.readInt();
     }
 
     /**

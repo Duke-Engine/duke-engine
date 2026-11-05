@@ -653,6 +653,14 @@ public final class MoveUpdate extends UpdateModule implements Locomotor, Saveabl
         return route.waiting() || route.walking() || steering != null;
     }
 
+    /**
+     * Whether it stands still at work while a steering is kept: busy with a clip ({@link GameObject#busy}), where a
+     * steered walk waits and goes on after. It is drawn standing then, not walking on the spot.
+     */
+    public boolean standsAtWork() {
+        return steering != null && getOwner().getBusyClip() != null;
+    }
+
     /** What its {@link SpeedModifier}s make of its speed now, all of them multiplied; 1 for none. */
     private static float speedShare(GameObject owner) {
         float share = 1f;
@@ -751,7 +759,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor, Saveabl
             gaits.stand();
             return; // dead, inside a transport, frozen or held — cannot move, and keeps its orders for when it can
         }
-        if (steering != null && owner.getBusyClip() != null) {
+        if (standsAtWork()) {
             gaits.stand(); // at work or staggered: held, and walks on after
             return;
         }

@@ -104,7 +104,8 @@ final class MatchClient extends GameClient {
      */
     private static boolean walking(uz.dukeengine.core.thing.GameObject object, uz.dukeengine.core.module.Locomotor ai) {
         return ai != null && ai.isMoving() && !object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.DISABLED)
-                && !object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HELD);
+                && !object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HELD)
+                && !(ai instanceof uz.dukeengine.core.module.MoveUpdate legs && legs.standsAtWork()); // its clip shows
     }
 
     /** Its words, and its work's clip among them while it is busy and standing — see {@code UnitView.busyClip}. */

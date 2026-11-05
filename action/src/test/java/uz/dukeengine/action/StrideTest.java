@@ -57,6 +57,22 @@ class StrideTest {
     }
 
     @Test
+    void busyAtAClipItStandsWhileTheWalkIsKeptAndGoesOnAfter() {
+        var world = world(false);
+        var hero = hero(world);
+        Stride.walk(hero, 64);
+        var legs = (MoveUpdate) hero.getLocomotor();
+        assertFalse(legs.standsAtWork());
+        hero.busy("Attack_L1", 10);
+        assertTrue(legs.standsAtWork(), "drawn standing, not walking on the spot");
+        world.run(10);
+        assertEquals(50f, hero.getPosition().y(), 1e-3f, "held where it was for the ten frames");
+        world.run(5);
+        assertEquals(60f, hero.getPosition().y(), 1e-3f, "and walks on after");
+        assertFalse(legs.standsAtWork());
+    }
+
+    @Test
     void intoAWallAtAnAngleItSlidesAlongIt() {
         var world = world(true);
         var hero = hero(world);

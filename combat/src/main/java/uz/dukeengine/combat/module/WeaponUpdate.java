@@ -424,6 +424,21 @@ public final class WeaponUpdate extends UpdateModule implements uz.dukeengine.co
     }
 
     /**
+     * One swing a game times for itself -- a combo's step -- struck now at {@code victims} (in the order given; the
+     * game chose them, and their reach), each for {@code share} of what the weapon deals, its bonuses and its roll
+     * counted once for the swing. It waits for no wind-up and no reload and begins none, so it does not disturb the
+     * weapon's own attack; it is told as fired and landed as any blow is. Deterministic if {@code victims} is.
+     *
+     * @return how many it struck; 0 with no weapon in use
+     */
+    public int blow(List<GameObject> victims, float share) {
+        var owner = getOwner();
+        var world = owner.getWorld();
+        var armed = loadout.armed();
+        return world == null || armed.isEmpty() ? 0 : firing.blow(world, armed.getFirst(), victims, share);
+    }
+
+    /**
      * Pick no target by itself — a hero who fights only when told: idle, it looks for nothing, and an attack, a swing
      * toward a point or on the ground, or a skill that aims it, works as ever and leaves it idle when it ends.
      * Deterministic state of the unit, set on the simulation thread as every order is.

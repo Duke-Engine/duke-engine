@@ -45,6 +45,21 @@ public final class ActionControls implements ControlScheme {
     /** Whether the right button is held as a strike, which keeps a held swing going as the left does. */
     private boolean rightHeld;
 
+    private Strikes strikes;
+
+    /**
+     * What a game does with a press of a strike button: the left is a light blow, the right (if it {@link
+     * #rightStrikes strikes}) a heavy one.
+     */
+    @FunctionalInterface
+    public interface Strikes {
+        /**
+         * A press of a strike button, in play. Return true when the game took it (it sends its own order, and the
+         * button strikes nothing else); false leaves it to the swing toward the camera's forward.
+         */
+        boolean press(DukeGame game, boolean heavy);
+    }
+
     private boolean aimAhead;
     private boolean releaseToCast;
     private ForwardAim aim;
@@ -86,6 +101,16 @@ public final class ActionControls implements ControlScheme {
      */
     public ActionControls rightStrikes(boolean strikes) {
         this.rightStrikes = strikes;
+        return this;
+    }
+
+    /**
+     * Let the game take each press of a strike button before the swing toward the forward does: it is asked with
+     * {@code heavy} false for the left button and true for the right, and a press it takes sends no swing and holds
+     * none. Null, the default, leaves both buttons as they were.
+     */
+    public ActionControls strikes(Strikes strikes) {
+        this.strikes = strikes;
         return this;
     }
 
@@ -246,7 +271,7 @@ public final class ActionControls implements ControlScheme {
     @Override
     public boolean left(boolean pressed) {
         if (mouse.action()) {
-            leftAhead(pressed);
+            leftAhead(pressed, false);
             return true;
         }
         if (mouse.modern()) {
@@ -262,7 +287,7 @@ public final class ActionControls implements ControlScheme {
             return false;
         }
         rightHeld = pressed;
-        leftAhead(pressed);
+        leftAhead(pressed, true);
         return true;
     }
 
@@ -272,7 +297,10 @@ public final class ActionControls implements ControlScheme {
     }
 
     /** The left button, the action way: a strike along the camera's forward. */
-    private void leftAhead(boolean pressed) {
+    private void leftAhead(boolean pressed, boolean heavy) {
+        if (pressed && strikes != null && window.playing() && strikes.press(window.game(), heavy)) {
+            return; // the game's own blow: nothing is held, so the release has nothing to let go
+        }
         var hero = window.selected();
         var at = hero.isEmpty() || window.snapshot() == null ? null : window.drawnAt(hero.getFirst().value());
         if (at == null) {
