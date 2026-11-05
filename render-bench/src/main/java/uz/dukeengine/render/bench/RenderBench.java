@@ -46,7 +46,7 @@ import uz.dukeengine.render.SkyProbe;
 
 /**
  * Draws one fixed scene, measures its frames, saves a picture and quits, so a change to the renderer can be seen and
- * priced. Args: scene (materials, interior, outdoor, night), what to leave out ("full", or no-ao, no-bloom, no-fxaa joined
+ * priced. Args: scene (materials, interior, outdoor, night, furnace), what to leave out ("full", or no-ao, no-bloom, no-fxaa joined
  * by commas), output folder. {@code -Dbench.models=<folder>} dresses the scenes in real models
  * ({@code <folder>/<name>/out/<name>.glb}); without it they are made of boxes.
  */
@@ -106,6 +106,11 @@ public final class RenderBench extends SimpleApplication {
         if (models != null) {
             assetManager.registerLocator(models, FileLocator.class);
         }
+        if (scene.equals("furnace")) {
+            furnace();
+            stop();
+            return;
+        }
         var world = new Node("world");
         var sun = ColorRGBA.White;
         var ambient = new ColorRGBA(0.5f, 0.55f, 0.65f, 1f);
@@ -147,6 +152,48 @@ public final class RenderBench extends SimpleApplication {
         shots = new ScreenshotAppState(out.toString().replace('\\', '/') + "/", scene + "_" + label.replace(',', '+'));
         shots.setIsNumbered(false);
         stateManager.attach(shots);
+    }
+
+    /**
+     * What a white matte surface takes from a baked probe, against the same sky integrated by hand. It says FAIL when
+     * they part by more than 10%: three bands of harmonics are a blur, but no further off than that.
+     */
+    private void furnace() {
+        var toSun = new Vector3f(0.4f, 0.8f, 0.45f).normalizeLocal();
+        var ambient = new ColorRGBA(0.5f, 0.55f, 0.65f, 1f);
+        var probe = SkyProbe.bake(assetManager, renderManager, toSun, ColorRGBA.Black, ambient);
+        var sh = probe.getShCoeffs();
+        var normals = new Vector3f[] {Vector3f.UNIT_Y, Vector3f.UNIT_Y.negate(), Vector3f.UNIT_X, Vector3f.UNIT_Z.negate()};
+        for (var n : normals) {
+            float baked = sh[0].x + sh[1].x * n.y + sh[2].x * n.z + sh[3].x * n.x + sh[4].x * n.y * n.x
+                    + sh[5].x * n.y * n.z + sh[6].x * (3f * n.z * n.z - 1f) + sh[7].x * n.z * n.x
+                    + sh[8].x * (n.x * n.x - n.y * n.y);
+            float true_ = irradiance(n, toSun, ambient);
+            boolean fine = Math.abs(baked - true_) <= 0.1f * true_;
+            System.out.printf(Locale.ROOT, "RESULT furnace n=%s baked %.3f true %.3f %s%n", n, baked, true_, fine ? "ok" : "FAIL");
+        }
+    }
+
+    /** The sky's red, cosine weighted over the half sphere round {@code n}, divided by pi. */
+    private static float irradiance(Vector3f n, Vector3f toSun, ColorRGBA ambient) {
+        float sum = 0f;
+        float weight = 0f;
+        var random = new Random(1);
+        var d = new Vector3f();
+        for (int i = 0; i < 400000; i++) {
+            d.set(random.nextFloat() * 2f - 1f, random.nextFloat() * 2f - 1f, random.nextFloat() * 2f - 1f);
+            float length = d.length();
+            if (length > 1f || length < 1e-3f) {
+                continue;
+            }
+            d.divideLocal(length);
+            float cos = d.dot(n);
+            if (cos > 0f) {
+                sum += SkyProbe.skyAt(d, toSun, ColorRGBA.Black, ambient).r * cos;
+                weight += cos;
+            }
+        }
+        return sum / weight;
     }
 
     // ---- scenes ----

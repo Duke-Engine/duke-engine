@@ -21,11 +21,6 @@ public final class SkyProbe {
     private static final int SKY_SIZE = 64;
     private static final int PROBE_SIZE = 128;
     private static final float EVERYWHERE = 100000f;
-    /**
-     * shortcut: measured so a model is as bright as under the flat lighting on the skirmish's default sun, not derived
-     * from anything physical, measure again on a night map or indoors when a game has one.
-     */
-    private static final float SKY_STRENGTH = 0.3f;
 
     private SkyProbe() {
     }
@@ -51,7 +46,7 @@ public final class SkyProbe {
      * The sky seen along {@code d}: the ambient, brighter toward the horizon and dimmer under it, with the sun's own
      * colour gathered around {@code toSun}.
      */
-    static ColorRGBA skyAt(Vector3f d, Vector3f toSun, ColorRGBA sun, ColorRGBA ambient) {
+    public static ColorRGBA skyAt(Vector3f d, Vector3f toSun, ColorRGBA sun, ColorRGBA ambient) {
         float up = FastMath.clamp(d.y, -1f, 1f);
         float share = up >= 0f ? FastMath.interpolateLinear((float) Math.pow(up, 0.45f), 1.2f, 0.8f)
                 : FastMath.interpolateLinear(Math.min(1f, -up * 8f), 1.2f, 0.5f);
@@ -84,7 +79,8 @@ public final class SkyProbe {
                         default -> d.set(-u, -v, -1);
                     }
                     d.normalizeLocal();
-                    var colour = skyAt(d, towardSun, sun, ambient).mult(SKY_STRENGTH);
+                    // SkyFactory's sphere has inward normals, so what is drawn along d is the texel at -d.
+                    var colour = skyAt(d.negateLocal(), towardSun, sun, ambient);
                     bytes.putShort(FastMath.convertFloatToHalf(colour.r));
                     bytes.putShort(FastMath.convertFloatToHalf(colour.g));
                     bytes.putShort(FastMath.convertFloatToHalf(colour.b));

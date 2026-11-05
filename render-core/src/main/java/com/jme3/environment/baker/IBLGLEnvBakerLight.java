@@ -34,6 +34,7 @@ package com.jme3.environment.baker;
 import java.nio.ByteBuffer;
 import java.util.logging.Logger;
 import com.jme3.asset.AssetManager;
+import com.jme3.environment.util.EnvMapUtils;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
@@ -169,6 +170,9 @@ public class IBLGLEnvBakerLight extends IBLHybridEnvBakerLight {
             if (remapMaxValue > 0) shCoef[i].divideLocal(remapMaxValue);
             shCoef[i].multLocal(4.0f * FastMath.PI / weightAccum);
         }
+        // Duke: upstream left this out, so what PBR.glsllib reads was raw projection: 3.54 times too bright, its
+        // gradient upside down.
+        EnvMapUtils.prepareShCoefs(shCoef);
 
         img.dispose();
 

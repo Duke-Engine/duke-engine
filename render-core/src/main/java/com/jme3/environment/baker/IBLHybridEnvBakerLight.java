@@ -200,6 +200,8 @@ public class IBLHybridEnvBakerLight extends GenericEnvBaker implements IBLEnvBak
     @Override
     public void bakeSphericalHarmonicsCoefficients() {
         shCoef = EnvMapUtils.getSphericalHarmonicsCoefficents(getEnvMap());
+        // Duke: see IBLGLEnvBakerLight.
+        EnvMapUtils.prepareShCoefs(shCoef);
     }
 
     @Override
