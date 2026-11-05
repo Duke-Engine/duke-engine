@@ -20,6 +20,12 @@ import com.jme3.util.BufferUtils;
  */
 final class MappedSkin {
 
+    /**
+     * How much of a smooth highlight a texel keeps with no metal in it. Almost none: leather, skin and hair reflect a few
+     * percent, and on a colour as dark as his even that doubles what the sun alone gives; Lange's hair is about half rough.
+     */
+    static final float DIELECTRIC = 0.02f;
+
     /** How tight a highlight is; the strength per texel is the picture's. */
     static final float SHININESS = 24f;
 
@@ -41,7 +47,7 @@ final class MappedSkin {
             for (int x = 0; x < width; x++) {
                 raster.getPixel(x, y, texel);
                 float smooth = 1f - texel.g;
-                float strength = Math.min(1f, smooth * smooth * (0.3f + 0.7f * texel.b) * 1.5f);
+                float strength = Math.min(1f, smooth * smooth * (DIELECTRIC + (1f - DIELECTRIC) * texel.b) * 1.5f);
                 byte level = (byte) Math.round(strength * 255f);
                 bytes.put(level).put(level).put(level);
             }

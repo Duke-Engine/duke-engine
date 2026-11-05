@@ -179,8 +179,8 @@ final class Bodies {
                 // A marked light or shadow stays as unlit as the file made it; the rest is lit as it always was.
                 var dressed = blend != null && ModelBlends.unlit(loaded)
                         ? unlitMaterial(colours, coloured)
-                        : visual.keepsMaps ? mappedMaterial(loaded, colours, coloured)
-                        : creatureMaterial(colours, coloured);
+                        : visual.keepsMaps ? mappedMaterial(loaded, colours, coloured, visual.ambientShare)
+                        : creatureMaterial(colours, coloured, visual.ambientShare);
                 ModelBlends.carryOver(loaded, dressed, geometry, blend);
                 geometry.setMaterial(dressed);
             }
@@ -361,10 +361,15 @@ final class Bodies {
 
     /** Flat lighting over a kit's own colour map, tinted. */
     private Material creatureMaterial(com.jme3.texture.Texture skin, ColorRGBA colour) {
+        return creatureMaterial(skin, colour, CREATURE_AMBIENT);
+    }
+
+    /** The same, keeping {@code ambient} of its colour in the shade: see {@link Visuals.UnitVisual#shadeKeeps}. */
+    private Material creatureMaterial(com.jme3.texture.Texture skin, ColorRGBA colour, float ambient) {
         var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
         material.setBoolean("UseMaterialColors", true);
         material.setColor("Diffuse", colour);
-        material.setColor("Ambient", colour.mult(CREATURE_AMBIENT));
+        material.setColor("Ambient", colour.mult(ambient));
         material.setColor("Specular", ColorRGBA.Black); // kit art has no highlights
         material.setFloat("Shininess", 1f);
         if (skin != null) {
@@ -382,8 +387,8 @@ final class Bodies {
      * metallic-roughness picture as a highlight strength per texel (see {@link MappedSkin}). A picture the file
      * does not have is simply not there, and the piece is lit as any other is.
      */
-    private Material mappedMaterial(Material loaded, com.jme3.texture.Texture skin, ColorRGBA colour) {
-        var material = creatureMaterial(skin, colour);
+    private Material mappedMaterial(Material loaded, com.jme3.texture.Texture skin, ColorRGBA colour, float ambient) {
+        var material = creatureMaterial(skin, colour, ambient);
         if (loaded == null) {
             return material;
         }

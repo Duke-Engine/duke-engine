@@ -5,6 +5,12 @@ when it does, this page says exactly what to change and how.
 
 ## Unreleased
 
+- **A game may be played from the hero's shoulder**: `Visuals.shoulderHud(true)` takes the RTS hint of controls off the
+  foot, the bar over the hero's own head (the creature the status line's `hero=` names) and, with the RPG part, the hero
+  panel's bottom bar and its minimap socket, so the minimap sits in its corner and the game's canvas shows his health. Off
+  by default; every other creature keeps its bar. A unit may also keep more of its colour in the shade:
+  `UnitVisual.shadeKeeps(share)` (0.55 as always), and the highlight of a model that keeps its maps is almost nothing
+  where a texel has no metal in it, so hair and leather no longer shine.
 - **A model may keep its maps**: `UnitVisual.keepsMaps(true)` dresses the unit's model with its glTF normal map and a
   highlight made from its metallic-roughness picture (smooth or metal shines, cloth does not), on the client's own sun
   and flat ambient; the client still has no light probe, so nothing is lit as PBR. Emissive pictures are not drawn.
