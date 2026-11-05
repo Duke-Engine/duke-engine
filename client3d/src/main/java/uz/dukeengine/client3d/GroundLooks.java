@@ -25,6 +25,9 @@ final class GroundLooks {
     boolean paintInQuarters;
     int streamGround;
     Predicate<Object> streamsMap = _ -> true;
+    java.util.function.UnaryOperator<String> instancedScenery;
+    Predicate<String> scenerySunCasts = _ -> false;
+    float sunShadowsReach;
     final Map<String, Visuals.Strip> strips = new HashMap<>();
     final Map<String, Visuals.StreamLook> streamLooks = new LinkedHashMap<>();
 

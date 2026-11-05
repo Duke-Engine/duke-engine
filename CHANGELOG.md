@@ -5,6 +5,12 @@ when it does, this page says exactly what to change and how.
 
 ## Unreleased
 
+- **Scenery that looks real, and a wood that can be drawn**: a piece of scenery keeps its model's cut-out picture (glTF MASK), both
+  sides and each vertex's colour as a shade (`FoggedTerrain`: `AlphaDiscard`, `VertexShade`, a `PreShadow` technique).
+  `Visuals.instancedScenery(farOf)` draws a painted world's scenery a draw a model a chunk, instances written once, with a far
+  mesh past the camera's own chunks; `scenerySunCasts` names what casts the sun's shadow, `sunShadowsReach` how far they are
+  drawn. `wideWorldEyes(sight, remembered, forMap)` opens a third-person world further than the shroud's `VisionRange`, for the
+  picture alone. Ground cover's instances are written once too. Nothing changes until asked.
 - **The shoulder camera comes back behind the hero**: after a scene or a talk the game directed, and at the start,
   `ActionControls` turns the camera to look the way he faces, not only moves it to him. `BagScreen.onRequest(true)` draws
   the bag's panel only while `toggle()` has it up (and then it holds the keys, so the pointer is free); what is painted

@@ -539,6 +539,10 @@ final class DukeRtsApp extends SimpleApplication {
                 this::floorHeightAt);
 
         light.install(assetManager, viewPort, visuals.getThingSuns());
+        if (visuals.getInstancedScenery() != null) {
+            light.shadows().groupFor(0f); // scenery casts from the sun as it stands, whoever else does
+            light.shadows().reach(visuals.getSunShadowsReach());
+        }
 
         // Before the terrain, because rebuilding a world clears what is burning in
         // it and there has to be something there to clear.

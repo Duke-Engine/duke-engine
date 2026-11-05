@@ -810,6 +810,13 @@ final class Discovery {
                 && !solid.get(cellY * width + cellX);
     }
 
+    /** How brightly ground left behind is drawn on this map, for the fog's own where negative: see {@link Visuals#wideWorldEyes}. */
+    private float rememberedNow = -1f;
+
+    void remembersAt(float light) {
+        rememberedNow = light;
+    }
+
     private float rawLightAt(int cellX, int cellY) {
         if (cellX < 0 || cellY < 0 || cellX >= width || cellY >= height) {
             return 0f;
@@ -818,7 +825,7 @@ final class Discovery {
         if (visible.get(index)) {
             return fog.visibleLight();
         }
-        return explored.get(index) ? fog.rememberedLight() : fog.unseenLight();
+        return explored.get(index) ? (rememberedNow >= 0f ? rememberedNow : fog.rememberedLight()) : fog.unseenLight();
     }
 
     /**

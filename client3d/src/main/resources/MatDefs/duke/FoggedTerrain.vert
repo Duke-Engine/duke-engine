@@ -19,8 +19,11 @@ attribute vec2 inTexCoord;
 varying vec2 texCoord;
 #endif
 
-#if defined(VERTEX_ALPHA) || defined(VERTEX_LIGHT)
+#if defined(VERTEX_ALPHA) || defined(VERTEX_LIGHT) || defined(VERTEX_SHADE)
 attribute vec4 inColor;
+#endif
+#ifdef VERTEX_SHADE
+varying vec3 vertexShade;
 #endif
 #ifdef VERTEX_ALPHA
 varying float vertexAlpha;
@@ -62,6 +65,9 @@ void main() {
     #endif
     #ifdef VERTEX_LIGHT
     vertexLight = inColor.rgb;
+    #endif
+    #ifdef VERTEX_SHADE
+    vertexShade = inColor.rgb;
     #endif
 
     #ifdef BLENDED

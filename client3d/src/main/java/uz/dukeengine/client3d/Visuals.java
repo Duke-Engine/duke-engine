@@ -3359,6 +3359,40 @@ public final class Visuals {
         return ground.streamGround;
     }
 
+    /**
+     * A painted world's scenery drawn instanced, a draw a model a chunk, rather than a draw a piece: a thick wood is
+     * thousands of pieces. {@code farOf} names the model a piece is drawn with in a chunk away from the camera's own and
+     * the eight round it, null for the piece's own there too; it is asked of each model once. Off, as ever, until asked.
+     */
+    public Visuals instancedScenery(java.util.function.UnaryOperator<String> farOf) {
+        ground.instancedScenery = farOf;
+        return this;
+    }
+
+    public java.util.function.UnaryOperator<String> getInstancedScenery() {
+        return ground.instancedScenery;
+    }
+
+    /** Which models of the instanced scenery cast the sun's shadow; none until asked. */
+    public Visuals scenerySunCasts(java.util.function.Predicate<String> casts) {
+        ground.scenerySunCasts = casts == null ? _ -> false : casts;
+        return this;
+    }
+
+    public java.util.function.Predicate<String> getScenerySunCasts() {
+        return ground.scenerySunCasts;
+    }
+
+    /** How far from the camera the sun's shadows are drawn where scenery casts them, in units; 0 for as far as it sees. */
+    public Visuals sunShadowsReach(float units) {
+        ground.sunShadowsReach = units;
+        return this;
+    }
+
+    public float getSunShadowsReach() {
+        return ground.sunShadowsReach;
+    }
+
     /** How many cells round the camera {@code map}'s ground is built: {@link #streamGround}'s, or 0 for whole. */
     public int streamGroundFor(Object map) {
         return ground.streamGroundFor(map);
@@ -3375,6 +3409,29 @@ public final class Visuals {
     public Visuals fogStartsExplored(java.util.function.Predicate<Object> forMap) {
         sight.startsExplored = mapRule(forMap, false);
         return this;
+    }
+
+    /**
+     * What the player's eyes are on the maps {@code forMap} says, for the picture alone: a third-person world is not a
+     * floor plan under a shroud. The discovering unit opens {@code sightUnits} round it rather than its {@code VisionRange}
+     * and what it has left is drawn {@code rememberedLight} of full light; the simulation's sight is as it was. Every other
+     * map, and every map until this is asked, as the fog says.
+     */
+    public Visuals wideWorldEyes(float sightUnits, float rememberedLight, java.util.function.Predicate<Object> forMap) {
+        sight.wideSightUnits = sightUnits;
+        sight.wideRemembered = rememberedLight;
+        sight.wideEyes = mapRule(forMap, false);
+        return this;
+    }
+
+    /** How far the discovering unit opens {@code map}: {@link #wideWorldEyes}'s, or {@code own}, its VisionRange. */
+    float wideWorldSightFor(Object map, float own) {
+        return sight.wideEyes.test(map) ? sight.wideSightUnits : own;
+    }
+
+    /** How brightly {@code map} draws what is left behind: {@link #wideWorldEyes}'s, or negative for the fog's own. */
+    float wideWorldRememberedFor(Object map) {
+        return sight.wideEyes.test(map) ? sight.wideRemembered : -1f;
     }
 
     /** Whether {@code map} begins with every cell remembered — see {@link #fogStartsExplored}. */

@@ -24,6 +24,8 @@ final class ChunkStream {
      * it a step at a time well before it is seen, and never spends a frame on it.
      */
     static final long BUILD_NANOS_A_FRAME = 3_000_000L;
+    /** How many rings of chunks round the camera's draw a model itself rather than its far mesh. */
+    static final int NEAR_RINGS = 1;
     /** How many pieces a step of a chunk's building lays. */
     private static final int PIECES_A_STEP = 48;
 
@@ -47,6 +49,10 @@ final class ChunkStream {
     private Map<Integer, List<MapScenery>> sceneryByChunk = Map.of();
     /** The chunk being built a step at a time; null when none is. */
     private ChunkBuild inProgress;
+    /** The chunks whose scenery has a near and a far set of instances. */
+    private final Map<Integer, Scenery.Lod> lods = new java.util.HashMap<>();
+    /** The chunk the camera was over when the sets were last told which to show; none yet. */
+    private int lodCentre = -1;
 
     ChunkStream(Chunks chunks, Cells cells, KitPieces pieces, Scenery scenery, BlockGround blocks,
             CoverGrowth cover) {
@@ -76,6 +82,8 @@ final class ChunkStream {
         paint = null;
         built.clear();
         inProgress = null;
+        lods.clear();
+        lodCentre = -1;
     }
 
     /**
@@ -118,6 +126,7 @@ final class ChunkStream {
     }
 
     private void release(int chunk) {
+        lods.remove(chunk);
         chunks.drop(chunk);
         blocks.forget(chunk);
         built.clear(chunk);
@@ -151,11 +160,13 @@ final class ChunkStream {
         long until = System.nanoTime() + BUILD_NANOS_A_FRAME;
         while (true) {
             if (System.nanoTime() >= until && builtRound(centreX, centreY)) {
+                showLods(centreX, centreY);
                 return;
             }
             if (inProgress == null) {
                 int next = nearestUnbuilt(centreX, centreY, reach);
                 if (next < 0) {
+                    showLods(centreX, centreY);
                     return;
                 }
                 if (paint != null) {
@@ -168,6 +179,16 @@ final class ChunkStream {
                 inProgress = null;
             }
         }
+    }
+
+    /** Each chunk's scenery near or far, by how far it is from the camera's chunk: told only when that chunk changed. */
+    private void showLods(int centreX, int centreY) {
+        int centre = centreY * chunks.wide() + centreX;
+        if (centre == lodCentre) {
+            return;
+        }
+        lodCentre = centre;
+        lods.forEach((chunk, lod) -> lod.show(!chunks.far(chunk, centreX, centreY, NEAR_RINGS)));
     }
 
     /** Whether the chunk ({@code centreX}, {@code centreY}) and the eight round it that are on the map are built. */
@@ -215,11 +236,20 @@ final class ChunkStream {
         float oz = y0 * cell;
         var node = new Node("chunk");
         blocks.layChunk(chunk, grid, paint, x0, y0, chunks.lastX(chunk, grid), chunks.lastY(chunk, grid), node, ox, oz);
-        for (var piece : sceneryByChunk.getOrDefault(chunk, List.of())) {
-            var model = scenery.model(grid, piece, false);
-            if (model != null) {
-                model.move(-ox, 0f, -oz);
-                node.attachChild(model);
+        if (scenery.isInstanced()) {
+            var lod = scenery.layInstanced(grid, sceneryByChunk.getOrDefault(chunk, List.of()), ox, oz, node);
+            if (lod != null) {
+                lods.put(chunk, lod);
+                // Told at once, as its neighbours were: the camera may stay over its chunk a long while.
+                lod.show(lodCentre < 0 || !chunks.far(chunk, lodCentre % chunks.wide(), lodCentre / chunks.wide(), NEAR_RINGS));
+            }
+        } else {
+            for (var piece : sceneryByChunk.getOrDefault(chunk, List.of())) {
+                var model = scenery.model(grid, piece, false);
+                if (model != null) {
+                    model.move(-ox, 0f, -oz);
+                    node.attachChild(model);
+                }
             }
         }
         node.setLocalTranslation(ox, 0f, oz);

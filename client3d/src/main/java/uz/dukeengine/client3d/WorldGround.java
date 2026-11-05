@@ -91,6 +91,8 @@ final class WorldGround {
         groundLooks.forgetScorches(); // each made for the fog of the world it was laid in
         strips.clear(); // a new world lays its own
         terrain.streamWithin(visuals.streamGroundFor(game.getMapRecord()));
+        terrain.onMadeMaterial(groundLooks::adoptFogged);
+        terrain.instanceScenery(visuals.getInstancedScenery(), visuals.getScenerySunCasts());
         terrain.blendWith(visuals.getPaintBlend());
         terrain.quarterWith(visuals.isPaintInQuarters());
         terrain.hideScenery(removedScenery(game.getLogic())); // what a save carried felled
