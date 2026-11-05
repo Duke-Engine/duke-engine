@@ -45,6 +45,7 @@ public final class ActionControls implements ControlScheme {
     /** Where the followed unit is drawn, as the last steer saw it. */
     private float heroX = Float.NaN;
     private float heroY;
+    private float heroFacing = Float.NaN;
 
     private boolean holdMouse;
 
@@ -227,6 +228,7 @@ public final class ActionControls implements ControlScheme {
             var at = window.drawnAt(view.id());
             heroX = at == null ? view.x() : at[0];
             heroY = at == null ? view.y() : at[1];
+            heroFacing = view.orientation();
             eye.step(follow, window, at == null ? view.x() : at[0], at == null ? view.y() : at[1], view.orientation(),
                     view.moving(), panned, window.time(), tpf);
             return;
@@ -263,6 +265,7 @@ public final class ActionControls implements ControlScheme {
         }
         if (window.time() - placedAt > RETURN_AFTER && !Float.isNaN(heroX)) {
             window.lookAt(heroX, heroY); // the screen was the game's: back behind him at once, not flown to him
+            window.turnBy(turnBehind(heroFacing, window.yaw())); // and looking the way he faces, as he starts
             boom.forget();
         }
         placedAt = window.time();
@@ -282,6 +285,18 @@ public final class ActionControls implements ControlScheme {
         float out = boom.lengthAfter(shoulder, length, room, tpf);
         eye.setLocation(focus.add(way.mult(out)).addLocal(knock));
         eye.lookAtDirection(pose.gaze(), Vector3f.UNIT_Y);
+    }
+
+    /**
+     * How far the camera at {@code yaw} turns to look the way a hero facing {@code facing} does (radians, 0 along the
+     * map's +x, +y toward its foot; the camera's yaw 0 looks up the map): the short way, 0 for a facing not known.
+     */
+    static float turnBehind(float facing, float yaw) {
+        if (Float.isNaN(facing)) {
+            return 0f;
+        }
+        float turn = (float) Math.atan2(-Math.cos(facing), -Math.sin(facing)) - yaw;
+        return (float) Math.atan2(Math.sin(turn), Math.cos(turn));
     }
 
     /** The held keys' direction, told the game when it changes. */

@@ -218,4 +218,15 @@ class ShoulderCameraTest {
         controls.frame(1f / 60f);
         assertEquals(-12f * DEG, window.pitch, 1e-6f);
     }
+
+    /** After a scene the game directed, the camera comes back looking the way he faces: behind him, whichever way that is. */
+    @Test
+    void theCameraTurnsBehindAHeroWhoFacesEastOrSouthTheShortWay() {
+        assertEquals((float) -Math.PI / 2f, ActionControls.turnBehind(0f, 0f), 1e-5f, "east: the gaze (1, 0)");
+        assertEquals((float) Math.PI, Math.abs(ActionControls.turnBehind((float) Math.PI / 2f, 0f)), 1e-5f,
+                "south, from the camera looking north: half a turn");
+        assertEquals(0f, ActionControls.turnBehind((float) -Math.PI / 2f, 0f), 1e-5f, "north: already behind him");
+        assertEquals(0f, ActionControls.turnBehind(Float.NaN, 1f), "no facing known: no turn");
+        assertEquals(0.2f, ActionControls.turnBehind((float) -Math.PI / 2f, -0.2f), 1e-5f, "the short way round");
+    }
 }
