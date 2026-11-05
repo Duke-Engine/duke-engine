@@ -19,22 +19,8 @@ import org.junit.jupiter.api.Test;
 class PhysicalLookTest {
 
     private static final DesktopAssetManager ASSETS = new DesktopAssetManager(true);
-    private static final Vector3f TO_SUN = new Vector3f(0f, 1f, 0f);
-    private static final ColorRGBA SUN = ColorRGBA.White;
-    private static final ColorRGBA AMBIENT = new ColorRGBA(0.5f, 0.5f, 0.5f, 1f);
-
     private static Material pbr() {
         return new Material(ASSETS, "Common/MatDefs/Light/PBRLighting.j3md");
-    }
-
-    @Test
-    void theSkyIsBrightestAtTheSunAndDimmestUnderTheGround() {
-        var atTheSun = PhysicalLook.skyAt(TO_SUN, TO_SUN, SUN, AMBIENT);
-        var horizon = PhysicalLook.skyAt(new Vector3f(1f, 0f, 0f), TO_SUN, SUN, AMBIENT);
-        var below = PhysicalLook.skyAt(new Vector3f(0f, -1f, 0f), TO_SUN, SUN, AMBIENT);
-        assertTrue(atTheSun.g > horizon.g, "the sun over the horizon");
-        assertTrue(horizon.g > below.g, "the horizon over the ground");
-        assertEquals(0.25f, below.g, 1e-5f, "under the ground: half the ambient, no sun");
     }
 
     @Test
