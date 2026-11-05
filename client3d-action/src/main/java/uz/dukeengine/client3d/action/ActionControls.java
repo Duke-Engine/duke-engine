@@ -273,18 +273,46 @@ public final class ActionControls implements ControlScheme {
         float feet = window.floorHeight(at[0], at[1]);
         var focus = new Vector3f(at[0], boom.heightAfter(shoulder, feet + shoulder.lookHeight(), tpf), at[1]);
         var pose = shoulder.pose(focus, window.yaw(), window.pitch());
+        float length = pose.reach(focus);
+        var way = pose.eye().subtract(focus).normalizeLocal();
+        float out = boom.lengthAfter(shoulder, length, room(eye, focus, pose), tpf);
+        eye.setLocation(focus.add(way.mult(out)).addLocal(knock));
+        eye.lookAtDirection(pose.gaze(), Vector3f.UNIT_Y);
+    }
+
+    /**
+     * The game's own view kept clear as his is: the line from his chest height over {@code target} to the eye run through
+     * the scene and over the ground, the eye pulled in along it at once where something stands in the way, its gaze kept.
+     */
+    @Override
+    public void placeClear(Camera eye, Vector3f target, float tpf) {
+        if (shoulder == null || window == null) {
+            return;
+        }
+        var focus = target.add(0f, shoulder.lookHeight(), 0f);
+        var from = eye.getLocation().clone();
+        float length = from.distance(focus);
+        if (length < 1e-3f) {
+            return;
+        }
+        var pose = new ShoulderCamera.Pose(from, eye.getDirection().clone(), eye.getLeft().negate(), eye.getUp().clone());
+        float room = room(eye, focus, pose);
+        if (room < length) {
+            eye.setLocation(focus.add(from.subtract(focus).normalizeLocal().multLocal(room)));
+        }
+    }
+
+    /** How far out from {@code focus} toward {@code pose}'s eye the scene and the ground leave the eye room to stand. */
+    private float room(Camera eye, Vector3f focus, ShoulderCamera.Pose pose) {
         float near = eye.getFrustumNear();
         float across = eye.getFrustumRight();
         float up = eye.getFrustumTop();
         float length = pose.reach(focus);
         var way = pose.eye().subtract(focus).normalizeLocal();
         float stand = (float) Math.sqrt(near * near + across * across + up * up) + ShoulderCamera.CLEARANCE;
-        float room = Math.min(shoulder.roomFor(focus, pose, near, across, up, window::clearRun),
+        return Math.min(shoulder.roomFor(focus, pose, near, across, up, window::clearRun),
                 ShoulderCamera.groundRun(length, along -> focus.y + way.y * along
                         - window.floorHeight(focus.x + way.x * (float) along, focus.z + way.z * (float) along) - stand));
-        float out = boom.lengthAfter(shoulder, length, room, tpf);
-        eye.setLocation(focus.add(way.mult(out)).addLocal(knock));
-        eye.lookAtDirection(pose.gaze(), Vector3f.UNIT_Y);
     }
 
     /**

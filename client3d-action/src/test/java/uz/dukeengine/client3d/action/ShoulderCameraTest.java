@@ -140,6 +140,29 @@ class ShoulderCameraTest {
         assertTrue(out > toEye && out < open.distance(new Vector3f(100f, 10f, 100f)), "eased out, not snapped: " + out);
     }
 
+    /** The game's own close view (a talk) kept clear as his is: pulled in at once by a wall, its gaze kept; else left. */
+    @Test
+    void aGamesViewThatAsksToBeKeptClearIsPulledInByAWall() {
+        var window = new TestWindow();
+        var controls = new ActionControls().shoulder(LOOK);
+        controls.attach(window);
+        var eye = new Camera(1280, 720);
+        eye.setFrustumPerspective(45f, 16f / 9f, 1f, 1000f);
+        var target = new Vector3f(100f, 0f, 100f);
+        eye.setLocation(new Vector3f(100f, 26f, 165f));
+        eye.lookAt(target, Vector3f.UNIT_Y);
+        var gaze = eye.getDirection().clone();
+
+        controls.placeClear(eye, target, 1f / 60f);
+        assertEquals(165f, eye.getLocation().z, 1e-3f, "nothing in the way: where the game put it");
+
+        window.wallAt = 20f;
+        controls.placeClear(eye, target, 1f / 60f);
+        float toEye = eye.getLocation().distance(target.add(0f, LOOK.lookHeight(), 0f));
+        assertEquals(20f + 1f - ShoulderCamera.CLEARANCE, toEye, 1e-2f, "short of the wall");
+        assertEquals(0f, eye.getDirection().distance(gaze), 1e-4f, "looking the way it looked");
+    }
+
     @Test
     void theEyeStaysOverTheGroundWhenItWouldGoUnderIt() {
         var window = new TestWindow();

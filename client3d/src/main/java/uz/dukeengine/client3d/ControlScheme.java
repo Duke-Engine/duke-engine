@@ -196,6 +196,14 @@ public interface ControlScheme {
     default void place(Camera eye, Vector3f knock, float tpf) {
     }
 
+    /**
+     * Each frame the game's own camera is on the screen and asks to be kept clear ({@code GameCamera.keepClear}), after
+     * the client placed the eye looking at {@code target}: the scheme may pull it in out of what stands in the way, as it
+     * keeps its own camera. Nothing by default.
+     */
+    default void placeClear(Camera eye, Vector3f target, float tpf) {
+    }
+
     /** The left button on the world, nothing armed: true where the scheme took it, false for the client's selecting. */
     default boolean left(boolean pressed) {
         return false;

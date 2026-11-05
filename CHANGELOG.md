@@ -5,6 +5,10 @@ when it does, this page says exactly what to change and how.
 
 ## Unreleased
 
+- **The game's own camera may be kept out of the walls**: `GameCamera.keepClear(true)` asks the client's scheme to pull
+  the eye the game drives in toward what it looks at where standing scenery or the ground is in the way, its gaze kept
+  (`ControlScheme.placeClear`, nothing by default); `ActionControls` does it with its shoulder camera's own collision. Off
+  again at `release`. A talk filmed close is what it is for; a wide cut scene leaves it off.
 - **Scenery that looks real, and a wood that can be drawn**: a piece of scenery keeps its model's cut-out picture (glTF MASK), both
   sides and each vertex's colour as a shade (`FoggedTerrain`: `AlphaDiscard`, `VertexShade`, a `PreShadow` technique).
   `Visuals.instancedScenery(farOf)` draws a painted world's scenery a draw a model a chunk, instances written once, with a far

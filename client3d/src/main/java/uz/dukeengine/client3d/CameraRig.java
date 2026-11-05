@@ -171,6 +171,8 @@ final class CameraRig {
             var knock = placeTheCamera(tpf);
             if (directed == null) {
                 scheme.place(cam, knock, tpf); // the game's own camera is never the scheme's to move
+            } else if (game.camera().keepsClear()) {
+                scheme.placeClear(cam, new Vector3f(camera.targetX(), cameraHeight, camera.targetZ()), tpf);
             }
         }
         veil.show(game.camera().screen(), cam.getWidth(), cam.getHeight());
