@@ -114,6 +114,8 @@ public final class Visuals {
         final java.util.Map<String, java.util.List<Pick>> rolePicks = new java.util.LinkedHashMap<>();
         /** Clips it needs for something other than standing, walking and dying. */
         final java.util.List<String> otherAnims = new java.util.ArrayList<>();
+        /** The seconds a busy clip is played fitted to, by clip: see {@link #busyFitted}. */
+        final java.util.Map<String, Float> busyFits = new java.util.HashMap<>();
         String fireSound;
         String dieSound;
         Colour colour; // null = the owning player's colour
@@ -1574,6 +1576,23 @@ public final class Visuals {
                 picks = rolePicks.get("die");
             }
             return picks == null ? dieAnimFor(deathType) : Pick.draw(picks, thing, frame, null);
+        }
+
+        /**
+         * The clip {@code clip} played once, from its start to its end, over {@code seconds} when this creature is busy at
+         * it ({@code GameObject.busy}) — sped up or slowed to fit the frames the game gave the work, where the clip is
+         * made at a length of its own. A busy clip nobody fits is looped at its own pace, as it always was.
+         */
+        public UnitVisual busyFitted(String clip, float seconds) {
+            if (clip != null && !clip.isBlank() && seconds > 0f) {
+                busyFits.put(clip, seconds);
+            }
+            return this;
+        }
+
+        /** The seconds {@code clip} is fitted to when this creature is busy at it, or 0 where it is played as it is. */
+        public float busyFitOf(String clip) {
+            return busyFits.getOrDefault(clip, 0f);
         }
 
         /**

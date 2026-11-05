@@ -1,6 +1,8 @@
 package uz.dukeengine.client3d.action;
 
 import com.jme3.font.BitmapText;
+import com.jme3.math.Vector3f;
+import com.jme3.renderer.Camera;
 import com.jme3.scene.Spatial;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +36,15 @@ public final class ActionControls implements ControlScheme {
     private final CameraFollow.Eye eye = new CameraFollow.Eye();
     /** The pitch the follow was at when its tilt began, which the mouse tilts it within. */
     private float orbitPitch = Float.NaN;
+
+    private ShoulderCamera shoulder;
+    private final ShoulderCamera.Boom boom = new ShoulderCamera.Boom();
+    /** Whether the shoulder camera has taken its first pitch, and when it last placed the eye. */
+    private boolean pitched;
+    private float placedAt = Float.NEGATIVE_INFINITY;
+    /** Where the followed unit is drawn, as the last steer saw it. */
+    private float heroX = Float.NaN;
+    private float heroY;
 
     private boolean holdMouse;
 
@@ -114,6 +125,18 @@ public final class ActionControls implements ControlScheme {
         return this;
     }
 
+    /**
+     * The camera behind his right shoulder — see {@link ShoulderCamera}: the held mouse turns and tilts it round him
+     * within the look's limits, it eases after his first unit, and it is pulled in where a wall or the ground stands
+     * between him and it. Replaces {@link #follow}; null puts the camera as {@code follow} has it. The game's own camera
+     * (a cut scene, a talk) still takes the screen when it likes, and gives it back.
+     */
+    public ActionControls shoulder(ShoulderCamera look) {
+        this.shoulder = look;
+        this.follow = look == null ? CameraFollow.NONE : look.follow();
+        return this;
+    }
+
     /** The camera kept on one of his units — see {@link CameraFollow}; {@link CameraFollow#NONE} lets it go. */
     public ActionControls follow(CameraFollow look) {
         this.follow = look == null ? CameraFollow.NONE : look;
@@ -177,6 +200,10 @@ public final class ActionControls implements ControlScheme {
 
     @Override
     public void frame(float tpf) {
+        if (shoulder != null && !pitched) {
+            pitched = true;
+            window.tilt(shoulder.pitchStart() - window.pitch(), shoulder.pitchStart(), 0f);
+        }
         orbit();
         if (aim != null) {
             aim.nudge(window.mouseMoved()[1]); // up and down: further and nearer
@@ -198,6 +225,8 @@ public final class ActionControls implements ControlScheme {
                 continue;
             }
             var at = window.drawnAt(view.id());
+            heroX = at == null ? view.x() : at[0];
+            heroY = at == null ? view.y() : at[1];
             eye.step(follow, window, at == null ? view.x() : at[0], at == null ? view.y() : at[1], view.orientation(),
                     view.moving(), panned, window.time(), tpf);
             return;
@@ -207,16 +236,52 @@ public final class ActionControls implements ControlScheme {
     /** The follow turned round him by the held mouse, and tilted within its band — see {@link CameraFollow#orbiting}. */
     private void orbit() {
         if (!window.mouseHeld() || !follow.follows() || follow.orbitSensitivity() <= 0f) {
-            return;
+            return; // a screen, a menu or Alt has the mouse: the camera stands as it is
         }
         var moved = window.mouseMoved();
         window.turnBy(follow.turnOf(moved[0]));
+        if (shoulder != null) {
+            float pitch = shoulder.tilted(window.pitch(), moved[1]);
+            window.tilt(pitch - window.pitch(), pitch, 0f); // the look's limits, not the follow's band
+            return;
+        }
         if (follow.pitchBand() > 0f) {
             if (Float.isNaN(orbitPitch)) {
                 orbitPitch = window.pitch();
             }
             window.tilt(-moved[1] * follow.orbitSensitivity(), orbitPitch, follow.pitchBand());
         }
+    }
+
+    /** How long the shoulder camera must have gone unplaced for the screen to have been the game's: some frames. */
+    private static final float RETURN_AFTER = 0.25f;
+
+    @Override
+    public void place(Camera eye, Vector3f knock, float tpf) {
+        if (shoulder == null || window == null) {
+            return;
+        }
+        if (window.time() - placedAt > RETURN_AFTER && !Float.isNaN(heroX)) {
+            window.lookAt(heroX, heroY); // the screen was the game's: back behind him at once, not flown to him
+            boom.forget();
+        }
+        placedAt = window.time();
+        var at = window.lookingAt();
+        float feet = window.floorHeight(at[0], at[1]);
+        var focus = new Vector3f(at[0], boom.heightAfter(shoulder, feet + shoulder.lookHeight(), tpf), at[1]);
+        var pose = shoulder.pose(focus, window.yaw(), window.pitch());
+        float near = eye.getFrustumNear();
+        float across = eye.getFrustumRight();
+        float up = eye.getFrustumTop();
+        float length = pose.reach(focus);
+        var way = pose.eye().subtract(focus).normalizeLocal();
+        float stand = (float) Math.sqrt(near * near + across * across + up * up) + ShoulderCamera.CLEARANCE;
+        float room = Math.min(shoulder.roomFor(focus, pose, near, across, up, window::clearRun),
+                ShoulderCamera.groundRun(length, along -> focus.y + way.y * along
+                        - window.floorHeight(focus.x + way.x * (float) along, focus.z + way.z * (float) along) - stand));
+        float out = boom.lengthAfter(shoulder, length, room, tpf);
+        eye.setLocation(focus.add(way.mult(out)).addLocal(knock));
+        eye.lookAtDirection(pose.gaze(), Vector3f.UNIT_Y);
     }
 
     /** The held keys' direction, told the game when it changes. */

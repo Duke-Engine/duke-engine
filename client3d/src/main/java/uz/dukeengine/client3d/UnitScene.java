@@ -73,6 +73,8 @@ final class UnitScene {
     private java.util.Set<Integer> wasSelected = java.util.Set.of();
     /** Every drawn thing's barrels: where its shots come out, its flashes and its kick — see {@link Barrels}. */
     private final Barrels barrels = new Barrels();
+    /** Things drawn between the simulation's steps, or null where they are drawn where the last step put them. */
+    private MotionSmoothing smoothing;
     /** Every drawn vehicle's treads and wheels, run as it moves — see {@link RunningGear}. */
     private final RunningGear runningGear = new RunningGear();
     private final TurretBones turretBones = new TurretBones();
@@ -217,6 +219,18 @@ final class UnitScene {
     /** A thing's barrel fired from {@code slot}: it flashes and kicks; the bone it fired from, or null. */
     Spatial fire(int shooter, int slot) {
         return barrels.fire(shooter, slot);
+    }
+
+    /** Draw things between the simulation's steps, or where the last one put them — see {@link MotionSmoothing}. */
+    void smoothMotion(boolean on) {
+        smoothing = on ? new MotionSmoothing() : null;
+    }
+
+    /** Where a thing is drawn this frame. */
+    private Vector3f placed(UnitView view) {
+        var where = UnitPlacement.where(view, floor::at);
+        return smoothing == null ? where
+                : smoothing.at(view.id(), snapshot.get().frame(), where, timer.getTimeInSeconds());
     }
 
     /** The barrels' flashes and kicks eased on. */
@@ -417,6 +431,9 @@ final class UnitScene {
             groundPictures.forget(entry.getKey());
             wordTints.forget(entry.getKey());
             drawnFlash.forget(entry.getKey());
+            if (smoothing != null) {
+                smoothing.forget(entry.getKey());
+            }
             stealthLook.forget(entry.getKey());
             selectionFlash.forget(entry.getKey());
             var node = entry.getValue();
@@ -1007,7 +1024,7 @@ final class UnitScene {
                     node.body);
             node.boneSystems.drive(view, timer.getTimePerFrame() / Particles.FRAME_SECONDS);
         }
-        node.root.setLocalTranslation(UnitPlacement.where(view, floor::at));
+        node.root.setLocalTranslation(placed(view));
         node.root.setLocalRotation(UnitPlacement.turn(view));
         node.root.setLocalScale(UnitPlacement.scale(view));
         node.litBy = light.scales().dress(node.root, node.litBy, visual.lightGroup);
@@ -1162,7 +1179,13 @@ final class UnitScene {
         var busy = view.busyClip();
         if (busy != null) {
             if (!busy.equals(node.currentAnim)) {
-                play(node, view.looksAs(), busy, true); // its work, looped; a clip it has not is played as nothing
+                var fit = visual.busyFits.get(busy);
+                play(node, view.looksAs(), busy, fit == null); // its work, looped; a clip it has not is played as nothing
+                var clip = fit == null || node.composer == null ? null : node.composer.getAnimClip(busy);
+                var action = clip == null ? null : node.composer.getCurrentAction();
+                if (action != null) {
+                    action.setSpeed((float) clip.getLength() / fit); // once through in the time the game gave the work
+                }
             }
             return;
         }
@@ -1347,7 +1370,7 @@ final class UnitScene {
                 }
                 continue;
             }
-            mount.root.setLocalTranslation(UnitPlacement.where(node.view, floor::at));
+            mount.root.setLocalTranslation(placed(node.view));
             mount.root.setLocalRotation(UnitPlacement.turn(node.view));
             if (Riders.seat(node.root, mount.body, riding.bone(), new Vector3f(riding.x(), riding.z(), riding.y()))) {
                 riderOf.put(mount.view.id(), node);

@@ -789,6 +789,11 @@ final class DukeRtsApp extends SimpleApplication {
         terrainNode.setCullHint(Spatial.CullHint.Always);
     }
 
+    /** Things drawn between the simulation's steps — see {@link Duke3D#smoothMotion}. */
+    void smoothMotion(boolean on) {
+        unitScene.smoothMotion(on);
+    }
+
     /** The player's own eyes in place of the RTS camera — see {@link Duke3D#firstPerson}. */
     void firstPerson(FirstPersonCamera eyes) {
         controls(eyes);
@@ -1014,6 +1019,11 @@ final class DukeRtsApp extends SimpleApplication {
         @Override
         public float reachOf(uz.dukeengine.core.thing.ObjectId id) {
             return DukeRtsApp.this.reachOf(id);
+        }
+
+        @Override
+        public float clearRun(Vector3f from, Vector3f way, float length, float minHeight) {
+            return SceneRay.run(terrainNode, from, way, length, minHeight);
         }
     };
 

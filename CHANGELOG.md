@@ -18,6 +18,22 @@ when it does, this page says exactly what to change and how.
   marks such a unit as walking, so a combo's or a roll's clip is shown while a direction key is held (the walk was
   already held and went on after). Only a steered unit (`Stride`) is affected.
 - **`Dodge` is `Saveable`**: a snapshot taken mid-roll keeps the roll.
+- **A camera behind the hero's right shoulder**: `ActionControls.shoulder(new ShoulderCamera(...))`. The held mouse
+  turns it and tilts it between a pitch under the ground's and one short of overhead; it eases after the hero's first
+  unit (and so hides the simulation's steps and a swing's lunge) with no lag on the mouse's turn; and each frame the
+  line from the hero to the eye, and one past each corner of the near plane, is run through the map's standing
+  scenery (the meshes, so an arched gate is open and a wall of eighty units is a wall; creatures and anything lower
+  than `blockerHeight` are passed through) and the ground, and the eye stands short of the first thing — at once on the
+  way in, eased on the way out. A screen, a menu or Alt freezes it (the mouse is not held); the game's own camera (a cut
+  scene, a talk) still takes the screen, and the camera is back behind him when it gives it up. `ControlScheme.place(
+  eye, knock, tpf)` is the hook (called only when the camera is the player's) and `Context.clearRun(from, way, length,
+  minHeight)` the ray; both default to nothing. Games that name no shoulder camera are unchanged.
+- **`Duke3D.smoothMotion(true)` draws things between the simulation's steps** (`MotionSmoothing`): each on its way from
+  where it was drawn to where the last step put it, over the time steps have taken, so a hero is no longer drawn in
+  thirty jumps a second beside a smooth camera. A step behind the simulation, a jump over 24 units drawn at once. Off by
+  default.
+- **`UnitVisual.busyFitted(clip, seconds)`**: a busy clip (`GameObject.busy`) of a creature is played once through in
+  that time, for work whose clip has a length of its own. A busy clip nobody fits loops at its own pace, as before.
 
 ## 0.9.0
 

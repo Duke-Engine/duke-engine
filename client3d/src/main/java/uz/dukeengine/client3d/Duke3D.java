@@ -499,6 +499,16 @@ public final class Duke3D {
     }
 
     /**
+     * Draw every thing between the simulation's thirty steps a second, a step behind it, instead of standing it where the
+     * last step put it until the next: for a camera that follows a hero smoothly, beside which a hero moving in steps
+     * shudders. Off, as ever. From any thread.
+     */
+    public Duke3D smoothMotion(boolean on) {
+        later(client -> client.smoothMotion(on));
+        return this;
+    }
+
+    /**
      * The player's own eyes, standing in the world, in place of the RTS camera — see {@link FirstPersonCamera}. They
      * are the controls too ({@link #controls}): the game keeps the same object to ask what is pointed at and to freeze
      * it.
