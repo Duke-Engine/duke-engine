@@ -8,6 +8,10 @@ when it does, this page says exactly what to change and how.
 The renderer is the engine's own: jMonkeyEngine 3.7.0's code now lives here as the `render-*` modules, published as
 `uz.duke-engine:render-*`, and nothing draws differently yet. See `render-core/README.md`.
 
+A game can ask for physically based drawing with `Visuals.physicallyBased(true)`: models keep the PBR maps of their
+glTF files, lit by a probe of the world's sky, under HDR, ambient occlusion, bloom, tone mapping and anti-aliasing.
+Off by default.
+
 ### What to change
 
 - **A game that names `org.jmonkeyengine:jme3-*` itself** switches to the same module under `uz.duke-engine:render-*`

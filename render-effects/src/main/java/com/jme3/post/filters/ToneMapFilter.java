@@ -50,6 +50,8 @@ import java.io.IOException;
  */
 public class ToneMapFilter extends Filter {
 
+    private float exposure = 1f;
+
     private static final Vector3f DEFAULT_WHITEPOINT = new Vector3f(11.2f, 11.2f, 11.2f);
     
     private Vector3f whitePoint = DEFAULT_WHITEPOINT.clone();
@@ -80,6 +82,7 @@ public class ToneMapFilter extends Filter {
     protected void initFilter(AssetManager manager, RenderManager renderManager, ViewPort vp, int w, int h) {
         material = new Material(manager, "Common/MatDefs/Post/ToneMap.j3md");
         material.setVector3("WhitePoint", whitePoint);
+        material.setFloat("Exposure", exposure);
     }
 
     @Override
@@ -104,6 +107,17 @@ public class ToneMapFilter extends Filter {
      * 
      * @return The intensity of the brightest part of the scene. 
      */
+    /**
+     * What the picture is multiplied by before the curve, which darkens the middle of its range: about 1.5 keeps a
+     * mid-tone colour where it was. 1 is the curve alone.
+     */
+    public void setExposure(float exposure) {
+        this.exposure = exposure;
+        if (material != null) {
+            material.setFloat("Exposure", exposure);
+        }
+    }
+
     public Vector3f getWhitePoint() {
         return whitePoint;
     }

@@ -14,8 +14,10 @@ vec3 FilmicCurve(in vec3 x) {
 
 // whitePoint should be 11.2
 
+uniform float m_Exposure;
+
 vec3 ToneMap_Filmic(vec3 color, vec3 whitePoint) {
-    return FilmicCurve(color) / FilmicCurve(whitePoint);
+    return FilmicCurve(color * m_Exposure) / FilmicCurve(whitePoint);
 }
 
 uniform vec3 m_WhitePoint;

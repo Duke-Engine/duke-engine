@@ -12,6 +12,11 @@ MaterialDef PBR Lighting {
         Float Roughness : 1.0        
         // Base material color
         Color BaseColor : 1.0 1.0 1.0 1.0
+
+        // Added to the picture over its base colour: a hit flash.
+        Color Ambient
+        // The ambient the probe already stands for: only the ambient lights above it are added, a thing's tint.
+        Color SceneAmbient
         // The emissive color of the object
         Color Emissive        
         // the emissive power
@@ -152,6 +157,8 @@ MaterialDef PBR Lighting {
         Defines {  
             BOUND_DRAW_BUFFER: BoundDrawBuffer       
             BASECOLORMAP : BaseColorMap            
+            AMBIENT : Ambient
+            SCENE_AMBIENT : SceneAmbient
             NORMALMAP : NormalMap
             NORMALSCALE : NormalScale
             METALLICMAP : MetallicMap

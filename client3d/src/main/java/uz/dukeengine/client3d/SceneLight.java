@@ -43,6 +43,8 @@ final class SceneLight {
     private com.jme3.material.MatParamOverride sunDirectionOverride;
     private com.jme3.material.MatParamOverride ambientShiftOverride;
     private com.jme3.material.MatParamOverride sunShiftOverride;
+    /** The ambient every thing is lit by, so a physically based one adds only the tints above it. */
+    private com.jme3.material.MatParamOverride sceneAmbient;
     /** The scene's lights scaled for the groups of things lit more or less brightly; see {@link LightScales}. */
     private final LightScales scales = new LightScales();
 
@@ -86,6 +88,9 @@ final class SceneLight {
         sunShadows.colour(shadowColour);
         rootNode.addLight(sun);
         rootNode.addLight(ambient);
+        sceneAmbient = new com.jme3.material.MatParamOverride(com.jme3.shader.VarType.Vector4, "SceneAmbient",
+                ambientColour.clone());
+        rootNode.addMatParamOverride(sceneAmbient);
         var thingLights = new java.util.ArrayList<DirectionalLight>();
         for (var more : thingSuns) {
             var thingLight = new DirectionalLight(more.direction(), more.light()); // the things', not the ground's
@@ -107,9 +112,9 @@ final class SceneLight {
      * the sun as it now stands, so what is relit here is only the two scene lights themselves. A world
      * that asks for the sun it already has changes nothing, which is every game that sets its sun once.
      */
-    void adopt(Sunlight light) {
+    boolean adopt(Sunlight light) {
         if (light.equals(litBy)) {
-            return;
+            return false;
         }
         litBy = light;
         sunDirection = light.direction();
@@ -124,9 +129,11 @@ final class SceneLight {
         }
         if (ambient != null) {
             ambient.setColor(ambientColour);
+            sceneAmbient.setValue(ambientColour.clone());
         }
         lightTheHour(); // a world built anew keeps the game's hour over its own sun
         scales.refresh();
+        return true;
     }
 
     void shadows(boolean on) {
@@ -173,6 +180,7 @@ final class SceneLight {
         }
         if (ambient != null) {
             ambient.setColor(now.ambient());
+            sceneAmbient.setValue(now.ambient().clone());
         }
         scales.refresh();
         if (sunShadows != null) {

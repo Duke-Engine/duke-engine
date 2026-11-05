@@ -2454,6 +2454,22 @@ public final class Visuals {
         return this;
     }
 
+    /**
+     * Models drawn in the physically based material their glTF file gives them, lit by a probe of this world's sky, the
+     * picture in HDR with ambient occlusion, bloom, tone mapping and anti-aliasing over it. The ground and the tiles
+     * stay as they are drawn. Off by default, where every game looks as it did.
+     */
+    public Visuals physicallyBased(boolean on) {
+        physicallyBased = on;
+        return this;
+    }
+
+    public boolean isPhysicallyBased() {
+        return physicallyBased;
+    }
+
+    private boolean physicallyBased;
+
     public Sunlight getSunlight() {
         return ground.sunlight;
     }

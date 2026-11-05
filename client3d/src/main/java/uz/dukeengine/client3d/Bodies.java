@@ -8,6 +8,8 @@ import com.jme3.math.Quaternion;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
+import com.jme3.scene.VertexBuffer;
+import com.jme3.util.mikktspace.MikktspaceTangentGenerator;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,6 +26,11 @@ final class Bodies {
     private final AssetManager assetManager;
     private final MissingAssets missing;
     private final ProjectileEffects effects;
+
+    Bodies(AssetManager assetManager, MissingAssets missing, ProjectileEffects effects, boolean physicallyBased) {
+        this(assetManager, missing, effects);
+        this.physicallyBased = physicallyBased;
+    }
 
     Bodies(AssetManager assetManager, MissingAssets missing, ProjectileEffects effects) {
         this.assetManager = assetManager;
@@ -178,7 +185,7 @@ final class Bodies {
                 var coloured = ownColour(loaded, colours, modelPath).mult(tint);
                 // A marked light or shadow stays as unlit as the file made it; the rest is lit as it always was.
                 var dressed = blend != null && ModelBlends.unlit(loaded)
-                        ? unlitMaterial(colours, coloured) : creatureMaterial(colours, coloured);
+                        ? unlitMaterial(colours, coloured) : litMaterial(geometry, loaded, colours, coloured);
                 ModelBlends.carryOver(loaded, dressed, geometry, blend);
                 geometry.setMaterial(dressed);
             }
@@ -306,7 +313,7 @@ final class Bodies {
             if (spatial instanceof Geometry geometry) {
                 var loaded = geometry.getMaterial();
                 var colours = skinOf(loaded);
-                geometry.setMaterial(creatureMaterial(colours, ownColour(loaded, colours, one.path).mult(tint)));
+                geometry.setMaterial(litMaterial(geometry, loaded, colours, ownColour(loaded, colours, one.path).mult(tint)));
             }
         });
         held.setLocalScale(one.scale);
@@ -356,6 +363,33 @@ final class Bodies {
 
     /** The names a material holds its base colour's picture by, in the order asked. */
     private static final String[] SKIN_ROLES = {"BaseColorMap", "DiffuseMap", "ColorMap"};
+
+    /** {@link Visuals#physicallyBased}: whether a model keeps the physically based material its file gave it. */
+    private boolean physicallyBased;
+
+    private Material litMaterial(Geometry geometry, Material loaded, com.jme3.texture.Texture skin, ColorRGBA colour) {
+        if (!physicallyBased || loaded == null
+                || !loaded.getMaterialDef().getAssetName().endsWith("PBRLighting.j3md")) {
+            return creatureMaterial(skin, colour);
+        }
+        var mesh = geometry.getMesh();
+        if (loaded.getTextureParam("NormalMap") != null && mesh.getBuffer(VertexBuffer.Type.TexCoord) != null
+                && mesh.getBuffer(VertexBuffer.Type.Tangent) == null) {
+            MikktspaceTangentGenerator.generate(geometry); // on the shared mesh: only the first of a model pays
+        }
+        return physicalMaterial(loaded, skin, colour);
+    }
+
+    /** A model's own physically based material in the look's colours, its own copy: see {@link #dressModel}. */
+    static Material physicalMaterial(Material loaded, com.jme3.texture.Texture skin, ColorRGBA colour) {
+        var material = loaded.clone();
+        material.setColor("BaseColor", colour);
+        material.setColor(HitFlash.PARAMETER, ColorRGBA.Black);
+        if (skin != null) {
+            material.setTexture("BaseColorMap", skin);
+        }
+        return material;
+    }
 
     /** Flat lighting over a kit's own colour map, tinted. */
     private Material creatureMaterial(com.jme3.texture.Texture skin, ColorRGBA colour) {

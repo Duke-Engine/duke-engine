@@ -13,6 +13,12 @@ varying vec4 Color;
 uniform vec4 g_LightData[NB_LIGHTS];
 uniform vec3 g_CameraPosition;
 uniform vec4 g_AmbientLightColor;
+#ifdef AMBIENT
+  uniform vec4 m_Ambient;
+#endif
+#ifdef SCENE_AMBIENT
+  uniform vec4 m_SceneAmbient;
+#endif
 
 uniform float m_Roughness;
 uniform float m_Metallic;
@@ -221,7 +227,8 @@ void main(){
         float nonMetalSpec = 0.08 * specular;
         vec4 specularColor = (nonMetalSpec - nonMetalSpec * Metallic) + albedo * Metallic;
         vec4 diffuseColor = albedo - albedo * Metallic;
-        vec3 fZero = vec3(specular);
+        // The light a surface sends back head on: about 4% of it, the metal's own colour on a metal.
+        vec3 fZero = specularColor.rgb;
     #endif
 
     gl_FragColor.rgb = vec3(0.0);
@@ -361,6 +368,15 @@ void main(){
             vec4 emissive = m_Emissive;
         #endif
         gl_FragColor += emissive * pow(emissive.a, m_EmissivePower) * m_EmissiveIntensity;
+    #endif
+    // Later passes of a thing lit in several have a black ambient: a flash and a tint are added once.
+    #ifdef SCENE_AMBIENT
+        gl_FragColor.rgb += albedo.rgb * max(g_AmbientLightColor.rgb - m_SceneAmbient.rgb, vec3(0.0));
+    #endif
+    #ifdef AMBIENT
+        if (g_AmbientLightColor.rgb != vec3(0.0)) {
+            gl_FragColor.rgb += albedo.rgb * m_Ambient.rgb;
+        }
     #endif
     gl_FragColor.a = alpha;
    

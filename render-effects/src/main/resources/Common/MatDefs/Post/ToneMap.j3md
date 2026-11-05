@@ -6,6 +6,7 @@ MaterialDef Default GUI {
         Int NumSamplesDepth
         Texture2D Texture
         Vector3 WhitePoint
+        Float Exposure : 1.0
     }
 
     Technique {

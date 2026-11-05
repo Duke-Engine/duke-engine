@@ -6,6 +6,7 @@ plugins {
 dependencies {
     api(project(":game"))
     api(project(":render-core"))
+    implementation(project(":render-effects")) // the filters of a physically based picture
     implementation(project(":render-plugins")) // glTF + Ogre model loaders
     implementation(project(":render-plugins-json")) // the loader's JSON, to read a glb's extras
     implementation(project(":render-jogg")) // .ogg sound loading

@@ -194,7 +194,8 @@ final class StealthLook {
             }
             var material = geometry.getMaterial();
             String channel = material.getMaterialDef().getMaterialParam("Diffuse") != null ? "Diffuse"
-                    : material.getMaterialDef().getMaterialParam("Color") != null ? "Color" : null;
+                    : material.getMaterialDef().getMaterialParam("Color") != null ? "Color"
+                    : material.getMaterialDef().getMaterialParam("BaseColor") != null ? "BaseColor" : null;
             if (channel == null) {
                 return;
             }

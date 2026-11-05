@@ -53,7 +53,7 @@ public final class Main {
 
     /** Everything the client is told, built out of the game's own files. */
     static Visuals visuals() {
-        var visuals = Visuals.create();
+        var visuals = Visuals.create().physicallyBased(true);
         var everything = Content.everything();
         var sets = everything.stream().filter(uz.dukeengine.core.content.AnimationSet.class::isInstance)
                 .map(uz.dukeengine.core.content.AnimationSet.class::cast)

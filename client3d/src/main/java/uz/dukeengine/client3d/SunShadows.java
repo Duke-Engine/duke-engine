@@ -7,6 +7,7 @@ import com.jme3.material.RenderState;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
+import com.jme3.post.Filter;
 import com.jme3.post.FilterPostProcessor;
 import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.GeometryList;
@@ -16,7 +17,9 @@ import com.jme3.scene.Spatial;
 import com.jme3.shadow.AbstractShadowFilter;
 import com.jme3.shadow.DirectionalLightShadowRenderer;
 import com.jme3.shadow.EdgeFilteringMode;
+import com.jme3.texture.Image;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -40,6 +43,8 @@ final class SunShadows {
     /** Each least height's shadows, 0 for the sun as it stands; made as the first caster of it is drawn. */
     private final Map<Float, Group> groups = new TreeMap<>();
     private FilterPostProcessor post;
+    /** What is drawn over the finished picture, always after every set of shadows. */
+    private List<Filter> finishing = List.of();
     private Vector3f sun;
     private ColorRGBA colour = DEFAULT_COLOUR;
     private boolean on = true;
@@ -122,12 +127,25 @@ final class SunShadows {
         group.getShadowMaterial().setColor("ShadowColor", colour);
         group.setEnabled(on);
         groups.put(least, group);
+        finishing.forEach(post()::removeFilter);
+        post().addFilter(group);
+        finishing.forEach(post()::addFilter);
+        return group;
+    }
+
+    FilterPostProcessor post() {
         if (post == null) {
             post = new FilterPostProcessor(assets);
             view.addProcessor(post);
         }
-        post.addFilter(group);
-        return group;
+        return post;
+    }
+
+    /** {@code filters} over the finished picture, which is in HDR from now on: see {@link PhysicalLook}. */
+    void finishWith(List<Filter> filters) {
+        finishing = filters;
+        post().setFrameBufferFormat(Image.Format.RGB16F);
+        filters.forEach(post()::addFilter);
     }
 
     /** One least height's shadows: the sun raised to it, its casters alone, multiplied by the colour. */

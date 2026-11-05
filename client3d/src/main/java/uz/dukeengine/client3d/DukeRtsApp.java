@@ -120,6 +120,8 @@ final class DukeRtsApp extends SimpleApplication {
     private GroundMaterials groundLooks;
     /** The sun, the ambient and the sun's shadows the scene is lit by — see {@link SceneLight}. */
     private final SceneLight light;
+    /** The probe and filters of {@link Visuals#physicallyBased}, or null. */
+    private PhysicalLook physicalLook;
     /**
      * What the things in flight look like. Built once; see {@link ProjectileEffects}.
      */
@@ -539,12 +541,15 @@ final class DukeRtsApp extends SimpleApplication {
                 this::floorHeightAt);
 
         light.install(assetManager, viewPort, visuals.getThingSuns());
+        if (visuals.isPhysicallyBased()) {
+            physicalLook = new PhysicalLook(assetManager, renderManager, rootNode, light);
+        }
 
         // Before the terrain, because rebuilding a world clears what is burning in
         // it and there has to be something there to clear.
         var budget = visuals.getEffectBudget();
         effects = new ProjectileEffects(assetManager, rootNode, visuals, budget.lights());
-        bodies = new Bodies(assetManager, missing, effects);
+        bodies = new Bodies(assetManager, missing, effects, visuals.isPhysicallyBased());
         soundNodes = new SoundNodes(assetManager, rootNode, missing);
         skillEffects = new SkillEffects(visuals, budget.distance());
         layered = new LayeredEffects(assetManager, rootNode, visuals, effects.lights(),
@@ -1819,7 +1824,9 @@ final class DukeRtsApp extends SimpleApplication {
     /** Build (or rebuild) the ground and its dark for the world as it stands now. */
     private void buildTerrain() {
         // First: every material built from here on reads the sun, and this is the world it is for.
-        light.adopt(sunlightOfTheGame());
+        if (light.adopt(sunlightOfTheGame()) && physicalLook != null) {
+            physicalLook.bake(light);
+        }
         clearWhatIsBurning();
         ground.build();
         fog.newWorld(ground.builtFrom(), game.getMapRecord());
