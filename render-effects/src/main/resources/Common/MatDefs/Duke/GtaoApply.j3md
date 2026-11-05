@@ -7,6 +7,8 @@ MaterialDef Gtao Apply {
         Texture2D Texture
         // What the first pass found: red the visibility, green the distance along the view, 0 where nothing solid stands.
         Texture2D Occlusion
+        // SceneBuffers' albedo, whose alpha says what is water (Water), which the occlusion leaves be.
+        Texture2D Albedo
         // Show the visibility alone, as grey.
         Boolean OnlyOcclusion
     }

@@ -35,11 +35,13 @@ package uz.dukeengine.render;
  *                         each light on each thing it reaches
  * @param screenSpaceGi    the light that bounces once off what the screen shows lights the surfaces near it, in their own colour
  *                         ({@link SsgiFilter}): a red wall tints the floor by it, the shade side of a thing in low sun is not black
+ * @param water            the {@link Water} in the scene is drawn over the picture, refracting it ({@link WaterFilter}); off, the chain has
+ *                         no such filter and no pass for it, which is what a game without water wants
  */
 public record PictureSettings(boolean ambientOcclusion, boolean bloom, AntiAliasing antiAliasing, float exposure, boolean atmosphere,
         boolean softShadows, boolean contactShadows, int localShadows, float occlusionRadius,
         boolean autoExposure, float fogDensity, float fogFalloff, boolean shafts, boolean reflections,
-        Lens lens, String lut, float vignette, boolean clusteredLights, boolean screenSpaceGi) {
+        Lens lens, String lut, float vignette, boolean clusteredLights, boolean screenSpaceGi, boolean water) {
 
     public PictureSettings {
         if (!(occlusionRadius > 0f)) {
@@ -59,83 +61,89 @@ public record PictureSettings(boolean ambientOcclusion, boolean bloom, AntiAlias
      * between a wall and a floor, a doorway, the underside of a table.
      */
     public static final PictureSettings FULL = new PictureSettings(true, true, AntiAliasing.TAA, 0.7f, false, true, true, 4, 0.75f, false, 0f, 0.06f, true, true,
-            Lens.OFF, null, 0f, true, true);
+            Lens.OFF, null, 0f, true, true, false);
 
     /** These settings with the atmosphere on or off. */
     public PictureSettings withAtmosphere(boolean on) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, on, softShadows, contactShadows, localShadows,
-                occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette, clusteredLights, screenSpaceGi);
+                occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette, clusteredLights, screenSpaceGi, water);
     }
 
     /** These settings with this many lights allowed a shadow, none for 0. */
     public PictureSettings withLocalShadows(int budget) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
-                Math.max(0, budget), occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette, clusteredLights, screenSpaceGi);
+                Math.max(0, budget), occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette, clusteredLights, screenSpaceGi, water);
     }
 
     /** These settings with creases darkened by what stands this far (world units) from them. */
     public PictureSettings withOcclusionRadius(float radius) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, radius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette, clusteredLights, screenSpaceGi);
+                localShadows, radius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette, clusteredLights, screenSpaceGi, water);
     }
 
     /** These settings with the eye adapting to the picture, or not. */
     public PictureSettings withAutoExposure(boolean on) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, occlusionRadius, on, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette, clusteredLights, screenSpaceGi);
+                localShadows, occlusionRadius, on, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette, clusteredLights, screenSpaceGi, water);
     }
 
     /** These settings with fog of this density at height 0 that thins by {@code falloff} per unit of height; 0 density, none. */
     public PictureSettings withFog(float density, float falloff) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, occlusionRadius, autoExposure, density, falloff, shafts, reflections, lens, lut, vignette, clusteredLights, screenSpaceGi);
+                localShadows, occlusionRadius, autoExposure, density, falloff, shafts, reflections, lens, lut, vignette, clusteredLights, screenSpaceGi, water);
     }
 
     /** These settings with the sun's shafts through the fog, or not. */
     public PictureSettings withShafts(boolean on) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, on, reflections, lens, lut, vignette, clusteredLights, screenSpaceGi);
+                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, on, reflections, lens, lut, vignette, clusteredLights, screenSpaceGi, water);
     }
 
     /** These settings with the reflections of the picture in glossy surfaces, or not. */
     public PictureSettings withReflections(boolean on) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, on, lens, lut, vignette, clusteredLights, screenSpaceGi);
+                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, on, lens, lut, vignette, clusteredLights, screenSpaceGi, water);
     }
 
     /** These settings with edges smoothed this way. */
     public PictureSettings withAntiAliasing(AntiAliasing mode) {
         return new PictureSettings(ambientOcclusion, bloom, mode, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette, clusteredLights, screenSpaceGi);
+                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette, clusteredLights, screenSpaceGi, water);
     }
 
     /** These settings with the camera focused and its shutter open as {@code camera} says; {@link Lens#OFF}, neither. */
     public PictureSettings withLens(Lens camera) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, camera, lut, vignette, clusteredLights, screenSpaceGi);
+                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, camera, lut, vignette, clusteredLights, screenSpaceGi, water);
     }
 
     /** These settings with the colour grade at this asset path (see {@link ColorLut}) after the tone curve; null, none. */
     public PictureSettings withLut(String path) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, path, vignette, clusteredLights, screenSpaceGi);
+                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, path, vignette, clusteredLights, screenSpaceGi, water);
     }
 
     /** These settings with the corners darkened by this much, 0 to 1; 0, not at all. */
     public PictureSettings withVignette(float strength) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, strength, clusteredLights, screenSpaceGi);
+                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, strength, clusteredLights, screenSpaceGi, water);
     }
 
     /** These settings with one bounce of the picture's light lighting what is near it, or not. */
     public PictureSettings withScreenSpaceGi(boolean on) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette, clusteredLights, on);
+                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette, clusteredLights, on, water);
     }
 
     /** These settings with the spot and point lights drawn from clusters in one pass, or a pass for each. */
     public PictureSettings withClusteredLights(boolean on) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
-                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette, on, screenSpaceGi);
+                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette, on, screenSpaceGi, water);
+    }
+
+    /** These settings with the water of the scene drawn, or not. */
+    public PictureSettings withWater(boolean on) {
+        return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
+                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette, clusteredLights, screenSpaceGi, on);
     }
 }

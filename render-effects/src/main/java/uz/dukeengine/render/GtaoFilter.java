@@ -72,6 +72,7 @@ public final class GtaoFilter extends Filter {
         pass.getRenderedTexture().setMagFilter(Texture.MagFilter.Nearest);
         postRenderPasses.add(pass);
         material.setTexture("Occlusion", pass.getRenderedTexture());
+        material.setTexture("Albedo", buffers.get().albedo());
         material.setBoolean("OnlyOcclusion", onlyOcclusion);
     }
 

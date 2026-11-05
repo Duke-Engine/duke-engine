@@ -66,10 +66,11 @@ import uz.dukeengine.render.SsrFilter;
 import uz.dukeengine.render.SkyProbe;
 import uz.dukeengine.render.SsgiFilter;
 import uz.dukeengine.render.SunShadowFilter;
+import uz.dukeengine.render.Water;
 
 /**
  * Draws one fixed scene, measures its frames, saves a picture and quits, so a change to the renderer can be seen and
- * priced. Args: scene (materials, materials-plus, bleed, interior, outdoor, night, buffers, furnace), what to leave out or add ("full", or joined by
+ * priced. Args: scene (materials, materials-plus, bleed, interior, outdoor, night, buffers, water, furnace), what to leave out or add ("full", or joined by
  * commas: room-probe (the interior's room, or a box over the balls of materials, as a box probe baked from its middle: parallax reflections of its walls, its own diffuse light) show-ssgi (the bounce of screen space global illumination alone, through the rest of the chain), no-ssgi, the scene bleed (a red wall and a white strip of floor before it) and show-probe-left (what the picture holds with the probes' specular taken out: 0 where SSR's probes are PBRLighting's), no-ao, no-bloom, no-aa, fxaa, taa (the edges' smoothing; else the default of FULL), no-pcss, no-contact, no-shadows, no-local-shadows, local-&lt;n&gt; (how many local lights have a shadow), lamp (one lamp over any scene); no-clusters (the spot and point lights a pass each, the fork's way, not from clusters in one), lights-&lt;n&gt; (n small coloured lamps going round: over the field in the night instead of its torches, through the room in the interior beside its lamps) and show-clusters (how many lights each cluster has, over the picture); feet, which looks at the outdoor units' feet from close by; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
  * show-depth, show-roughness, show-velocity, which show one instead of the picture; show-ao, which shows the ambient
  * occlusion alone, and ao-radius-&lt;m&gt;, which sets its reach in world units; show-bloom, which shows the bloom alone; auto-exposure, which lets the eye adapt, and walk, which (with it) goes from a
@@ -79,7 +80,7 @@ import uz.dukeengine.render.SunShadowFilter;
  * from Common/Luts), vignette, and cinematic, which is all four; head and parallax (materials-plus from close to the bust, or low over the brick floor) no-layers (its balls and bricks without the coat, sheen, scatter and height map, to price them) and fill (with coat, cloth, skin, bricks, pom or all: 16 layers of one material over every pixel, for the cost of a layer per pixel; run it with the chain left out);
  * {@code hour-<h>}, which turns the atmosphere on with the sun where a made-up summer day has it at that hour, 6 and 18
  * being just over the horizon; sky-view, which looks toward the sun from near the ground, and shaft-view, which does so from behind the scene, so that what stands in it breaks the light; move-sun, which lets the sun
- * walk 0.15 degrees a frame and so prices the sky made anew), output folder. {@code -Dbench.models=<folder>} dresses the scenes
+ * walk 0.15 degrees a frame and so prices the sky made anew); in the scene water, a lake with a sloping bottom, boxes about 0.6, 3.4 and 5 metres down, a pier, a pillar and a buoy, the words low (the camera at the water's level, looking across), glint (the same with the sun low over the far shore), over (the camera over the lake, which fills most of the picture, for pricing), pair (the waves still, and a second shot a frame after the first, to tell what flickers), shore, prop (close on a pillar and its reflection) and no-water (the lake with no water over it, to price it), output folder. {@code -Dbench.models=<folder>} dresses the scenes
  * in real models ({@code <folder>/<name>/out/<name>.glb}); without it they are made of boxes. With an atmosphere the
  * CSV line has two more columns: the last sky's painting (off the frame) and probe baking (on it), in milliseconds.
  */
@@ -127,6 +128,7 @@ public final class RenderBench extends SimpleApplication {
     private float clock;
     private float lastLogged;
     private int walkStep;
+    private Water.Waves waves;
 
     private RenderBench(String scene, String label, Path out) {
         this.scene = scene;
@@ -177,7 +179,7 @@ public final class RenderBench extends SimpleApplication {
                 full.shafts() && !left.contains("no-shafts"), full.reflections() && !left.contains("no-ssr"),
                 lens(scene, left), left.stream().filter(word -> word.startsWith("lut-")).map(word -> "Common/Luts/" + word.substring(4) + ".png")
                         .findFirst().orElse(null), left.contains("vignette") ? VIGNETTE : 0f, full.clusteredLights() && !left.contains("no-clusters"),
-                full.screenSpaceGi() && !left.contains("no-ssgi"));
+                full.screenSpaceGi() && !left.contains("no-ssgi"), scene.equals("water") && !left.contains("no-water"));
     }
 
     /**
@@ -267,6 +269,12 @@ public final class RenderBench extends SimpleApplication {
                 sunDirection.set(-0.45f, -0.75f, -0.48f);
                 sun = new ColorRGBA(1f, 0.95f, 0.88f, 1f).mult(2.4f);
                 outdoor(world);
+            }
+            case "water" -> {
+                // With glint the sun stands low over the far shore, so that the camera looks into its path on the water.
+                sunDirection.set(asked.contains("glint") ? new Vector3f(-0.15f, -0.3f, 0.94f) : new Vector3f(-0.45f, -0.75f, -0.48f));
+                sun = new ColorRGBA(1f, 0.95f, 0.88f, 1f).mult(2.4f);
+                lake(world);
             }
             case "buffers" -> {
                 sunDirection.set(-0.45f, -0.75f, -0.48f);
@@ -800,6 +808,133 @@ public final class RenderBench extends SimpleApplication {
         });
     }
 
+    /** The ground of the lake at x, z: a basin about 52 by 36 metres across, deepest at the far end, a beach round it. */
+    private static float lakeGround(float x, float z) {
+        float r = FastMath.sqrt((x / 26f) * (x / 26f) + ((z - 2f) / 18f) * ((z - 2f) / 18f));
+        if (r >= 1f) {
+            return (r - 1f) * 3f;
+        }
+        float deepest = 7f * FastMath.clamp(0.3f + 0.7f * (0.5f - (z - 2f) / 36f), 0.15f, 1f);
+        float t = FastMath.clamp((1f - r) / 0.6f, 0f, 1f);
+        // A slope from the shore, easing into the bottom.
+        return -deepest * (0.5f * t + 0.5f * t * t * (3f - 2f * t));
+    }
+
+    /**
+     * A lake: sand shaped as a basin that slopes from a shore at the camera's end to six metres at the far end, the water over it at
+     * height 0, and in and about it a pier, a pillar, a buoy, rocks, a row of boxes on the bottom 0.6, 3.4 and 5 metres down, a house and
+     * people on the far shore. The words {@code low}, {@code shore} and {@code prop} move the camera; {@code no-water} leaves the
+     * water out.
+     */
+    private void lake(Node world) {
+        int n = 320;
+        float size = 160f;
+        var positions = BufferUtils.createFloatBuffer((n + 1) * (n + 1) * 3);
+        var normals = BufferUtils.createFloatBuffer((n + 1) * (n + 1) * 3);
+        var uvs = BufferUtils.createFloatBuffer((n + 1) * (n + 1) * 2);
+        for (int j = 0; j <= n; j++) {
+            for (int i = 0; i <= n; i++) {
+                float x = (i / (float) n - 0.5f) * size;
+                float z = (j / (float) n - 0.5f) * size;
+                positions.put(x).put(lakeGround(x, z)).put(z);
+                float dx = lakeGround(x + 0.2f, z) - lakeGround(x - 0.2f, z);
+                float dz = lakeGround(x, z + 0.2f) - lakeGround(x, z - 0.2f);
+                var normal = new Vector3f(-dx / 0.4f, 1f, -dz / 0.4f).normalizeLocal();
+                normals.put(normal.x).put(normal.y).put(normal.z);
+                uvs.put(x / 6f).put(z / 6f);
+            }
+        }
+        var indices = BufferUtils.createIntBuffer(n * n * 6);
+        for (int j = 0; j < n; j++) {
+            for (int i = 0; i < n; i++) {
+                int a = j * (n + 1) + i;
+                indices.put(a).put(a + n + 1).put(a + n + 2).put(a).put(a + n + 2).put(a + 1);
+            }
+        }
+        var mesh = new com.jme3.scene.Mesh();
+        mesh.setBuffer(VertexBuffer.Type.Position, 3, positions);
+        mesh.setBuffer(VertexBuffer.Type.Normal, 3, normals);
+        mesh.setBuffer(VertexBuffer.Type.TexCoord, 2, uvs);
+        mesh.setBuffer(VertexBuffer.Type.Index, 3, indices);
+        mesh.updateBound();
+        var ground = new Geometry("lake ground", mesh);
+        ground.setMaterial(surface(new ColorRGBA(0.62f, 0.52f, 0.36f, 1f), 0.9f, 0f));
+        world.attachChild(ground);
+
+        // The boxes on the bottom, at 1, 3 and 5 metres down, in colours that tell how much of each the water keeps.
+        var colours = new ColorRGBA[] {new ColorRGBA(0.8f, 0.1f, 0.08f, 1f), new ColorRGBA(0.9f, 0.9f, 0.9f, 1f), new ColorRGBA(0.9f, 0.75f, 0.1f, 1f)};
+        float[] boxZ = {16f, 9f, -2f};
+        float[] depths = {1f, 3f, 5f};
+        for (int i = 0; i < 3; i++) {
+            float z = boxZ[i];
+            float x = 8f - i * 1.5f;
+            float down = lakeGround(x, z);
+            wall(world, surface(colours[i], 0.7f, 0f), x, down + 0.5f, z, 0.5f, 0.5f, 0.5f, 1f);
+            System.out.printf(Locale.ROOT, "LAKE box %d at %.1f m down (asked %.0f)%n", i, -down, depths[i]);
+        }
+        // A pier on posts, running out from the near shore.
+        for (int i = 0; i < 5; i++) {
+            float z = 20f - i * 3.5f;
+            for (int side = -1; side <= 1; side += 2) {
+                float x = -8f + side * 0.8f;
+                float bottom = lakeGround(x, z);
+                wall(world, surface(new ColorRGBA(0.35f, 0.24f, 0.14f, 1f), 0.8f, 0f), x, (bottom + 0.6f) / 2f, z, 0.12f, (0.6f - bottom) / 2f, 0.12f, 1f);
+            }
+        }
+        wall(world, surface(new ColorRGBA(0.45f, 0.32f, 0.2f, 1f), 0.8f, 0f), -8f, 0.65f, 12f, 1.1f, 0.06f, 9f, 3f);
+        // A pillar on the shore to the left, for its reflection; a red buoy and rocks that the water cuts across.
+        wall(world, surface(new ColorRGBA(0.75f, 0.7f, 0.62f, 1f), 0.6f, 0f), -22f, 3f, 2f, 0.5f, 3f, 0.5f, 3f);
+        var buoy = new Geometry("buoy", new Sphere(32, 32, 0.45f));
+        buoy.setMaterial(ball(new ColorRGBA(0.85f, 0.08f, 0.05f, 1f), 0f, 0.4f));
+        buoy.setLocalTranslation(5f, 0.1f, 4f);
+        world.attachChild(buoy);
+        var rock = surface(new ColorRGBA(0.4f, 0.4f, 0.42f, 1f), 0.85f, 0f);
+        for (var at : new float[][] {{13f, 14f, 1.2f}, {15f, 11f, 0.8f}, {-14f, 17f, 1f}, {-1f, -14f, 1.4f}}) {
+            var stone = new Geometry("rock", new Sphere(24, 24, at[2]));
+            stone.setMaterial(rock);
+            stone.setLocalTranslation(at[0], lakeGround(at[0], at[1]) + at[2] * 0.45f, at[1]);
+            world.attachChild(stone);
+        }
+        place(world, "house_01", 9f, 8f, 0.5f, -23f, 20f);
+        for (int i = 0; i < 4; i++) {
+            animate(place(world, new String[] {"archer", "brute", "commander", "archer"}[i], 1.8f, 12f + i * 1.8f, lakeGround(12f + i * 1.8f, 24f) + 0.05f, 24f, 180f));
+        }
+
+        if (!asked.contains("no-water")) {
+            var water = Water.surface(assetManager, 72f, 54f);
+            water.setLocalTranslation(0f, 0f, 2f);
+            var waves = water.getControl(Water.Waves.class);
+            // By the frame, not the clock, like everything the bench moves.
+            waves.setEnabled(false);
+            this.waves = waves;
+            rootNode.attachChild(water);
+        }
+        cam.setFrustumPerspective(40f, (float) cam.getWidth() / cam.getHeight(), 0.3f, 400f);
+        cam.setLocation(new Vector3f(2f, 9f, 40f));
+        cam.lookAt(new Vector3f(0f, -1f, -6f), Vector3f.UNIT_Y);
+        if (asked.contains("low") || asked.contains("glint")) {
+            cam.setFrustumPerspective(55f, (float) cam.getWidth() / cam.getHeight(), 0.2f, 400f);
+            cam.setLocation(new Vector3f(3f, 1.1f, 25f));
+            cam.lookAt(new Vector3f(-2f, 1.4f, -20f), Vector3f.UNIT_Y);
+        }
+        if (asked.contains("over")) {
+            // Water over most of the picture, for pricing it.
+            cam.setFrustumPerspective(70f, (float) cam.getWidth() / cam.getHeight(), 0.3f, 400f);
+            cam.setLocation(new Vector3f(0f, 7f, 14f));
+            cam.lookAt(new Vector3f(0f, -2f, -4f), Vector3f.UNIT_Y);
+        }
+        if (asked.contains("shore")) {
+            cam.setFrustumPerspective(50f, (float) cam.getWidth() / cam.getHeight(), 0.1f, 400f);
+            cam.setLocation(new Vector3f(5f, 1.6f, 25f));
+            cam.lookAt(new Vector3f(10f, -0.8f, 14f), Vector3f.UNIT_Y);
+        }
+        if (asked.contains("prop")) {
+            cam.setFrustumPerspective(45f, (float) cam.getWidth() / cam.getHeight(), 0.2f, 400f);
+            cam.setLocation(new Vector3f(-12f, 1.4f, 17f));
+            cam.lookAt(new Vector3f(-21f, 0.2f, 3f), Vector3f.UNIT_Y);
+        }
+    }
+
     /** One of each thing the scene buffers must tell apart, on a field. */
     private void bufferCases(Node world) {
         wall(world, surface(new ColorRGBA(0.26f, 0.31f, 0.17f, 1f), 0.95f, 0f), 0f, -0.5f, 0f, 30f, 0.5f, 30f, 10f);
@@ -1140,6 +1275,10 @@ public final class RenderBench extends SimpleApplication {
         // By the frame, not the clock: the same frame of a run is the same picture, on any machine.
         // With fast, the same motion at up to 25 times the speed, to and fro so that nothing leaves the scene.
         float speed = asked.contains("fast") ? 25f * FastMath.sin(frame * 0.05f) : 1f;
+        if (waves != null) {
+            waves.seconds(asked.contains("pair") ? (WARMUP + MEASURED + 1) / 60f : frame / 60f);
+            // With pair the waves stand still (and a second shot comes a frame after the first): what is left to differ is the chain's noise, TAA's settling.
+        }
         if (asked.contains("move-camera")) {
             cam.setLocation(cam.getLocation().add(cam.getLeft().mult(0.02f * speed)));
             cam.setRotation(new Quaternion().fromAngleAxis(0.0004f * speed, Vector3f.UNIT_Y).mult(cam.getRotation()));
@@ -1170,6 +1309,10 @@ if (asked.contains("move-units")) {
             }
         }
         if (frame == WARMUP + MEASURED + 1) {
+            shots.takeScreenshot();
+        }
+        if (asked.contains("pair") && frame == WARMUP + MEASURED + 2) {
+            shots.setFileName(scene + "_" + label.replace(',', '+') + "_next");
             shots.takeScreenshot();
         }
         if (frame == WARMUP + MEASURED + 5) {

@@ -1,0 +1,66 @@
+// A water surface over the picture behind it, with SSR and the probes reflecting in it: see uz.dukeengine.render.Water.
+MaterialDef Water {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+        // Seconds the waves have run; Water#surface's control keeps it.
+        Float Time
+        // The roughness the waves are lit and reflected with; no lower than 0.045 (the sun's glint on a smoother one overflows a half float).
+        Float Roughness : 0.08
+        // What a metre of the water takes of the light of each colour (red first, for clear water blue-green), per metre.
+        Vector3 Extinction : 0.45 0.10 0.055
+        // The colour the water gives back of the light that reaches it, once there is enough water for none of the bottom to show.
+        Color Scatter : 0.01 0.05 0.06 1.0
+        // The width, in metres of depth, of the foam at the shore; 0, none.
+        Float Foam : 0.25
+        // The picture behind the water and its depth, and the camera's projection (m00, m11, m22, m23): WaterFilter sets them every frame.
+        Texture2D Scene
+        Texture2D Behind
+        Vector4 Projection
+        // The SceneBuffers technique below tells the motion from these.
+        Matrix4Array PreviousBoneMatrices
+        Matrix4 PreviousWorldMatrix
+        Matrix4 PreviousViewProjection
+    }
+
+    Technique {
+        LightMode SinglePassAndImageBased
+
+        VertexShader   GLSL300 GLSL150: Common/MatDefs/Duke/Water.vert
+        FragmentShader GLSL300 GLSL150: Common/MatDefs/Duke/Water.frag
+
+        WorldParameters {
+            WorldViewProjectionMatrix
+            WorldMatrix
+            CameraPosition
+            ViewMatrix
+        }
+
+        // No blending: the shader has the picture behind it in its hand. WaterFilter draws it, after the chain's first pass.
+        RenderState {
+            FaceCull Back
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER : BoundDrawBuffer
+        }
+    }
+
+    // uz.dukeengine.render.SceneBuffers draws the surface with this, so that SSR, the occlusion and the fog see it as the water it is.
+    Technique SceneBuffers {
+
+        VertexShader   GLSL300 GLSL150: Common/MatDefs/Duke/Water.vert
+        FragmentShader GLSL300 GLSL150: Common/MatDefs/Duke/WaterBuffers.frag
+
+        WorldParameters {
+            WorldViewProjectionMatrix
+            WorldMatrix
+            CameraPosition
+            ViewMatrix
+        }
+
+        Defines {
+            BUFFERS
+        }
+    }
+}

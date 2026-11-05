@@ -21,7 +21,7 @@ class PictureChainTest {
 
     @Test
     void ambientOcclusionOffLeavesNoOcclusionFilter() {
-        var off = new PictureSettings(false, true, AntiAliasing.TAA, 0.7f, false, true, true, 4, 0.75f, false, 0f, 0.06f, true, true, Lens.OFF, null, 0f, true, true);
+        var off = new PictureSettings(false, true, AntiAliasing.TAA, 0.7f, false, true, true, 4, 0.75f, false, 0f, 0.06f, true, true, Lens.OFF, null, 0f, true, true, false);
         assertTrue(PictureChain.filters(off).stream().noneMatch(GtaoFilter.class::isInstance));
     }
 
@@ -63,6 +63,14 @@ class PictureChainTest {
         assertTrue(filters.indexOf(filters.stream().filter(GtaoFilter.class::isInstance).findFirst().get()) < ssr);
         assertTrue(ssr < filters.indexOf(filters.stream().filter(HeightFogFilter.class::isInstance).findFirst().get()));
         assertTrue(PictureChain.filters(PictureSettings.FULL.withReflections(false)).stream().noneMatch(SsrFilter.class::isInstance));
+    }
+
+    @Test
+    void waterIsOffInFullAndTheFirstFilterWhenOn() {
+        assertTrue(PictureChain.filters(PictureSettings.FULL).stream().noneMatch(WaterFilter.class::isInstance));
+        var filters = PictureChain.filters(PictureSettings.FULL.withWater(true));
+        assertTrue(filters.get(0) instanceof WaterFilter);
+        assertEquals(1, filters.stream().filter(WaterFilter.class::isInstance).count());
     }
 
     @Test

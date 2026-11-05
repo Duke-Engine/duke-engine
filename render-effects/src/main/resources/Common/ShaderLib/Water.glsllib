@@ -1,0 +1,34 @@
+// What the two techniques of Duke/Water.j3md share (uz.dukeengine.render.Water): the waves, as the slope they give the surface.
+
+// Each wave: direction on the water's plane (x, z), wavelength in metres, and the slope its crests give (rise over run).
+const int WATER_WAVES = 6;
+const vec4 WATER_WAVE[WATER_WAVES] = vec4[](
+    vec4(0.80, 0.60, 7.30, 0.016),
+    vec4(0.35, 0.94, 3.10, 0.022),
+    vec4(-0.55, 0.84, 1.70, 0.028),
+    vec4(0.97, -0.25, 0.83, 0.032),
+    vec4(-0.88, -0.48, 0.41, 0.030),
+    vec4(0.20, -0.98, 0.19, 0.025));
+
+// The slope of the water at p (world x, z) at this time, in x and z. A wave the pixel is too big to see (its wavelength not
+// several times the footprint) fades out, so that far water goes calm instead of crawling.
+vec2 waterSlope(vec2 p, float time, float footprint) {
+    vec2 slope = vec2(0.0);
+    for (int i = 0; i < WATER_WAVES; i++) {
+        vec4 wave = WATER_WAVE[i];
+        float k = 6.2831853 / wave.z;
+        vec2 direction = normalize(wave.xy);
+        float phase = k * dot(direction, p) - sqrt(9.81 * k) * time;
+        float seen = 1.0 - smoothstep(0.1 * wave.z, 0.35 * wave.z, footprint);
+        slope += direction * (wave.w * seen * cos(phase));
+    }
+    return slope;
+}
+
+// The surface's unit normal in the world: the mesh's, leaned by the waves' slope. At a grazing angle the facets that lean away from the
+// eye are hidden behind those that lean toward it, so the waves lean it less there.
+vec3 waterNormal(vec3 meshNormal, vec3 position, vec3 viewDir, float time) {
+    float footprint = max(length(dFdx(position.xz)), length(dFdy(position.xz)));
+    vec2 slope = waterSlope(position.xz, time, footprint) * mix(0.3, 1.0, smoothstep(0.05, 0.35, dot(viewDir, meshNormal)));
+    return normalize(meshNormal + vec3(-slope.x, 0.0, -slope.y));
+}

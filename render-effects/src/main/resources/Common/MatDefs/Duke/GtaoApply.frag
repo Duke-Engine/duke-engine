@@ -3,6 +3,7 @@
 
 uniform COLORTEXTURE m_Texture;
 uniform sampler2D m_Occlusion;
+uniform sampler2D m_Albedo;
 
 varying vec2 texCoord;
 
@@ -22,7 +23,8 @@ vec3 multiBounce(float visibility, vec3 albedo) {
 void main() {
     vec4 colour = getColor(m_Texture, texCoord);
     vec2 centre = texture2D(m_Occlusion, texCoord).rg;
-    if (centre.g <= 0.0) {
+    // Water (0.5 in the albedo's alpha) is a surface of its own to look through, not a crease to darken.
+    if (centre.g <= 0.0 || abs(texture2D(m_Albedo, texCoord).a - 0.5) < 0.25) {
         #ifdef ONLY_OCCLUSION
             gl_FragColor = vec4(1.0);
         #else

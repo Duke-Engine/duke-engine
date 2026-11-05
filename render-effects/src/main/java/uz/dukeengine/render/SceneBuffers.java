@@ -30,7 +30,7 @@ import java.util.logging.Logger;
  * so that a screen-space effect reads them instead of drawing the scene again. A view nothing asks of has no such pass:
  * a filter asks in its {@code initFilter}, again at each resize as the post processor calls it then.
  *
- * <p>Solid is the Opaque bucket without blending and with depth written. PBRLighting draws its own surface here, normal
+ * <p>Solid is the Opaque bucket, and the Translucent one (water), without blending and with depth written. PBRLighting draws its own surface here, normal
  * map, roughness and alpha discard. Any other material draws through {@code SceneBuffers.j3md}: its shape, bones and
  * instances, its roughness 1 and geometric normals. shortcut: an alpha discarding Unshaded or Lighting material is solid
  * here, give those the technique too when a game draws cut-outs with them.
@@ -130,7 +130,8 @@ public final class SceneBuffers implements SceneProcessor {
 
     /**
      * RGBA8: rgb the colour the surface scatters light in all directions with (PBRLighting's diffuse colour: the base
-     * colour, and none of it on a metal), a 1 where it is PBRLighting's and 0 where it is not. shortcut: vertex colour does
+     * colour, and none of it on a metal), a 1 where it is PBRLighting's, 0.5 where it is {@link Water} (which scatters none of it this way, and which the occlusion
+     * leaves be) and 0 where it is not. shortcut: vertex colour does
      * not tint it, as it does not tint {@link #reflectance}.
      */
     public Texture2D albedo() {
@@ -191,6 +192,8 @@ public final class SceneBuffers implements SceneProcessor {
         var filter = renderManager.getRenderFilter();
         renderManager.setRenderFilter(this::prepare);
         queue.renderQueue(RenderQueue.Bucket.Opaque, renderManager, camera, false);
+        // What the solid Translucent bucket holds, water: WaterFilter draws it later, over the picture, and the effects see it as the solid it is.
+        queue.renderQueue(RenderQueue.Bucket.Translucent, renderManager, camera, false);
         renderManager.setRenderFilter(filter);
         renderManager.setForcedMaterial(null);
         renderManager.setForcedTechnique(null);

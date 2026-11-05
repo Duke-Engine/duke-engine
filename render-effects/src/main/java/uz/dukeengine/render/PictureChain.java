@@ -13,6 +13,10 @@ public final class PictureChain {
 
     public static List<Filter> filters(PictureSettings settings) {
         var filters = new ArrayList<Filter>();
+        // First, so that every effect after it sees a picture with the water in it.
+        if (settings.water()) {
+            filters.add(new WaterFilter());
+        }
         if (settings.ambientOcclusion()) {
             filters.add(new GtaoFilter(settings.occlusionRadius()));
         }
