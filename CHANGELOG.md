@@ -12,6 +12,12 @@ A game can ask for physically based drawing with `Visuals.physicallyBased(true)`
 glTF files, lit by a probe of the world's sky, under HDR, ambient occlusion, bloom, tone mapping and anti-aliasing.
 Off by default.
 
+The physically based picture has local light shadows, clustered lights, GTAO, SSR, screen-space GI, height fog, water,
+TAA, an atmosphere whose sun reddens as it sets, and draws big scenes faster by itself: shared meshes instanced, small
+things at fewer triangles, hidden things left out. A game picks `Quality.LOW` to `EPIC`, or writes a `Picture` block in
+its `.duke` files. `<game> --shot=<file.png>` takes one picture of the match and quits. What each costs and what is
+still missing: `docs/plan/render.md`.
+
 ### What to change
 
 - **A game that names `org.jmonkeyengine:jme3-*` itself** switches to the same module under `uz.duke-engine:render-*`
