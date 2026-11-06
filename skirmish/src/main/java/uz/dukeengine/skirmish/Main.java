@@ -25,7 +25,11 @@ public final class Main {
     }
 
     public static void main(String[] args) {
-        var map = java.util.Arrays.stream(args).filter(arg -> !arg.startsWith("--")).findFirst().orElse(null);
+        // The map by its name, or as --map=<its file> the way the IDE's Play tells it: the file's name is the map's.
+        var map = java.util.Arrays.stream(args).filter(arg -> !arg.startsWith("--") || arg.startsWith("--map="))
+            .map(arg -> arg.startsWith("--map=")
+                ? java.nio.file.Path.of(arg.substring("--map=".length())).getFileName().toString().replaceFirst("\\.map$", "")
+                : arg).findFirst().orElse(null);
         client(map).launch(args);
     }
 
