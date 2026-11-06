@@ -53,6 +53,15 @@ varying float vertexAlpha;
 varying vec3 vertexLight;
 #endif
 
+#ifdef VERTEX_SHADE
+varying vec3 vertexShade;
+#endif
+
+#ifdef ALPHA_DISCARD
+uniform float m_AlphaDiscard;
+uniform vec3 g_CameraPosition;
+#endif
+
 #ifdef HAS_SHADEMAP
 uniform sampler2D m_ShadeMap;
 uniform vec4 m_ShadePlace;
@@ -178,6 +187,16 @@ void main() {
     #endif
     #ifdef HAS_COLORMAP
     albedo *= texture2D(m_ColorMap, texCoord);
+    #endif
+    #ifdef ALPHA_DISCARD
+    // A spray right against the eye is a flat picture and hides the hero: it dissolves, pixel by pixel, as it comes close.
+    float fromEye = smoothstep(10.0, 30.0, length(worldPos - g_CameraPosition));
+    if (albedo.a < m_AlphaDiscard || fromEye < fract(dot(floor(gl_FragCoord.xy), vec2(0.7548777, 0.5698403)))) {
+        discard;
+    }
+    #endif
+    #ifdef VERTEX_SHADE
+    albedo.rgb *= vertexShade;
     #endif
     #ifdef VERTEX_ALPHA
     albedo.a *= vertexAlpha;

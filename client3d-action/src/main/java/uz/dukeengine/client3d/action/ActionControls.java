@@ -1,12 +1,15 @@
 package uz.dukeengine.client3d.action;
 
 import com.jme3.font.BitmapText;
+import com.jme3.math.Vector3f;
+import com.jme3.renderer.Camera;
 import com.jme3.scene.Spatial;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import uz.dukeengine.client3d.ControlScheme;
+import uz.dukeengine.client3d.KeyMap;
 import uz.dukeengine.client3d.SkillRange;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.game.DukeGame;
@@ -34,7 +37,40 @@ public final class ActionControls implements ControlScheme {
     /** The pitch the follow was at when its tilt began, which the mouse tilts it within. */
     private float orbitPitch = Float.NaN;
 
+    private ShoulderCamera shoulder;
+    private final ShoulderCamera.Boom boom = new ShoulderCamera.Boom();
+    /** Whether the shoulder camera has taken its first pitch, and when it last placed the eye. */
+    private boolean pitched;
+    private float placedAt = Float.NEGATIVE_INFINITY;
+    /** Where the followed unit is drawn, as the last steer saw it. */
+    private float heroX = Float.NaN;
+    private float heroY;
+    private float heroFacing = Float.NaN;
+
     private boolean holdMouse;
+
+    private BiConsumer<DukeGame, Boolean> sprinted;
+    /** Whether the sprint was held when it was last told. */
+    private boolean sprinting;
+
+    private boolean rightStrikes;
+    /** Whether the right button is held as a strike, which keeps a held swing going as the left does. */
+    private boolean rightHeld;
+
+    private Strikes strikes;
+
+    /**
+     * What a game does with a press of a strike button: the left is a light blow, the right (if it {@link
+     * #rightStrikes strikes}) a heavy one.
+     */
+    @FunctionalInterface
+    public interface Strikes {
+        /**
+         * A press of a strike button, in play. Return true when the game took it (it sends its own order, and the
+         * button strikes nothing else); false leaves it to the swing toward the camera's forward.
+         */
+        boolean press(DukeGame game, boolean heavy);
+    }
 
     private boolean aimAhead;
     private boolean releaseToCast;
@@ -58,6 +94,47 @@ public final class ActionControls implements ControlScheme {
     public ActionControls walk(DirectionKeys keys, BiConsumer<DukeGame, Integer> changed) {
         this.walkKeys = keys == null ? DirectionKeys.WASD : keys;
         this.walked = changed;
+        return this;
+    }
+
+    /**
+     * Sprint while {@link KeyMap.Control#SPRINT} is held (the game puts it on a key): {@code changed} told only when it
+     * changes — and {@code false} once while a menu, a screen of the game's or another window has the keys. The game
+     * sends it on as an order of its own.
+     */
+    public ActionControls sprint(BiConsumer<DukeGame, Boolean> changed) {
+        this.sprinted = changed;
+        return this;
+    }
+
+    /**
+     * The right button strikes as the left does, held; the client's order by it is given up. Left alone, the right
+     * button is the client's.
+     */
+    public ActionControls rightStrikes(boolean strikes) {
+        this.rightStrikes = strikes;
+        return this;
+    }
+
+    /**
+     * Let the game take each press of a strike button before the swing toward the forward does: it is asked with
+     * {@code heavy} false for the left button and true for the right, and a press it takes sends no swing and holds
+     * none. Null, the default, leaves both buttons as they were.
+     */
+    public ActionControls strikes(Strikes strikes) {
+        this.strikes = strikes;
+        return this;
+    }
+
+    /**
+     * The camera behind his right shoulder — see {@link ShoulderCamera}: the held mouse turns and tilts it round him
+     * within the look's limits, it eases after his first unit, and it is pulled in where a wall or the ground stands
+     * between him and it. Replaces {@link #follow}; null puts the camera as {@code follow} has it. The game's own camera
+     * (a cut scene, a talk) still takes the screen when it likes, and gives it back.
+     */
+    public ActionControls shoulder(ShoulderCamera look) {
+        this.shoulder = look;
+        this.follow = look == null ? CameraFollow.NONE : look.follow();
         return this;
     }
 
@@ -124,11 +201,16 @@ public final class ActionControls implements ControlScheme {
 
     @Override
     public void frame(float tpf) {
+        if (shoulder != null && !pitched) {
+            pitched = true;
+            window.tilt(shoulder.pitchStart() - window.pitch(), shoulder.pitchStart(), 0f);
+        }
         orbit();
         if (aim != null) {
             aim.nudge(window.mouseMoved()[1]); // up and down: further and nearer
         }
         tellTheDirection();
+        tellTheSprint();
         followTheSwing();
         offerTheNearest();
     }
@@ -144,6 +226,9 @@ public final class ActionControls implements ControlScheme {
                 continue;
             }
             var at = window.drawnAt(view.id());
+            heroX = at == null ? view.x() : at[0];
+            heroY = at == null ? view.y() : at[1];
+            heroFacing = view.orientation();
             eye.step(follow, window, at == null ? view.x() : at[0], at == null ? view.y() : at[1], view.orientation(),
                     view.moving(), panned, window.time(), tpf);
             return;
@@ -153,16 +238,93 @@ public final class ActionControls implements ControlScheme {
     /** The follow turned round him by the held mouse, and tilted within its band — see {@link CameraFollow#orbiting}. */
     private void orbit() {
         if (!window.mouseHeld() || !follow.follows() || follow.orbitSensitivity() <= 0f) {
-            return;
+            return; // a screen, a menu or Alt has the mouse: the camera stands as it is
         }
         var moved = window.mouseMoved();
         window.turnBy(follow.turnOf(moved[0]));
+        if (shoulder != null) {
+            float pitch = shoulder.tilted(window.pitch(), moved[1]);
+            window.tilt(pitch - window.pitch(), pitch, 0f); // the look's limits, not the follow's band
+            return;
+        }
         if (follow.pitchBand() > 0f) {
             if (Float.isNaN(orbitPitch)) {
                 orbitPitch = window.pitch();
             }
             window.tilt(-moved[1] * follow.orbitSensitivity(), orbitPitch, follow.pitchBand());
         }
+    }
+
+    /** How long the shoulder camera must have gone unplaced for the screen to have been the game's: some frames. */
+    private static final float RETURN_AFTER = 0.25f;
+
+    @Override
+    public void place(Camera eye, Vector3f knock, float tpf) {
+        if (shoulder == null || window == null) {
+            return;
+        }
+        if (window.time() - placedAt > RETURN_AFTER && !Float.isNaN(heroX)) {
+            window.lookAt(heroX, heroY); // the screen was the game's: back behind him at once, not flown to him
+            window.turnBy(turnBehind(heroFacing, window.yaw())); // and looking the way he faces, as he starts
+            boom.forget();
+        }
+        placedAt = window.time();
+        var at = window.lookingAt();
+        float feet = window.floorHeight(at[0], at[1]);
+        var focus = new Vector3f(at[0], boom.heightAfter(shoulder, feet + shoulder.lookHeight(), tpf), at[1]);
+        var pose = shoulder.pose(focus, window.yaw(), window.pitch());
+        float length = pose.reach(focus);
+        var way = pose.eye().subtract(focus).normalizeLocal();
+        float out = boom.lengthAfter(shoulder, length, room(eye, focus, pose), tpf);
+        eye.setLocation(focus.add(way.mult(out)).addLocal(knock));
+        eye.lookAtDirection(pose.gaze(), Vector3f.UNIT_Y);
+    }
+
+    /**
+     * The game's own view kept clear as his is: the line from his chest height over {@code target} to the eye run through
+     * the scene and over the ground, the eye pulled in along it at once where something stands in the way, its gaze kept.
+     */
+    @Override
+    public void placeClear(Camera eye, Vector3f target, float tpf) {
+        if (shoulder == null || window == null) {
+            return;
+        }
+        var focus = target.add(0f, shoulder.lookHeight(), 0f);
+        var from = eye.getLocation().clone();
+        float length = from.distance(focus);
+        if (length < 1e-3f) {
+            return;
+        }
+        var pose = new ShoulderCamera.Pose(from, eye.getDirection().clone(), eye.getLeft().negate(), eye.getUp().clone());
+        float room = room(eye, focus, pose);
+        if (room < length) {
+            eye.setLocation(focus.add(from.subtract(focus).normalizeLocal().multLocal(room)));
+        }
+    }
+
+    /** How far out from {@code focus} toward {@code pose}'s eye the scene and the ground leave the eye room to stand. */
+    private float room(Camera eye, Vector3f focus, ShoulderCamera.Pose pose) {
+        float near = eye.getFrustumNear();
+        float across = eye.getFrustumRight();
+        float up = eye.getFrustumTop();
+        float length = pose.reach(focus);
+        var way = pose.eye().subtract(focus).normalizeLocal();
+        float stand = (float) Math.sqrt(near * near + across * across + up * up) + ShoulderCamera.CLEARANCE;
+        return Math.min(shoulder.roomFor(focus, pose, near, across, up, window::clearRun),
+                ShoulderCamera.groundRun(length, along -> focus.y + way.y * along
+                        - window.floorHeight(focus.x + way.x * (float) along, focus.z + way.z * (float) along) - stand));
+    }
+
+    /**
+     * How far the camera at {@code yaw} turns to look the way a hero facing {@code facing} does (radians, 0 along the
+     * map's +x, +y toward its foot; the camera's yaw 0 looks up the map): the short way, 0 for a facing not known.
+     */
+    static float turnBehind(float facing, float yaw) {
+        if (Float.isNaN(facing)) {
+            return 0f;
+        }
+        float turn = (float) Math.atan2(-Math.cos(facing), -Math.sin(facing)) - yaw;
+        return (float) Math.atan2(Math.sin(turn), Math.cos(turn));
     }
 
     /** The held keys' direction, told the game when it changes. */
@@ -174,6 +336,18 @@ public final class ActionControls implements ControlScheme {
                 window.keyHeld(walkKeys.down()), window.keyHeld(walkKeys.right()), window.yaw(), !window.playing());
         if (now != null) {
             walked.accept(window.game(), now);
+        }
+    }
+
+    /** Whether the sprint is held, told the game when it changes. */
+    private void tellTheSprint() {
+        if (sprinted == null) {
+            return;
+        }
+        boolean now = window.playing() && window.controlHeld(KeyMap.Control.SPRINT);
+        if (now != sprinting) {
+            sprinting = now;
+            sprinted.accept(window.game(), now);
         }
     }
 
@@ -205,7 +379,7 @@ public final class ActionControls implements ControlScheme {
     @Override
     public boolean left(boolean pressed) {
         if (mouse.action()) {
-            leftAhead(pressed);
+            leftAhead(pressed, false);
             return true;
         }
         if (mouse.modern()) {
@@ -216,12 +390,25 @@ public final class ActionControls implements ControlScheme {
     }
 
     @Override
+    public boolean right(boolean pressed) {
+        if (!rightStrikes || !window.playing() && pressed) {
+            return false;
+        }
+        rightHeld = pressed;
+        leftAhead(pressed, true);
+        return true;
+    }
+
+    @Override
     public boolean rightOrders(boolean worded, boolean onAThing) {
         return mouse.rightOrders(worded, onAThing);
     }
 
     /** The left button, the action way: a strike along the camera's forward. */
-    private void leftAhead(boolean pressed) {
+    private void leftAhead(boolean pressed, boolean heavy) {
+        if (pressed && strikes != null && window.playing() && strikes.press(window.game(), heavy)) {
+            return; // the game's own blow: nothing is held, so the release has nothing to let go
+        }
         var hero = window.selected();
         var at = hero.isEmpty() || window.snapshot() == null ? null : window.drawnAt(hero.getFirst().value());
         if (at == null) {
@@ -269,7 +456,7 @@ public final class ActionControls implements ControlScheme {
         var hero = window.selected();
         if (mouse.action()) {
             var at = hero.isEmpty() ? null : window.drawnAt(hero.getFirst().value());
-            if (!window.playing() || !window.leftHeld() || at == null) {
+            if (!window.playing() || !window.leftHeld() && !rightHeld || at == null) {
                 swing.releaseAhead(me, hero).forEach(window.game()::postCommand);
                 return;
             }

@@ -12,6 +12,9 @@ final class SightLooks {
     boolean fogBySight;
     Fog fog = Fog.DEFAULT;
     Predicate<Object> startsExplored = _ -> false;
+    float wideSightUnits;
+    float wideRemembered;
+    Predicate<Object> wideEyes = _ -> false;
     Supplier<List<Visuals.Seen>> alsoSeen = List::of;
     float minimapUnseenShows;
     int minimapSpan;

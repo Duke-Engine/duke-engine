@@ -115,6 +115,8 @@ public final class Visuals {
         final java.util.Map<String, java.util.List<Pick>> rolePicks = new java.util.LinkedHashMap<>();
         /** Clips it needs for something other than standing, walking and dying. */
         final java.util.List<String> otherAnims = new java.util.ArrayList<>();
+        /** The seconds a busy clip is played fitted to, by clip: see {@link #busyFitted}. */
+        final java.util.Map<String, Float> busyFits = new java.util.HashMap<>();
         String fireSound;
         String dieSound;
         Colour colour; // null = the owning player's colour
@@ -1363,6 +1365,31 @@ public final class Visuals {
             return this;
         }
 
+        /** Whether the model's normal and metallic-roughness pictures are drawn; see {@link MappedSkin}. */
+        boolean keepsMaps;
+
+        /**
+         * Draw the model with its normal map and a highlight from its metallic-roughness picture, on the client's
+         * own lighting. Off, as it always was: a model is drawn in its colour alone, so a game whose files carry maps
+         * for another renderer is unchanged until it asks.
+         */
+        public UnitVisual keepsMaps(boolean keeps) {
+            this.keepsMaps = keeps;
+            return this;
+        }
+
+        /** How much of its own colour it keeps where no sun reaches it; see {@link #shadeKeeps}. */
+        float ambientShare = Bodies.CREATURE_AMBIENT;
+
+        /**
+         * How much of its own colour it keeps in the shade, {@code share} of what the light there is: 0.55 as every
+         * model's (the default), more for a model whose colours are so dark that the shaded side of it reads as black.
+         */
+        public UnitVisual shadeKeeps(float share) {
+            this.ambientShare = share;
+            return this;
+        }
+
         /** Extra rotation when the model file doesn't face the engine's +X. */
         public UnitVisual facing(float degrees) {
             this.facingDegrees = degrees;
@@ -1575,6 +1602,23 @@ public final class Visuals {
                 picks = rolePicks.get("die");
             }
             return picks == null ? dieAnimFor(deathType) : Pick.draw(picks, thing, frame, null);
+        }
+
+        /**
+         * The clip {@code clip} played once, from its start to its end, over {@code seconds} when this creature is busy at
+         * it ({@code GameObject.busy}) — sped up or slowed to fit the frames the game gave the work, where the clip is
+         * made at a length of its own. A busy clip nobody fits is looped at its own pace, as it always was.
+         */
+        public UnitVisual busyFitted(String clip, float seconds) {
+            if (clip != null && !clip.isBlank() && seconds > 0f) {
+                busyFits.put(clip, seconds);
+            }
+            return this;
+        }
+
+        /** The seconds {@code clip} is fitted to when this creature is busy at it, or 0 where it is played as it is. */
+        public float busyFitOf(String clip) {
+            return busyFits.getOrDefault(clip, 0f);
         }
 
         /**
@@ -3349,6 +3393,50 @@ public final class Visuals {
         return ground.streamGround;
     }
 
+    /**
+     * A painted world's scenery drawn instanced, a draw a model a chunk, rather than a draw a piece: a thick wood is
+     * thousands of pieces. {@code farOf} names the model a piece is drawn with in a chunk away from the camera's own and
+     * the eight round it, null for the piece's own there too; it is asked of each model once. Off, as ever, until asked.
+     */
+    public Visuals instancedScenery(java.util.function.UnaryOperator<String> farOf) {
+        ground.instancedScenery = farOf;
+        return this;
+    }
+
+    public java.util.function.UnaryOperator<String> getInstancedScenery() {
+        return ground.instancedScenery;
+    }
+
+    /** Scenery's models read with the rest of the art, behind the loading picture, not when the first of each comes into view. */
+    public Visuals sceneryReadFirst(java.util.List<String> models) {
+        ground.sceneryReadFirst = java.util.List.copyOf(models);
+        return this;
+    }
+
+    java.util.List<String> getSceneryReadFirst() {
+        return ground.sceneryReadFirst;
+    }
+
+    /** Which models of the instanced scenery cast the sun's shadow; none until asked. */
+    public Visuals scenerySunCasts(java.util.function.Predicate<String> casts) {
+        ground.scenerySunCasts = casts == null ? _ -> false : casts;
+        return this;
+    }
+
+    public java.util.function.Predicate<String> getScenerySunCasts() {
+        return ground.scenerySunCasts;
+    }
+
+    /** How far from the camera the sun's shadows are drawn where scenery casts them, in units; 0 for as far as it sees. */
+    public Visuals sunShadowsReach(float units) {
+        ground.sunShadowsReach = units;
+        return this;
+    }
+
+    public float getSunShadowsReach() {
+        return ground.sunShadowsReach;
+    }
+
     /** How many cells round the camera {@code map}'s ground is built: {@link #streamGround}'s, or 0 for whole. */
     public int streamGroundFor(Object map) {
         return ground.streamGroundFor(map);
@@ -3365,6 +3453,29 @@ public final class Visuals {
     public Visuals fogStartsExplored(java.util.function.Predicate<Object> forMap) {
         sight.startsExplored = mapRule(forMap, false);
         return this;
+    }
+
+    /**
+     * What the player's eyes are on the maps {@code forMap} says, for the picture alone: a third-person world is not a
+     * floor plan under a shroud. The discovering unit opens {@code sightUnits} round it rather than its {@code VisionRange}
+     * and what it has left is drawn {@code rememberedLight} of full light; the simulation's sight is as it was. Every other
+     * map, and every map until this is asked, as the fog says.
+     */
+    public Visuals wideWorldEyes(float sightUnits, float rememberedLight, java.util.function.Predicate<Object> forMap) {
+        sight.wideSightUnits = sightUnits;
+        sight.wideRemembered = rememberedLight;
+        sight.wideEyes = mapRule(forMap, false);
+        return this;
+    }
+
+    /** How far the discovering unit opens {@code map}: {@link #wideWorldEyes}'s, or {@code own}, its VisionRange. */
+    float wideWorldSightFor(Object map, float own) {
+        return sight.wideEyes.test(map) ? sight.wideSightUnits : own;
+    }
+
+    /** How brightly {@code map} draws what is left behind: {@link #wideWorldEyes}'s, or negative for the fog's own. */
+    float wideWorldRememberedFor(Object map) {
+        return sight.wideEyes.test(map) ? sight.wideRemembered : -1f;
     }
 
     /** Whether {@code map} begins with every cell remembered — see {@link #fogStartsExplored}. */
@@ -3459,6 +3570,22 @@ public final class Visuals {
 
     public boolean isDragSelecting() {
         return controls.dragSelects;
+    }
+
+    /**
+     * A game played from one hero's shoulder, not as an RTS: the client draws no hint of RTS controls along the foot,
+     * no bar over the hero's own head (his health is the game's to show at a corner), and the hero panel's bottom bar
+     * is left to the game's own canvas -- a part such as the RPG's draws none and leaves no socket, so the minimap
+     * sits in its corner. Off unless said; creatures other than the hero keep their bars.
+     */
+    public Visuals shoulderHud(boolean on) {
+        controls.shoulderHud = on;
+        return this;
+    }
+
+    /** See {@link #shoulderHud}. */
+    public boolean isShoulderHud() {
+        return controls.shoulderHud;
     }
 
 

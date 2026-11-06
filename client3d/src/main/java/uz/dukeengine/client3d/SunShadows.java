@@ -61,6 +61,8 @@ final class SunShadows {
     private Vector3f sun;
     private ColorRGBA colour = DEFAULT_COLOUR;
     private boolean on = true;
+    /** How far from the camera shadows are drawn, fading out over the last of it; the camera's whole reach where 0. */
+    private float reach;
 
     SunShadows(AssetManager assets, ViewPort view, Vector3f sun) {
         this.assets = assets;
@@ -82,6 +84,19 @@ final class SunShadows {
         }
         across.normalizeLocal().multLocal(FastMath.cos(least));
         return new Vector3f(across.x, -FastMath.sin(least), across.z);
+    }
+
+    /** Shadows drawn only so far from the camera: the shadow maps' pixels all spent there, and nothing beyond it drawn twice. */
+    void reach(float units) {
+        reach = units;
+        groups.values().forEach(this::reachOf);
+    }
+
+    private void reachOf(AbstractShadowFilter<?> group) {
+        if (reach > 0f) {
+            group.setShadowZExtend(reach);
+            group.setShadowZFadeLength(reach * 0.2f);
+        }
     }
 
     /** The sun moved — a new map's hour: every set of shadows cast from it, raised as each is. */
@@ -167,6 +182,7 @@ final class SunShadows {
         }
         group.getShadowMaterial().setColor("ShadowColor", colour);
         group.setEnabled(on);
+        reachOf(group);
         groups.put(least, group);
         cutShafts();
         finishing.forEach(post()::removeFilter);

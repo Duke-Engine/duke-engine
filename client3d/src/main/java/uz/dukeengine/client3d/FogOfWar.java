@@ -99,6 +99,7 @@ final class FogOfWar {
         if (visuals.fogStartsExploredFor(mapRecord)) {
             discovery.startExplored(); // a world whose lie he knows: remembered, not seen
         }
+        discovery.remembersAt(visuals.wideWorldRememberedFor(mapRecord));
         // On a world whose ground is built round the camera, its dark is kept round the camera too.
         discovery.window(fogWindowCells(mapRecord));
         discovery.follow(camera.targetX(), camera.targetZ());
@@ -158,7 +159,8 @@ final class FogOfWar {
             discoveryEyes = eyes;
         }
         discovery.blockSight(whatBlocksSight(game, snapshot));
-        discovery.reveal(snapshot.units(), game.getLocalPlayerIndex(), discoveryRadius,
+        discovery.reveal(snapshot.units(), game.getLocalPlayerIndex(),
+                visuals.wideWorldSightFor(game.getMapRecord(), discoveryRadius),
                 visuals.getDiscoveryTemplate(), visuals.getAlsoSeen());
         drawWhatIsOpen(tpf);
         return true;

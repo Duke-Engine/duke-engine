@@ -180,13 +180,13 @@ public final class Duke3D {
 
     /**
      * {@link #launch()}, with what the client is told on the command line: {@code --shot=<file>} starts the match with no
-     * menu, writes one picture of it to {@code file} (a PNG) once it has stood {@link DukeRtsApp#SHOT_AFTER} seconds, and
+     * menu, writes one picture of it to {@code file} (a PNG, in a folder that is there) once it has stood {@link DukeRtsApp#SHOT_AFTER} seconds, and
      * closes the window. What the client does not know is left for the game.
      */
     public void launch(String... args) {
         for (var arg : args) {
             if (arg.startsWith(SHOT)) {
-                var file = new java.io.File(arg.substring(SHOT.length())).getAbsoluteFile();
+                var file = arg.substring(SHOT.length());
                 shell(Shell.none());
                 later(client -> client.shot(file));
             }
@@ -514,6 +514,16 @@ public final class Duke3D {
      */
     public Duke3D controls(ControlScheme scheme) {
         later(client -> client.controls(scheme));
+        return this;
+    }
+
+    /**
+     * Draw every thing between the simulation's thirty steps a second, a step behind it, instead of standing it where the
+     * last step put it until the next: for a camera that follows a hero smoothly, beside which a hero moving in steps
+     * shudders. Off, as ever. From any thread.
+     */
+    public Duke3D smoothMotion(boolean on) {
+        later(client -> client.smoothMotion(on));
         return this;
     }
 

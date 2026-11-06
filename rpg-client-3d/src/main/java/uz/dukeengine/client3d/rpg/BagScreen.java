@@ -190,6 +190,37 @@ public final class BagScreen implements Painter, CanvasInput {
         return shown;
     }
 
+    /** Whether the bag's panel is drawn only when asked for: see {@link #onRequest}. */
+    private volatile boolean onRequest;
+    private volatile boolean up;
+
+    /**
+     * The bag's panel is drawn only while it is asked for ({@link #toggle}), and then it holds the keys, so the
+     * pointer is free to use it: for a game played with the pointer held by the camera, where a panel always on the
+     * screen cannot be clicked and only covers the world. What is painted under it ({@code under}) still is, always.
+     * Off, as it was: up the whole time a match is played.
+     */
+    public BagScreen onRequest(boolean asked) {
+        this.onRequest = asked;
+        return this;
+    }
+
+    /** The panel up where it was down and down where it was up; it does nothing unless {@link #onRequest}. */
+    public void toggle() {
+        up = !up;
+    }
+
+    /** Whether the panel is up now. */
+    public boolean panelUp() {
+        return !onRequest || up;
+    }
+
+    /** An asked-for panel that is up holds the keys from his feet, and with them the pointer. */
+    @Override
+    public boolean holdsKeys() {
+        return onRequest && up && shown;
+    }
+
     /** The same, arming what is taken in hand by {@code arm}: for a test to see what it aims with, with no window. */
     public BagScreen(MenuStyle look, Words words, Function<Loot, List<String>> gives, BuffScreen buffs,
             BiConsumer<CommandButton, Consumer<AimOutcome>> arm, LongSupplier clock) {
@@ -279,6 +310,9 @@ public final class BagScreen implements Painter, CanvasInput {
         }
         if (now.under() != null) {
             now.under().paint(canvas);
+        }
+        if (!panelUp()) {
+            return;
         }
         if (heldIn != now) {
             held = -1; // a match that is over took what was in hand with it
@@ -500,7 +534,7 @@ public final class BagScreen implements Painter, CanvasInput {
             case Button button -> {
                 mouseX = button.x();
                 mouseY = button.y();
-                return click(button);
+                return panelUp() && click(button);
             }
             default -> {
                 return false;

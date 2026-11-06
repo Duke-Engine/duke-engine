@@ -19,6 +19,13 @@ class TestWindow implements ControlScheme.Context {
     float pitch = 0.9f;
     boolean held;
     float[] moved = {0f, 0f};
+    boolean sprint;
+    float now;
+    /** How far from the hero a wall stands along any line the camera casts; none by default. */
+    float wallAt = Float.MAX_VALUE;
+    /** The ground's height, and the height of a hill behind the hero: where the world's y is past 105. */
+    float ground;
+    float hill;
 
     @Override
     public DukeGame game() {
@@ -62,7 +69,7 @@ class TestWindow implements ControlScheme.Context {
 
     @Override
     public float floorHeight(float x, float y) {
-        return 0f;
+        return y > 105f ? hill : ground;
     }
 
     @Override
@@ -76,8 +83,13 @@ class TestWindow implements ControlScheme.Context {
     }
 
     @Override
+    public boolean controlHeld(uz.dukeengine.client3d.KeyMap.Control control) {
+        return sprint && control == uz.dukeengine.client3d.KeyMap.Control.SPRINT;
+    }
+
+    @Override
     public float time() {
-        return 0f;
+        return now;
     }
 
     @Override
@@ -148,5 +160,10 @@ class TestWindow implements ControlScheme.Context {
     @Override
     public float reachOf(ObjectId id) {
         return 0f;
+    }
+
+    @Override
+    public float clearRun(Vector3f from, Vector3f way, float length, float minHeight) {
+        return Math.min(length, wallAt);
     }
 }

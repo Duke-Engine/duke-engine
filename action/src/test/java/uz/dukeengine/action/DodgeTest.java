@@ -96,6 +96,27 @@ class DodgeTest {
         assertEquals(125f, hero.getPosition().x(), 1e-3f, "over the low wall, at its far end");
     }
 
+    /** A save mid-roll keeps the roll: loaded into a fresh hero, it goes on to the same end on the same frame. */
+    @Test
+    void aRollSavedHalfWayIsRolledOnAfterTheLoad() {
+        // No skill book: it is not a thing a save holds yet, and the roll is cast on the module itself.
+        var world = new ActionWorld(Map.of()).template("Roller", new ActiveBody.Data(100f), new StatusUpdate.Data(),
+                new Dodge.Data());
+        var hero = world.put("Roller", world.heroes, 100f, 100f);
+        world.run(1);
+        assertTrue(hero.findModule(Dodge.class).cast(dodge(), new Coord3D(200f, 100f, 0f),
+                uz.dukeengine.rpg.Seal.NONE));
+        world.run(4);
+        var factory = world.getThingFactory().getModuleFactory();
+        var line = uz.dukeengine.core.save.ModuleStates.save(hero, factory);
+
+        var twin = world.put("Roller", world.heroes, hero.getPosition().x(), 100f);
+        uz.dukeengine.core.save.ModuleStates.load(twin, line, factory);
+        world.run(5);
+        assertEquals(116f, hero.getPosition().x(), 1e-3f);
+        assertEquals(116f, twin.getPosition().x(), 1e-3f, "the twin finished the roll it was loaded in");
+    }
+
     /** One with no module that casts it is refused, nothing spent. */
     @Test
     void withoutTheModuleItIsRefused() {

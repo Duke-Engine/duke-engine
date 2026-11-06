@@ -41,6 +41,59 @@ still missing: `docs/plan/render.md`.
 - **Every resource root's `maps.list` is read**: `MapPackages.shipped` merges the lists of all roots that have one, where
   it used to read the first it found. A game whose modules each ship maps now offers all of them; a map listed in two
   roots takes the files of both, read from the first.
+- **The game's own camera may be kept out of the walls**: `GameCamera.keepClear(true)` asks the client's scheme to pull
+  the eye the game drives in toward what it looks at where standing scenery or the ground is in the way, its gaze kept
+  (`ControlScheme.placeClear`, nothing by default); `ActionControls` does it with its shoulder camera's own collision. Off
+  again at `release`. A talk filmed close is what it is for; a wide cut scene leaves it off.
+- **Scenery that looks real, and a wood that can be drawn**: a piece of scenery keeps its model's cut-out picture (glTF MASK), both
+  sides and each vertex's colour as a shade (`FoggedTerrain`: `AlphaDiscard`, `VertexShade`, a `PreShadow` technique).
+  `Visuals.instancedScenery(farOf)` draws a painted world's scenery a draw a model a chunk, instances written once, with a far
+  mesh past the camera's own chunks; `scenerySunCasts` names what casts the sun's shadow, `sunShadowsReach` how far they are
+  drawn. `wideWorldEyes(sight, remembered, forMap)` opens a third-person world further than the shroud's `VisionRange`, for the
+  picture alone. `sceneryReadFirst` reads scenery models behind the loading picture. Ground cover's instances are written once too. Nothing changes until asked.
+- **The shoulder camera comes back behind the hero**: after a scene or a talk the game directed, and at the start,
+  `ActionControls` turns the camera to look the way he faces, not only moves it to him. `BagScreen.onRequest(true)` draws
+  the bag's panel only while `toggle()` has it up (and then it holds the keys, so the pointer is free); what is painted
+  under it is drawn all the same. Both off or as before for every other game.
+- **A game may be played from the hero's shoulder**: `Visuals.shoulderHud(true)` takes the RTS hint of controls off the
+  foot, the bar over the hero's own head (the creature the status line's `hero=` names) and, with the RPG part, the hero
+  panel's bottom bar and its minimap socket, so the minimap sits in its corner and the game's canvas shows his health. Off
+  by default; every other creature keeps its bar. A unit may also keep more of its colour in the shade:
+  `UnitVisual.shadeKeeps(share)` (0.55 as always), and the highlight of a model that keeps its maps is almost nothing
+  where a texel has no metal in it, so hair and leather no longer shine.
+- **A model may keep its maps**: `UnitVisual.keepsMaps(true)` dresses the unit's model with its glTF normal map and a
+  highlight made from its metallic-roughness picture (smooth or metal shines, cloth does not), on the client's own sun
+  and flat ambient; the client still has no light probe, so nothing is lit as PBR. Emissive pictures are not drawn.
+  Off by default: every model is drawn in its colour alone, as before.
+- **A scheme may take the right button and read a held control**: `ControlScheme.right(pressed)` (true where it took
+  the press, so no order is given by it) and `Context.controlHeld(KeyMap.Control)`; `KeyMap.Control.SPRINT`, a held
+  control on no key until the game puts it on one. `ActionControls.rightStrikes(true)` makes the right button strike as
+  the left does, and `ActionControls.sprint((game, held) -> ...)` tells the game when the sprint is held or let go.
+- **A game may time its own swings**: `WeaponUpdate.blow(victims, share)` strikes one swing now at the victims the game
+  chose, each for `share` of the weapon's damage (bonuses and the critical roll counted once for the swing), with no
+  wind-up, no reach check and no reload begun, told as fired and landed as any blow is; `Shot.scaled(share)`.
+  `ActionControls.strikes((game, heavy) -> taken)` offers each press of the left (light) and right (heavy) button to the
+  game before the swing toward the camera's forward; a press it takes sends and holds nothing. All additions.
+- **A steered hero busy at a clip is drawn standing**: `MoveUpdate.standsAtWork()`, and the match client no longer
+  marks such a unit as walking, so a combo's or a roll's clip is shown while a direction key is held (the walk was
+  already held and went on after). Only a steered unit (`Stride`) is affected.
+- **`Dodge` is `Saveable`**: a snapshot taken mid-roll keeps the roll.
+- **A camera behind the hero's right shoulder**: `ActionControls.shoulder(new ShoulderCamera(...))`. The held mouse
+  turns it and tilts it between a pitch under the ground's and one short of overhead; it eases after the hero's first
+  unit (and so hides the simulation's steps and a swing's lunge) with no lag on the mouse's turn; and each frame the
+  line from the hero to the eye, and one past each corner of the near plane, is run through the map's standing
+  scenery (the meshes, so an arched gate is open and a wall of eighty units is a wall; creatures and anything lower
+  than `blockerHeight` are passed through) and the ground, and the eye stands short of the first thing — at once on the
+  way in, eased on the way out. A screen, a menu or Alt freezes it (the mouse is not held); the game's own camera (a cut
+  scene, a talk) still takes the screen, and the camera is back behind him when it gives it up. `ControlScheme.place(
+  eye, knock, tpf)` is the hook (called only when the camera is the player's) and `Context.clearRun(from, way, length,
+  minHeight)` the ray; both default to nothing. Games that name no shoulder camera are unchanged.
+- **`Duke3D.smoothMotion(true)` draws things between the simulation's steps** (`MotionSmoothing`): each on its way from
+  where it was drawn to where the last step put it, over the time steps have taken, so a hero is no longer drawn in
+  thirty jumps a second beside a smooth camera. A step behind the simulation, a jump over 24 units drawn at once. Off by
+  default.
+- **`UnitVisual.busyFitted(clip, seconds)`**: a busy clip (`GameObject.busy`) of a creature is played once through in
+  that time, for work whose clip has a length of its own. A busy clip nobody fits loops at its own pace, as before.
 
 ## 0.9.0
 

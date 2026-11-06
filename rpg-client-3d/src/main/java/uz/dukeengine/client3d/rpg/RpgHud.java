@@ -38,6 +38,11 @@ public final class RpgHud implements HudPart {
         sounds = new CardSounds(window::sound);
     }
 
+    /** Whether the game is played from the hero's shoulder, with no bottom bar: see {@code Visuals.shoulderHud}. */
+    private boolean shoulder() {
+        return window != null && window.visuals().isShoulderHud();
+    }
+
     private HeroPanel panel(int width, int height) {
         var visuals = window.visuals();
         var looks = HeroLooks.of(visuals);
@@ -75,6 +80,10 @@ public final class RpgHud implements HudPart {
      */
     @Override
     public boolean show(Frame frame) {
+        if (shoulder()) {
+            panel.hide(); // a game played from the hero's shoulder draws his health on its own canvas
+            return true; // and its status line is not an RTS's: nothing is written along the top
+        }
         var snapshot = frame.snapshot();
         var reading = panel.reading();
         sounds.status(reading);
@@ -141,22 +150,22 @@ public final class RpgHud implements HudPart {
 
     @Override
     public Canvas.Box panel() {
-        return panel == null ? null : panel.standing();
+        return panel == null || shoulder() ? null : panel.standing();
     }
 
     @Override
     public float[] minimapSocket() {
-        return panel != null && panel.isShowing() ? panel.minimapRect() : null;
+        return panel != null && panel.isShowing() && !shoulder() ? panel.minimapRect() : null;
     }
 
     @Override
     public float panelHeight() {
-        return panel == null ? 0f : panel.heightPixels();
+        return panel == null || shoulder() ? 0f : panel.heightPixels();
     }
 
     @Override
     public boolean covers(float x, float y) {
-        return panel != null && panel.contains(x, y);
+        return panel != null && !shoulder() && panel.contains(x, y);
     }
 
     @Override

@@ -159,15 +159,38 @@ final class KitTiles implements TileSource {
             var was = geometry.getMaterial();
             var colour = colourOf(was).mult(tint);
             var drawn = picture != null ? picture : textureOf(geometry);
-            geometry.setMaterial(!looks.fogs()
+            var made = !looks.fogs()
                     ? litKitMaterial(colour, drawn)
-                    : looks.fogged(colour, light.ambientColour().mult(KIT_AMBIENT), drawn));
+                    : looks.fogged(colour, light.ambientColour().mult(KIT_AMBIENT), drawn);
+            keepCutOut(was, made, geometry);
+            geometry.setMaterial(made);
             return;
         }
         if (model instanceof Node node) {
             for (var child : node.getChildren()) {
                 refogOwnMaterials(child, tint, picture);
             }
+        }
+    }
+
+    /**
+     * What a model's own material says about its shape beyond its colour, carried over: a cut-out picture (a leaf spray,
+     * glTF's MASK), both sides drawn, and each vertex's shade where its mesh brings colours and the material reads them.
+     */
+    private static void keepCutOut(Material was, Material made, Geometry geometry) {
+        if (was == null) {
+            return;
+        }
+        var cutOff = was.getParam("AlphaDiscardThreshold");
+        boolean fogged = made.getMaterialDef().getMaterialParam("AlphaDiscard") != null;
+        if (cutOff != null) {
+            made.setFloat(fogged ? "AlphaDiscard" : "AlphaDiscardThreshold", (Float) cutOff.getValue());
+        }
+        if (was.getAdditionalRenderState().getFaceCullMode() == com.jme3.material.RenderState.FaceCullMode.Off) {
+            made.getAdditionalRenderState().setFaceCullMode(com.jme3.material.RenderState.FaceCullMode.Off);
+        }
+        if (fogged && geometry.getMesh().getBuffer(com.jme3.scene.VertexBuffer.Type.Color) != null) {
+            made.setBoolean("VertexShade", true);
         }
     }
 

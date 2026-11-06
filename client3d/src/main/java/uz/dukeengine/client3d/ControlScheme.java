@@ -3,6 +3,7 @@ package uz.dukeengine.client3d;
 import com.jme3.font.BitmapFont;
 import com.jme3.input.InputManager;
 import com.jme3.math.Vector3f;
+import com.jme3.renderer.Camera;
 import com.jme3.scene.Node;
 import java.util.List;
 import uz.dukeengine.core.thing.ObjectId;
@@ -68,6 +69,11 @@ public interface ControlScheme {
 
         /** Whether the left button is down now. */
         boolean leftHeld();
+
+        /** Whether a held control of the client's ({@link KeyMap.Control#isHeld}) is down now, in play. */
+        default boolean controlHeld(KeyMap.Control control) {
+            return false;
+        }
 
         /** The client's clock, seconds. */
         float time();
@@ -158,6 +164,16 @@ public interface ControlScheme {
 
         /** How far a thing's weapon reaches now, read off the world; 0 for none. */
         float reachOf(ObjectId id);
+
+        /**
+         * How far a line from {@code from} along the unit {@code way} runs, up to {@code length}, before standing
+         * scenery stops it: the map's walls and relief, not creatures, and nothing lower than {@code minHeight} (a barrel,
+         * a stone). {@code length} for a clear line. In the scene's axes — x, height, then the world's y, as {@link
+         * #screenOf} takes them.
+         */
+        default float clearRun(Vector3f from, Vector3f way, float length, float minHeight) {
+            return length;
+        }
     }
 
     /** Given its context once, as the window opens. */
@@ -172,8 +188,32 @@ public interface ControlScheme {
     default void steer(boolean panned, float tpf) {
     }
 
+    /**
+     * Each frame the player's camera is the one on the screen — not the game's own, a cut scene or a talk, which are
+     * never asked — after the client placed the eye: the scheme may place it again, for a camera of its own kind.
+     * {@code knock} is the shake of what just landed, which the eye should still take.
+     */
+    default void place(Camera eye, Vector3f knock, float tpf) {
+    }
+
+    /**
+     * Each frame the game's own camera is on the screen and asks to be kept clear ({@code GameCamera.keepClear}), after
+     * the client placed the eye looking at {@code target}: the scheme may pull it in out of what stands in the way, as it
+     * keeps its own camera. Nothing by default.
+     */
+    default void placeClear(Camera eye, Vector3f target, float tpf) {
+    }
+
     /** The left button on the world, nothing armed: true where the scheme took it, false for the client's selecting. */
     default boolean left(boolean pressed) {
+        return false;
+    }
+
+    /**
+     * The right button on the world, nothing armed, pressed or let go: true where the scheme took it, false for the
+     * client's order ({@link #rightOrders} then says whether it gives one).
+     */
+    default boolean right(boolean pressed) {
         return false;
     }
 

@@ -312,12 +312,12 @@ final class DukeRtsApp extends SimpleApplication {
     /** Seconds the match stands before {@link Duke3D#launch(String...)}'s picture: models in, the probe baked, TAA settled. */
     static final float SHOT_AFTER = 12f;
     /** The file of the one picture and out; null, none. */
-    private java.io.File shotFile;
+    private String shotFile;
     private com.jme3.app.state.ScreenshotAppState shot;
     private float shotWaited;
     private int shotStage;
 
-    void shot(java.io.File file) {
+    void shot(String file) {
         shotFile = file;
     }
 
@@ -328,9 +328,10 @@ final class DukeRtsApp extends SimpleApplication {
         }
         switch (shotStage++) {
             case 0 -> {
-                var name = shotFile.getName().replaceFirst("(?i)\\.png$", "");
-                shotFile.getParentFile().mkdirs();
-                shot = new com.jme3.app.state.ScreenshotAppState(shotFile.getParent() + java.io.File.separator, name);
+                // By the path's own text: no module of the client names the file system (NeutralModulesTest).
+                int cut = Math.max(shotFile.lastIndexOf('/'), shotFile.lastIndexOf('\\')) + 1;
+                var name = shotFile.substring(cut).replaceFirst("(?i)\\.png$", "");
+                shot = new com.jme3.app.state.ScreenshotAppState(shotFile.substring(0, cut), name);
                 shot.setIsNumbered(false);
                 stateManager.attach(shot);
             }
@@ -572,6 +573,10 @@ final class DukeRtsApp extends SimpleApplication {
                 this::floorHeightAt);
 
         light.install(assetManager, viewPort, visuals.getThingSuns());
+        if (visuals.getInstancedScenery() != null) {
+            light.shadows().groupFor(0f); // scenery casts from the sun as it stands, whoever else does
+            light.shadows().reach(visuals.getSunShadowsReach());
+        }
         if (visuals.isPhysicallyBased()) {
             physicalLook = new PhysicalLook(assetManager, renderManager, viewPort, rootNode, light, visuals.getPicture());
         }
@@ -825,6 +830,11 @@ final class DukeRtsApp extends SimpleApplication {
         terrainNode.setCullHint(Spatial.CullHint.Always);
     }
 
+    /** Things drawn between the simulation's steps — see {@link Duke3D#smoothMotion}. */
+    void smoothMotion(boolean on) {
+        unitScene.smoothMotion(on);
+    }
+
     /** The player's own eyes in place of the RTS camera — see {@link Duke3D#firstPerson}. */
     void firstPerson(FirstPersonCamera eyes) {
         controls(eyes);
@@ -915,6 +925,11 @@ final class DukeRtsApp extends SimpleApplication {
         @Override
         public boolean leftHeld() {
             return heldInput.buttonHeld(com.jme3.input.MouseInput.BUTTON_LEFT);
+        }
+
+        @Override
+        public boolean controlHeld(KeyMap.Control control) {
+            return held(control);
         }
 
         @Override
@@ -1045,6 +1060,11 @@ final class DukeRtsApp extends SimpleApplication {
         @Override
         public float reachOf(uz.dukeengine.core.thing.ObjectId id) {
             return DukeRtsApp.this.reachOf(id);
+        }
+
+        @Override
+        public float clearRun(Vector3f from, Vector3f way, float length, float minHeight) {
+            return SceneRay.run(terrainNode, from, way, length, minHeight);
         }
     };
 
@@ -1988,6 +2008,10 @@ final class DukeRtsApp extends SimpleApplication {
                     if (screens.now() != Screen.PLAYING) {
                         break;
                     }
+                    if (!screens.menu().isVisible() && !buttons.armed() && !skillKeys.armed()
+                            && scheme.right(pressed)) {
+                        break; // the scheme's: a strike, and no order by the right button
+                    }
                     var over = inputManager.getCursorPosition();
                     if (visuals.getRightDrag().wanted()) {
                         // As the game framed it, whichever button commands: held, the right button scrolls, and it
@@ -2452,7 +2476,7 @@ final class DukeRtsApp extends SimpleApplication {
      * put them away.
      */
     private void showOnlyWhilePlaying() {
-        var hint = clientHud() ? Spatial.CullHint.Never : Spatial.CullHint.Always;
+        var hint = clientHud() && !visuals.isShoulderHud() ? Spatial.CullHint.Never : Spatial.CullHint.Always;
         minimapView.show(clientHud());
         if (controlsHint != null) {
             controlsHint.setCullHint(hint);

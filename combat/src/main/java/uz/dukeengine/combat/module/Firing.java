@@ -279,6 +279,44 @@ final class Firing {
     }
 
     /**
+     * A swing the game timed itself: one shot, its roll drawn once, worth {@code share} of the weapon's, struck now at
+     * each of {@code victims} that is still there to hit, with no wind-up, no reach check and no reload begun -- so a
+     * game's own combo is not held to the weapon's timing. A launcher may still take it (the sword's seal), and the
+     * moment is told once, at the first victim or along the facing.
+     *
+     * @return how many it struck
+     */
+    int blow(World world, Armed chosen, List<GameObject> victims, float share) {
+        var shot = Hands.shotOf(world, owner, chosen).scaled(share);
+        firedOn.put(chosen.index(), world.getFrame());
+        GameObject first = null;
+        int struck = 0;
+        for (var victim : victims) {
+            if (victim.isEffectivelyDead() || victim.getBody() == null) {
+                continue;
+            }
+            first = first == null ? victim : first;
+            struck++;
+            for (var listener : Landing.shotListeners(owner)) {
+                listener.onFired(shot, victim);
+            }
+            if (launched(launcher -> launcher.launch(owner, victim, shot))) {
+                continue; // in flight: it lands when its launcher says
+            }
+            Landing.deal(owner, shot, victim, shot.damage(), Landing.middleOf(victim), owner.getPosition());
+            Landing.struck(world, shot, owner, victim, victim.getPosition(), Landing.middleOf(victim),
+                    owner.getPosition());
+        }
+        var weapon = chosen.weapon();
+        var here = owner.getPosition();
+        var along = new Coord3D(here.x() + (float) StrictMath.cos(owner.getOrientation()),
+                here.y() + (float) StrictMath.sin(owner.getOrientation()), here.z());
+        told(world, chosen, first == null ? null : first.getId(), owner.getPosition(),
+                first == null ? along : Landing.aimPoint(first), weapon.isContact(world.cellSize()), shot);
+        return struck;
+    }
+
+    /**
      * Offer the shot to the {@link ProjectileLauncher}s on this unit, the first found, in module order, which is fixed
      * when the object is built — so two peers hand the same shot to the same launcher.
      *

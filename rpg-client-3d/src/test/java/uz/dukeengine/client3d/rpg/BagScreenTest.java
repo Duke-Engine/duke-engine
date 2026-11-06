@@ -166,4 +166,28 @@ class BagScreenTest {
         screen.take(new CanvasInput.Button(sword.middleX(), sword.middleY(), CanvasInput.Mouse.RIGHT, true, false));
         assertEquals(List.of("bag_open", "item_lift"), heard);
     }
+
+    /** A game played with the pointer held by the camera asks for the panel: what is under it is drawn all the same. */
+    @Test
+    void anAskedForPanelIsDrawnOnlyWhileItIsUpAndThenItHoldsTheKeys() {
+        screen.onRequest(true);
+        var game = shown();
+        bag.take(SWORD, 0, 0);
+        game.runHeadless(1);
+        var down = new Drawn();
+        screen.paint(down);
+        assertEquals(List.of("under"), under, "what is under it is drawn");
+        assertTrue(down.text.isEmpty() && down.pictures.isEmpty(), "no panel: " + down.text);
+        assertTrue(!screen.holdsKeys() && !screen.take(
+                new CanvasInput.Button(10, 10, CanvasInput.Mouse.LEFT, true, false)), "and no clicks, no held keys");
+
+        screen.toggle();
+        var open = new Drawn();
+        screen.paint(open);
+        assertTrue(open.text.contains("NARSALAR"), open.text.toString());
+        assertTrue(screen.holdsKeys(), "the pointer is free to use it");
+
+        screen.toggle();
+        assertTrue(!screen.holdsKeys() && screen.panelUp() == false);
+    }
 }

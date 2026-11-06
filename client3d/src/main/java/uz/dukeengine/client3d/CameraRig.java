@@ -168,7 +168,12 @@ final class CameraRig {
         if (firstPerson != null) {
             firstPerson.place(cam);
         } else {
-            placeTheCamera(tpf);
+            var knock = placeTheCamera(tpf);
+            if (directed == null) {
+                scheme.place(cam, knock, tpf); // the game's own camera is never the scheme's to move
+            } else if (game.camera().keepsClear()) {
+                scheme.placeClear(cam, new Vector3f(camera.targetX(), cameraHeight, camera.targetZ()), tpf);
+            }
         }
         veil.show(game.camera().screen(), cam.getWidth(), cam.getHeight());
     }
@@ -215,7 +220,7 @@ final class CameraRig {
     }
 
     /** The eye where the focus says, riding up with the ground under it, at its slope, shaken by what landed. */
-    private void placeTheCamera(float tpf) {
+    private Vector3f placeTheCamera(float tpf) {
         // The camera rides up with the ground under what it is looking at, or a
         // room on the second storey is a room seen from underneath. Eased rather
         // than stepped: a storey is a whole body's height and arriving at one in a
@@ -238,6 +243,7 @@ final class CameraRig {
         }
         cam.setLocation(target.add(camera.eyeOffset(cameraPitch)).addLocal(knock));
         cam.lookAt(target, Vector3f.UNIT_Y);
+        return knock;
     }
 
     /** How far a middle drag turns the view for each pixel it moves across, in radians; 0 where the game set none. */

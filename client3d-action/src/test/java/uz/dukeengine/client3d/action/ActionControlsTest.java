@@ -36,6 +36,56 @@ class ActionControlsTest {
     }
 
     @Test
+    void theSprintIsToldOnlyWhenItChanges() {
+        var told = new java.util.ArrayList<Boolean>();
+        var window = new TestWindow();
+        var controls = new ActionControls().sprint((_, now) -> told.add(now));
+        controls.attach(window);
+        controls.frame(1f / 30f);
+        window.sprint = true;
+        controls.frame(1f / 30f);
+        controls.frame(1f / 30f);
+        window.sprint = false;
+        controls.frame(1f / 30f);
+        assertEquals(List.of(true, false), told, "once up, once down, nothing at rest");
+    }
+
+    @Test
+    void theRightButtonIsTheClientsUnlessItStrikes() {
+        var window = new TestWindow();
+        var plain = new ActionControls();
+        plain.attach(window);
+        assertFalse(plain.right(true));
+        var striking = new ActionControls().rightStrikes(true);
+        striking.attach(window);
+        assertTrue(striking.right(true));
+        assertTrue(striking.right(false));
+    }
+
+    @Test
+    void aGameThatTakesTheStrikesIsAskedPerPressAndTheRightButtonIsHeavy() {
+        var asked = new java.util.ArrayList<Boolean>();
+        var window = new TestWindow();
+        var controls = new ActionControls().mouse(MouseScheme.ACTION).rightStrikes(true)
+                .strikes((_, heavy) -> asked.add(heavy));
+        controls.attach(window);
+        assertTrue(controls.left(true));
+        assertTrue(controls.left(false));
+        assertTrue(controls.right(true));
+        assertTrue(controls.right(false));
+        assertEquals(List.of(false, true), asked, "asked on a press only: light on the left, heavy on the right");
+    }
+
+    @Test
+    void aStrikeTheGameLeavesGoesOnAsTheSwingAhead() {
+        var asked = new java.util.ArrayList<Boolean>();
+        var controls = new ActionControls().mouse(MouseScheme.ACTION).strikes((_, heavy) -> !asked.add(heavy));
+        controls.attach(new TestWindow());
+        assertTrue(controls.left(true), "still the controls' own button");
+        assertEquals(List.of(false), asked);
+    }
+
+    @Test
     void aSkillAimedAheadPointsAlongTheForwardAtADistanceTheMouseSets() {
         var spot = new ForwardAim(60f, SkillRange.Shape.AT_A_SPOT);
         assertEquals(40f, spot.distance(), 1e-4f, "two thirds of its reach at a spot");

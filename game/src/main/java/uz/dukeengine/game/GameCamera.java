@@ -90,6 +90,8 @@ public final class GameCamera implements uz.dukeengine.core.save.Saveable {
     private float pitch = Float.NaN;
     private float zoom = Float.NaN;
     private boolean driven;
+    /** Whether the view the game drives is kept clear of standing scenery: see {@link #keepClear}. Not saved. */
+    private boolean clear;
 
     private final Tween movingX = new Tween();
     private final Tween movingY = new Tween();
@@ -357,6 +359,7 @@ public final class GameCamera implements uz.dukeengine.core.save.Saveable {
     /** Give the camera back to the player, where it is. */
     public void release() {
         driven = false;
+        clear = false;
         followed = null;
         path = List.of();
         movingX.stop();
@@ -369,6 +372,20 @@ public final class GameCamera implements uz.dukeengine.core.save.Saveable {
     /** Whether a move, a turn, a tilt or a zoom is under way. */
     public boolean isMoving() {
         return !path.isEmpty() || movingX.going() || turning.going() || tilting.going() || zooming.going();
+    }
+
+    /**
+     * Keep the eye the game drives out of standing scenery: pulled in toward what it looks at, as the player's own camera
+     * is where the client's scheme does that (a talk filmed close, in a court of walls), its gaze as it was; a wide
+     * cut scene leaves it off. Off again at {@link #release}. Drawing only: nothing of the simulation reads it.
+     */
+    public void keepClear(boolean on) {
+        clear = on;
+    }
+
+    /** See {@link #keepClear}. */
+    public boolean keepsClear() {
+        return clear;
     }
 
     /** Whether the game has the camera. */

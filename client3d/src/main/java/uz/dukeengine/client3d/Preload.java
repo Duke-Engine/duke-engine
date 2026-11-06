@@ -96,6 +96,8 @@ final class Preload {
             pieces.addAll(kit.getCorners());
             add(jobs, seen, Kind.TILE, pieces);
         }
+        // Scenery's models, as a game names them: the first of a kind met on a walk is read on the render thread else.
+        add(jobs, seen, Kind.TILE, visuals.getSceneryReadFirst());
         add(jobs, seen, Kind.SOUND, looks.stream().map(look -> look.fireSound).toList());
         add(jobs, seen, Kind.SOUND, looks.stream().map(look -> look.dieSound).toList());
         // The hero panel's painted edges. Tiny files, and read at the worst

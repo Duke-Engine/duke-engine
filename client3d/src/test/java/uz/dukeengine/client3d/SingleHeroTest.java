@@ -21,6 +21,14 @@ class SingleHeroTest {
         assertFalse(Orders.isBox(visuals, 0f, 0f, 4000f, 4000f));
     }
 
+    /** A game played from the hero's shoulder says so; every other game stays an RTS-style client. */
+    @Test
+    void theShoulderHudIsOffUnlessAGameSaysSo() {
+        var visuals = Visuals.create();
+        assertFalse(visuals.isShoulderHud());
+        assertTrue(visuals.shoulderHud(true).isShoulderHud());
+    }
+
     @Test
     void aPortraitDrawnOnTheCanvasIsAskedForAndLaidAsALivePicture() {
         var frame = new CanvasFrame(100, 100, new CanvasText(_ -> null), Map.<String, int[]>of()::get);

@@ -6,7 +6,6 @@ import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
-import com.jme3.scene.instancing.InstancedNode;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -88,8 +87,7 @@ final class CoverGrowth {
         int y1 = chunks.lastY(chunk, grid);
         float cell = grid.getCellSize();
         var grown = new Node("cover");
-        var instanced = new InstancedNode("cover instanced");
-        grown.attachChild(instanced);
+        var instances = new java.util.LinkedHashMap<Geometry, java.util.List<Geometry>>();
         for (int cy = y0; cy <= y1; cy++) {
             for (int cx = x0; cx <= x1; cx++) {
                 for (var piece : cover.growIn(cx, cy, paint.pictureAt(cx, cy))) {
@@ -102,13 +100,24 @@ final class CoverGrowth {
                     float z = piece.y() * cell;
                     one.setLocalScale(piece.scale());
                     KitPieces.turn(one, FastMath.DEG_TO_RAD * piece.facing());
-                    one.setLocalTranslation(x - x0 * cell, PaintedGround.groundAt(grid, x, z), z - y0 * cell);
+                    float y = PaintedGround.groundAt(grid, x, z);
                     // One whose material cannot be instanced is drawn as it is: never the window's death (E100).
-                    (instanceable.contains(piece.kind()) ? instanced : grown).attachChild(one);
+                    if (instanceable.contains(piece.kind())) {
+                        one.setLocalTranslation(x, y, z); // an instance stands in the world itself, not under its chunk
+                        one.updateGeometricState();
+                        for (var geometry : geometriesOf(one)) {
+                            instances.computeIfAbsent(masterOf(piece.kind(), geometry), _ -> new java.util.ArrayList<>())
+                                    .add(geometry);
+                        }
+                    } else {
+                        one.setLocalTranslation(x - x0 * cell, y, z - y0 * cell);
+                        grown.attachChild(one);
+                    }
                 }
             }
         }
-        instanced.instance();
+        instances.forEach((master, pieces) ->
+                grown.attachChild(Scenery.instanced("cover instanced", master.getMesh(), master.getMaterial(), pieces)));
         grown.setShadowMode(RenderQueue.ShadowMode.Off);
         return grown;
     }
@@ -141,6 +150,16 @@ final class CoverGrowth {
         }
         models.put(kind, model);
         return model;
+    }
+
+    /** The geometry of a kind's model that {@code geometry}, a copy of it, was cut from: what its instances are drawn as. */
+    private Geometry masterOf(GroundCover.Kind kind, Geometry geometry) {
+        for (var master : geometriesOf(models.get(kind))) {
+            if (master.getMesh() == geometry.getMesh()) {
+                return master;
+            }
+        }
+        throw new IllegalStateException("a copy of a model with a mesh the model has not");
     }
 
     private static List<Geometry> geometriesOf(Spatial model) {

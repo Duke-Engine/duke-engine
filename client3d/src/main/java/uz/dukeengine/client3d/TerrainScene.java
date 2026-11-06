@@ -143,6 +143,12 @@ final class TerrainScene {
     /** Told each material cover makes of its own, so whoever keeps the materials that read the fog keeps these too. */
     void onMadeMaterial(Consumer<Material> told) {
         cover.onMadeMaterial(told);
+        scenery.onMadeMaterial(told);
+    }
+
+    /** A painted world's scenery drawn instanced from the next map laid: see {@link Visuals#instancedScenery}. */
+    void instanceScenery(java.util.function.UnaryOperator<String> farOf, java.util.function.Predicate<String> casts) {
+        scenery.instanced(farOf, casts);
     }
 
     /** Grow {@code grows} round the camera from now, what grew before let go. */

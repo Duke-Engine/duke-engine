@@ -11,6 +11,11 @@ MaterialDef Fogged Terrain {
         // Whether each vertex carries the light that falls on it, worked out once per corner of the ground from the
         // ground's own lights -- the reference's terrain lights -- in place of the one sun and ambient below.
         Boolean VertexLight
+        // Whether each vertex carries a colour its picture is multiplied by: scenery's baked shadow, where a tree's
+        // crown is dark inside and a house's eaves shade its wall.
+        Boolean VertexShade
+        // A cut-out picture: what its alpha puts below this is not drawn at all (a leaf spray).
+        Float AlphaDiscard
         Color Color
         // How much of the scene's ambient light this surface returns, already
         // multiplied by the ambient light itself -- the client has one sun and one
@@ -97,6 +102,7 @@ MaterialDef Fogged Terrain {
             WorldMatrix
             ViewMatrix
             ViewProjectionMatrix
+            CameraPosition
         }
 
         Defines {
@@ -106,6 +112,8 @@ MaterialDef Fogged Terrain {
             HAS_COLORMAP : ColorMap
             VERTEX_ALPHA : VertexAlpha
             VERTEX_LIGHT : VertexLight
+            VERTEX_SHADE : VertexShade
+            ALPHA_DISCARD : AlphaDiscard
             HAS_SHADEMAP : ShadeMap
             HAS_SHADEMAP2 : ShadeMap2
             FOG_WINDOW : FogWindow
@@ -115,6 +123,34 @@ MaterialDef Fogged Terrain {
             BLEND_VARIATION : Variation
             BLEND_CLIFF : Cliff
             INSTANCING : UseInstancing
+        }
+    }
+
+    // What casts a shadow of the sun: cut-outs by their picture, and instanced where the piece is.
+    Technique PreShadow {
+        VertexShader   GLSL310 GLSL300 GLSL150 GLSL100 : MatDefs/duke/FoggedPreShadow.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 GLSL100 : MatDefs/duke/FoggedPreShadow.frag
+
+        WorldParameters {
+            WorldViewProjectionMatrix
+            WorldMatrix
+            ViewMatrix
+            ViewProjectionMatrix
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER: BoundDrawBuffer
+            HAS_COLORMAP : ColorMap
+            ALPHA_DISCARD : AlphaDiscard
+            INSTANCING : UseInstancing
+        }
+
+        ForcedRenderState {
+            FaceCull Off
+            DepthTest On
+            DepthWrite On
+            PolyOffset 5 3
+            ColorWrite Off
         }
     }
 }
