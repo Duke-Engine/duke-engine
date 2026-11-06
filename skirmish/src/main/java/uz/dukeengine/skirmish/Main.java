@@ -3,6 +3,7 @@ package uz.dukeengine.skirmish;
 import uz.dukeengine.client3d.Camera;
 import uz.dukeengine.client3d.Duke3D;
 import uz.dukeengine.client3d.EdgeScroll;
+import uz.dukeengine.client3d.PictureLook;
 import uz.dukeengine.client3d.Sun;
 import uz.dukeengine.client3d.Visuals;
 import uz.dukeengine.game.Colour;
@@ -64,6 +65,7 @@ public final class Main {
                 case Sun sun -> visuals.sunlight(new uz.dukeengine.client3d.Sunlight(sun.pitch(), sun.yaw(),
                         sun.strengthPercent() / 100f, sun.ambientPercent() / 100f,
                         sun.colour(), sun.ambientTint()));
+                case PictureLook picture -> visuals.picture(picture.settings());
                 case Camera camera -> visuals.edgeScroll(new EdgeScroll(camera.edgeMargin(),
                         camera.edgeSpeedPercent()));
                 default -> {

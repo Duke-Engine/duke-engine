@@ -438,7 +438,8 @@ final class DukeRtsApp extends SimpleApplication {
         this.controls = new Controls(this.hotkeys.keyMap());
         this.cameraFrame = visuals == null ? CameraFrame.NONE : visuals.getCameraFrame();
         camera.frame(cameraFrame);
-        this.light = new SceneLight(sunlightOfTheGame(), rootNode);
+        this.light = new SceneLight(sunlightOfTheGame(), rootNode,
+                visuals != null && visuals.isPhysicallyBased() && visuals.getPicture().atmosphere());
         this.looks = new Looks(visuals, missing);
     }
 

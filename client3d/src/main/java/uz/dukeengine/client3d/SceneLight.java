@@ -8,6 +8,7 @@ import com.jme3.math.Vector3f;
 import com.jme3.renderer.ViewPort;
 import com.jme3.scene.Node;
 import uz.dukeengine.game.Colour;
+import uz.dukeengine.render.Atmosphere;
 
 /**
  * The one sun and the one flat ambient the whole scene is lit by, as the game asked for them — see {@link Sunlight} —
@@ -48,12 +49,30 @@ final class SceneLight {
     /** The scene's lights scaled for the groups of things lit more or less brightly; see {@link LightScales}. */
     private final LightScales scales = new LightScales();
 
-    SceneLight(Sunlight light, Node rootNode) {
+    /** The sun's light reaches the ground through the {@link Atmosphere}: red and dim near the horizon. */
+    private final boolean throughAir;
+
+    SceneLight(Sunlight light, Node rootNode, boolean throughAir) {
         this.rootNode = rootNode;
+        this.throughAir = throughAir;
         this.litBy = light;
         this.sunDirection = light.direction();
-        this.sunColour = light.sunColour();
+        this.sunColour = reaching(light.direction(), light.sunColour());
         this.ambientColour = light.ambientColour();
+    }
+
+    /**
+     * What is left of the sun's {@code colour} at the ground when it shines along {@code direction}, against what is left
+     * at noon, so a game's sun keeps its colour overhead and turns red as it sets; the colour itself without the air.
+     */
+    ColorRGBA reaching(Vector3f direction, ColorRGBA colour) {
+        if (!throughAir) {
+            return colour;
+        }
+        var through = Atmosphere.transmittance(direction.negate());
+        var noon = Atmosphere.transmittance(Vector3f.UNIT_Y);
+        return new ColorRGBA(colour.r * through.r / noon.r, colour.g * through.g / noon.g, colour.b * through.b / noon.b,
+                colour.a);
     }
 
     Vector3f sunDirection() {
@@ -68,9 +87,9 @@ final class SceneLight {
         return ambientColour;
     }
 
-    /** The sun the scene is lit by now, with the hour it is easing through if there is one. */
+    /** The sun the scene is lit by now, with the hour it is easing through if there is one; its colour above the air. */
     HourOfDay.Sun lit() {
-        return hour != null ? hour.now() : new HourOfDay.Sun(sunDirection, sunColour, ambientColour);
+        return hour != null ? hour.now() : new HourOfDay.Sun(sunDirection, litBy.sunColour(), ambientColour);
     }
 
     LightScales scales() {
@@ -123,7 +142,7 @@ final class SceneLight {
         }
         litBy = light;
         sunDirection = light.direction();
-        sunColour = light.sunColour();
+        sunColour = reaching(light.direction(), light.sunColour());
         ambientColour = light.ambientColour();
         if (sun != null) {
             sun.setDirection(sunDirection);
@@ -160,7 +179,7 @@ final class SceneLight {
             return;
         }
         if (hour == null) {
-            hour = new HourOfDay(new HourOfDay.Sun(sunDirection.clone(), sunColour.clone(), ambientColour.clone()));
+            hour = new HourOfDay(new HourOfDay.Sun(sunDirection.clone(), litBy.sunColour().clone(), ambientColour.clone()));
         }
         hour.toward(HourOfDay.Sun.of(light), seconds);
         lightTheHour();
@@ -179,9 +198,10 @@ final class SceneLight {
             return;
         }
         var now = hour.now();
+        var reaching = reaching(now.direction(), now.colour());
         if (sun != null) {
             sun.setDirection(now.direction());
-            sun.setColor(now.colour());
+            sun.setColor(reaching);
         }
         if (ambient != null) {
             ambient.setColor(now.ambient());
@@ -198,14 +218,14 @@ final class SceneLight {
             ambientShiftOverride = new com.jme3.material.MatParamOverride(com.jme3.shader.VarType.Vector4,
                     "AmbientShift", HourOfDay.shift(now.ambient(), ambientColour));
             sunShiftOverride = new com.jme3.material.MatParamOverride(com.jme3.shader.VarType.Vector4,
-                    "SunShift", HourOfDay.shift(now.colour(), sunColour));
+                    "SunShift", HourOfDay.shift(reaching, sunColour));
             rootNode.addMatParamOverride(sunDirectionOverride);
             rootNode.addMatParamOverride(ambientShiftOverride);
             rootNode.addMatParamOverride(sunShiftOverride);
         } else {
             sunDirectionOverride.setValue(now.direction().clone());
             ambientShiftOverride.setValue(HourOfDay.shift(now.ambient(), ambientColour));
-            sunShiftOverride.setValue(HourOfDay.shift(now.colour(), sunColour));
+            sunShiftOverride.setValue(HourOfDay.shift(reaching, sunColour));
         }
     }
 }

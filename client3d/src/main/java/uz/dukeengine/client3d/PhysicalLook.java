@@ -114,8 +114,8 @@ final class PhysicalLook {
      * Every frame: the sun as it eases from one hour to the next. The atmosphere is made again once the sun has moved a
      * few degrees, painted off the frame; without it the probe keeps the sky of the world's own sun.
      * shortcut: the drawn sky of the atmosphere is not put in the scene, a game's background stays its own;
-     * {@link AtmosphereSky#sky} is what to attach when one wants it. The sun's light keeps the game's colour at any
-     * hour, tint it by {@link uz.dukeengine.render.Atmosphere#transmittance} when a game wants its sunset light red.
+     * {@link AtmosphereSky#sky} is what to attach when one wants it. The sun's light on the scene is tinted by the air
+     * in {@link SceneLight#reaching}; the atmosphere is given the sun above it.
      */
     void follow(SceneLight light) {
         var sun = light.lit();

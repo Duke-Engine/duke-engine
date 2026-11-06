@@ -43,7 +43,8 @@ public final class Content {
     private static final Map<String, Class<? extends Record>> TYPES = Map.ofEntries(
             named(Unit.class), named(Field.class), named(Battlefield.class), named(AnimationSet.class),
             named(Effect.class), named(Sound.class),
-            named(uz.dukeengine.client3d.Sun.class), named(uz.dukeengine.client3d.Camera.class));
+            named(uz.dukeengine.client3d.Sun.class), named(uz.dukeengine.client3d.Camera.class),
+            Map.entry("picture", uz.dukeengine.client3d.PictureLook.class));
 
     /**
      * Where this game keeps its templates.

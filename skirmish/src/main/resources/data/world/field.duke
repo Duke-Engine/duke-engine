@@ -12,6 +12,10 @@ Sun
   AmbientPercent = 60
 End
 
+Picture
+  Quality = Epic
+End
+
 Camera
   EdgeMargin = 12
   EdgeSpeedPercent = 100

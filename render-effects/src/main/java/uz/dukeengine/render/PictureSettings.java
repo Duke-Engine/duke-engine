@@ -87,6 +87,12 @@ public record PictureSettings(boolean ambientOcclusion, boolean bloom, AntiAlias
                 localShadows, radius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette, clusteredLights, screenSpaceGi, water, autoInstancing, autoLod, occlusionCulling);
     }
 
+    /** These settings with the picture this bright before the tone curve. */
+    public PictureSettings withExposure(float value) {
+        return new PictureSettings(ambientOcclusion, bloom, antiAliasing, value, atmosphere, softShadows, contactShadows,
+                localShadows, occlusionRadius, autoExposure, fogDensity, fogFalloff, shafts, reflections, lens, lut, vignette, clusteredLights, screenSpaceGi, water, autoInstancing, autoLod, occlusionCulling);
+    }
+
     /** These settings with the eye adapting to the picture, or not. */
     public PictureSettings withAutoExposure(boolean on) {
         return new PictureSettings(ambientOcclusion, bloom, antiAliasing, exposure, atmosphere, softShadows, contactShadows,
