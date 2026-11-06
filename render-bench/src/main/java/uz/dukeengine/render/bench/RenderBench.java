@@ -53,6 +53,7 @@ import uz.dukeengine.render.Atmosphere;
 import uz.dukeengine.render.AcesToneMap;
 import uz.dukeengine.render.AtmosphereSky;
 import uz.dukeengine.render.AutoInstancing;
+import uz.dukeengine.render.AutoLod;
 import uz.dukeengine.render.ClusteredLights;
 import uz.dukeengine.render.GtaoFilter;
 import uz.dukeengine.render.HeightFogFilter;
@@ -187,7 +188,7 @@ public final class RenderBench extends SimpleApplication {
                 lens(scene, left), left.stream().filter(word -> word.startsWith("lut-")).map(word -> "Common/Luts/" + word.substring(4) + ".png")
                         .findFirst().orElse(null), left.contains("vignette") ? VIGNETTE : 0f, full.clusteredLights() && !left.contains("no-clusters"),
                 full.screenSpaceGi() && !left.contains("no-ssgi"), scene.equals("water") && !left.contains("no-water"),
-                full.autoInstancing() && !left.contains("no-instancing"));
+                full.autoInstancing() && !left.contains("no-instancing"), full.autoLod() && !left.contains("no-lod"));
     }
 
     /**
@@ -1231,6 +1232,9 @@ public final class RenderBench extends SimpleApplication {
     private void filters() {
         if (picture.autoInstancing() && AutoInstancing.supported(renderer.getCaps())) {
             AutoInstancing.on(renderManager);
+        }
+        if (picture.autoLod()) {
+            viewPort.addProcessor(new AutoLod());
         }
         if (picture.clusteredLights() && ClusteredLights.supported(renderer.getCaps())) {
             clusters = new ClusteredLights();

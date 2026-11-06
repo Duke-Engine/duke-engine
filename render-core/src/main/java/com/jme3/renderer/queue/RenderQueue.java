@@ -292,6 +292,29 @@ public class RenderQueue {
         rm.getRenderer().popDebugGroup();
     }
 
+    /**
+     * duke-engine: the geometries queued in a bucket, as the view culled them, for a processor to read in its postQueue.
+     *
+     * @param bucket one of the five drawn buckets
+     * @return the bucket's list, the queue's own
+     */
+    public GeometryList getList(Bucket bucket) {
+        switch (bucket) {
+            case Gui:
+                return guiList;
+            case Opaque:
+                return opaqueList;
+            case Sky:
+                return skyList;
+            case Transparent:
+                return transparentList;
+            case Translucent:
+                return translucentList;
+            default:
+                throw new UnsupportedOperationException("no list for " + bucket);
+        }
+    }
+
     public boolean isQueueEmpty(Bucket bucket) {
         switch (bucket) {
             case Gui:
