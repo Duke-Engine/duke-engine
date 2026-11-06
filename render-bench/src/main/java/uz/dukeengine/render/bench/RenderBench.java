@@ -55,6 +55,7 @@ import uz.dukeengine.render.AtmosphereSky;
 import uz.dukeengine.render.AutoInstancing;
 import uz.dukeengine.render.AutoLod;
 import uz.dukeengine.render.OcclusionCulling;
+import uz.dukeengine.render.Quality;
 import uz.dukeengine.render.ClusteredLights;
 import uz.dukeengine.render.GtaoFilter;
 import uz.dukeengine.render.HeightFogFilter;
@@ -79,6 +80,7 @@ import uz.dukeengine.render.Water;
  * occlusion alone, and ao-radius-&lt;m&gt;, which sets its reach in world units; show-bloom, which shows the bloom alone; auto-exposure, which lets the eye adapt, and walk, which (with it) goes from a
  * dark view to a bright one and back, logging what the eye holds (EYE lines) and shooting at the cuts; fog (height fog and the
  * sun's shafts), fog-&lt;density&gt; (its density at height 0, per metre) and no-shafts; no-ssr, show-ssr (how much of the reflection the screen gives, alone) and wet (the floor of materials and outdoor made glossy); move-camera, move-units, fast (them at up to 25 times the speed, to and fro);
+ * quality-low, quality-medium, quality-high, quality-epic (that step of Quality as the base the other words change);
  * dof and focus-&lt;m&gt; (a lens in focus, on the thing each scene is about or that far away), motion-blur (the shutter half open: with move-camera or move-units), lut-&lt;name&gt; (a grade
  * from Common/Luts), vignette, and cinematic, which is all four; head and parallax (materials-plus from close to the bust, or low over the brick floor) no-layers (its balls and bricks without the coat, sheen, scatter and height map, to price them) and fill (with coat, cloth, skin, bricks, pom or all: 16 layers of one material over every pixel, for the cost of a layer per pixel; run it with the chain left out);
  * {@code hour-<h>}, which turns the atmosphere on with the sun where a made-up summer day has it at that hour, 6 and 18
@@ -175,8 +177,10 @@ public final class RenderBench extends SimpleApplication {
     }
 
     static PictureSettings settings(String scene, String label) {
-        var full = PictureSettings.FULL;
         var left = words(label);
+        // quality-<low|medium|high|epic>: that step of Quality instead of FULL, what the other words change.
+        var full = left.stream().filter(word -> word.startsWith("quality-")).map(word -> Quality.valueOf(word.substring(8).toUpperCase(Locale.ROOT)).settings())
+                .findFirst().orElse(PictureSettings.FULL);
         float fogDensity = left.stream().filter(word -> word.startsWith("fog-")).map(word -> Float.valueOf(word.substring(4)))
                 .findFirst().orElse(left.contains("fog") ? FOG : full.fogDensity());
         return new PictureSettings(full.ambientOcclusion() && !left.contains("no-ao"),
