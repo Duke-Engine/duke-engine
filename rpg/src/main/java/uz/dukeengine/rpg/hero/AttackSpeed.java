@@ -3,6 +3,9 @@ package uz.dukeengine.rpg.hero;
 import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.ModuleGroups;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.save.Saveable;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.combat.module.RateOfFireModifier;
 
@@ -12,7 +15,7 @@ import uz.dukeengine.combat.module.RateOfFireModifier;
  * something he carries asks for it, and told the figure every time what he carries changes.
  */
 @ModuleGroup(ModuleGroups.COMBAT)
-public final class AttackSpeed extends Module implements RateOfFireModifier {
+public final class AttackSpeed extends Module implements RateOfFireModifier, Saveable {
 
     private float multiplier = 1f;
 
@@ -28,5 +31,22 @@ public final class AttackSpeed extends Module implements RateOfFireModifier {
     @Override
     public float rateOfFireMultiplier() {
         return multiplier;
+    }
+
+    @Override
+    public void save(SaveOut out) {
+        out.writeFloat(multiplier);
+    }
+
+    @Override
+    public void load(SaveIn in) {
+        throw new IllegalStateException("an attack speed is made again by AttackSpeed.revive, never by its template");
+    }
+
+    /** One added while the match ran, made again at the figure it saved: what {@code ModuleFactory.revives} is given. */
+    public static AttackSpeed revive(GameObject owner, SaveIn in) {
+        var quick = new AttackSpeed(owner);
+        quick.multiplier = in.readFloat();
+        return quick;
     }
 }

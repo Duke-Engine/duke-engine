@@ -1,6 +1,10 @@
 package uz.dukeengine.rpg.item;
 
+import java.util.ArrayList;
 import java.util.List;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.rpg.skill.Skill;
 
 /**
  * One thing that can be found, as the data file describes it, at the level it has been joined to.
@@ -121,6 +125,45 @@ public record Loot(String id, String name, String icon, String kind, int value, 
 
     /** The same thing, worth {@code value} instead. */
     public Loot worth(int value) {
+        return new Loot(id, name, icon, kind, value, weight, minTier, attribute, extra, extraValue, extraStep, level,
+                use, liesAs, slot, skills, affixes);
+    }
+
+    /** Every component, the skills it lends and the affixes it rolled whole: a save needs no catalogue to read it. */
+    public void save(SaveOut out) {
+        out.writeString(id).writeString(name).writeString(icon).writeString(kind).writeInt(value).writeInt(weight)
+                .writeInt(minTier).writeString(attribute).writeString(extra).writeInt(extraValue).writeInt(extraStep)
+                .writeInt(level).writeEnum(use).writeString(liesAs).writeString(slot).writeInt(skills.size());
+        skills.forEach(skill -> skill.save(out));
+        out.writeInt(affixes.size());
+        affixes.forEach(affix -> out.writeString(affix.stat()).writeInt(affix.value()));
+    }
+
+    /** An item as {@link #save} wrote it. */
+    public static Loot read(SaveIn in) {
+        var id = in.readString();
+        var name = in.readString();
+        var icon = in.readString();
+        var kind = in.readString();
+        int value = in.readInt();
+        int weight = in.readInt();
+        int minTier = in.readInt();
+        var attribute = in.readString();
+        var extra = in.readString();
+        int extraValue = in.readInt();
+        int extraStep = in.readInt();
+        int level = in.readInt();
+        var use = in.readEnum(ItemUse.class);
+        var liesAs = in.readString();
+        var slot = in.readString();
+        var skills = new ArrayList<Skill>();
+        for (int count = in.readInt(); count > 0; count--) {
+            skills.add(Skill.read(in));
+        }
+        var affixes = new ArrayList<Affix>();
+        for (int count = in.readInt(); count > 0; count--) {
+            affixes.add(new Affix(in.readString(), in.readInt()));
+        }
         return new Loot(id, name, icon, kind, value, weight, minTier, attribute, extra, extraValue, extraStep, level,
                 use, liesAs, slot, skills, affixes);
     }

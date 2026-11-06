@@ -3,6 +3,9 @@ package uz.dukeengine.rpg.item;
 import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleGroup;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.save.Saveable;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.rpg.RpgModuleGroups;
 
@@ -16,7 +19,7 @@ import uz.dukeengine.rpg.RpgModuleGroups;
  * <p>What it holds was settled when it dropped, or when a hero put it down.
  */
 @ModuleGroup(RpgModuleGroups.ITEMS)
-public final class GroundItem extends Module {
+public final class GroundItem extends Module implements Saveable {
 
     /** It reads no fields; the block only says the unit has one. */
     public record Data() implements ModuleData {
@@ -64,5 +67,18 @@ public final class GroundItem extends Module {
         }
         lying.holds(item);
         return thing;
+    }
+
+    @Override
+    public void save(SaveOut out) {
+        out.writeBoolean(holding != null);
+        if (holding != null) {
+            holding.save(out);
+        }
+    }
+
+    @Override
+    public void load(SaveIn in) {
+        holding = in.readBoolean() ? Loot.read(in) : null;
     }
 }

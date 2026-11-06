@@ -1,8 +1,12 @@
 package uz.dukeengine.rpg.item;
 
+import java.util.function.Function;
 import uz.dukeengine.core.module.DieModule;
 import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.module.ModuleGroup;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.save.Saveable;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.rpg.RpgModuleGroups;
 
@@ -16,7 +20,7 @@ import uz.dukeengine.rpg.RpgModuleGroups;
  * leaves his bag only once something lies where it fell, so it is never lost between the bag and the floor.
  */
 @ModuleGroup(RpgModuleGroups.ITEMS)
-public final class KeyDrop extends Module implements DieModule {
+public final class KeyDrop extends Module implements DieModule, Saveable {
 
     private final LootBag bag;
     private final String chest;
@@ -47,5 +51,23 @@ public final class KeyDrop extends Module implements DieModule {
                 bag.remove(slot);
             }
         }
+    }
+
+    @Override
+    public void save(SaveOut out) {
+        out.writeString(chest).writeInt(floorOwner);
+    }
+
+    @Override
+    public void load(SaveIn in) {
+        throw new IllegalStateException("a key drop is made again by KeyDrop.reviver, never by its template");
+    }
+
+    /**
+     * What {@code ModuleFactory.revives} is given for a game whose heroes' bags {@code bags} finds: the bag is the
+     * game's, so a save holds only what it was told besides it.
+     */
+    public static Saveable.Reviver<KeyDrop> reviver(Function<GameObject, LootBag> bags) {
+        return (hero, in) -> new KeyDrop(hero, LootBag.of(bags, hero, KeyDrop.class), in.readString(), in.readInt());
     }
 }

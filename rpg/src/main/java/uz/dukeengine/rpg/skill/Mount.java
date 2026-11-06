@@ -1,5 +1,8 @@
 package uz.dukeengine.rpg.skill;
 
+import java.util.List;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.World;
@@ -72,6 +75,21 @@ final class Mount {
             if (riding.look() != null && !riding.look().isBlank()) {
                 owner.drawAs(riding.look(), -1);
             }
+        }
+    }
+
+    void save(SaveOut out, List<Skill> skills) {
+        out.writeInt(SkillSlots.of(skills, riding)).writeInt(SkillSlots.of(skills, mounting)).writeInt(mountedAt)
+                .writePlace(mountedFrom);
+    }
+
+    void load(SaveIn in, List<Skill> skills) {
+        riding = SkillSlots.at(skills, in.readInt());
+        mounting = SkillSlots.at(skills, in.readInt());
+        mountedAt = in.readInt();
+        mountedFrom = in.readPlace();
+        if (riding != null && riding.look() != null && !riding.look().isBlank()) {
+            owner.drawAs(riding.look(), -1);
         }
     }
 }

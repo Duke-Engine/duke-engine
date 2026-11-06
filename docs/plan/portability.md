@@ -41,8 +41,8 @@ This note records what stands in the way and what has been done about it.
   writes the list for every module that has `src/{main,test}/resources/maps` (`generateMainMapList`,
   `generateTestMapList`), so a new map needs no edit. Desktop uses it too; there is one code path for shipped maps.
 - Kept: the directory scan, as the fallback for a game outside this repo whose build writes no list, and for the player's
-  own folder (`MapPackages.under`, `all`) which is desktop-only by nature. The list is read from the first resource root
-  that has one (not merged across roots).
+  own folder (`MapPackages.under`, `all`) which is desktop-only by nature. The lists of every resource root that has one
+  are read and merged (a map named in two takes the files of both, its reads going to the first root).
 - Still desktop-only, on purpose: the `Path` accessors `MapPackage.file()`, `extras()`, `preview()` (relative names for a
   listed map), and the scan with its jar file system.
 - Not verified: reading on a device or emulator; the class-loader path is covered by a test with an in-memory loader.

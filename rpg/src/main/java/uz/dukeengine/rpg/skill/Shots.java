@@ -1,5 +1,8 @@
 package uz.dukeengine.rpg.skill;
 
+import java.util.List;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
 import uz.dukeengine.combat.module.WeaponUpdate;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.DamageType;
@@ -207,5 +210,18 @@ final class Shots {
             return;
         }
         blows.strike(victim, damage);
+    }
+
+    void save(SaveOut out, List<Skill> skills) {
+        out.writeInt(SkillSlots.of(skills, drawing)).writeInt(drawnAtLevel).writeId(drawnFor).writeInt(loosesIn)
+                .writeId(lastAimedAt);
+    }
+
+    void load(SaveIn in, List<Skill> skills) {
+        drawing = SkillSlots.at(skills, in.readInt());
+        drawnAtLevel = in.readInt();
+        drawnFor = in.readId();
+        loosesIn = in.readInt();
+        lastAimedAt = in.readId();
     }
 }

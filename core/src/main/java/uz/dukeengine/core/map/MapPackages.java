@@ -1,6 +1,7 @@
 package uz.dukeengine.core.map;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -11,9 +12,12 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Stream;
 
@@ -47,38 +51,60 @@ public final class MapPackages {
      * <p>Read off {@code maps/maps.list} where the folder has one: a line a file, {@code crypt/crypt.map}, which the
      * build writes from the folder, because a classpath cannot be listed on a platform that packs it into an app
      * (an Android APK has no folder to scan). Without a list the folder is scanned, which a jar or a folder of
-     * classes allows. shortcut: a list is read from the first resource root that has one, not merged across roots;
-     * merge them if two roots must each ship maps on a platform that cannot scan.
+     * classes allows.
+     *
+     * <p>Every resource root with a list has its maps in: a map of the same name in two roots takes the files of both,
+     * its reads going to the first root, as a class loader resolves any resource.
      */
     public static synchronized List<MapPackage> shipped(String root) {
         var listed = listed(MapPackages.class.getClassLoader(), root);
         return listed.isEmpty() ? scanned(root) : listed;
     }
 
-    /** The maps {@code root/maps.list} names, or none where there is no such list. */
+    /** The maps the {@code root/maps.list} of every resource root names, or none where there is no such list. */
     static List<MapPackage> listed(ClassLoader loader, String root) {
-        var files = new TreeMap<String, List<String>>();
-        try (var in = loader.getResourceAsStream(root + "/" + LIST)) {
-            if (in == null) {
-                return List.of();
+        var files = new TreeMap<String, Set<String>>();
+        for (var line : listsOf(loader, root + "/" + LIST)) {
+            var at = line.strip().split("/");
+            if (at.length == 2) {
+                files.computeIfAbsent(at[0], _ -> new LinkedHashSet<>()).add(at[1]);
             }
-            for (var line : new String(in.readAllBytes(), StandardCharsets.UTF_8).split("\\R")) {
-                var at = line.strip().split("/");
-                if (at.length == 2) {
-                    files.computeIfAbsent(at[0], _ -> new ArrayList<>()).add(at[1]);
-                }
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException("could not read " + root + "/" + LIST, e);
         }
         var found = new ArrayList<MapPackage>();
         files.forEach((name, inside) -> {
-            var map = MapPackage.listed(loader, root, name, inside);
+            var map = MapPackage.listed(loader, root, name, List.copyOf(inside));
             if (map != null) {
                 found.add(map);
             }
         });
         return List.copyOf(found);
+    }
+
+    /** The lines of every file the loader has under {@code path}, the first root's first. */
+    private static List<String> listsOf(ClassLoader loader, String path) {
+        var lines = new ArrayList<String>();
+        try {
+            var found = Collections.list(loader.getResources(path));
+            for (var url : found) {
+                try (var in = url.openStream()) {
+                    lines.addAll(linesOf(in));
+                }
+            }
+            if (found.isEmpty()) {
+                try (var in = loader.getResourceAsStream(path)) { // a loader that cannot enumerate still has its first
+                    if (in != null) {
+                        lines.addAll(linesOf(in));
+                    }
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("could not read " + path, e);
+        }
+        return lines;
+    }
+
+    private static List<String> linesOf(InputStream in) throws IOException {
+        return List.of(new String(in.readAllBytes(), StandardCharsets.UTF_8).split("\\R"));
     }
 
     private static List<MapPackage> scanned(String root) {

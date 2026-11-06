@@ -23,6 +23,24 @@ still missing: `docs/plan/render.md`.
 - **A game that names `org.jmonkeyengine:jme3-*` itself** switches to the same module under `uz.duke-engine:render-*`
   (`jme3-effects` is `render-effects`, and so on, through the BOM). Packages are still `com.jme3.*`, so no source
   changes; keeping both puts every class on the classpath twice.
+- **The RPG library's modules save**: every module of `rpg` is `Saveable` or `@Stateless`, so a save meeting an RPG
+  world's things no longer refuses them by name (`docs/save-load-audit.md`, section 3). The ones put on a thing while the
+  match runs come back by a reviver: `RpgModules.registerRevivers(factory)` registers those that hold only their figures
+  (`AttackBonus`, `AttackSpeed`, `CriticalStrike`, `LevelBonus`, `Summoned`); the ones that also hold something of the
+  game's take it from the game: `LootDrop.reviver(table)`, `KeyDrop.reviver(bags)`, `ItemErrand.reviver(bags, rules)` and
+  `Mission.Counted.reviver(mission)`, the mission made again by `Mission.restored(...)` and given where it had got to by
+  `Mission.save`/`load`. A ground item keeps what it holds whole (`Loot.save`/`read`, `Skill.save`/`read`). Nothing a
+  game already calls changes.
+- **A hero waits for a way that only bodies shut**: sent for a thing (`PickUp`, `UseItem`, up to the gate) whose way
+  his legs find shut by bodies alone, where the ground joins him to it, he stands and looks again once a second until
+  `ItemErrand.Rules.stuckFrames` / `stuckFightingFrames` are spent, instead of giving the errand up at once. A way the
+  stone shuts still ends it at once. No signature changes.
+- **The stronger of two auras of one kind is lent**: a bearer holding two (a `DAMAGE_AURA` of 40 and of 25) lends them
+  weakest first, so the stronger is what each in its reach holds whatever the order in its file; one beyond the stronger's
+  radius but within the weaker's keeps the weaker. A bearer with one aura of a kind lends as before.
+- **Every resource root's `maps.list` is read**: `MapPackages.shipped` merges the lists of all roots that have one, where
+  it used to read the first it found. A game whose modules each ship maps now offers all of them; a map listed in two
+  roots takes the files of both, read from the first.
 
 ## 0.9.0
 

@@ -7,6 +7,9 @@ import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.ModuleGroups;
 import uz.dukeengine.core.module.UpdateModule;
 import uz.dukeengine.core.player.Relationship;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
+import uz.dukeengine.core.save.Saveable;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.core.thing.World;
@@ -36,7 +39,7 @@ import uz.dukeengine.combat.module.ExperienceModule;
  * <p>No body and no geometry: nothing shoots at it and nothing walks into it.
  */
 @ModuleGroup({ModuleGroups.EFFECT, ModuleGroups.COMBAT})
-public final class FallingUpdate extends UpdateModule {
+public final class FallingUpdate extends UpdateModule implements Saveable {
 
     /** It reads no fields; the block only says the unit has one. */
     public record Data() implements ModuleData {
@@ -135,5 +138,21 @@ public final class FallingUpdate extends UpdateModule {
         if (his != null && earned != null) {
             his.addExperience(earned.getExperienceValue());
         }
+    }
+
+    @Override
+    public void save(SaveOut out) {
+        out.writeId(caller).writeFloat(damage).writeFloat(radius).writeInt(fallsIn).writeBoolean(called)
+                .writePlace(calledFrom);
+    }
+
+    @Override
+    public void load(SaveIn in) {
+        caller = in.readId();
+        damage = in.readFloat();
+        radius = in.readFloat();
+        fallsIn = in.readInt();
+        called = in.readBoolean();
+        calledFrom = in.readPlace();
     }
 }

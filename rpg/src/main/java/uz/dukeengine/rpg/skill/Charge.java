@@ -2,6 +2,8 @@ package uz.dukeengine.rpg.skill;
 
 import java.util.ArrayList;
 import java.util.List;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
 import uz.dukeengine.core.GameConstants;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.GameObject;
@@ -28,14 +30,20 @@ final class Charge {
     private final List<ObjectId> caught = new ArrayList<>();
 
     Charge(GameObject owner, Blows blows, Seal seal, Skill skill, float each, boolean critical, float distance) {
+        this(owner, blows, seal, skill, each, critical, distance, owner.getPosition(), List.of());
+    }
+
+    private Charge(GameObject owner, Blows blows, Seal seal, Skill skill, float each, boolean critical, float left,
+            Coord3D from, List<ObjectId> caught) {
         this.owner = owner;
         this.blows = blows;
         this.seal = seal;
         this.skill = skill;
         this.each = each;
         this.critical = critical;
-        this.left = distance;
-        this.from = owner.getPosition();
+        this.left = left;
+        this.from = from;
+        this.caught.addAll(caught);
     }
 
     /**
@@ -108,5 +116,19 @@ final class Charge {
         if (world != null) {
             holdThemAtHisFront(world, skill.stunFrames());
         }
+    }
+
+    void save(SaveOut out, List<Skill> skills) {
+        out.writeInt(SkillSlots.of(skills, skill)).writeFloat(each).writeBoolean(critical).writeFloat(left)
+                .writePlace(from).writeIds(caught);
+    }
+
+    static Charge read(SaveIn in, GameObject owner, Blows blows, Seal seal, List<Skill> skills) {
+        var skill = SkillSlots.at(skills, in.readInt());
+        float each = in.readFloat();
+        boolean critical = in.readBoolean();
+        float left = in.readFloat();
+        var from = in.readPlace();
+        return new Charge(owner, blows, seal, skill, each, critical, left, from, in.readIds());
     }
 }

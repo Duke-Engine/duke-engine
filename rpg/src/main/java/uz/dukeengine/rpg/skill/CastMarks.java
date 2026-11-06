@@ -2,6 +2,8 @@ package uz.dukeengine.rpg.skill;
 
 import java.util.ArrayList;
 import java.util.List;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectId;
@@ -116,5 +118,20 @@ final class CastMarks {
         marks.add(mark);
         var world = owner.getWorld();
         frame = world == null ? frame : world.getFrame();
+    }
+
+    void save(SaveOut out) {
+        out.writeInt(marks.size());
+        marks.forEach(mark -> out.writeString(mark.look()).writeFloat(mark.x()).writeFloat(mark.y())
+                .writeFloat(mark.radius()).writeId(mark.on()));
+        out.writeInt(frame);
+    }
+
+    void load(SaveIn in) {
+        marks.clear();
+        for (int count = in.readInt(); count > 0; count--) {
+            marks.add(new CastMark(in.readString(), in.readFloat(), in.readFloat(), in.readFloat(), in.readId()));
+        }
+        frame = in.readInt();
     }
 }

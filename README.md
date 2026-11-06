@@ -116,12 +116,22 @@ skirmish  →  rts-client-3d  →  client3d  →  game  →  combat  →  core
 - **rpg** — the RPG library on combat: a hero's skill book (mana, cooldowns, ranks, buffs, auras),
   levels and attributes, items and loot, missions.
 - **game** — the runtime a game boots through: the `DukeGame` facade, of whatever kind the game is,
-  a built-in Swing 2D renderer, lock-step multiplayer over TCP.
+  lock-step multiplayer over TCP, with a live checksum comparison that stops a game that desyncs.
 - **client3d** — the 3D client on the engine's renderer (`render-*`, forked from jMonkeyEngine): glTF/Ogre model loading, skeletal animation,
   positional sound, the camera, ray-picked selection, effects, menus and a minimap; a physically based picture in four
   quality steps ([docs/plan/render.md](docs/plan/render.md)).
 - **rts-client-3d**, **rpg-client-3d** — each side's part of the window: an RTS's rally point and
   build menu; an RPG's hero bar, portrait, bag and single-hero control.
+- **client3d-desktop**, **client3d-android** — the platform halves of the 3D client: the window, fonts, picture
+  files and settings answered with AWT, Swing and GLFW on a desktop, and with `android.graphics` and the app's files
+  on a phone. A launcher adds one at run time; no neutral module names either.
+- **client3d-touch** — touch controls for the 3D client, plugged in as a `ControlScheme`: tap to select and order, a drag
+  to pan, a pinch to zoom.
+- **action**, **client3d-action** — a game played from one hero's shoulder: the simulation's walk along a held direction,
+  an attack toward a point and a dodge, and the client's controls for them.
+- **game-swing** — the 2D Swing window over the `DukeGame` facade.
+- **processor** — the annotation processor a game adds beside the engine: it writes the shape of every record, so the
+  `.duke` binder reads data without reflection where a platform has none.
 - **kit** — the starter set a game begins from: an effects library, 27 effects in eight groups with
   the particle art they are drawn with. Data only, no code. A game links one and replaces it by
   writing its own of the same name.
@@ -191,15 +201,14 @@ The IntelliJ plugin is a repository of its own:
 
 ## Status
 
-**883 tests**, all green. `core`, `rts`, `game`, `client3d`, `kit` and `bom` publish to Maven Central
-under `uz.duke-engine`; `skirmish` does not — it is an example, not a library.
+**2567 tests**, all green. The engine's modules publish to Maven Central under `uz.duke-engine` (`client3d-android` from a build with
+`-Pandroid`); `skirmish` does not — it is an example, not a library.
 
 The other two repositories of the project: [duke-plugin](https://github.com/Duke-Engine/duke-plugin)
-(54 tests) and [duke-dungeon](https://github.com/Duke-Engine/duke-dungeon) (701).
+and [duke-dungeon](https://github.com/Duke-Engine/duke-dungeon).
 
-Known gaps: multiplayer is two players only and does not compare checksums live; save/load is not
-wired into any UI; per-module in-flight state (move goals, reload counters, build queues) is not yet
-serialised; maps are edited in the plugin and nowhere else.
+Known gaps: save/load is not wired into any UI, and what a game keeps outside its modules (a hero's bag, a story's
+progress) it gives to a save itself (`DukeGame.saveAlso`); maps are edited in the plugin and nowhere else.
 
 ## Contributing
 

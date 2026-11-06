@@ -342,9 +342,11 @@ qiladi.
 | `kit` kodsiz qoladi | ✅ tasdiqlangan |
 | `MonsterKind`/`MonsterLook`/`HeroLook` taqdiri | ❌ 3-bosqichdan oldin hal qilinsin |
 | `Skill` ni effekt bo'yicha bo'lish shakli | ❌ 4-bosqichdan oldin |
-| `generals` moduli — CLAUDE.md da bor, `settings.gradle.kts` da yo'q | ❌ reja yoki eskirgan matn? |
+| `generals` moduli — CLAUDE.md da bor, `settings.gradle.kts` da yo'q | ⚠️ ESKIRGAN (2026-11-05 tekshirildi): bunday modul yo'q va CLAUDE.md da ham yo'q; Generals alohida repo, `duke-generals`, engine uni faqat chekka sifatida tilga oladi. Savol yopilgan |
 
 ## To'sqinlik
+
+> ⚠️ **ESKIRGAN (2026-11-05 tekshirildi).** `dungeon/` bu repoda endi yo'q — o'yin `duke-dungeon` repo'sida, `src/main/resources/maps/deep/deep.map` shu yerda. Ko'rsatilgan oltita test (`StageChoiceTest`, `MapWriterTest`, `StageDifficultyTest`, `StagePlayTest`) duke-dungeon'ning oxirgi mahalliy yurishida yashil. Quyidagi matn o'sha kunning holati.
 
 `dungeon/src/main/resources/maps/deep/deep.map` muharrirda tahrirlangan va
 buzilgan: (67,28), (68,28), (69,28) kataklariga tosh bo'yalgan — bu room 0 ning

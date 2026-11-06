@@ -3,6 +3,8 @@ package uz.dukeengine.rpg.skill;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectId;
@@ -176,5 +178,14 @@ final class Allies {
         }
         Blows.fired(owner, spots.getFirst());
         return true;
+    }
+
+    void save(SaveOut out) {
+        out.writeIds(summoned);
+    }
+
+    void load(SaveIn in) {
+        summoned.clear();
+        summoned.addAll(in.readIds());
     }
 }

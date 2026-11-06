@@ -4,6 +4,7 @@ import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.ModuleGroups;
+import uz.dukeengine.core.save.Stateless;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.rpg.SightLine;
 import uz.dukeengine.combat.module.WeaponHold;
@@ -47,6 +48,7 @@ import uz.dukeengine.combat.module.WeaponUpdate;
  * first thing with a reach worth the name would otherwise shoot him through the
  * stone between them, which is the one thing a dungeon must not allow.
  */
+@Stateless
 @ModuleGroup(ModuleGroups.COMBAT)
 public final class EyesOnly extends Module implements WeaponHold {
 

@@ -1,5 +1,7 @@
 package uz.dukeengine.rpg.skill;
 
+import uz.dukeengine.core.save.SaveIn;
+import uz.dukeengine.core.save.SaveOut;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.World;
@@ -105,5 +107,19 @@ final class Blasts {
             marks.replaceWith(new CastMark(lastingLook, owner.getPosition().x(),
                     owner.getPosition().y(), lastingRadius, owner.getId()));
         }
+    }
+
+    void save(SaveOut out) {
+        out.writeInt(lastingFrames).writeInt(lastingEvery).writeInt(lastingNext).writeFloat(lastingDamage)
+                .writeFloat(lastingRadius).writeString(lastingLook);
+    }
+
+    void load(SaveIn in) {
+        lastingFrames = in.readInt();
+        lastingEvery = in.readInt();
+        lastingNext = in.readInt();
+        lastingDamage = in.readFloat();
+        lastingRadius = in.readFloat();
+        lastingLook = in.readString();
     }
 }

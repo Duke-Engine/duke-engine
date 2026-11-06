@@ -4,6 +4,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
+import uz.dukeengine.core.module.Module;
+import uz.dukeengine.core.save.UnsavedModuleException;
+import uz.dukeengine.core.thing.GameObject;
 
 /**
  * What the hero carries: a few slots, each empty or holding one thing he picked up off the floor, and what it all
@@ -60,6 +64,16 @@ public final class LootBag {
 
     /** What he just picked up, why he left it lying, what he makes of the gate: the window reads it too. */
     private volatile Note note = new Note("", 0);
+
+    /** The bag a game's {@code bags} finds for {@code hero}, for a module being made again from a save. */
+    static LootBag of(Function<GameObject, LootBag> bags, GameObject hero, Class<? extends Module> module) {
+        var bag = bags.apply(hero);
+        if (bag == null) {
+            throw new UnsavedModuleException(module.getName(), module.getName() + " on thing " + hero.getId().value()
+                    + " cannot be made again: the game finds no bag for it");
+        }
+        return bag;
+    }
 
     public LootBag() {
         this(SLOTS);
