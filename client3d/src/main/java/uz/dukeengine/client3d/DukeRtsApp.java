@@ -308,6 +308,36 @@ final class DukeRtsApp extends SimpleApplication {
         screenshotFolder = folder;
         screenshotPattern = pattern;
     }
+
+    /** Seconds the match stands before {@link Duke3D#launch(String...)}'s picture: models in, the probe baked, TAA settled. */
+    static final float SHOT_AFTER = 12f;
+    /** The file of the one picture and out; null, none. */
+    private java.io.File shotFile;
+    private com.jme3.app.state.ScreenshotAppState shot;
+    private float shotWaited;
+    private int shotStage;
+
+    void shot(java.io.File file) {
+        shotFile = file;
+    }
+
+    /** In play long enough: attached, the picture taken the frame after (written as that frame ends), closed after it. */
+    private void shootAndLeave(float tpf) {
+        if (shotFile == null || screens.now() != Screen.PLAYING || (shotWaited += tpf) < SHOT_AFTER) {
+            return;
+        }
+        switch (shotStage++) {
+            case 0 -> {
+                var name = shotFile.getName().replaceFirst("(?i)\\.png$", "");
+                shotFile.getParentFile().mkdirs();
+                shot = new com.jme3.app.state.ScreenshotAppState(shotFile.getParent() + java.io.File.separator, name);
+                shot.setIsNumbered(false);
+                stateManager.attach(shot);
+            }
+            case 1 -> shot.takeScreenshot();
+            default -> stop();
+        }
+    }
     private BitmapText hud;
     private SceneVeil veil;
 
@@ -2211,6 +2241,7 @@ final class DukeRtsApp extends SimpleApplication {
             renderStats.add((long) (tpf * 1e9f));
         }
         frameOf(tpf);
+        shootAndLeave(tpf);
         interfaceHiding.apply(interfaceHidden.getAsBoolean(), guiViewPort, guiNode,
                 List.of(veil.node(), canvas.node()), markerNode);
     }

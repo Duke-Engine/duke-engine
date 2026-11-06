@@ -178,6 +178,25 @@ public final class Duke3D {
         of(game, visuals).shell(shell).hotkeys(hotkeys).window(width, height).launch();
     }
 
+    /**
+     * {@link #launch()}, with what the client is told on the command line: {@code --shot=<file>} starts the match with no
+     * menu, writes one picture of it to {@code file} (a PNG) once it has stood {@link DukeRtsApp#SHOT_AFTER} seconds, and
+     * closes the window. What the client does not know is left for the game.
+     */
+    public void launch(String... args) {
+        for (var arg : args) {
+            if (arg.startsWith(SHOT)) {
+                var file = new java.io.File(arg.substring(SHOT.length())).getAbsoluteFile();
+                shell(Shell.none());
+                later(client -> client.shot(file));
+            }
+        }
+        launch();
+    }
+
+    /** The command line's word for one picture and out; see {@link #launch(String...)}. */
+    public static final String SHOT = "--shot=";
+
     /** Open the window and run the game in it; blocks until the window is closed. */
     public void launch() {
         var client = configured();
