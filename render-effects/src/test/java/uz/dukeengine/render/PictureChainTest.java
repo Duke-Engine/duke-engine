@@ -21,7 +21,7 @@ class PictureChainTest {
 
     @Test
     void ambientOcclusionOffLeavesNoOcclusionFilter() {
-        var off = new PictureSettings(false, true, AntiAliasing.TAA, 0.7f, false, true, true, 4, 0.75f, false, 0f, 0.06f, true, true, Lens.OFF, null, 0f, true, true, false);
+        var off = new PictureSettings(false, true, AntiAliasing.TAA, 0.7f, false, true, true, 4, 0.75f, false, 0f, 0.06f, true, true, Lens.OFF, null, 0f, true, true, false, true);
         assertTrue(PictureChain.filters(off).stream().noneMatch(GtaoFilter.class::isInstance));
     }
 

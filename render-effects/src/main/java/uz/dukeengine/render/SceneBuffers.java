@@ -191,7 +191,15 @@ public final class SceneBuffers implements SceneProcessor {
         renderManager.setForcedMaterial(plain);
         var filter = renderManager.getRenderFilter();
         renderManager.setRenderFilter(this::prepare);
+        // What moved is drawn alone, with the motion of its own: an instance tells only the camera's.
+        var instancing = renderManager.getGeometryBatcher() instanceof AutoInstancing found ? found : null;
+        if (instancing != null) {
+            instancing.apart(this::moved);
+        }
         queue.renderQueue(RenderQueue.Bucket.Opaque, renderManager, camera, false);
+        if (instancing != null) {
+            instancing.apart(null);
+        }
         // What the solid Translucent bucket holds, water: WaterFilter draws it later, over the picture, and the effects see it as the solid it is.
         queue.renderQueue(RenderQueue.Bucket.Translucent, renderManager, camera, false);
         renderManager.setRenderFilter(filter);
@@ -206,6 +214,12 @@ public final class SceneBuffers implements SceneProcessor {
         lastUnjittered.set(unjittered);
         poses.endFrame();
         renderer.setFrameBuffer(view.getOutputFrameBuffer());
+    }
+
+    /** Whether the geometry is not where it was last frame. */
+    private boolean moved(Geometry geometry) {
+        world[0] = geometry.getWorldMatrix();
+        return !poses.previous(geometry, world)[0].equals(world[0]);
     }
 
     /** Runs before each geometry's draw: is it solid, and what was it last frame. */

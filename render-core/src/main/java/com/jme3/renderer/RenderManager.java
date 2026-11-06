@@ -108,6 +108,7 @@ public class RenderManager {
     private LightClusters lightClusters;
     private MatParamOverride boundDrawBufferId=new MatParamOverride(VarType.Int,"BoundDrawBuffer",0);
     private Predicate<Geometry> renderFilter;
+    private GeometryBatcher geometryBatcher;
 
 
     /**
@@ -426,6 +427,15 @@ public class RenderManager {
     }
 
     /**
+     * duke-engine: the material set with {@link #setForcedMaterial}.
+     *
+     * @return the forced material, or null
+     */
+    public Material getForcedMaterial() {
+        return forcedMaterial;
+    }
+
+    /**
      * Returns the forced render state previously set with
      * {@link #setForcedRenderState(com.jme3.material.RenderState) }.
      *
@@ -630,6 +640,17 @@ public class RenderManager {
      * @see com.jme3.material.Material#render(com.jme3.scene.Geometry, com.jme3.renderer.RenderManager)
      */
     public void renderGeometry(Geometry geom) {
+        renderGeometry(geom, null);
+    }
+
+    /**
+     * duke-engine: renders the geometry with the lights found for it already by {@link #lightsFor}, where
+     * {@link #renderGeometry(Geometry)} finds them itself.
+     *
+     * @param geom The geometry to render
+     * @param lights The lights it takes; null, found here
+     */
+    public void renderGeometry(Geometry geom, LightList lights) {
         if (renderFilter != null && !renderFilter.test(geom)) return;
         this.renderer.pushDebugGroup(geom.getName());
         if (geom.isIgnoreTransform()) {
@@ -644,22 +665,9 @@ public class RenderManager {
             this.boundDrawBufferId.setValue(currentFb.getTargetIndex());
         }
 
-        // Perform light filtering if we have a light filter.
-        LightList lightList = geom.getWorldLightList();
-
         Material material = geom.getMaterial();
+        LightList lightList = lights != null ? lights : lightsFor(geom, filteredLightList);
 
-        if (lightFilter != null) {
-            filteredLightList.clear();
-            // duke-engine: a forced technique that draws no light (a shadow map, the scene buffers) gets none, rather
-            // than every light of the scene tested against the geometry for nothing.
-            if (!drawsNoLight(material)) {
-                lightFilter.filterLights(geom, filteredLightList);
-            }
-            lightList = filteredLightList;
-        }
-
-        
         // If forcedTechnique exists, we try to force it for the render.
         // If it does not exist in the mat def, we check for forcedMaterial and render the geom if not null.
         // Otherwise, the geometry is not rendered.
@@ -702,6 +710,27 @@ public class RenderManager {
             material.render(geom, lightList, this);
         }
         this.renderer.popDebugGroup();
+    }
+
+    /**
+     * duke-engine: the lights {@link #renderGeometry(Geometry)} would give this geometry now: the light filter's, into
+     * {@code store} (cleared first), or the geometry's own list where there is no filter.
+     *
+     * @param geom The geometry
+     * @param store Where the filtered lights go
+     * @return the lights, {@code store} or the geometry's own list
+     */
+    public LightList lightsFor(Geometry geom, LightList store) {
+        if (lightFilter == null) {
+            return geom.getWorldLightList();
+        }
+        store.clear();
+        // duke-engine: a forced technique that draws no light (a shadow map, the scene buffers) gets none, rather
+        // than every light of the scene tested against the geometry for nothing.
+        if (!drawsNoLight(geom.getMaterial())) {
+            lightFilter.filterLights(geom, store);
+        }
+        return store;
     }
 
     private boolean drawsNoLight(Material material) {
@@ -1396,6 +1425,24 @@ public class RenderManager {
      */
     public Predicate<Geometry> getRenderFilter() {
         return renderFilter;
+    }
+
+    /**
+     * duke-engine: sets who draws the opaque bucket and the shadow maps' casters (see {@link GeometryBatcher}).
+     *
+     * @param batcher the batcher, or null: every geometry a call of its own
+     */
+    public void setGeometryBatcher(GeometryBatcher batcher) {
+        this.geometryBatcher = batcher;
+    }
+
+    /**
+     * duke-engine: the batcher set with {@link #setGeometryBatcher}.
+     *
+     * @return the batcher, or null
+     */
+    public GeometryBatcher getGeometryBatcher() {
+        return geometryBatcher;
     }
 
 }

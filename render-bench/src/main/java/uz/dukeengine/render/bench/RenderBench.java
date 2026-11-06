@@ -52,6 +52,7 @@ import uz.dukeengine.render.AntiAliasing;
 import uz.dukeengine.render.Atmosphere;
 import uz.dukeengine.render.AcesToneMap;
 import uz.dukeengine.render.AtmosphereSky;
+import uz.dukeengine.render.AutoInstancing;
 import uz.dukeengine.render.ClusteredLights;
 import uz.dukeengine.render.GtaoFilter;
 import uz.dukeengine.render.HeightFogFilter;
@@ -129,6 +130,12 @@ public final class RenderBench extends SimpleApplication {
     private float lastLogged;
     private int walkStep;
     private Water.Waves waves;
+    private int[] timers;
+    private long submitted;
+    private final List<Double> submits = new ArrayList<>();
+    private final List<Double> gpus = new ArrayList<>();
+    private final List<Integer> calls = new ArrayList<>();
+    private final List<Integer> drawnTriangles = new ArrayList<>();
 
     private RenderBench(String scene, String label, Path out) {
         this.scene = scene;
@@ -179,7 +186,8 @@ public final class RenderBench extends SimpleApplication {
                 full.shafts() && !left.contains("no-shafts"), full.reflections() && !left.contains("no-ssr"),
                 lens(scene, left), left.stream().filter(word -> word.startsWith("lut-")).map(word -> "Common/Luts/" + word.substring(4) + ".png")
                         .findFirst().orElse(null), left.contains("vignette") ? VIGNETTE : 0f, full.clusteredLights() && !left.contains("no-clusters"),
-                full.screenSpaceGi() && !left.contains("no-ssgi"), scene.equals("water") && !left.contains("no-water"));
+                full.screenSpaceGi() && !left.contains("no-ssgi"), scene.equals("water") && !left.contains("no-water"),
+                full.autoInstancing() && !left.contains("no-instancing"));
     }
 
     /**
@@ -281,6 +289,11 @@ public final class RenderBench extends SimpleApplication {
                 sun = new ColorRGBA(1f, 0.95f, 0.88f, 1f).mult(2.4f);
                 bufferCases(world);
             }
+            case "forest" -> {
+                sunDirection.set(-0.45f, -0.75f, -0.48f);
+                sun = new ColorRGBA(1f, 0.95f, 0.88f, 1f).mult(2.4f);
+                forest(world);
+            }
             case "night" -> {
                 sunDirection.set(0.3f, -0.8f, 0.4f);
                 sun = new ColorRGBA(0.45f, 0.55f, 0.8f, 1f).mult(0.12f);
@@ -340,6 +353,12 @@ public final class RenderBench extends SimpleApplication {
             lookAtTheSun(toSun, asked.contains("shaft-view") ? world : null);
         }
         filters();
+        renderer.getStatistics().setEnabled(true);
+        try {
+            timers = renderer.generateProfilingTasks(4);
+        } catch (RuntimeException e) {
+            timers = null;
+        }
         shots = new ScreenshotAppState(out.toString().replace('\\', '/') + "/", scene + "_" + label.replace(',', '+'));
         shots.setIsNumbered(false);
         stateManager.attach(shots);
@@ -789,6 +808,36 @@ public final class RenderBench extends SimpleApplication {
         }
     }
 
+    /** The word {@code forest-<n>}: how many props the forest has. */
+    private int forestSize() {
+        return asked.stream().filter(word -> word.startsWith("forest-")).map(word -> Integer.valueOf(word.substring(7))).findFirst().orElse(5000);
+    }
+
+    /**
+     * A field of props, {@code forest-<n>} of them (5000 without the word): bins, computers and tables of the models (about 900 triangles each), on a grid of about
+     * 2.3 metres turned and set off by chance, each its own clone of its model (so its own copy of the material), every twentieth going
+     * to and fro with {@code move-units}.
+     */
+    private void forest(Node world) {
+        int n = forestSize();
+        wall(world, surface(new ColorRGBA(0.26f, 0.31f, 0.17f, 1f), floorRoughness(0.95f), 0f), 0f, -0.5f, 0f, 90f, 0.5f, 90f, 40f);
+        var kinds = new String[] {"trash_can", "desktop_computer", "metal_table"};
+        var random = new Random(41);
+        int side = (int) Math.ceil(Math.sqrt(n));
+        for (int i = 0; i < n; i++) {
+            float x = (i % side - side / 2f) * 2.3f + (random.nextFloat() - 0.5f) * 0.8f;
+            float z = (i / side - side / 2f) * 2.3f + (random.nextFloat() - 0.5f) * 0.8f;
+            var prop = place(world, kinds[random.nextInt(kinds.length)], 1.2f + random.nextFloat() * 0.4f, x, 0f, z, random.nextFloat() * 360f);
+            if (i % 20 == 0) {
+                movers.add(prop);
+            }
+        }
+        float reach = side * 1.15f;
+        cam.setFrustumPerspective(35f, (float) cam.getWidth() / cam.getHeight(), 1f, 600f);
+        cam.setLocation(new Vector3f(0f, reach * 1.1f, reach * 1.6f));
+        cam.lookAt(new Vector3f(0f, 0f, reach * 0.1f), Vector3f.UNIT_Y);
+    }
+
     /** Tall columns across the way to the sun, 30 metres from the camera: the light between them falls through the air as shafts. */
     private void colonnade(Node to, Vector3f flat) {
         var stone = surface(new ColorRGBA(0.5f, 0.47f, 0.42f, 1f), 0.9f, 0f);
@@ -1180,6 +1229,9 @@ public final class RenderBench extends SimpleApplication {
     }
 
     private void filters() {
+        if (picture.autoInstancing() && AutoInstancing.supported(renderer.getCaps())) {
+            AutoInstancing.on(renderManager);
+        }
         if (picture.clusteredLights() && ClusteredLights.supported(renderer.getCaps())) {
             clusters = new ClusteredLights();
             viewPort.addProcessor(clusters);
@@ -1261,6 +1313,8 @@ public final class RenderBench extends SimpleApplication {
     @Override
     public void simpleUpdate(float tpf) {
         frame++;
+        // The statistics view, off, turns them off each frame before this.
+        renderer.getStatistics().setEnabled(true);
         if (scene.equals("furnace")) {
             if (frame == 4) {
                 furnaceReads.forEach(Runnable::run);
@@ -1304,6 +1358,11 @@ if (asked.contains("move-units")) {
         }
         if (frame > WARMUP && frame <= WARMUP + MEASURED) {
             frames.add(tpf);
+            var stats = new int[13];
+            renderer.getStatistics().getData(stats);
+            calls.add(stats[3]);
+            drawnTriangles.add(stats[1]);
+            submits.add(submitted / 1e6);
             if (clusters != null) {
                 sortMillis += clusters.sortMillis();
             }
@@ -1319,6 +1378,26 @@ if (asked.contains("move-units")) {
             report();
             stop();
         }
+        if (timers != null) {
+            // The GPU's time for the frame about to be drawn, read two frames on (a query is not ready sooner).
+            if (frame > 2 + WARMUP && frame <= 2 + WARMUP + MEASURED) {
+                int old = timers[(frame - 2) % timers.length];
+                if (renderer.isTaskResultAvailable(old)) {
+                    gpus.add(renderer.getProfilingTime(old) / 1e6);
+                }
+            }
+            renderer.startProfiling(timers[frame % timers.length]);
+        }
+        submitted = -System.nanoTime();
+    }
+
+    /** After the frame is drawn: how long the commands took to give. */
+    @Override
+    public void simpleRender(com.jme3.renderer.RenderManager rm) {
+        if (timers != null && !scene.equals("furnace")) {
+            renderer.stopProfiling();
+        }
+        submitted += System.nanoTime();
     }
 
     /**
@@ -1363,6 +1442,10 @@ if (asked.contains("move-units")) {
         }
     }
 
+    private static double mean(List<Integer> values) {
+        return values.stream().mapToInt(Integer::intValue).average().orElse(Double.NaN);
+    }
+
     private void report() {
         var sorted = new ArrayList<>(frames);
         sorted.sort(null);
@@ -1379,6 +1462,9 @@ if (asked.contains("move-units")) {
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
+        line = line.stripTrailing() + String.format(Locale.ROOT, ";draws=%.0f;triangles=%.0f;submit=%.2f;gpu=%.2f%n", mean(calls), mean(drawnTriangles),
+                submits.stream().mapToDouble(Double::doubleValue).average().orElse(Double.NaN),
+                gpus.stream().mapToDouble(Double::doubleValue).average().orElse(Double.NaN));
         System.out.print("RESULT " + line);
         if (clusters != null) {
             System.out.printf(Locale.ROOT, "clusters: %d lights sorted, %.3f ms a frame to sort them%n", clusters.sorted(), sortMillis / frames.size());

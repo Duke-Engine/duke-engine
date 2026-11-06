@@ -33,6 +33,7 @@ package com.jme3.renderer.queue;
 
 import com.jme3.post.SceneProcessor;
 import com.jme3.renderer.Camera;
+import com.jme3.renderer.GeometryBatcher;
 import com.jme3.renderer.RenderManager;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Spatial;
@@ -264,13 +265,20 @@ public class RenderQueue {
         }
     }
 
-    private void renderGeometryList(GeometryList list, RenderManager rm, Camera cam, boolean clear) {
+    private void renderGeometryList(GeometryList list, RenderManager rm, Camera cam, boolean clear, boolean solid) {
         list.setCamera(cam); // select camera for sorting
         list.sort();
+        // duke-engine: what is drawn solid, in any order, may be drawn in fewer calls (a blended list is drawn as sorted).
+        GeometryBatcher batcher = solid ? rm.getGeometryBatcher() : null;
+        if (batcher != null) {
+            batcher.render(list, rm);
+        }
         for (int i = 0; i < list.size(); i++) {
             Geometry obj = list.get(i);
             assert obj != null;
-            rm.renderGeometry(obj);
+            if (batcher == null) {
+                rm.renderGeometry(obj);
+            }
             obj.queueDistance = Float.NEGATIVE_INFINITY;
         }
         if (clear) {
@@ -280,7 +288,7 @@ public class RenderQueue {
 
     public void renderShadowQueue(GeometryList list, RenderManager rm, Camera cam, boolean clear) {
         rm.getRenderer().pushDebugGroup("ShadowQueue");
-        renderGeometryList(list, rm, cam, clear);
+        renderGeometryList(list, rm, cam, clear, true);
         rm.getRenderer().popDebugGroup();
     }
 
@@ -309,19 +317,19 @@ public class RenderQueue {
         rm.getRenderer().pushDebugGroup(bucket.name());
         switch (bucket) {
             case Gui:
-                renderGeometryList(guiList, rm, cam, clear);
+                renderGeometryList(guiList, rm, cam, clear, false);
                 break;
             case Opaque:
-                renderGeometryList(opaqueList, rm, cam, clear);
+                renderGeometryList(opaqueList, rm, cam, clear, true);
                 break;
             case Sky:
-                renderGeometryList(skyList, rm, cam, clear);
+                renderGeometryList(skyList, rm, cam, clear, false);
                 break;
             case Transparent:
-                renderGeometryList(transparentList, rm, cam, clear);
+                renderGeometryList(transparentList, rm, cam, clear, false);
                 break;
             case Translucent:
-                renderGeometryList(translucentList, rm, cam, clear);
+                renderGeometryList(translucentList, rm, cam, clear, false);
                 break;
 
             default:

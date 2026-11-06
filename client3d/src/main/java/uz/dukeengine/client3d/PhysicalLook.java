@@ -9,6 +9,7 @@ import com.jme3.scene.Node;
 import java.util.ArrayList;
 import java.util.logging.Logger;
 import uz.dukeengine.render.AtmosphereSky;
+import uz.dukeengine.render.AutoInstancing;
 import uz.dukeengine.render.ClusteredLights;
 import uz.dukeengine.render.HeightFogFilter;
 import uz.dukeengine.render.LocalShadowFilter;
@@ -21,9 +22,9 @@ import uz.dukeengine.render.TaaFilter;
  * What {@link Visuals#physicallyBased} adds to a scene: the light physically based materials take their ambient from,
  * a probe baked from a sky worked out of the scene's own sun and ambient, the filters over the finished picture, and
  * the sun's shadows drawn by {@link uz.dukeengine.render.SunShadowFilter}, and the local lights' by
- * {@link LocalShadowFilter}; the local lights drawn in one pass from the view's {@link ClusteredLights}. With
- * {@link PictureSettings#atmosphere} the sky is the atmosphere under the sun's direction, and the probe follows the sun
- * through its hours.
+ * {@link LocalShadowFilter}; the local lights drawn in one pass from the view's {@link ClusteredLights}, and what stands
+ * many times drawn in one call each by {@link AutoInstancing}. With {@link PictureSettings#atmosphere} the sky is the
+ * atmosphere under the sun's direction, and the probe follows the sun through its hours.
  *
  * <p>Light is drawing. Nothing in the simulation reads it.
  */
@@ -55,6 +56,11 @@ final class PhysicalLook {
             view.addProcessor(new ClusteredLights());
         } else if (picture.clusteredLights()) {
             LOG.warning("this GPU cannot read light clusters (GLSL 1.50, float textures): each local light is a pass of its own");
+        }
+        if (picture.autoInstancing() && AutoInstancing.supported(caps)) {
+            AutoInstancing.on(renderManager);
+        } else if (picture.autoInstancing()) {
+            LOG.warning("this GPU cannot draw instances: every model is a call of its own");
         }
         bake(light);
         light.shadows().drawnAs(picture, caps);
