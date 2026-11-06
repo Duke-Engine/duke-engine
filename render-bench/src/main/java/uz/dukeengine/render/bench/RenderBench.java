@@ -54,6 +54,7 @@ import uz.dukeengine.render.AcesToneMap;
 import uz.dukeengine.render.AtmosphereSky;
 import uz.dukeengine.render.AutoInstancing;
 import uz.dukeengine.render.AutoLod;
+import uz.dukeengine.render.OcclusionCulling;
 import uz.dukeengine.render.ClusteredLights;
 import uz.dukeengine.render.GtaoFilter;
 import uz.dukeengine.render.HeightFogFilter;
@@ -137,6 +138,7 @@ public final class RenderBench extends SimpleApplication {
     private final List<Double> gpus = new ArrayList<>();
     private final List<Integer> calls = new ArrayList<>();
     private final List<Integer> drawnTriangles = new ArrayList<>();
+    private OcclusionCulling occlusion;
 
     private RenderBench(String scene, String label, Path out) {
         this.scene = scene;
@@ -188,7 +190,7 @@ public final class RenderBench extends SimpleApplication {
                 lens(scene, left), left.stream().filter(word -> word.startsWith("lut-")).map(word -> "Common/Luts/" + word.substring(4) + ".png")
                         .findFirst().orElse(null), left.contains("vignette") ? VIGNETTE : 0f, full.clusteredLights() && !left.contains("no-clusters"),
                 full.screenSpaceGi() && !left.contains("no-ssgi"), scene.equals("water") && !left.contains("no-water"),
-                full.autoInstancing() && !left.contains("no-instancing"), full.autoLod() && !left.contains("no-lod"));
+                full.autoInstancing() && !left.contains("no-instancing"), full.autoLod() && !left.contains("no-lod"), full.occlusionCulling() && !left.contains("no-occlusion"));
     }
 
     /**
@@ -294,6 +296,12 @@ public final class RenderBench extends SimpleApplication {
                 sunDirection.set(-0.45f, -0.75f, -0.48f);
                 sun = new ColorRGBA(1f, 0.95f, 0.88f, 1f).mult(2.4f);
                 forest(world);
+            }
+            case "town" -> {
+                sunDirection.set(-0.45f, -0.75f, -0.48f);
+                sun = new ColorRGBA(1f, 0.95f, 0.88f, 1f).mult(2.4f);
+                forest(world);
+                town(world);
             }
             case "night" -> {
                 sunDirection.set(0.3f, -0.8f, 0.4f);
@@ -839,6 +847,26 @@ public final class RenderBench extends SimpleApplication {
         cam.lookAt(new Vector3f(0f, 0f, reach * 0.1f), Vector3f.UNIT_Y);
     }
 
+    /**
+     * The forest as a town seen from its street: rows of house-high walls across it, every ninth metre, each 20 metres long
+     * with a 5 metre gap, and the camera at a man's eye height at the near edge, looking along the street. What the first
+     * walls hide is most of the forest: what {@link OcclusionCulling} is for.
+     */
+    private void town(Node world) {
+        int side = (int) Math.ceil(Math.sqrt(forestSize()));
+        float half = side * 1.15f;
+        var plaster = surface(new ColorRGBA(0.62f, 0.58f, 0.52f, 1f), 0.85f, 0f);
+        int row = 0;
+        for (float z = -half + 4f; z < half; z += 9.2f, row++) {
+            for (float x = -half + (row % 2) * 12f; x < half; x += 25f) {
+                wall(world, plaster, x + 10f, 3f, z, 10f, 3f, 0.3f, 4f);
+            }
+        }
+        cam.setFrustumPerspective(60f, (float) cam.getWidth() / cam.getHeight(), 0.2f, 600f);
+        cam.setLocation(new Vector3f(2f, 1.7f, half + 2f));
+        cam.lookAt(new Vector3f(2f, 1.7f, 0f), Vector3f.UNIT_Y);
+    }
+
     /** Tall columns across the way to the sun, 30 metres from the camera: the light between them falls through the air as shafts. */
     private void colonnade(Node to, Vector3f flat) {
         var stone = surface(new ColorRGBA(0.5f, 0.47f, 0.42f, 1f), 0.9f, 0f);
@@ -1236,6 +1264,10 @@ public final class RenderBench extends SimpleApplication {
         if (picture.autoLod()) {
             viewPort.addProcessor(new AutoLod());
         }
+        if (picture.occlusionCulling() && OcclusionCulling.supported(renderer.getCaps())) {
+            occlusion = new OcclusionCulling(assetManager);
+            viewPort.addProcessor(occlusion);
+        }
         if (picture.clusteredLights() && ClusteredLights.supported(renderer.getCaps())) {
             clusters = new ClusteredLights();
             viewPort.addProcessor(clusters);
@@ -1470,6 +1502,9 @@ if (asked.contains("move-units")) {
                 submits.stream().mapToDouble(Double::doubleValue).average().orElse(Double.NaN),
                 gpus.stream().mapToDouble(Double::doubleValue).average().orElse(Double.NaN));
         System.out.print("RESULT " + line);
+        if (occlusion != null) {
+            System.out.printf(Locale.ROOT, "occlusion: %d geometries left out, %d boxes asked in the last frame%n", occlusion.culled(), occlusion.asked());
+        }
         if (clusters != null) {
             System.out.printf(Locale.ROOT, "clusters: %d lights sorted, %.3f ms a frame to sort them%n", clusters.sorted(), sortMillis / frames.size());
         }

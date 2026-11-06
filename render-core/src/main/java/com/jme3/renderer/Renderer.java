@@ -490,6 +490,31 @@ public interface Renderer {
     public boolean isTaskResultAvailable(int taskId);
 
     /**
+     * duke-engine: starts asking, into a query of {@link #generateProfilingTasks}, whether any sample of what is drawn
+     * until {@link #stopOcclusionQuery} passes the depth test. Ready when {@link #isTaskResultAvailable} says so.
+     *
+     * @param taskId the query
+     */
+    public default void startOcclusionQuery(int taskId) {
+        throw new UnsupportedOperationException("no occlusion queries");
+    }
+
+    /** duke-engine: ends the query {@link #startOcclusionQuery} started. */
+    public default void stopOcclusionQuery() {
+        throw new UnsupportedOperationException("no occlusion queries");
+    }
+
+    /**
+     * duke-engine: whether any sample passed, for a query ended and ready.
+     *
+     * @param taskId the query
+     * @return true if something drawn in it was not hidden
+     */
+    public default boolean occlusionQueryPassed(int taskId) {
+        throw new UnsupportedOperationException("no occlusion queries");
+    }
+
+    /**
      * Gets the alpha to coverage state.
      *
      * @return true if alpha coverage is enabled, otherwise false

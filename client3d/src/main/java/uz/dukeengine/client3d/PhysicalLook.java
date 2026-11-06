@@ -11,6 +11,7 @@ import java.util.logging.Logger;
 import uz.dukeengine.render.AtmosphereSky;
 import uz.dukeengine.render.AutoInstancing;
 import uz.dukeengine.render.AutoLod;
+import uz.dukeengine.render.OcclusionCulling;
 import uz.dukeengine.render.ClusteredLights;
 import uz.dukeengine.render.HeightFogFilter;
 import uz.dukeengine.render.LocalShadowFilter;
@@ -24,7 +25,7 @@ import uz.dukeengine.render.TaaFilter;
  * a probe baked from a sky worked out of the scene's own sun and ambient, the filters over the finished picture, and
  * the sun's shadows drawn by {@link uz.dukeengine.render.SunShadowFilter}, and the local lights' by
  * {@link LocalShadowFilter}; the local lights drawn in one pass from the view's {@link ClusteredLights}, and what stands
- * many times drawn in one call each by {@link AutoInstancing}, what is small on the screen with fewer triangles by {@link AutoLod}. With {@link PictureSettings#atmosphere} the sky is the
+ * many times drawn in one call each by {@link AutoInstancing}, what is small on the screen with fewer triangles by {@link AutoLod}, what is hidden left out by {@link OcclusionCulling}. With {@link PictureSettings#atmosphere} the sky is the
  * atmosphere under the sun's direction, and the probe follows the sun through its hours.
  *
  * <p>Light is drawing. Nothing in the simulation reads it.
@@ -56,6 +57,11 @@ final class PhysicalLook {
         // Ahead of the filters, whose shadow maps then draw the levels it picked.
         if (picture.autoLod()) {
             view.addProcessor(new AutoLod());
+        }
+        if (picture.occlusionCulling() && OcclusionCulling.supported(caps)) {
+            view.addProcessor(new OcclusionCulling(assets));
+        } else if (picture.occlusionCulling()) {
+            LOG.warning("this GPU cannot answer occlusion queries (GL 2.0, GLES 3.0): what is hidden is drawn too");
         }
         if (picture.clusteredLights() && ClusteredLights.supported(caps)) {
             view.addProcessor(new ClusteredLights());

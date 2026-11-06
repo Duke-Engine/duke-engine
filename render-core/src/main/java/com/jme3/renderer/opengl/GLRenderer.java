@@ -3526,6 +3526,29 @@ public final class GLRenderer implements Renderer {
         return gl.glGetQueryObjectiv(taskId, GL.GL_QUERY_RESULT_AVAILABLE) == 1;
     }
 
+    // duke-engine: desktop GL has counted samples since 1.5 (a 3.2 context has no ANY_SAMPLES_PASSED); GLES 3.0 has only the yes or no.
+    private static final int GL_SAMPLES_PASSED = 0x8914;
+    private static final int GL_ANY_SAMPLES_PASSED = 0x8C2F;
+
+    private int occlusionTarget() {
+        return caps.contains(Caps.OpenGLES30) ? GL_ANY_SAMPLES_PASSED : GL_SAMPLES_PASSED;
+    }
+
+    @Override
+    public void startOcclusionQuery(int taskId) {
+        gl.glBeginQuery(occlusionTarget(), taskId);
+    }
+
+    @Override
+    public void stopOcclusionQuery() {
+        gl.glEndQuery(occlusionTarget());
+    }
+
+    @Override
+    public boolean occlusionQueryPassed(int taskId) {
+        return gl.glGetQueryObjectiv(taskId, GL.GL_QUERY_RESULT) != 0;
+    }
+
     @Override
     public boolean getAlphaToCoverage() {
         if (caps.contains(Caps.Multisample)) {
