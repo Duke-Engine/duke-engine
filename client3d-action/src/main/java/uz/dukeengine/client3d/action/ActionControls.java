@@ -267,6 +267,7 @@ public final class ActionControls implements ControlScheme {
             window.lookAt(heroX, heroY); // the screen was the game's: back behind him at once, not flown to him
             window.turnBy(turnBehind(heroFacing, window.yaw())); // and looking the way he faces, as he starts
             boom.forget();
+            this.eye.cut();
         }
         placedAt = window.time();
         var at = window.lookingAt();

@@ -53,15 +53,19 @@ public record CameraFollow(String of, float lookAhead, float easeSeconds, float 
         private float aheadX;
         private float aheadY;
         private float pannedAt = Float.NEGATIVE_INFINITY;
+        private final Spring acrossX = new Spring();
+        private final Spring acrossY = new Spring();
 
         /**
-         * One frame of {@code seconds}: the point {@code camera} looks at eased toward the unit at ({@code x},
-         * {@code y}) plus its look ahead — unless the player panned, or did within the look-away time.
+         * One frame of {@code seconds}: the point {@code camera} looks at chased by a critically damped spring toward
+         * the unit at ({@code x}, {@code y}) plus its look ahead, trailing him by his speed times the ease time —
+         * unless the player panned, or did within the look-away time.
          */
         void step(CameraFollow look, uz.dukeengine.client3d.ControlScheme.Context camera, float x, float y, float facing, boolean walking,
                 boolean panned, float now, float seconds) {
             if (panned) {
                 pannedAt = now;
+                cut();
                 return;
             }
             if (now - pannedAt < look.lookAwaySeconds()) {
@@ -72,9 +76,15 @@ public record CameraFollow(String of, float lookAhead, float easeSeconds, float 
             float wantY = walking ? (float) Math.sin(facing) * look.lookAhead() : 0f;
             aheadX += (wantX - aheadX) * aheadShare;
             aheadY += (wantY - aheadY) * aheadShare;
-            float share = share(seconds, look.easeSeconds());
             var at = camera.lookingAt();
-            camera.lookAt(at[0] + (x + aheadX - at[0]) * share, at[1] + (y + aheadY - at[1]) * share);
+            camera.lookAt(acrossX.after(at[0], x + aheadX, look.easeSeconds(), seconds),
+                    acrossY.after(at[1], y + aheadY, look.easeSeconds(), seconds));
+        }
+
+        /** The chase's speed forgotten: the camera was cut to him, not flown. */
+        void cut() {
+            acrossX.stop();
+            acrossY.stop();
         }
 
         /** The share of the way an exponential ease of time constant {@code tau} closes in {@code seconds}. */

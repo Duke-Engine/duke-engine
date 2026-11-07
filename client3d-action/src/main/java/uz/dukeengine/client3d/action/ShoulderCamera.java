@@ -143,21 +143,18 @@ public record ShoulderCamera(float distance, float side, float lookHeight, float
     static final class Boom {
         private float length = Float.NaN;
         private float height = Float.NaN;
+        private final Spring rise = new Spring();
 
         /** Forgotten, so the next frame begins where it should be: after the game's own camera had the screen. */
         void forget() {
             length = Float.NaN;
             height = Float.NaN;
+            rise.stop();
         }
 
-        /** The height of the look-at point after a frame, eased toward {@code wanted}; at once the first time. */
+        /** The height of the look-at point after a frame, sprung toward {@code wanted}; at once the first time. */
         float heightAfter(ShoulderCamera look, float wanted, float seconds) {
-            if (Float.isNaN(height)) {
-                height = wanted;
-            } else {
-                float share = look.followSeconds <= 0f ? 1f : 1f - (float) Math.exp(-seconds / look.followSeconds);
-                height += (wanted - height) * share;
-            }
+            height = Float.isNaN(height) ? wanted : rise.after(height, wanted, look.followSeconds, seconds);
             return height;
         }
 
