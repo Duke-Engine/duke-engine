@@ -1216,18 +1216,21 @@ final class UnitScene {
             }
             return;
         }
-        boolean walking = view.moving() && visual.walkAnim != null;
-        if (!walking && visual.isIdle(node.currentAnim)) {
+        var roles = visual.rolesFor(view.conditions());
+        String walkClip = roles == null || roles.walk() == null ? visual.walkAnim : roles.walk();
+        String idleClip = roles == null ? null : roles.idle();
+        boolean walking = view.moving() && walkClip != null;
+        if (!walking && (idleClip == null ? visual.isIdle(node.currentAnim) : idleClip.equals(node.currentAnim))) {
             return; // standing with the idle it drew as it began to
         }
-        String wanted = walking ? visual.walkAnim : visual.idleFor(view.id(), snapshot.get().frame());
+        String wanted = walking ? walkClip : idleClip != null ? idleClip : visual.idleFor(view.id(), snapshot.get().frame());
         if (wanted != null && !wanted.equals(node.currentAnim)) {
             play(node, view.looksAs(), wanted, true);
         }
         if (walking && visual.walkDistance > 0f && node.composer != null) {
             // Paced to its speed, the simulation's: a soldier slowed on a slope steps slower instead of sliding.
             var action = node.composer.getCurrentAction();
-            var clip = node.composer.getAnimClip(visual.walkAnim);
+            var clip = node.composer.getAnimClip(walkClip);
             if (action != null && clip != null) {
                 action.setSpeed(Visuals.paced(clip.getLength(), visual.walkDistance, view.speed(), 1.0));
             }

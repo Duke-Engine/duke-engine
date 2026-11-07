@@ -1449,6 +1449,32 @@ public final class Visuals {
             return this;
         }
 
+        /** An idle and a walk played in place of its own while it holds a word — see {@link #rolesWhile}. */
+        record Roles(String word, String idle, String walk) {
+        }
+
+        final java.util.List<Roles> rolesWhile = new java.util.ArrayList<>();
+
+        /**
+         * Its idle and its walk while it holds {@code word}, in place of its own: a hero at ease, his sword on his back,
+         * standing and running with his arms free. The walk is paced as its own walk is; a clip null leaves that role
+         * its own. The first word held, in the order given, wins.
+         */
+        public UnitVisual rolesWhile(String word, String idle, String walk) {
+            rolesWhile.add(new Roles(word, idle, walk));
+            return this;
+        }
+
+        /** The roles the words {@code holding} give it, or null for its own. */
+        Roles rolesFor(java.util.Collection<String> holding) {
+            for (var roles : rolesWhile) {
+                if (holding.contains(roles.word())) {
+                    return roles;
+                }
+            }
+            return null;
+        }
+
         /**
          * What it plays for one blow — <em>once</em> per blow, not on a loop.
          *

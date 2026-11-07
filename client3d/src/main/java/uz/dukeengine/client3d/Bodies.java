@@ -518,6 +518,13 @@ final class Bodies {
                 wanted.add(name);
             }
         }
+        for (var roles : visual.rolesWhile) {
+            for (var name : new String[]{roles.idle(), roles.walk()}) {
+                if (name != null && !wanted.contains(name)) {
+                    wanted.add(name);
+                }
+            }
+        }
         for (var picks : visual.rolePicks.values()) {
             for (var pick : picks) {
                 if (!wanted.contains(pick.clip())) {
