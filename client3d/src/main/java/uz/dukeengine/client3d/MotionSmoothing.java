@@ -18,6 +18,14 @@ final class MotionSmoothing {
     private static final float LONGEST = 0.1f;
     /** A step further than this is a jump — a blink, a spawn — and is drawn at once. */
     static final float JUMP = 24f;
+    /**
+     * How much of each step's own time goes into the time steps are taken to take: steps arrive unevenly (Windows
+     * sleeps in 15.6 ms ticks, so a sixtieth and a twentieth apart), and drawn at the last one's pace a thing ran
+     * ahead, stood, and ran ahead again — a shudder beside a smooth camera.
+     */
+    private static final float SETTLE = 0.1f;
+    /** A step is drawn over a little longer than steps take, so one that comes late finds the thing still on its way. */
+    private static final float SLACK = 1.6f;
 
     private static final class Track {
         private final Vector3f from = new Vector3f();
@@ -25,7 +33,13 @@ final class MotionSmoothing {
         private final Vector3f shown = new Vector3f();
         private int frame;
         private float since;
+        private float drawn;
         private float took = 1f / 30f;
+        private float along = 1f;
+        private float fromFacing = Float.NaN;
+        private float toFacing;
+        private float shownFacing;
+        private int facingFrame;
     }
 
     private final Map<Integer, Track> tracks = new HashMap<>();
@@ -43,20 +57,50 @@ final class MotionSmoothing {
             track.shown.set(placed);
             track.frame = frame;
             track.since = now;
+            track.drawn = now;
             tracks.put(id, track);
             return placed.clone();
         }
         if (frame != track.frame) {
             boolean jumped = placed.distance(track.to) > JUMP;
-            track.took = Math.clamp(now - track.since, SHORTEST, LONGEST);
+            track.took += (Math.clamp(now - track.since, SHORTEST, LONGEST) - track.took) * SETTLE;
             track.from.set(jumped ? placed : track.shown);
             track.to.set(placed);
             track.frame = frame;
-            track.since = now;
+            // Come since it was last drawn: begun there, so the frame it arrives on moves it on rather than standing.
+            track.since = track.drawn;
         }
-        float along = Math.clamp((now - track.since) / track.took, 0f, 1f);
-        track.shown.set(track.from).interpolateLocal(track.to, along);
+        track.drawn = now;
+        track.along = Math.clamp((now - track.since) / (track.took * SLACK), 0f, 1f);
+        track.shown.set(track.from).interpolateLocal(track.to, track.along);
         return track.shown.clone();
+    }
+
+    /**
+     * The way thing {@code id} is drawn facing (radians), the step {@link #at} last took for it having turned it to
+     * {@code facing}: on its way there the short way round, as its place is — a turn drawn thirty times a second is a
+     * flicker as the camera swings round him.
+     */
+    float facing(int id, float facing) {
+        var track = tracks.get(id);
+        if (track == null) {
+            return facing;
+        }
+        if (Float.isNaN(track.fromFacing)) {
+            track.fromFacing = facing;
+            track.shownFacing = facing;
+            track.facingFrame = track.frame;
+        }
+        if (track.facingFrame != track.frame || track.along >= 1f) {
+            track.fromFacing = track.shownFacing;
+            track.facingFrame = track.frame;
+        }
+        track.toFacing = facing;
+        float turn = track.toFacing - track.fromFacing;
+        turn = (float) Math.atan2(Math.sin(turn), Math.cos(turn));
+        float shown = track.fromFacing + turn * track.along;
+        track.shownFacing = (float) Math.atan2(Math.sin(shown), Math.cos(shown));
+        return track.shownFacing;
     }
 
     /** A thing gone from the world. */

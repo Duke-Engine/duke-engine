@@ -843,13 +843,24 @@ public final class GameObject {
     /** The clip it loops while it works, and the frame its work ends on; see {@link #busy}. Out of the checksum. */
     private String busyClip;
     private int busyUntil;
+    private boolean busyMoves;
 
     /**
      * Busy for {@code frames} frames at work the window shows by looping {@code clip} — a chop, a gather, a cook —
      * from its model or the libraries its look links; {@code busy(null, 0)} ends it. Presentation alone: nothing in the
-     * world reads it and the checksum leaves it out. A blow that does harm ends it, and while it moves it is not shown.
+     * world reads it and the checksum leaves it out. A blow that does harm ends it, and while it moves it is not shown
+     * (but where it was busied on the move).
      */
     public void busy(String clip, int frames) {
+        busy(clip, frames, false);
+    }
+
+    /**
+     * As {@link #busy(String, int)}; {@code onTheMove} lets a steered walk go on under it (a swing on the run), the
+     * window playing the clip over the walk where the look names an upper body to play it from.
+     */
+    public void busy(String clip, int frames, boolean onTheMove) {
+        busyMoves = onTheMove;
         var world = getWorld();
         if (clip == null || clip.isBlank() || frames <= 0 || world == null) {
             busyClip = null;
@@ -857,6 +868,11 @@ public final class GameObject {
         }
         busyClip = clip;
         busyUntil = world.getFrame() + frames;
+    }
+
+    /** Whether its work this frame lets it walk on: busy, and busied {@code onTheMove}. */
+    public boolean busyOnTheMove() {
+        return busyMoves && getBusyClip() != null;
     }
 
     /** The clip it is busy with on this frame, or null. */

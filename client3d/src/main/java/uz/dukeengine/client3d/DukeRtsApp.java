@@ -879,12 +879,8 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public float[] drawnAt(int id) {
-            var node = unitScene.node(id);
-            if (node == null) {
-                return null;
-            }
-            var at = node.root.getLocalTranslation();
-            return new float[] {at.x, at.z};
+            var at = unitScene.drawnNow(id);
+            return at == null ? null : new float[] {at.x, at.z};
         }
 
         @Override
@@ -1971,17 +1967,20 @@ final class DukeRtsApp extends SimpleApplication {
                             skillKeys.letGoOfHeldSkill(true); // he pressed its slot; this is the cast
                             break;
                         }
-                        if (pressed && skillKeys.clickedASkillSlot()) {
+                        // A held pointer is hidden and GLFW lets its position run off without bound, so where it
+                        // "is" says nothing: a click then is never a slot's, the bar's nor off the world.
+                        boolean held = cameraRig.mouseHeld();
+                        if (pressed && !held && skillKeys.clickedASkillSlot()) {
                             // The bar took it; nothing else may have it.
                             break;
                         }
                         if (skillKeys.holdingASkill()) {
                             break; // the mouse has no part in a skill being held
                         }
-                        if (pressed && buttons.commandBarClick()) {
+                        if (pressed && !held && buttons.commandBarClick()) {
                             // The bar took it -- before anything armed does, so pressing a
                             // second button is that button and not a place for the first.
-                        } else if (pressed && !pointer.pointerOnTheWorld()) {
+                        } else if (pressed && !held && !pointer.pointerOnTheWorld()) {
                             // Off the world's part of the window: nothing of the world is there to take it.
                         } else if (pressed && buttons.armed()) {
                             buttons.aimArmedButton(); // this click is the armed button's place or thing

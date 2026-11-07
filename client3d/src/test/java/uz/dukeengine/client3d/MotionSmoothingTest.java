@@ -26,7 +26,7 @@ class MotionSmoothingTest {
             last = x;
         }
         // The step before the last has been reached; the last is not drawn yet but on its way.
-        assertTrue(last > 0.5f && last <= 2f, "a step behind the simulation, never ahead: " + last);
+        assertTrue(last > 0.4f && last <= 2f, "a step behind the simulation, never ahead: " + last);
     }
 
     @Test
@@ -43,6 +43,50 @@ class MotionSmoothingTest {
         smoothing.at(1, 0, new Vector3f(), 0f);
         var blinked = new Vector3f(100f, 0f, 0f);
         assertEquals(100f, smoothing.at(1, 1, blinked, STEP).x, 1e-5f, "a blink is not a run");
+    }
+
+    /**
+     * Steps that arrive unevenly — Windows sleeps in 15.6 ms ticks, so a 30-a-second simulation hands its steps over
+     * a sixtieth and then a twentieth apart — still draw a walk at an even pace on a 144 Hz screen: never standing
+     * still a frame between two steps, never lurching to twice its pace.
+     */
+    @Test
+    void stepsArrivingUnevenlyStillDrawAnEvenWalk() {
+        var smoothing = new MotionSmoothing();
+        float arrives = 0f;
+        int step = 0;
+        float last = smoothing.at(1, 0, new Vector3f(), 0f).x;
+        float least = Float.MAX_VALUE;
+        float most = 0f;
+        for (int drawn = 1; drawn <= 144 * 3; drawn++) {
+            float now = drawn / 144f;
+            while (now >= arrives + (step % 2 == 0 ? 1f / 60f : 1f / 20f)) {
+                arrives += step % 2 == 0 ? 1f / 60f : 1f / 20f;
+                step++;
+            }
+            float x = smoothing.at(1, step, new Vector3f(step, 0f, 0f), now).x;
+            if (drawn > 144) { // its first second to settle
+                least = Math.min(least, x - last);
+                most = Math.max(most, x - last);
+            }
+            last = x;
+        }
+        assertTrue(least > 0f, "never standing still between steps: " + least);
+        assertTrue(most < least * 3f, "never lurching: " + least + " to " + most);
+    }
+
+    @Test
+    void aFacingTurnsOnItsWayBetweenStepsTheShortWayRound() {
+        var smoothing = new MotionSmoothing();
+        smoothing.at(1, 0, new Vector3f(), 0f);
+        assertEquals(3f, smoothing.facing(1, 3f), 1e-5f);
+        smoothing.at(1, 1, new Vector3f(), STEP);
+        smoothing.at(1, 2, new Vector3f(), 2 * STEP);
+        smoothing.at(1, 2, new Vector3f(), 2.5f * STEP);
+        float half = smoothing.facing(1, -3f); // from 3 to -3 the short way: across pi, not through 0
+        assertTrue(Math.abs(half) > 3f, "the short way round: " + half);
+        smoothing.at(1, 2, new Vector3f(), 10f);
+        assertEquals(-3f, smoothing.facing(1, -3f), 1e-4f, "long after, it faces where it is turned");
     }
 
     @Test

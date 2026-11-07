@@ -66,7 +66,12 @@ final class UnitPlacement {
 
     /** How it is turned: its facing and the turn the game gives it beside it, then its pitch, then its roll. */
     static Quaternion turn(UnitView view) {
-        var facing = new Quaternion().fromAngles(0f, -(view.orientation() + view.yaw()), 0f);
+        return turn(view, view.orientation() + view.yaw());
+    }
+
+    /** As {@link #turn(UnitView)}, facing {@code heading} (its orientation and yaw together) as it is drawn now. */
+    static Quaternion turn(UnitView view, float heading) {
+        var facing = new Quaternion().fromAngles(0f, -heading, 0f);
         if (view.pitch() == 0f && view.roll() == 0f) {
             return facing; // level, as every unit was drawn before
         }

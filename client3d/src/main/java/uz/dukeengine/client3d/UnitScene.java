@@ -233,6 +233,23 @@ final class UnitScene {
                 : smoothing.at(view.id(), snapshot.get().frame(), where, timer.getTimeInSeconds());
     }
 
+    /**
+     * Where thing {@code id} of this frame's snapshot is drawn this frame, worked out before {@link #sync} puts it there,
+     * so a camera following it is on the same frame as it and not one behind (a shudder at an uneven frame rate);
+     * null for a thing not drawn.
+     */
+    Vector3f drawnNow(int id) {
+        if (!unitNodes.containsKey(id)) {
+            return null;
+        }
+        for (var view : snapshot.get().units()) {
+            if (view.id() == id) {
+                return placed(view);
+            }
+        }
+        return unitNodes.get(id).root.getLocalTranslation();
+    }
+
     /** The barrels' flashes and kicks eased on. */
     void update(float tpf) {
         barrels.update(tpf);
@@ -1027,7 +1044,8 @@ final class UnitScene {
             node.boneSystems.drive(view, timer.getTimePerFrame() / Particles.FRAME_SECONDS);
         }
         node.root.setLocalTranslation(placed(view));
-        node.root.setLocalRotation(UnitPlacement.turn(view));
+        node.root.setLocalRotation(smoothing == null ? UnitPlacement.turn(view)
+                : UnitPlacement.turn(view, smoothing.facing(view.id(), view.orientation() + view.yaw())));
         node.root.setLocalScale(UnitPlacement.scale(view));
         node.litBy = light.scales().dress(node.root, node.litBy, visual.lightGroup);
         drawnFlash.see(view.id(), node.root, view.flash());
@@ -1179,6 +1197,13 @@ final class UnitScene {
             return;
         }
         var busy = view.busyClip();
+        if (node.upperBusy != null && !node.upperBusy.equals(busy)) {
+            node.upperBusy = null;
+            UpperBody.end(node.composer); // its swing over or cut off: the whole body is the legs' again
+        }
+        if (busy != null && (view.moving() || busy.equals(node.upperBusy)) && swingOnTheMove(node, visual, busy)) {
+            busy = null; // the swing above, the legs walking (or standing) on below
+        }
         if (busy != null) {
             if (!busy.equals(node.currentAnim)) {
                 var fit = visual.busyFits.get(busy);
@@ -1207,6 +1232,35 @@ final class UnitScene {
                 action.setSpeed(Visuals.paced(clip.getLength(), visual.walkDistance, view.speed(), 1.0));
             }
         }
+    }
+
+    /**
+     * A busy clip it may walk under (a swing on the run) played from its upper body, its legs left to the walk; true
+     * once it plays there. Taken up where the whole body had it, so a swing begun standing goes on as he sets off
+     * rather than starting over. False — nothing played — for a look with no upper body or a clip its model has not.
+     */
+    private boolean swingOnTheMove(UnitNode node, Visuals.UnitVisual visual, String busy) {
+        if (busy.equals(node.upperBusy)) {
+            return true;
+        }
+        var skin = visual.upperBody == null || node.body == null || node.composer == null ? null
+                : AnimationLibrary.findControl(node.body, com.jme3.anim.SkinningControl.class);
+        double begun = busy.equals(node.currentAnim) ? node.composer.getTime(AnimComposer.DEFAULT_LAYER) : 0.0;
+        if (skin == null || !UpperBody.play(node.composer, skin.getArmature(), visual.upperBody, busy)) {
+            return false;
+        }
+        var fit = visual.busyFits.get(busy);
+        var clip = node.composer.getAnimClip(busy);
+        var action = node.composer.getCurrentAction(UpperBody.LAYER);
+        if (fit != null && action != null) {
+            action.setSpeed((float) clip.getLength() / fit);
+        }
+        node.composer.setTime(UpperBody.LAYER, begun);
+        node.upperBusy = busy;
+        if (busy.equals(node.currentAnim)) {
+            node.currentAnim = ""; // the legs choose their own clip below
+        }
+        return true;
     }
 
     /**

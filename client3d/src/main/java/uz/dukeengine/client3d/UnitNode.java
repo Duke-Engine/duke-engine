@@ -17,6 +17,8 @@ final class UnitNode {
     LightScales.Extra litBy;
     /** The clip it was busy with last frame, so a new one is seen starting. */
     String lastBusy;
+    /** The busy clip its upper body is swinging while its legs walk on, or null — see UnitScene.swingOnTheMove. */
+    String upperBusy;
     /** Whether its swing began with a wind-up, so the shot that ends it does not swing again. */
     boolean swungFromWindUp;
     Geometry ring;

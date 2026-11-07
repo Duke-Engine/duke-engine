@@ -653,12 +653,18 @@ public final class MoveUpdate extends UpdateModule implements Locomotor, Saveabl
         return route.waiting() || route.walking() || steering != null;
     }
 
+    /** Whether a held direction steers it now (see {@link #steerBy}), rather than a route or nothing. */
+    public boolean isSteered() {
+        return steering != null;
+    }
+
     /**
      * Whether it stands still at work while a steering is kept: busy with a clip ({@link GameObject#busy}), where a
-     * steered walk waits and goes on after. It is drawn standing then, not walking on the spot.
+     * steered walk waits and goes on after. It is drawn standing then, not walking on the spot. Work it was busied
+     * at on the move holds no one.
      */
     public boolean standsAtWork() {
-        return steering != null && getOwner().getBusyClip() != null;
+        return steering != null && getOwner().getBusyClip() != null && !getOwner().busyOnTheMove();
     }
 
     /** What its {@link SpeedModifier}s make of its speed now, all of them multiplied; 1 for none. */

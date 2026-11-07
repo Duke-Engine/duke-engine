@@ -111,7 +111,7 @@ final class MatchClient extends GameClient {
     /** Its words, and its work's clip among them while it is busy and standing — see {@code UnitView.busyClip}. */
     private static java.util.List<String> busyIn(java.util.List<String> words,
             uz.dukeengine.core.thing.GameObject object, boolean moving) {
-        var clip = moving ? null : object.getBusyClip();
+        var clip = moving && !object.busyOnTheMove() ? null : object.getBusyClip();
         var mount = object.getMount();
         if (clip == null && mount == null) {
             return words;
