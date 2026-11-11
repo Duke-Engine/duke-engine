@@ -5,6 +5,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
@@ -32,6 +33,7 @@ public final class SocketTransport implements Transport, AutoCloseable {
     private final PacketCodec codec;
     private final CopyOnWriteArrayList<Consumer<NetMessage>> listeners = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<IntConsumer> lostListeners = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<BiConsumer<Integer, String>> asides = new CopyOnWriteArrayList<>();
 
     /** Arrivals awaiting the game thread; a null element marks the end of the link. */
     private final ConcurrentLinkedQueue<NetMessage> inbox = new ConcurrentLinkedQueue<>();
@@ -89,6 +91,18 @@ public final class SocketTransport implements Transport, AutoCloseable {
     }
 
     @Override
+    public void aside(int sender, String text) {
+        if (!linkEnded && !channel.send(NetFraming.aside(sender, text))) {
+            linkEnded = true;
+        }
+    }
+
+    @Override
+    public void onAside(BiConsumer<Integer, String> listener) {
+        asides.add(listener);
+    }
+
+    @Override
     public void send(NetMessage message) {
         deliver(message); // local echo, on the game thread
         write(message);
@@ -130,9 +144,18 @@ public final class SocketTransport implements Transport, AutoCloseable {
     }
 
     private void readLoop() {
-        String line;
-        while (running && (line = channel.receive()) != null) {
-            inbox.add(NetFraming.decode(line, codec));
+        try {
+            String line;
+            while (running && (line = channel.receive()) != null) {
+                if (NetFraming.isAside(line)) {
+                    var aside = NetFraming.asideOf(line);
+                    asides.forEach(listener -> listener.accept(aside.sender(), aside.text()));
+                } else {
+                    inbox.add(NetFraming.decode(line, codec));
+                }
+            }
+        } catch (RuntimeException unreadable) {
+            // a line nobody can read: without its end told, the game would wait on this link for good
         }
         linkEnded = true; // closed or errored: the end of the link, reported after its last message
     }

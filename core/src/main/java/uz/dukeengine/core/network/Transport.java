@@ -1,5 +1,6 @@
 package uz.dukeengine.core.network;
 
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
@@ -42,6 +43,20 @@ public interface Transport {
      * on the same frame.
      */
     default void onLinkLost(IntConsumer listener) {
+    }
+
+    /**
+     * Say a line of the game's own to every other peer, beside the lock-step, from any thread: it is not ordered with
+     * the frames and holds none of them up. Nothing, for a transport with no peers.
+     */
+    default void aside(int sender, String text) {
+    }
+
+    /**
+     * Register a listener told, on a reader's thread and never the game's, each line said aside by a peer: who said
+     * it, as the relay saw it, and what.
+     */
+    default void onAside(BiConsumer<Integer, String> listener) {
     }
 
     /**

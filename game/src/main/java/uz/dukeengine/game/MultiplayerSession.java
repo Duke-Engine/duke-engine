@@ -526,6 +526,19 @@ public final class MultiplayerSession implements AutoCloseable {
         return gate.getDesync();
     }
 
+    /**
+     * Say a line of the game's own to every other player, beside the lock-step, from any thread: a file on its way,
+     * that must not hold up the frames. Over the first relay only: when the host goes, it goes with it.
+     */
+    public void aside(String text) {
+        transport.aside(localPlayerIndex, text);
+    }
+
+    /** Told, on a reader's thread and never the game's, each line another player said aside: who, and what. */
+    public void onAside(java.util.function.BiConsumer<Integer, String> listener) {
+        transport.onAside(listener);
+    }
+
     /** Buffer a local command, one the kind of game's wire carries: it ships with the next frame submission. */
     void issueLocal(uz.dukeengine.core.message.Command command) {
         gate.issueLocal(command);

@@ -48,6 +48,47 @@ class LineChannelSessionTest {
 
     @Test
     @Timeout(60)
+    void aLineSaidAsideReachesTheOthersInItsSpeakersNameAndLeavesTheFramesAlone() throws Exception {
+        var ends = LineChannel.pair();
+        var sessions = joined(ends);
+        var heardByHost = new java.util.concurrent.LinkedBlockingQueue<String>();
+        var heardByGuest = new java.util.concurrent.LinkedBlockingQueue<String>();
+        sessions.getFirst().onAside((seat, line) -> heardByHost.add(seat + ":" + line));
+        sessions.get(1).onAside((seat, line) -> heardByGuest.add(seat + ":" + line));
+        var worlds = List.of(HostLeavesTest.watched(2, sessions.getFirst()), HostLeavesTest.watched(2, sessions.get(1)));
+
+        sessions.get(1).aside("from the guest");
+        sessions.getFirst().aside("from the host");
+        ends[1].send("X 1 forged");
+        HostLeavesTest.stepUntil(worlds, 60, System.nanoTime() + 30_000_000_000L);
+
+        assertEquals("2:from the guest", heardByHost.poll(10, java.util.concurrent.TimeUnit.SECONDS));
+        assertEquals("2:forged", heardByHost.poll(10, java.util.concurrent.TimeUnit.SECONDS), "the relay knows who it was");
+        assertEquals("1:from the host", heardByGuest.poll(10, java.util.concurrent.TimeUnit.SECONDS));
+        sessions.forEach(MultiplayerSession::close);
+    }
+
+    @Test
+    @Timeout(60)
+    void aLineNobodyCanReadIsALostLink() throws Exception {
+        var ends = LineChannel.pair();
+        var sessions = joined(ends);
+        var host = HostLeavesTest.watched(2, sessions.getFirst());
+        var guest = HostLeavesTest.watched(2, sessions.get(1));
+        HostLeavesTest.stepUntil(List.of(host, guest), 30, System.nanoTime() + 30_000_000_000L);
+        ends[1].send("BLOB not a net message");
+        long giveUp = System.nanoTime() + 20_000_000_000L;
+        while (host.leftAt().isEmpty() && System.nanoTime() < giveUp) {
+            host.game().runHeadless(1);
+            guest.game().runHeadless(1);
+            Thread.sleep(1);
+        }
+        assertTrue(host.leftAt().containsKey(2), "the host told the guest has left");
+        sessions.forEach(MultiplayerSession::close);
+    }
+
+    @Test
+    @Timeout(60)
     void aChannelClosedMidGameIsALostLinkToldAsASocketsCloseIs() throws Exception {
         var ends = LineChannel.pair();
         var sessions = joined(ends);

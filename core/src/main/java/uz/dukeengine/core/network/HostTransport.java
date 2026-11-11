@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
@@ -47,6 +48,7 @@ public final class HostTransport implements Transport, AutoCloseable {
     private final Map<Integer, Link> links = new ConcurrentHashMap<>();
     private final CopyOnWriteArrayList<Consumer<NetMessage>> listeners = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<IntConsumer> lostListeners = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<BiConsumer<Integer, String>> asides = new CopyOnWriteArrayList<>();
 
     /** Ordered per link by TCP, and drained on the game thread. */
     private final ConcurrentLinkedQueue<Arrival> inbox = new ConcurrentLinkedQueue<>();
@@ -96,6 +98,19 @@ public final class HostTransport implements Transport, AutoCloseable {
         }
     }
 
+    @Override
+    public void aside(int sender, String text) {
+        var line = NetFraming.aside(sender, text);
+        for (var link : links.values()) {
+            writeLine(link, line);
+        }
+    }
+
+    @Override
+    public void onAside(BiConsumer<Integer, String> listener) {
+        asides.add(listener);
+    }
+
     /** The link to {@code playerIndex} let go at the next pump, after whatever arrived from it before. */
     @Override
     public void drop(int playerIndex) {
@@ -138,12 +153,16 @@ public final class HostTransport implements Transport, AutoCloseable {
     }
 
     private void write(Link link, NetMessage message) {
+        writeLine(link, NetFraming.encode(message, codec));
+    }
+
+    private void writeLine(Link link, String line) {
         if (!link.open) {
             return;
         }
         boolean sent;
         try {
-            sent = link.channel.send(NetFraming.encode(message, codec));
+            sent = link.channel.send(line);
         } catch (UncheckedIOException _) {
             sent = false;
         }
@@ -162,11 +181,30 @@ public final class HostTransport implements Transport, AutoCloseable {
     }
 
     private void readLoop(Link link) {
-        String line;
-        while (running && link.open && (line = link.channel.receive()) != null) {
-            inbox.add(new Arrival(link.playerIndex, NetFraming.decode(line, codec)));
+        try {
+            String line;
+            while (running && link.open && (line = link.channel.receive()) != null) {
+                if (NetFraming.isAside(line)) {
+                    passOn(link, NetFraming.asideOf(line).text());
+                } else {
+                    inbox.add(new Arrival(link.playerIndex, NetFraming.decode(line, codec)));
+                }
+            }
+        } catch (RuntimeException unreadable) {
+            // a line nobody can read: without its end told, the game would wait on this guest for good
         }
         inbox.add(new Arrival(link.playerIndex, null)); // the end of the link is the news
+    }
+
+    /** A guest's line to the others, in its own name whatever it claims. */
+    private void passOn(Link from, String text) {
+        var line = NetFraming.aside(from.playerIndex, text);
+        for (var link : links.values()) {
+            if (link != from) {
+                writeLine(link, line);
+            }
+        }
+        asides.forEach(listener -> listener.accept(from.playerIndex, text));
     }
 
     @Override

@@ -12,6 +12,7 @@ package uz.dukeengine.core.network;
  * P &lt;playerIndex&gt; &lt;percent&gt;
  * T &lt;sender&gt; &lt;recipients, joined by ':', or '-'&gt; &lt;text, URL-encoded&gt;
  * R &lt;playerIndex&gt;
+ * X &lt;sender&gt; &lt;a line of the game's own, beside the lock-step&gt;
  * </pre>
  *
  * <p>The engine owns this outer envelope and the control plane inside it; the
@@ -32,8 +33,30 @@ public final class NetFraming {
     private static final char PROGRESS = 'P';
     private static final char TALK = 'T';
     private static final char RESENT = 'R';
+    private static final char ASIDE = 'X';
 
     private NetFraming() {
+    }
+
+    /** A line of the game's own, said beside the lock-step: a file on its way, that must not hold up the frames. */
+    public record Aside(int sender, String text) {
+    }
+
+    public static String aside(int sender, String text) {
+        return ASIDE + " " + sender + " " + text;
+    }
+
+    public static boolean isAside(String line) {
+        return line.length() > 1 && line.charAt(0) == ASIDE && line.charAt(1) == ' ';
+    }
+
+    /** @throws IllegalArgumentException if it says no sender */
+    public static Aside asideOf(String line) {
+        int space = line.indexOf(' ', 2);
+        if (space < 0) {
+            throw new IllegalArgumentException("malformed aside");
+        }
+        return new Aside(Integer.parseInt(line.substring(2, space)), line.substring(space + 1));
     }
 
     public static String encode(NetMessage message, PacketCodec codec) {
