@@ -13,7 +13,7 @@ final class MissingAssets {
 
     private static final Logger LOG = Logger.getLogger(MissingAssets.class.getName());
 
-    private final Set<String> known = ConcurrentHashMap.newKeySet();
+    private final Set<String> known = java.util.Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /** Say that {@code asset}, a {@code kind}, would not load — the first time only. */
     void warn(String asset, String kind) {

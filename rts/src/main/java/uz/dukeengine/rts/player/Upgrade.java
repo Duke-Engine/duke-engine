@@ -54,7 +54,7 @@ public record Upgrade(String name, int cost, Map<String, Float> effects, int fra
     public Upgrade {
         // A sorted map kept sorted: Map.copyOf would make it immutable but
         // unordered, which is precisely the property being guarded against here.
-        effects = java.util.Collections.unmodifiableSortedMap(new TreeMap<>(effects == null ? Map.of() : effects));
+        effects = uz.dukeengine.core.data.ReadOnly.of(new TreeMap<>(effects == null ? Map.of() : effects));
         frames = Math.max(0, frames);
         scope = scope == null ? Scope.PLAYER : scope;
     }

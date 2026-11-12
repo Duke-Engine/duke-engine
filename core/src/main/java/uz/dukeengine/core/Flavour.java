@@ -45,13 +45,14 @@ public interface Flavour {
      * one to choose from, which a game settles by naming its own.
      */
     static Flavour found() {
-        var kinds = ServiceLoader.load(Flavour.class, Flavour.class.getClassLoader()).stream().toList();
+        var kinds = new java.util.ArrayList<Flavour>(); // the iterator, not stream(): TeaVM has no Provider
+        ServiceLoader.load(Flavour.class, Flavour.class.getClassLoader()).forEach(kinds::add);
         if (kinds.size() != 1) {
             throw new IllegalStateException(kinds.isEmpty()
                     ? "no kind of game on the classpath: depend on one, such as the rts library, or name a Flavour"
-                    : "more than one kind of game on the classpath, " + kinds.stream().map(kind -> kind.type()
-                            .getName()).toList() + ": name the one this game is");
+                    : "more than one kind of game on the classpath, " + kinds.stream().map(kind -> kind.getClass().getName())
+                            .toList() + ": name the one this game is");
         }
-        return kinds.getFirst().get();
+        return kinds.getFirst();
     }
 }

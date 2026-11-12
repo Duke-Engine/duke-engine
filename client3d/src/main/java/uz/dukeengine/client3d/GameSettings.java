@@ -1,11 +1,12 @@
 package uz.dukeengine.client3d;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.TreeSet;
 import java.util.logging.Logger;
 import uz.dukeengine.client3d.platform.ClientPlatform;
 import uz.dukeengine.client3d.platform.SettingsStore;
@@ -44,7 +45,8 @@ final class GameSettings {
         try {
             var bytes = store.read();
             if (bytes != null) {
-                saved.load(new ByteArrayInputStream(bytes));
+                // As text: a browser has no ISO-8859-1, which the stream forms read.
+                saved.load(new StringReader(new String(bytes, StandardCharsets.UTF_8)));
             }
         } catch (IOException e) {
             LOG.warning(() -> "could not read the settings (" + e.getMessage()
@@ -119,13 +121,35 @@ final class GameSettings {
     }
 
     private void write() {
+        // By hand, as Properties.store would: a browser's Properties stores only through ISO-8859-1, which it lacks.
+        var out = new StringBuilder("# Duke Engine: what the player set\n");
+        for (var key : new TreeSet<>(saved.stringPropertyNames())) {
+            out.append(escaped(key, true)).append('=').append(escaped(saved.getProperty(key), false)).append('\n');
+        }
         try {
-            var out = new ByteArrayOutputStream();
-            saved.store(out, "Duke Engine — what the player set");
-            store.write(out.toByteArray());
+            store.write(out.toString().getBytes(StandardCharsets.UTF_8));
         } catch (IOException e) {
             LOG.warning(() -> "could not write the settings (" + e.getMessage()
                     + ") — the settings hold for this session only");
         }
+    }
+
+    /** {@code text} as a properties file reads it back: a key's separators and any leading space escaped. */
+    static String escaped(String text, boolean key) {
+        var out = new StringBuilder();
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            switch (c) {
+                case '\\' -> out.append("\\\\");
+                case '\n' -> out.append("\\n");
+                case '\r' -> out.append("\\r");
+                case '\t' -> out.append("\\t");
+                case '\f' -> out.append("\\f");
+                case '=', ':', '#', '!' -> out.append(key || i == 0 ? "\\" : "").append(c);
+                case ' ' -> out.append(key || i == 0 ? "\\ " : " ");
+                default -> out.append(c);
+            }
+        }
+        return out.toString();
     }
 }

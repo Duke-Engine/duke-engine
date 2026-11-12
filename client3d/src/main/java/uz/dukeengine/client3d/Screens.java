@@ -444,7 +444,7 @@ final class Screens {
      * What the client calls itself, for the corner of the front menu.
      */
     private String version() {
-        var version = getClass().getPackage().getImplementationVersion();
+        var version = uz.dukeengine.core.data.Jdk.implementationVersion(getClass());
         return version == null ? "" : "v" + version;
     }
 

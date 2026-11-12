@@ -140,13 +140,37 @@ Measured on a scratch Gradle project (JDK 25, Gradle 9.3.1, TeaVM and Gradle plu
 - `MapTerrain` reads `@Grid`/`@Relief`/marked components through the same shapes; generated annotations are anonymous implementations of the annotation interface.
 - Checked: `ShapesTest` compares every generated shape in `core` (main and test) with reflection, and `reflectionTest` runs the `core`, `combat`, `rts` and `rpg` tests a second time on reflection alone. Both pass.
 - A game outside this repository (duke-dungeon) adds `annotationProcessor("uz.duke-engine:processor")` to get shapes for its own records; the processor is published and in the BOM.
-- Still needed for the browser: (1) `Shapes` falls back to reflection for every type without a generated shape, which includes JDK types the `Binder` asks about (`String`, `Integer`, `List`, `Map`, primitives); under TeaVM that fallback calls `Class.isRecord` and will not compile, so it needs built-in empty shapes for those JDK types and no reflective fallback on that platform. (2) The 16 private records (and any private map record of a game) need to be made package-private. (3) The four JDK methods from the TeaVM section. Not verified under TeaVM itself.
+- Done for the browser in the web plan's phase 2 (4f723d15, 9149462f): built-in shapes for the JDK types with no reflective fallback there, and stand-ins for the missing JDK methods. `core-web`'s probe binds the skirmish unit files in a browser, line for line as on the JVM.
+
+## Browser render (TeaVM JS)
+
+Spike on a scratch Gradle project (TeaVM 0.16.0, `teavm-jso-apis`, Node 22), `render-core` sources compiled as they are.
+
+- **Target: TeaVM JS, not Wasm GC.** Both targets pass a small probe: `Thread`, `synchronized`, `wait/notify`, `join`, `sleep`, threads still running after `main` returns, and `Float32Array.fromJavaBuffer` / `Int8Array.fromJavaBuffer` on direct NIO buffers; `WebGL2RenderingContext` is in `teavm-jso-apis`. But on Wasm GC, once jME's `NullContext`/`GLRenderer` code is reachable, a thread started with `new Thread(...).start()` never runs (main returns, the thread body never prints). Each primitive alone works there; the cause was not bisected and the emulation classes below are not ruled out. JS runs everything.
+- **`fromJavaBuffer` ignores `position` and `limit`**: the view covers the whole capacity. Every GL call that takes a buffer must slice it (`subarray(position, limit)`) itself.
+- **Result: `SimpleApplication` + `Box` + `Lighting.j3md` + `DirectionalLight` builds to JS (2.7 MB unobfuscated) and runs under Node**: init, material "Phong Lighting", frames 60/120/180, clean stop. `GLRenderer` is reachable too (forced) and compiles with no missing class. **No `render-core` source was edited.**
+- **Frame loop:** driving `listener.update()` from a JS frame callback (`requestAnimationFrame`, `setTimeout` in Node) works, and so does a green thread that waits for the next frame through an `@Async` method. Both ran `enqueue`, `synchronized` and a lock with a condition each frame. A contended monitor or `wait()` throws outside a green thread, so the context uses the green-thread loop.
+- What was needed, by group:
+  - **JDK classes TeaVM lacks** (emulated through a `SubstitutionPolicy`, classes `emul.<pkg>.T<Name>`): `Scanner` (throws; only used by text `AssetConfig`), `PhantomReference` (`get()` null), `ConcurrentLinkedQueue` (over `ArrayDeque`), `Future`, `TimeoutException`, `locks.Lock`/`ReentrantLock`/`Condition` (on monitors). A nested class of an emulated class must not take the outer type in its constructor: TeaVM renames the type in callers but not in the nested descriptor.
+  - **Broken in TeaVM:** `java.util.logging.Logger` (no level filtering; `format` crashes on a message ending in `{0}`), replaced by an emulated one. TeaVM takes the first rule whose class exists, so the policy jar must come before `teavm-classlib` on the TeaVM class path.
+  - **Reflection** (a `ReflectionPolicy`): no-argument constructors of `AssetLoader`/`AssetLocator`/`AssetCache`/`AssetProcessor` implementations, the `(TechniqueDef)` constructor of `TechniqueDefLogic` implementations, public `clone()` for `Cloner`.
+  - **Config by code, not by file:** `Resources.setResourceLoader`, locators and loaders registered on a `DesktopAssetManager`, `com.jme3.BufferAllocatorImplementation=com.jme3.util.PrimitiveAllocator`, a `JmeSystemDelegate` of our own. Lookup by class name (`AssetConfig`, `JmeSystem`'s delegate, `SavableClassUtil` for `.j3o`) is unproven; only class literals worked.
+  - **Build:** the policy classes run inside the TeaVM worker on the Gradle daemon's JDK (21), so they compile at `--release 21` in a module of their own.
+- Measured since with the skirmish (`skirmish-web`, headless Edge on SwiftShader): menu, Play and the map show; 22 MB of JS unminified (2.4 MB gzipped), the page loads in about 1.2 s and the renderer is up at 1.3 s (local server); 60 frames a second, logic at 30 a second (0.22 ms a step). `?stats=5` prints the `FrameStats` lines to the console every 5 s. Screenshot: `docs/plan/browser-skirmish.png`.
+- TeaVM bugs met on the way, each worked around where it bites:
+  - `Array.newInstance` for a primitive type makes an object array: `Cloner` copies a primitive array by its own `clone()`.
+  - Assertions are always on, so jME's asserts fire: `UnitScene.heightOf` updates the tree from its top.
+  - A weak reference comes back after `clear()`: `NativeObjectManager` checks its map before deleting.
+  - Lookup by class name finds nothing: the glTF loader's parser is set by class (`Json.setParser(GsonParser.class)`).
+  - One thread: `Jdk.spinWait` sleeps 1 ms, as a spin would starve the frame it waits for; executors run their work at once.
+- Left: WebGL 2 has no GLSL 1.50, so no SSGI, SSR, TAA, GTAO, soft or contact shadows, light clusters or local light shadows; `AcesToneMap`'s `glReadPixels` warnings; no audio; a match to the end was not played.
+- Verdict: continue; the blockers are platform glue, not jME core rewrites.
 
 ## ServiceLoader (`Flavour`, `HudPart`, `ShapeSource`)
 
 - Untouched by Phase 2 apart from `ShapeSource`, which uses the same mechanism.
 - GraalVM Native Image: providers listed in `META-INF/services` on the build class path are registered automatically; nothing extra is needed. Not verified (no `native-image` here).
-- TeaVM: its classlib implements `ServiceLoader` from `META-INF/services` read at compile time, so providers must be on the TeaVM class path when it compiles. Not verified in the probe (the probe reached no `ServiceLoader`). `client3d/HudPart` is moot until there is a browser client.
+- TeaVM: its classlib implements `ServiceLoader` from `META-INF/services` read at compile time, so providers must be on the TeaVM class path when it compiles. Verified with the browser client: `skirmish-web` gets its flavours, HUD parts and generated shapes this way.
 
 ## Android
 
@@ -226,8 +250,8 @@ Measured on a scratch app (AGP 9.2.1, Gradle 9.4.1, compileSdk 36, targetSdk 35,
 |---|---|---|---|
 | Desktop JVM | works | nothing | jpackage installer; GraalVM Native Image only if startup or size matters |
 | Android | the skirmish plays a match to the end on a phone (`skirmish-android`, minSdk 35) | below API 35 the SequencedCollection calls and a few API 33/34 calls; jME asserts in a debuggable build; Java 19+ library calls show only on a device | fix the mid-scene `updateGeometricState` calls; a release (R8) build of the launcher |
-| Browser | `core` compiles and runs under Node (TeaVM 0.16.0, Wasm GC), for the code a probe reaches | TeaVM lacks `Class.isRecord`, record components, sealed reflection and four JDK methods; `Binder` reads generated shapes now, but `Shapes` still falls back to reflection for JDK types, and 16 private records stay reflective | built-in shapes for JDK types and no reflective fallback under TeaVM, then widen the probe to `Binder` with real data |
+| Browser | the skirmish opens and plays in a browser (`skirmish-web`, TeaVM 0.16.0 JS): menu, Play, the map at 60 fps; 22 MB of JS (2.4 MB gzipped), ready in about 1.3 s locally | WebGL 2 has no GLSL 1.50 (the effects that need it stay off); no audio; TeaVM bugs worked around in `Cloner`, `NativeObjectManager` and `UnitScene` | a minified build; WebGL 2 versions of the 1.50 effects; play a match to the end |
 | GraalVM native | not tried (`native-image` not installed) | reflection metadata only for the private records left to reflection (tracing agent can produce it) | install GraalVM CE, run a probe with the agent |
 | iOS | out of scope | no maintained Java AOT toolchain for Java 25 found | none |
 
-Open: see "Generated shapes" for what the browser still needs from `Binder`.
+Open: see "Browser render" for what the browser still leaves out.

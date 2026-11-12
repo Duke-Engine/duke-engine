@@ -32,6 +32,14 @@ class ShapesTest {
     }
 
     @Test
+    void everyBuiltInShapeSaysWhatReflectionSays() {
+        var differences = new ArrayList<String>();
+        Shapes.builtIn().forEach((type, built) -> compare(type, built, Shapes.reflected(type), differences));
+        assertEquals(List.of(), differences);
+        assertEquals(42, Shapes.of(Integer.class).factory().apply("42"), "a built-in factory");
+    }
+
+    @Test
     void theEnginesTypesAndThisModulesTestRecordsAreWritten() {
         assertNotNull(Shapes.generated().get(Block.class), "a core record");
         assertNotNull(Shapes.generated().get(BinderTest.Generation.class), "a package-private test record");

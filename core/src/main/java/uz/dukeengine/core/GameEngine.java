@@ -190,7 +190,7 @@ public abstract class GameEngine extends SubsystemInterface {
         long frameNanos = 1_000_000_000L / maxFps;
         long now = System.nanoTime();
         while ((now - lastFrameMark) < frameNanos) {
-            Thread.onSpinWait();
+            uz.dukeengine.core.data.Jdk.spinWait();
             now = System.nanoTime();
         }
         lastFrameMark = now;

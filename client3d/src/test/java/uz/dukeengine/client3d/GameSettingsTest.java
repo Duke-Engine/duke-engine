@@ -136,4 +136,20 @@ class GameSettingsTest {
         assertEquals(true, DukeRtsApp.barsHidden(Screen.FRONT, false));
         assertEquals(false, DukeRtsApp.barsHidden(Screen.PLAYING, false));
     }
+
+    @Test
+    void writtenByHandReadsBackAsPropertiesDo() throws Exception {
+        var written = new StringBuilder();
+        String[][] pairs = {{"a key=with:seps", " leading space, = and \\ and tab\t"}, {"plain", "#not a comment"},
+            {"word", "Ünïcödé — ok"}};
+        for (var pair : pairs) {
+            written.append(GameSettings.escaped(pair[0], true)).append('=')
+                    .append(GameSettings.escaped(pair[1], false)).append('\n');
+        }
+        var read = new java.util.Properties();
+        read.load(new java.io.StringReader(written.toString()));
+        for (var pair : pairs) {
+            assertEquals(pair[1], read.getProperty(pair[0]));
+        }
+    }
 }

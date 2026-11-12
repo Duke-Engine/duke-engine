@@ -28,8 +28,9 @@ public interface HudPart {
 
     /** The parts on the classpath, in the order of their class names, so every machine asks them alike. */
     static List<HudPart> found() {
-        return ServiceLoader.load(HudPart.class).stream().map(ServiceLoader.Provider::get)
-                .sorted(Comparator.comparing(part -> part.getClass().getName())).toList();
+        var parts = new java.util.ArrayList<HudPart>(); // the iterator, not stream(): TeaVM has no Provider
+        ServiceLoader.load(HudPart.class).forEach(parts::add);
+        return parts.stream().sorted(Comparator.comparing(part -> part.getClass().getName())).toList();
     }
 
     /**

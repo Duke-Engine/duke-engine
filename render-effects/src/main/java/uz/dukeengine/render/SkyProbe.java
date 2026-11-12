@@ -89,7 +89,8 @@ public final class SkyProbe {
         image.setWidth(size);
         image.setHeight(size);
         image.setColorSpace(ColorSpace.Linear);
-        IntStream.range(0, 6).parallel().mapToObj(face -> face(sky, size, face)).toList().forEach(image::addData);
+        IntStream.range(0, 6).boxed().parallel() // boxed: a browser's IntStream has no parallel()
+                .map(face -> face(sky, size, face)).toList().forEach(image::addData);
         var cube = new TextureCubeMap(image);
         cube.setMagFilter(Texture.MagFilter.Bilinear);
         cube.setMinFilter(Texture.MinFilter.BilinearNoMipMaps);

@@ -209,7 +209,7 @@ final class Sounds {
     }
 
     Sounds(SoundBank bank, SoundSink sink) {
-        this(bank, sink, RandomGenerator.getDefault());
+        this(bank, sink, new java.util.SplittableRandom());
     }
 
     Sounds(SoundBank bank, SoundSink sink, RandomGenerator random) {

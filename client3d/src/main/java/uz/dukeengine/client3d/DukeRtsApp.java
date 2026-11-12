@@ -527,6 +527,9 @@ final class DukeRtsApp extends SimpleApplication {
     @Override
     public void simpleInitApp() {
         flyCam.setEnabled(false);
+        if (listener == null) {
+            listener = new com.jme3.audio.Listener(); // no audio (a browser): one that reaches no renderer
+        }
         choices = new PlayerChoices(preferences, visuals, listener, () -> noises, () -> listShow);
         anisotropy(anisotropy); // slanted ground and roofs kept sharp: the camera sees all of them at a slant
         // The whole picture, the interface over it too, drawn through the game's gamma: last of all.

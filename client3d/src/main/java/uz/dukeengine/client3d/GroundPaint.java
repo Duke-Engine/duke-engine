@@ -383,7 +383,7 @@ final class GroundPaint {
         }
         int packed;
         try {
-            packed = Integer.parseUnsignedInt(digits, 16);
+            packed = uz.dukeengine.core.data.Unsigned.parseInt(digits, 16);
         } catch (NumberFormatException notAColour) {
             return null;
         }

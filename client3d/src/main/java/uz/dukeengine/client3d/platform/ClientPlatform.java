@@ -71,16 +71,16 @@ public interface ClientPlatform {
         }
 
         private static ClientPlatform load() {
-            var found = ServiceLoader.load(ClientPlatform.class, ClientPlatform.class.getClassLoader()).stream()
-                    .toList();
+            var found = new java.util.ArrayList<ClientPlatform>(); // the iterator, not stream(): TeaVM has no Provider
+            ServiceLoader.load(ClientPlatform.class, ClientPlatform.class.getClassLoader()).forEach(found::add);
             if (found.size() != 1) {
                 throw new IllegalStateException(found.isEmpty()
                         ? "no platform on the classpath: add uz.duke-engine:client3d-desktop (or the platform's "
                                 + "module) to the runtime classpath"
-                        : "more than one platform on the classpath, " + found.stream().map(p -> p.type().getName())
+                        : "more than one platform on the classpath, " + found.stream().map(p -> p.getClass().getName())
                                 .toList() + ": keep the one this game runs on");
             }
-            return found.getFirst().get();
+            return found.getFirst();
         }
     }
 }

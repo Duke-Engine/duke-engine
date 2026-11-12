@@ -674,7 +674,7 @@ public final class GameObject {
 
     /** Every word that holds for it, sorted, so it reads the same way on every machine. */
     public java.util.SortedSet<String> getConditions() {
-        return java.util.Collections.unmodifiableSortedSet(conditions);
+        return uz.dukeengine.core.data.ReadOnly.of(conditions);
     }
 
     public List<Module> getModules() {
@@ -1037,7 +1037,7 @@ public final class GameObject {
 
     /** Every override it holds, by player in order: what the checksum mixes in and a save carries. */
     public java.util.SortedMap<Integer, uz.dukeengine.core.player.Relationship> getRelationOverrides() {
-        return java.util.Collections.unmodifiableSortedMap(relationOverrides);
+        return uz.dukeengine.core.data.ReadOnly.of(relationOverrides);
     }
 
     /** A thing brought back from a save: it was made long ago, and its modules are not told again. */

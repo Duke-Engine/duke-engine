@@ -1,7 +1,6 @@
 package uz.dukeengine.core;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -9,6 +8,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
+import uz.dukeengine.core.data.ReadOnly;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.partition.Lookers;
 import uz.dukeengine.core.pathfind.PathGrid;
@@ -171,7 +171,7 @@ final class Sight {
     }
 
     SortedSet<Integer> revealedTo() {
-        return Collections.unmodifiableSortedSet(revealedTo);
+        return ReadOnly.of(revealedTo);
     }
 
     void markSeen(int player) {
@@ -186,7 +186,7 @@ final class Sight {
     }
 
     SortedSet<Integer> markedSeen() {
-        return Collections.unmodifiableSortedSet(markedSeen);
+        return ReadOnly.of(markedSeen);
     }
 
     /** Nobody has seen anything of a new match's map, nor had it revealed. */

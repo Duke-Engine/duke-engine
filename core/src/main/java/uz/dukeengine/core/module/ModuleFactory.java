@@ -60,8 +60,13 @@ public final class ModuleFactory extends SubsystemInterface {
 
     /** What a module's block is called: its class's name, {@code MoveUpdate} for {@code MoveUpdate.Data}. */
     public static String nameOf(Class<? extends ModuleData> data) {
-        var module = data.getEnclosingClass();
-        return (module != null ? module : data).getSimpleName();
+        // From the data class's own name: TeaVM keeps names only for classes it sees reach getName, and an
+        // enclosing class is not one it sees.
+        var name = data.getName();
+        if (data.getEnclosingClass() != null) {
+            name = name.substring(0, name.lastIndexOf('$'));
+        }
+        return name.substring(Math.max(name.lastIndexOf('.'), name.lastIndexOf('$')) + 1);
     }
 
     /** Every module this factory builds, by the word a block names it with. */

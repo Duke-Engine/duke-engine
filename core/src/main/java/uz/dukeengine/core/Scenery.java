@@ -2,11 +2,11 @@ package uz.dukeengine.core;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.function.Supplier;
+import uz.dukeengine.core.data.ReadOnly;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.pathfind.PathGrid;
 import uz.dukeengine.core.pathfind.SceneryBox;
@@ -81,7 +81,7 @@ final class Scenery {
 
     /** The pieces taken away, in order. */
     SortedSet<Integer> removed() {
-        return Collections.unmodifiableSortedSet(removed);
+        return ReadOnly.of(removed);
     }
 
     void setRemoved(Collection<Integer> pieces) {
