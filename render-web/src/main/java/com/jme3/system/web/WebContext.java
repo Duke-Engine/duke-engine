@@ -127,4 +127,25 @@ public class WebContext extends NullContext {
     public boolean isRenderable() {
         return gl != null;
     }
+
+    @Override
+    public int getFramebufferWidth() {
+        return width(canvas);
+    }
+
+    @Override
+    public int getFramebufferHeight() {
+        return height(canvas);
+    }
+
+    /** The canvas is the window, and it sits where the page puts it: at the origin, as far as jME can tell. */
+    @Override
+    public int getWindowXPosition() {
+        return 0;
+    }
+
+    @Override
+    public int getWindowYPosition() {
+        return 0;
+    }
 }

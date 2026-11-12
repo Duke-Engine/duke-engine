@@ -104,7 +104,8 @@ public final class MapPackages {
     }
 
     private static List<String> linesOf(InputStream in) throws IOException {
-        return List.of(new String(in.readAllBytes(), StandardCharsets.UTF_8).split("\\R"));
+        // not \R or lines(): a browser has neither
+        return List.of(new String(in.readAllBytes(), StandardCharsets.UTF_8).split("\r?\n"));
     }
 
     private static List<MapPackage> scanned(String root) {

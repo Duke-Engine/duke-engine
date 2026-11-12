@@ -30,11 +30,21 @@ tasks.named("generateJavaScript") {
 }
 
 tasks.register<Sync>("site") {
-    description = "Writes the skirmish page with its script, the renderer's assets and the game's files."
+    description = "Writes the skirmish page with its script, the renderer's and the client's assets and the game's models."
     from("src/main/webapp")
     from(tasks.named("generateJavaScript"))
     from(project(":render-core").file("src/main/resources")) {
-        include("Common/**", "com/jme3/system/version.properties")
+        include("Common/**", "Interface/**", "com/jme3/system/version.properties")
+        into("assets")
+    }
+    for (module in listOf(":render-effects", ":client3d")) {
+        from(project(module).file("src/main/resources")) {
+            include("Common/**", "MatDefs/**")
+            into("assets")
+        }
+    }
+    from(project(":skirmish").file("src/main/resources")) {
+        include("models/**")
         into("assets")
     }
     into(layout.buildDirectory.dir("site"))

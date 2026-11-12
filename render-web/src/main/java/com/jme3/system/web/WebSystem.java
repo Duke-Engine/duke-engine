@@ -3,6 +3,7 @@ package com.jme3.system.web;
 import com.jme3.asset.AssetManager;
 import com.jme3.asset.DesktopAssetManager;
 import com.jme3.audio.AudioRenderer;
+import com.jme3.font.plugins.BitmapFontLoader;
 import com.jme3.material.plugins.J3MLoader;
 import com.jme3.shader.plugins.GLSLLoader;
 import com.jme3.system.AppSettings;
@@ -25,12 +26,13 @@ public class WebSystem extends JmeSystemDelegate {
         Resources.setResourceLoader(new WebFiles());
     }
 
-    /** An asset manager that reads from the page's server, with the loaders a material needs. */
+    /** An asset manager that reads from the page's server, with the loaders a material and a bitmap font need. */
     public static DesktopAssetManager assetManager() {
         DesktopAssetManager assets = new DesktopAssetManager();
         assets.registerLocator("/", WebFiles.class);
         assets.registerLoader(J3MLoader.class, "j3m", "j3md");
         assets.registerLoader(GLSLLoader.class, "vert", "frag", "geom", "tsctrl", "tseval", "glsl", "glsllib");
+        assets.registerLoader(BitmapFontLoader.class, "fnt");
         return assets;
     }
 

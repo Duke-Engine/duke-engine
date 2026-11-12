@@ -1,6 +1,10 @@
 package emul.java.util.concurrent;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -14,15 +18,19 @@ public final class TExecutors {
     private TExecutors() {
     }
 
-    public static TExecutorService newFixedThreadPool(int threads, TThreadFactory factory) {
+    public static ExecutorService newFixedThreadPool(int threads, TThreadFactory factory) {
         return new AtOnce();
     }
 
-    public static TExecutorService newSingleThreadExecutor(TThreadFactory factory) {
+    public static ExecutorService newSingleThreadExecutor(TThreadFactory factory) {
         return new AtOnce();
     }
 
-    private static final class AtOnce implements TExecutorService {
+    /**
+     * Names the JDK's {@code ExecutorService}, not {@link TExecutorService}: a nested class is not stood in, so its
+     * references are not mapped, and the game's calls reach the JDK name. What it cannot do (futures) it refuses.
+     */
+    private static final class AtOnce implements ExecutorService {
         private boolean shut;
 
         @Override
@@ -57,6 +65,41 @@ public final class TExecutors {
         @Override
         public boolean awaitTermination(long timeout, TimeUnit unit) {
             return true;
+        }
+
+        @Override
+        public <T> Future<T> submit(Callable<T> task) {
+            throw new UnsupportedOperationException("no futures in a browser's pool");
+        }
+
+        @Override
+        public <T> Future<T> submit(Runnable task, T result) {
+            throw new UnsupportedOperationException("no futures in a browser's pool");
+        }
+
+        @Override
+        public Future<?> submit(Runnable task) {
+            throw new UnsupportedOperationException("no futures in a browser's pool");
+        }
+
+        @Override
+        public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks) {
+            throw new UnsupportedOperationException("no futures in a browser's pool");
+        }
+
+        @Override
+        public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) {
+            throw new UnsupportedOperationException("no futures in a browser's pool");
+        }
+
+        @Override
+        public <T> T invokeAny(Collection<? extends Callable<T>> tasks) {
+            throw new UnsupportedOperationException("no futures in a browser's pool");
+        }
+
+        @Override
+        public <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) {
+            throw new UnsupportedOperationException("no futures in a browser's pool");
         }
     }
 }

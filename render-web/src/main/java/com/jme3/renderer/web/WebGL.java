@@ -604,7 +604,25 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
     @Override
     public void glTexImage2D(int target, int level, int internalFormat, int width, int height, int border, int format,
             int type, ByteBuffer data) {
+        if (data == null && renderable(internalFormat) != internalFormat) { // a target to draw to, so it has no data
+            internalFormat = renderable(internalFormat);
+            format = GL_RGBA;
+        }
         texImage2D(w, target, level, internalFormat, width, height, border, format, type, view(data));
+    }
+
+    private static final int GL_RGBA = 0x1908;
+
+    /**
+     * WebGL2 draws to no three-channel float texture (RGB16F, RGB32F), which a desktop does: the four-channel one
+     * stands in, its alpha unused.
+     */
+    private static int renderable(int internalFormat) {
+        return switch (internalFormat) {
+            case 0x881B -> 0x881A; // RGB16F -> RGBA16F
+            case 0x8815 -> 0x8814; // RGB32F -> RGBA32F
+            default -> internalFormat;
+        };
     }
 
     @JSBody(params = {"w", "t", "p", "v"}, script = "w.gl.texParameterf(t, p, v);")
@@ -873,7 +891,7 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
     @Override
     public void glRenderbufferStorageMultisampleEXT(int target, int samples, int internalformat, int width,
             int height) {
-        call(w, "renderbufferStorageMultisample", target, samples, internalformat, width, height);
+        call(w, "renderbufferStorageMultisample", target, samples, renderable(internalformat), width, height);
     }
 
     @Override
@@ -993,6 +1011,6 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
 
     @Override
     public void glRenderbufferStorageEXT(int target, int internalformat, int width, int height) {
-        call(w, "renderbufferStorage", target, internalformat, width, height);
+        call(w, "renderbufferStorage", target, renderable(internalformat), width, height);
     }
 }
