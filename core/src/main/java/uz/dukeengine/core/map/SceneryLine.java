@@ -49,7 +49,7 @@ public record SceneryLine(String model, String picture, float x, float y, float 
             if (!colour.startsWith("0x") && !colour.startsWith("0X")) {
                 throw new IllegalArgumentException("'" + colour + "' is a tint, 0xRRGGBB");
             }
-            tint = Integer.parseUnsignedInt(colour.substring(2), 16);
+            tint = uz.dukeengine.core.data.Unsigned.parseInt(colour.substring(2), 16);
         }
         return new SceneryLine(model, picture, Float.parseFloat(words[1]), Float.parseFloat(words[2]),
                 Float.parseFloat(words[3]), Float.parseFloat(words[4]), footprint, length, depth, tint);

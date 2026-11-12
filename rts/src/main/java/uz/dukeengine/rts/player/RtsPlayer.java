@@ -231,7 +231,7 @@ public final class RtsPlayer extends Player implements uz.dukeengine.combat.Arme
 
     /** Every upgrade bought, in name order. */
     public Set<String> getUpgrades() {
-        return java.util.Collections.unmodifiableSortedSet(new TreeSet<>(upgrades));
+        return uz.dukeengine.core.data.ReadOnly.of(new TreeSet<>(upgrades));
     }
 
     /** Mark an upgrade as completed for this player. */
@@ -251,7 +251,7 @@ public final class RtsPlayer extends Player implements uz.dukeengine.combat.Arme
 
     /** The words granted the side, in name order. */
     public Set<String> getGranted() {
-        return java.util.Collections.unmodifiableSortedSet(new TreeSet<>(granted));
+        return uz.dukeengine.core.data.ReadOnly.of(new TreeSet<>(granted));
     }
 
     // ---- player-wide bonuses ----
@@ -284,7 +284,7 @@ public final class RtsPlayer extends Player implements uz.dukeengine.combat.Arme
 
     /** Every bonus this side holds, in name order. */
     public Map<String, Float> getBonuses() {
-        return java.util.Collections.unmodifiableSortedMap(new TreeMap<>(bonuses));
+        return uz.dukeengine.core.data.ReadOnly.of(new TreeMap<>(bonuses));
     }
 
     /** Player-wide multiplier applied to all owned units' weapon damage. */

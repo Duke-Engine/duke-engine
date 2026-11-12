@@ -27,6 +27,11 @@ class PortabilityTest {
 
     private static final Pattern FILES = Pattern.compile("\\bjava\\.io\\.File\\b|\\bjava\\.nio\\.file\\b");
 
+    /** JDK methods TeaVM's class library lacks: {@code Unsigned} and {@code ReadOnly} stand in for them. */
+    private static final Pattern MISSING_IN_BROWSER = Pattern.compile(
+            "\\b(parseUnsignedInt|parseUnsignedLong|unmodifiableSortedSet|unmodifiableSortedMap)\\(");
+    private static final String READ_ONLY = "core/src/main/java/uz/dukeengine/core/data/ReadOnly.java";
+
     private static final String NETWORK = "core/src/main/java/uz/dukeengine/core/network/";
     private static final String MAP = "core/src/main/java/uz/dukeengine/core/map/";
 
@@ -43,6 +48,11 @@ class PortabilityTest {
     @Test
     void filesStayInTheMapPackage() throws IOException {
         assertEquals(List.of(), offenders(FILES, MAP));
+    }
+
+    @Test
+    void noLogicModuleCallsWhatABrowserLacks() throws IOException {
+        assertEquals(List.of(), offenders(MISSING_IN_BROWSER, READ_ONLY));
     }
 
     /** The sources of the logic modules that match {@code pattern} outside the one folder allowed to. */

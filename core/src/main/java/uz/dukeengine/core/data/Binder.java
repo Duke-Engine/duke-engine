@@ -360,10 +360,10 @@ public final class Binder {
                 return text;
             }
             if (type == int.class || type == Integer.class) {
-                return hex(text) ? Integer.parseUnsignedInt(text.substring(2), 16) : Integer.parseInt(text);
+                return hex(text) ? Unsigned.parseInt(text.substring(2), 16) : Integer.parseInt(text);
             }
             if (type == long.class || type == Long.class) {
-                return hex(text) ? Long.parseUnsignedLong(text.substring(2), 16) : Long.parseLong(text);
+                return hex(text) ? Unsigned.parseLong(text.substring(2), 16) : Long.parseLong(text);
             }
             if (type == float.class || type == Float.class) {
                 return Float.parseFloat(text);

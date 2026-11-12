@@ -1770,7 +1770,7 @@ public final class Visuals {
     public record PieceState(java.util.SortedSet<String> words, java.util.List<String> hide,
             java.util.List<String> show) {
         public PieceState {
-            words = java.util.Collections.unmodifiableSortedSet(new java.util.TreeSet<>(words));
+            words = uz.dukeengine.core.data.ReadOnly.of(new java.util.TreeSet<>(words));
             hide = hide == null ? java.util.List.of() : java.util.List.copyOf(hide);
             show = show == null ? java.util.List.of() : java.util.List.copyOf(show);
         }
@@ -1808,7 +1808,7 @@ public final class Visuals {
     public record ClipState(java.util.SortedSet<String> words, String clip, ClipMode mode, ClipStart start,
             String keepGroup, float slowest, float fastest, java.util.List<Pick> picks, boolean idles, float distance) {
         public ClipState {
-            words = java.util.Collections.unmodifiableSortedSet(new java.util.TreeSet<>(words));
+            words = uz.dukeengine.core.data.ReadOnly.of(new java.util.TreeSet<>(words));
             mode = Objects.requireNonNullElse(mode, ClipMode.LOOP);
             slowest = slowest > 0f ? slowest : 1f;
             fastest = Math.max(slowest, fastest > 0f ? fastest : slowest);
