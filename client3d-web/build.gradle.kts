@@ -9,6 +9,7 @@ dependencies {
     api(project(":render-web"))
     api(project(":core-web"))
     implementation(project(":render-plugins")) // the glTF loaders, registered by hand where no config is read
+    implementation(project(":render-plugins-json-gson")) // their JSON, set by class
 }
 
 // The desktop platform must not reach a browser build: one platform on the class path, and no AWT.

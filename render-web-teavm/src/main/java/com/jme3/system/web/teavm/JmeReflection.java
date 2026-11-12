@@ -9,9 +9,13 @@ import org.teavm.extension.spi.reflection.SimpleReflectionPolicy;
 public class JmeReflection extends SimpleReflectionPolicy {
     @Override
     protected void setup() {
-        // Asset loaders, locators, caches and processors are made from their class by the no-argument constructor.
+        // Asset loaders, locators, caches and processors, the glTF loader's JSON parser, extras and extension loaders,
+        // and a joint's model transform are made from their class by
+        // the no-argument constructor.
         List<IntrospectClass<?>> made = classes("com.jme3.asset.AssetLoader", "com.jme3.asset.AssetLocator",
-                "com.jme3.asset.cache.AssetCache", "com.jme3.asset.AssetProcessor");
+                "com.jme3.asset.cache.AssetCache", "com.jme3.asset.AssetProcessor", "com.jme3.plugins.json.JsonParser",
+                "com.jme3.scene.plugins.gltf.ExtrasLoader", "com.jme3.scene.plugins.gltf.ExtensionLoader",
+                "com.jme3.anim.util.JointModelTransform");
         selectClasses(c -> made.stream().anyMatch(m -> isA(c, m)))
                 .reflectableMethods(m -> m.isConstructor() && m.parameters().isEmpty());
         // A technique is cloned with a new logic made by its (TechniqueDef) constructor.

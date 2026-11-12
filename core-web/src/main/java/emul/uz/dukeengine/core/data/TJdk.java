@@ -10,7 +10,13 @@ public final class TJdk {
     private TJdk() {
     }
 
+    /** A sleep, not a spin: the one thread spinning would starve the page it shares with the frame being waited for. */
     public static void spinWait() {
+        try {
+            Thread.sleep(1);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /** None: a caller falls back to the one resource it can open by name. */

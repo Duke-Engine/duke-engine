@@ -27,10 +27,13 @@ class PortabilityTest {
 
     private static final Pattern FILES = Pattern.compile("\\bjava\\.io\\.File\\b|\\bjava\\.nio\\.file\\b");
 
-    /** JDK methods TeaVM's class library lacks: {@code Unsigned}, {@code ReadOnly} and {@code Jdk} stand in for them. */
+    /**
+     * JDK methods TeaVM's class library lacks: {@code Unsigned}, {@code ReadOnly} and {@code Jdk} stand in for them.
+     * Nor has it a regex's {@code \R}, {@code String.lines()} or {@code Properties.store} (no ISO-8859-1).
+     */
     private static final Pattern MISSING_IN_BROWSER = Pattern.compile(
             "\\b(parseUnsignedInt|parseUnsignedLong|unmodifiableSortedSet|unmodifiableSortedMap|newKeySet"
-            + "|onSpinWait|getResources|getImplementationVersion)\\(");
+            + "|onSpinWait|getResources|getImplementationVersion)\\(|\\.(lines|store)\\(|\\\\\\\\R");
     private static final String STAND_INS = "core/src/main/java/uz/dukeengine/core/data/(ReadOnly|Jdk)\\.java";
 
     private static final String NETWORK = "core/src/main/java/uz/dukeengine/core/network/";

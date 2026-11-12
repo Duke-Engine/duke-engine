@@ -999,7 +999,12 @@ final class UnitScene {
             return fallback;
         }
         body.updateModelBound();
-        body.updateGeometricState();
+        // From the top of its tree: brought up to date under a parent that is not, it trips jME's asserts (on in a browser).
+        Spatial top = body;
+        while (top.getParent() != null) {
+            top = top.getParent();
+        }
+        top.updateGeometricState();
         return body.getWorldBound() instanceof com.jme3.bounding.BoundingBox box
                 ? Math.max(fallback, box.getYExtent() * 2f) : fallback;
     }

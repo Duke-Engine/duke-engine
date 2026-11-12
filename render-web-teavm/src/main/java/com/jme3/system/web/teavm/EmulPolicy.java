@@ -24,7 +24,7 @@ public class EmulPolicy extends SimpleSubstitutionPolicy {
             "java.util.SplittableRandom", "java.util.StringJoiner", "java.util.concurrent.CompletableFuture",
             "java.util.concurrent.CountDownLatch", "java.util.concurrent.Executors", "java.util.concurrent.ExecutorService",
             "java.util.concurrent.ThreadFactory", "java.net.Socket", "java.net.ServerSocket", "java.net.InetSocketAddress",
-            "java.net.SocketAddress", "java.net.InetAddress");
+            "java.net.SocketAddress", "java.net.InetAddress", "java.util.concurrent.atomic.AtomicIntegerArray");
 
     @Override
     public void contribute(SubstitutionSink sink) {

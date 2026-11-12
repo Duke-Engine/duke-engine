@@ -1,6 +1,8 @@
 package uz.dukeengine.client3d.web;
 
 import com.jme3.asset.DesktopAssetManager;
+import com.jme3.plugins.gson.GsonParser;
+import com.jme3.plugins.json.Json;
 import com.jme3.scene.plugins.gltf.BinLoader;
 import com.jme3.scene.plugins.gltf.GlbLoader;
 import com.jme3.scene.plugins.gltf.GltfLoader;
@@ -13,6 +15,7 @@ public final class WebAssets {
     }
 
     public static DesktopAssetManager assetManager() {
+        Json.setParser(GsonParser.class); // by name it is not found: a browser has no Class.forName
         var assets = WebSystem.assetManager();
         assets.registerLoader(GltfLoader.class, "gltf");
         assets.registerLoader(GlbLoader.class, "glb");

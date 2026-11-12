@@ -432,15 +432,13 @@ public class Cloner {
         Class<T> type = objectClass(object);
         Class elementType = type.getComponentType();
         int size = Array.getLength(object);
-        Object clone = Array.newInstance(elementType, size);
+        // A primitive array by its own clone(): a browser's Array.newInstance makes an object array for one.
+        Object clone = elementType.isPrimitive() ? primitiveClone(object) : Array.newInstance(elementType, size);
 
         // Store the clone for later lookups
         index.put(object, clone);
 
-        if (elementType.isPrimitive()) {
-            // Then our job is a bit easier
-            System.arraycopy(object, 0, clone, 0, size);
-        } else {
+        if (!elementType.isPrimitive()) {
             // Else it's an object array, so we'll clone it and its children.
             for (int i = 0; i < size; i++) {
                 Object element = clone(Array.get(object, i));
@@ -449,5 +447,27 @@ public class Cloner {
         }
 
         return type.cast(clone);
+    }
+
+    private static Object primitiveClone(Object array) {
+        // instanceof, not a type switch: TeaVM has no SwitchBootstraps.
+        if (array instanceof int[] a) {
+            return a.clone();
+        } else if (array instanceof float[] a) {
+            return a.clone();
+        } else if (array instanceof byte[] a) {
+            return a.clone();
+        } else if (array instanceof short[] a) {
+            return a.clone();
+        } else if (array instanceof long[] a) {
+            return a.clone();
+        } else if (array instanceof double[] a) {
+            return a.clone();
+        } else if (array instanceof char[] a) {
+            return a.clone();
+        } else if (array instanceof boolean[] a) {
+            return a.clone();
+        }
+        throw new IllegalArgumentException("not a primitive array: " + array);
     }
 }

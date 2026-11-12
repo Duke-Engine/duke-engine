@@ -187,6 +187,11 @@ public class NativeObjectManager {
             if (ref == null) {
                 break;
             }
+            // A browser's weak reference still comes back after clear(): one already deleted, its id perhaps
+            // given to a live object since, is not this map's any more.
+            if (refMap.get(ref.objClone.getUniqueId()) != ref) {
+                continue;
+            }
 
             deleteNativeObject(rendererObject, ref.objClone, ref, true, false);
             removed++;
