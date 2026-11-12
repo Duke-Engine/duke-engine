@@ -20,7 +20,11 @@ public class EmulPolicy extends SimpleSubstitutionPolicy {
             "java.util.concurrent.locks.ReentrantLock",
             "java.util.concurrent.locks.Condition",
             "com.jme3.util.BufferAllocatorFactory",
-            "uz.dukeengine.core.data.ReflectedShapes", "uz.dukeengine.core.data.ReadOnly");
+            "uz.dukeengine.core.data.ReflectedShapes", "uz.dukeengine.core.data.ReadOnly", "uz.dukeengine.core.data.Jdk",
+            "java.util.SplittableRandom", "java.util.StringJoiner", "java.util.concurrent.CompletableFuture",
+            "java.util.concurrent.CountDownLatch", "java.util.concurrent.Executors", "java.util.concurrent.ExecutorService",
+            "java.util.concurrent.ThreadFactory", "java.net.Socket", "java.net.ServerSocket", "java.net.InetSocketAddress",
+            "java.net.SocketAddress", "java.net.InetAddress");
 
     @Override
     public void contribute(SubstitutionSink sink) {

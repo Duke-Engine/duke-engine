@@ -23,7 +23,7 @@ final class Loadout {
     private static final Logger LOG = Logger.getLogger(Loadout.class.getName());
 
     /** Weapon names a slot linked that the world did not have, said once each rather than once a frame. */
-    private static final Set<String> MISSING = ConcurrentHashMap.newKeySet();
+    private static final Set<String> MISSING = java.util.Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /** What a slot preferred against its target counts as dealing: more than any weapon could. */
     private static final float PREFERRED = Float.MAX_VALUE;

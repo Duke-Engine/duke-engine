@@ -84,7 +84,7 @@ public final class MapPackages {
     private static List<String> listsOf(ClassLoader loader, String path) {
         var lines = new ArrayList<String>();
         try {
-            var found = Collections.list(loader.getResources(path));
+            var found = Collections.list(uz.dukeengine.core.data.Jdk.resources(loader, path));
             for (var url : found) {
                 try (var in = url.openStream()) {
                     lines.addAll(linesOf(in));
@@ -110,7 +110,7 @@ public final class MapPackages {
     private static List<MapPackage> scanned(String root) {
         var found = new LinkedHashMap<String, MapPackage>();
         try {
-            var roots = MapPackages.class.getClassLoader().getResources(root);
+            var roots = uz.dukeengine.core.data.Jdk.resources(MapPackages.class.getClassLoader(), root);
             while (roots.hasMoreElements()) {
                 var uri = roots.nextElement().toURI();
                 var folder = "jar".equals(uri.getScheme()) ? jarPath(uri, root) : Path.of(uri);

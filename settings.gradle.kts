@@ -25,5 +25,5 @@ if (providers.gradleProperty("android").isPresent) {
 
 // The browser platform needs TeaVM: built only when asked, `./gradlew -Pweb ...`.
 if (providers.gradleProperty("web").isPresent) {
-    include("render-web-teavm", "render-web", "render-web-demo", "core-web")
+    include("render-web-teavm", "render-web", "render-web-demo", "core-web", "client3d-web", "skirmish-web")
 }

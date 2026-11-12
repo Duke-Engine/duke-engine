@@ -27,10 +27,11 @@ class PortabilityTest {
 
     private static final Pattern FILES = Pattern.compile("\\bjava\\.io\\.File\\b|\\bjava\\.nio\\.file\\b");
 
-    /** JDK methods TeaVM's class library lacks: {@code Unsigned} and {@code ReadOnly} stand in for them. */
+    /** JDK methods TeaVM's class library lacks: {@code Unsigned}, {@code ReadOnly} and {@code Jdk} stand in for them. */
     private static final Pattern MISSING_IN_BROWSER = Pattern.compile(
-            "\\b(parseUnsignedInt|parseUnsignedLong|unmodifiableSortedSet|unmodifiableSortedMap)\\(");
-    private static final String READ_ONLY = "core/src/main/java/uz/dukeengine/core/data/ReadOnly.java";
+            "\\b(parseUnsignedInt|parseUnsignedLong|unmodifiableSortedSet|unmodifiableSortedMap|newKeySet"
+            + "|onSpinWait|getResources|getImplementationVersion)\\(");
+    private static final String STAND_INS = "core/src/main/java/uz/dukeengine/core/data/(ReadOnly|Jdk)\\.java";
 
     private static final String NETWORK = "core/src/main/java/uz/dukeengine/core/network/";
     private static final String MAP = "core/src/main/java/uz/dukeengine/core/map/";
@@ -52,10 +53,10 @@ class PortabilityTest {
 
     @Test
     void noLogicModuleCallsWhatABrowserLacks() throws IOException {
-        assertEquals(List.of(), offenders(MISSING_IN_BROWSER, READ_ONLY));
+        assertEquals(List.of(), offenders(MISSING_IN_BROWSER, STAND_INS));
     }
 
-    /** The sources of the logic modules that match {@code pattern} outside the one folder allowed to. */
+    /** The sources of the logic modules that match {@code pattern} outside the one folder (a pattern) allowed to. */
     private static List<String> offenders(Pattern pattern, String allowedFolder) throws IOException {
         var root = Path.of("").toAbsolutePath().getParent();
         var found = new ArrayList<String>();
@@ -65,7 +66,7 @@ class PortabilityTest {
             try (var files = Files.walk(sources)) {
                 for (var file : files.filter(f -> f.toString().endsWith(".java")).sorted().toList()) {
                     var name = root.relativize(file).toString().replace('\\', '/');
-                    if ((allowedFolder == null || !name.startsWith(allowedFolder))
+                    if ((allowedFolder == null || !name.matches(allowedFolder + ".*"))
                             && pattern.matcher(Files.readString(file)).find()) {
                         found.add(name);
                     }

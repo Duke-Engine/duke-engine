@@ -57,7 +57,7 @@ final class ArtLoad implements MatchLoad.Art {
         /**
          * The keys of what was read, which hold the cache's originals. See {@link ArtLoad}.
          */
-        private final java.util.Set<Object> artKeptAlive = java.util.concurrent.ConcurrentHashMap.newKeySet();
+        private final java.util.Set<Object> artKeptAlive = java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
 
         private void keep(Object asset) {
             // A clone carries the very key its original is cached under (an equal key made anew holds nothing); a
@@ -72,8 +72,8 @@ final class ArtLoad implements MatchLoad.Art {
          * What a load has read, and what it has shown the card, in this window: the next load skips them. The
          * second match's load read and warmed all of Generals' art again, and kept a second copy of every model.
          */
-        private final java.util.Set<String> readAlready = java.util.concurrent.ConcurrentHashMap.newKeySet();
-        private final java.util.Set<String> warmedAlready = java.util.concurrent.ConcurrentHashMap.newKeySet();
+        private final java.util.Set<String> readAlready = java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
+        private final java.util.Set<String> warmedAlready = java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
 
         /**
          * @param sound a sound made ready to play, so the first time it is heard is not the first time it is read
