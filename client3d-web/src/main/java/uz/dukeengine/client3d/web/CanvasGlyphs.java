@@ -27,9 +27,11 @@ final class CanvasGlyphs implements GlyphRasterizer {
         void done(boolean ok);
     }
 
-    @JSBody(params = {"name", "bytes", "done"}, script = "try { var f = new FontFace(name, bytes);"
-            + " f.load().then(function() { document.fonts.add(f); done(true); }, function() { done(false); });"
-            + " } catch (e) { done(false); }")
+    @JSBody(params = {"name", "bytes", "done"}, script = """
+            try { var f = new FontFace(name, bytes);
+              f.load().then(function() { document.fonts.add(f); done(true); }, function() { done(false); });
+            } catch (e) { done(false); }
+            """)
     private static native void addFont(String name, Int8Array bytes, Done done);
 
     @Async
@@ -62,39 +64,46 @@ final class CanvasGlyphs implements GlyphRasterizer {
         }
     }
 
-    private static final String CONTEXT = "var c = globalThis.dukeGlyphs || (globalThis.dukeGlyphs ="
-            + " document.createElement('canvas')); var g = c.getContext('2d', {willReadFrequently: true});";
+    private static final String CONTEXT = """
+            var c = globalThis.dukeGlyphs || (globalThis.dukeGlyphs =
+              document.createElement('canvas')); var g = c.getContext('2d', {willReadFrequently: true});
+            """;
 
     /** The face's ascent and descent, whole pixels up from and down from the baseline. */
-    @JSBody(params = "font", script = CONTEXT + " g.font = font; var m = g.measureText('Hg');"
-            + " return new Int32Array([Math.ceil(m.fontBoundingBoxAscent), Math.ceil(m.fontBoundingBoxDescent)]);")
+    @JSBody(params = "font", script = CONTEXT + """
+            g.font = font; var m = g.measureText('Hg');
+            return new Int32Array([Math.ceil(m.fontBoundingBoxAscent), Math.ceil(m.fontBoundingBoxDescent)]);
+            """)
     private static native Int32Array metrics(String font);
 
-    @JSBody(params = {"font", "scaleX", "text"}, script = CONTEXT
-            + " g.font = font; return g.measureText(text).width * scaleX;")
+    @JSBody(params = {"font", "scaleX", "text"}, script = CONTEXT + """
+            g.font = font; return g.measureText(text).width * scaleX;
+            """)
     private static native double measure(String font, float scaleX, String text);
 
     /**
      * {@code text} drawn white: left and top of its ink (a pixel round it, which antialiasing reaches into) from the
      * pen on the baseline, width, height, then the pixels as ARGB, unpremultiplied. Four zeros where it has no ink.
      */
-    @JSBody(params = {"font", "scaleX", "text"}, script = CONTEXT + " g.font = font; var m = g.measureText(text);"
-            + " if (m.actualBoundingBoxLeft + m.actualBoundingBoxRight <= 0"
-            + "     || m.actualBoundingBoxAscent + m.actualBoundingBoxDescent <= 0) return new Int32Array(4);"
-            + " var l = Math.floor(-m.actualBoundingBoxLeft * scaleX) - 1;"
-            + " var r = Math.ceil(m.actualBoundingBoxRight * scaleX) + 1;"
-            + " var t = Math.floor(-m.actualBoundingBoxAscent) - 1, b = Math.ceil(m.actualBoundingBoxDescent) + 1;"
-            + " var w = r - l, h = b - t;"
-            + " if (c.width < w || c.height < h) { c.width = Math.max(c.width, w); c.height = Math.max(c.height, h);"
-            + "   g = c.getContext('2d', {willReadFrequently: true}); }"
-            + " g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, w, h);"
-            + " g.font = font; g.textBaseline = 'alphabetic'; g.fillStyle = '#fff';"
-            + " g.setTransform(scaleX, 0, 0, 1, -l, -t); g.fillText(text, 0, 0);"
-            + " var d = g.getImageData(0, 0, w, h).data, out = new Int32Array(4 + w * h);"
-            + " out[0] = l; out[1] = t; out[2] = w; out[3] = h;"
-            + " for (var i = 0, n = w * h; i < n; i++)"
-            + "   out[4 + i] = (d[4 * i + 3] << 24) | (d[4 * i] << 16) | (d[4 * i + 1] << 8) | d[4 * i + 2];"
-            + " return out;")
+    @JSBody(params = {"font", "scaleX", "text"}, script = CONTEXT + """
+            g.font = font; var m = g.measureText(text);
+            if (m.actualBoundingBoxLeft + m.actualBoundingBoxRight <= 0
+                || m.actualBoundingBoxAscent + m.actualBoundingBoxDescent <= 0) return new Int32Array(4);
+            var l = Math.floor(-m.actualBoundingBoxLeft * scaleX) - 1;
+            var r = Math.ceil(m.actualBoundingBoxRight * scaleX) + 1;
+            var t = Math.floor(-m.actualBoundingBoxAscent) - 1, b = Math.ceil(m.actualBoundingBoxDescent) + 1;
+            var w = r - l, h = b - t;
+            if (c.width < w || c.height < h) { c.width = Math.max(c.width, w); c.height = Math.max(c.height, h);
+              g = c.getContext('2d', {willReadFrequently: true}); }
+            g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, w, h);
+            g.font = font; g.textBaseline = 'alphabetic'; g.fillStyle = '#fff';
+            g.setTransform(scaleX, 0, 0, 1, -l, -t); g.fillText(text, 0, 0);
+            var d = g.getImageData(0, 0, w, h).data, out = new Int32Array(4 + w * h);
+            out[0] = l; out[1] = t; out[2] = w; out[3] = h;
+            for (var i = 0, n = w * h; i < n; i++)
+              out[4 + i] = (d[4 * i + 3] << 24) | (d[4 * i] << 16) | (d[4 * i + 1] << 8) | d[4 * i + 2];
+            return out;
+            """)
     private static native Int32Array ink(String font, float scaleX, String text);
 
     private static final class CanvasFace implements Face {

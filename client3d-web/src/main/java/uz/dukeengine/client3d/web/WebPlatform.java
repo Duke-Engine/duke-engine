@@ -41,28 +41,34 @@ public final class WebPlatform implements ClientPlatform {
     @JSBody(script = "return document.fullscreenElement != null;")
     private static native boolean filling();
 
-    @JSBody(params = "fill", script = "if (fill) { if (!document.fullscreenElement)"
-            + " document.documentElement.requestFullscreen().catch(function() {}); }"
-            + " else if (document.fullscreenElement) document.exitFullscreen();")
+    @JSBody(params = "fill", script = """
+            if (fill) {
+              if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(function() {});
+            } else if (document.fullscreenElement) document.exitFullscreen();
+            """)
     private static native void fill(boolean fill);
 
-    @JSBody(script = "var r = window.devicePixelRatio || 1;"
-            + " return new Int32Array([Math.round(screen.width * r), Math.round(screen.height * r)]);")
+    @JSBody(script = """
+            var r = window.devicePixelRatio || 1;
+            return new Int32Array([Math.round(screen.width * r), Math.round(screen.height * r)]);
+            """)
     private static native Int32Array screenSize();
 
     /** Keeps what is held down from the page's own events, under a global of its own; once. */
-    @JSBody(script = "if (globalThis.dukeHeld) return; var h = globalThis.dukeHeld"
-            + " = {inside: false, buttons: {}, keys: {}};"
-            + " var c = document.getElementById('duke');"
-            + " c.addEventListener('mouseenter', function() { h.inside = true; });"
-            + " c.addEventListener('mouseleave', function() { h.inside = false; });"
-            + " window.addEventListener('mousedown', function(e) { h.buttons[e.button] = true; });"
-            + " window.addEventListener('mouseup', function(e) { h.buttons[e.button] = false; });"
-            + " function key(e) { var k = e.code; return k.indexOf('Key') === 0 || k.indexOf('Digit') === 0"
-            + "   ? k.charAt(k.length - 1) : k; }"
-            + " window.addEventListener('keydown', function(e) { h.keys[key(e)] = true; });"
-            + " window.addEventListener('keyup', function(e) { h.keys[key(e)] = false; });"
-            + " window.addEventListener('blur', function() { h.buttons = {}; h.keys = {}; });")
+    @JSBody(script = """
+            if (globalThis.dukeHeld) return;
+            var h = globalThis.dukeHeld = {inside: false, buttons: {}, keys: {}};
+            var c = document.getElementById('duke');
+            c.addEventListener('mouseenter', function() { h.inside = true; });
+            c.addEventListener('mouseleave', function() { h.inside = false; });
+            window.addEventListener('mousedown', function(e) { h.buttons[e.button] = true; });
+            window.addEventListener('mouseup', function(e) { h.buttons[e.button] = false; });
+            function key(e) { var k = e.code; return k.indexOf('Key') === 0 || k.indexOf('Digit') === 0
+              ? k.charAt(k.length - 1) : k; }
+            window.addEventListener('keydown', function(e) { h.keys[key(e)] = true; });
+            window.addEventListener('keyup', function(e) { h.keys[key(e)] = false; });
+            window.addEventListener('blur', function() { h.buttons = {}; h.keys = {}; });
+            """)
     private static native void listen();
 
     @JSBody(script = "return globalThis.dukeHeld.inside;")

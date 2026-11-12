@@ -56,8 +56,10 @@ public final class BinderProbe {
         void got(String text);
     }
 
-    @JSBody(params = {"path", "got"}, script = "fetch(path).then(function(r) { return r.ok ? r.text() : null; })"
-            + ".then(function(t) { got(t); }, function() { got(null); });")
+    @JSBody(params = {"path", "got"}, script = """
+            fetch(path).then(function(r) { return r.ok ? r.text() : null; })
+              .then(function(t) { got(t); }, function() { got(null); });
+            """)
     private static native void fetch(String path, Got got);
 
     @Async
@@ -67,7 +69,9 @@ public final class BinderProbe {
         fetch(path, callback::complete);
     }
 
-    @JSBody(params = "text", script = "var p = document.getElementById('out'); p.textContent = text;"
-            + " p.dataset.done = 'yes';")
+    @JSBody(params = "text", script = """
+            var p = document.getElementById('out'); p.textContent = text;
+            p.dataset.done = 'yes';
+            """)
     private static native void show(String text);
 }

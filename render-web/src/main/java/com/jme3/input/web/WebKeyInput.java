@@ -68,13 +68,14 @@ public class WebKeyInput implements KeyInput {
     }
 
     // Keys the page would act on itself (scrolling, focus moves, the context menu) are kept for the game.
-    @JSBody(params = {"c", "h"}, script = ""
-            + "if (!c.hasAttribute('tabindex')) c.tabIndex = 0;"
-            + "c.addEventListener('mousedown', function() { c.focus(); });"
-            + "function on(p) { return function(e) {"
-            + "  if (!(e.ctrlKey || e.metaKey) || e.code.indexOf('Key') !== 0) e.preventDefault();"
-            + "  h(p, e.code, e.key.length === 1 ? e.key : '', e.repeat); }; }"
-            + "c.addEventListener('keydown', on(true)); c.addEventListener('keyup', on(false));")
+    @JSBody(params = {"c", "h"}, script = """
+            if (!c.hasAttribute('tabindex')) c.tabIndex = 0;
+            c.addEventListener('mousedown', function() { c.focus(); });
+            function on(p) { return function(e) {
+              if (!(e.ctrlKey || e.metaKey) || e.code.indexOf('Key') !== 0) e.preventDefault();
+              h(p, e.code, e.key.length === 1 ? e.key : '', e.repeat); }; }
+            c.addEventListener('keydown', on(true)); c.addEventListener('keyup', on(false));
+            """)
     private static native void listen(JSObject canvas, Handler handler);
 
     @Override

@@ -21,15 +21,17 @@ public final class CanvasImages implements ImageDecoder {
     }
 
     /** Width, height, then each pixel as ARGB, unpremultiplied and as the file has it; null where it is no picture. */
-    @JSBody(params = {"bytes", "got"}, script = "createImageBitmap(new Blob([bytes]),"
-            + " {premultiplyAlpha: 'none', colorSpaceConversion: 'none'}).then(function(b) {"
-            + " var c = document.createElement('canvas'); c.width = b.width; c.height = b.height;"
-            + " var g = c.getContext('2d', {willReadFrequently: true}); g.drawImage(b, 0, 0);"
-            + " var d = g.getImageData(0, 0, b.width, b.height).data, n = b.width * b.height;"
-            + " var out = new Int32Array(2 + n); out[0] = b.width; out[1] = b.height;"
-            + " for (var i = 0; i < n; i++)"
-            + "   out[2 + i] = (d[4 * i + 3] << 24) | (d[4 * i] << 16) | (d[4 * i + 1] << 8) | d[4 * i + 2];"
-            + " b.close(); got(out); }, function() { got(null); });")
+    @JSBody(params = {"bytes", "got"}, script = """
+            createImageBitmap(new Blob([bytes]),
+              {premultiplyAlpha: 'none', colorSpaceConversion: 'none'}).then(function(b) {
+            var c = document.createElement('canvas'); c.width = b.width; c.height = b.height;
+            var g = c.getContext('2d', {willReadFrequently: true}); g.drawImage(b, 0, 0);
+            var d = g.getImageData(0, 0, b.width, b.height).data, n = b.width * b.height;
+            var out = new Int32Array(2 + n); out[0] = b.width; out[1] = b.height;
+            for (var i = 0; i < n; i++)
+              out[2 + i] = (d[4 * i + 3] << 24) | (d[4 * i] << 16) | (d[4 * i + 1] << 8) | d[4 * i + 2];
+            b.close(); got(out); }, function() { got(null); });
+            """)
     private static native void decode(Int8Array bytes, Got got);
 
     @Async

@@ -29,9 +29,11 @@ public final class WebFiles implements AssetLocator, ResourceLoader {
         void got(ArrayBuffer bytes);
     }
 
-    @JSBody(params = {"path", "got"}, script = "var f = globalThis.dukeFile || function(p) {"
-            + "  return fetch('assets/' + p).then(function(r) { return r.ok ? r.arrayBuffer() : null; }); };"
-            + " f(path).then(function(b) { got(b); }, function() { got(null); });")
+    @JSBody(params = {"path", "got"}, script = """
+            var f = globalThis.dukeFile || function(p) {
+              return fetch('assets/' + p).then(function(r) { return r.ok ? r.arrayBuffer() : null; }); };
+            f(path).then(function(b) { got(b); }, function() { got(null); });
+            """)
     private static native void fetch(String path, Got got);
 
     @Async

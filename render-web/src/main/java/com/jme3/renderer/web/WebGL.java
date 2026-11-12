@@ -29,22 +29,25 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
         w = init(context);
     }
 
-    @JSBody(params = "gl", script = ""
-            + "gl.getSupportedExtensions().forEach(function(e) { gl.getExtension(e); });"
-            + "return {gl: gl, o: [null], v: function(t, d) {"
-            + "  if (d == null) return null;"
-            + "  switch (t) {"
-            + "    case 0x1406: return new Float32Array(d.buffer, d.byteOffset, d.byteLength >> 2);" // FLOAT
-            + "    case 0x1405: case 0x84FA: case 0x8C3B: case 0x8C3E: case 0x8368:" // UINT, 24_8, 10F_11F_11F, 5_9_9_9, 2_10_10_10_REV
-            + "      return new Uint32Array(d.buffer, d.byteOffset, d.byteLength >> 2);"
-            + "    case 0x1403: case 0x140B: case 0x8363: case 0x8033: case 0x8034:" // USHORT, HALF, 5_6_5, 4_4_4_4, 5_5_5_1
-            + "      return new Uint16Array(d.buffer, d.byteOffset, d.byteLength >> 1);"
-            + "    case 0x1402: return new Int16Array(d.buffer, d.byteOffset, d.byteLength >> 1);"
-            + "    case 0x1404: return new Int32Array(d.buffer, d.byteOffset, d.byteLength >> 2);"
-            + "    case 0x1400: return d;"
-            + "    default: return new Uint8Array(d.buffer, d.byteOffset, d.byteLength);"
-            + "  }"
-            + "}};")
+    @JSBody(params = "gl", script = """
+            gl.getSupportedExtensions().forEach(function(e) { gl.getExtension(e); });
+            return {gl: gl, o: [null], v: function(t, d) {
+              if (d == null) return null;
+              switch (t) {
+                case 0x1406: return new Float32Array(d.buffer, d.byteOffset, d.byteLength >> 2); // FLOAT
+                // UINT, 24_8, 10F_11F_11F, 5_9_9_9, 2_10_10_10_REV
+                case 0x1405: case 0x84FA: case 0x8C3B: case 0x8C3E: case 0x8368:
+                  return new Uint32Array(d.buffer, d.byteOffset, d.byteLength >> 2);
+                // USHORT, HALF, 5_6_5, 4_4_4_4, 5_5_5_1
+                case 0x1403: case 0x140B: case 0x8363: case 0x8033: case 0x8034:
+                  return new Uint16Array(d.buffer, d.byteOffset, d.byteLength >> 1);
+                case 0x1402: return new Int16Array(d.buffer, d.byteOffset, d.byteLength >> 1);
+                case 0x1404: return new Int32Array(d.buffer, d.byteOffset, d.byteLength >> 2);
+                case 0x1400: return d;
+                default: return new Uint8Array(d.buffer, d.byteOffset, d.byteLength);
+              }
+            }};
+            """)
     private static native JSObject init(JSObject gl);
 
     // The views of a buffer's remaining elements: TeaVM's view of a buffer spans all of it.
@@ -125,8 +128,10 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
     private static native void callHH(JSObject w, String s, int a, int b);
 
     /** Makes an object by {@code create<s>()} and answers its index. */
-    @JSBody(params = {"w", "s", "a"}, script = "var x = a < 0 ? w.gl['create' + s]() : w.gl['create' + s](a);"
-            + " if (x == null) return 0; w.o.push(x); return w.o.length - 1;")
+    @JSBody(params = {"w", "s", "a"}, script = """
+            var x = a < 0 ? w.gl['create' + s]() : w.gl['create' + s](a);
+            if (x == null) return 0; w.o.push(x); return w.o.length - 1;
+            """)
     private static native int create(JSObject w, String s, int a);
 
     @JSBody(params = {"w", "s", "i"}, script = "w.gl['delete' + s](w.o[i]); w.o[i] = null;")
@@ -419,8 +424,10 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
     }
 
     /** getParameter as numbers: a boolean is 0 or 1, an array is spread, null is one 0. */
-    @JSBody(params = {"w", "p"}, script = "var v = w.gl.getParameter(p);"
-            + " if (v == null) return [0]; if (typeof v !== 'object') return [+v]; return Array.from(v, Number);")
+    @JSBody(params = {"w", "p"}, script = """
+            var v = w.gl.getParameter(p);
+            if (v == null) return [0]; if (typeof v !== 'object') return [+v]; return Array.from(v, Number);
+            """)
     private static native double[] parameter(JSObject w, int pname);
 
     @Override
@@ -453,15 +460,19 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
     }
 
     // The info log's length is asked as a parameter in GL; WebGL answers the log itself.
-    @JSBody(params = {"w", "p", "n"}, script = "var x = w.o[p];"
-            + " if (n === 0x8B84) { var l = w.gl.getProgramInfoLog(x); return l ? l.length + 1 : 0; }"
-            + " return +w.gl.getProgramParameter(x, n);")
+    @JSBody(params = {"w", "p", "n"}, script = """
+            var x = w.o[p];
+            if (n === 0x8B84) { var l = w.gl.getProgramInfoLog(x); return l ? l.length + 1 : 0; }
+            return +w.gl.getProgramParameter(x, n);
+            """)
     private static native int programParameter(JSObject w, int program, int pname);
 
-    @JSBody(params = {"w", "s", "n"}, script = "var x = w.o[s];"
-            + " if (n === 0x8B84) { var l = w.gl.getShaderInfoLog(x); return l ? l.length + 1 : 0; }"
-            + " if (n === 0x8B88) { var c = w.gl.getShaderSource(x); return c ? c.length + 1 : 0; }"
-            + " return +w.gl.getShaderParameter(x, n);")
+    @JSBody(params = {"w", "s", "n"}, script = """
+            var x = w.o[s];
+            if (n === 0x8B84) { var l = w.gl.getShaderInfoLog(x); return l ? l.length + 1 : 0; }
+            if (n === 0x8B88) { var c = w.gl.getShaderSource(x); return c ? c.length + 1 : 0; }
+            return +w.gl.getShaderParameter(x, n);
+            """)
     private static native int shaderParameter(JSObject w, int shader, int pname);
 
     @Override
@@ -507,11 +518,13 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
      * WebGL's own version string ("WebGL 2.0 (OpenGL ES 3.0 ...)") would be read as 2.0, so GL_VERSION leads with the
      * ES version GLRenderer parses and keeps "WebGL", which it looks for. Extensions get GL's "GL_" prefix.
      */
-    @JSBody(params = {"w", "n"}, script = "var gl = w.gl;"
-            + " if (n === 0x1F02) return 'OpenGL ES 3.0 ' + gl.getParameter(n);"
-            + " if (n === 0x8B8C) return 'OpenGL ES GLSL ES 3.00';"
-            + " if (n === 0x1F03) return gl.getSupportedExtensions().map(function(e) { return 'GL_' + e; }).join(' ');"
-            + " var v = gl.getParameter(n); return v == null ? null : String(v);")
+    @JSBody(params = {"w", "n"}, script = """
+            var gl = w.gl;
+            if (n === 0x1F02) return 'OpenGL ES 3.0 ' + gl.getParameter(n);
+            if (n === 0x8B8C) return 'OpenGL ES GLSL ES 3.00';
+            if (n === 0x1F03) return gl.getSupportedExtensions().map(function(e) { return 'GL_' + e; }).join(' ');
+            var v = gl.getParameter(n); return v == null ? null : String(v);
+            """)
     private static native String string(JSObject w, int name);
 
     @Override
@@ -519,8 +532,10 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
         return string(w, name);
     }
 
-    @JSBody(params = {"w", "p", "n"}, script = "var l = w.gl.getUniformLocation(w.o[p], n);"
-            + " if (l == null) return -1; w.o.push(l); return w.o.length - 1;")
+    @JSBody(params = {"w", "p", "n"}, script = """
+            var l = w.gl.getUniformLocation(w.o[p], n);
+            if (l == null) return -1; w.o.push(l); return w.o.length - 1;
+            """)
     private static native int uniformLocation(JSObject w, int program, String name);
 
     @Override

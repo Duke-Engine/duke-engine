@@ -34,9 +34,11 @@ public class WebContext extends NullContext {
     private static native JSObject context(JSObject canvas);
 
     /** Sizes the canvas's drawing buffer to its laid-out size in device pixels; answers whether it changed. */
-    @JSBody(params = "c", script = "var r = window.devicePixelRatio || 1;"
-            + " var w = Math.max(1, Math.round(c.clientWidth * r)), h = Math.max(1, Math.round(c.clientHeight * r));"
-            + " if (c.width === w && c.height === h) return false; c.width = w; c.height = h; return true;")
+    @JSBody(params = "c", script = """
+            var r = window.devicePixelRatio || 1;
+            var w = Math.max(1, Math.round(c.clientWidth * r)), h = Math.max(1, Math.round(c.clientHeight * r));
+            if (c.width === w && c.height === h) return false; c.width = w; c.height = h; return true;
+            """)
     private static native boolean fit(JSObject canvas);
 
     @JSBody(params = "c", script = "return c.width;")

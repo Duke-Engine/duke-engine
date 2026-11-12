@@ -35,16 +35,17 @@ public class WebMouseInput implements MouseInput {
         void handle(int kind, int x, int y, int button, int wheel);
     }
 
-    @JSBody(params = {"c", "h"}, script = ""
-            + "function at(e, k, b, d) { var r = c.getBoundingClientRect();"
-            + "  var sx = c.width / Math.max(1, r.width), sy = c.height / Math.max(1, r.height);"
-            + "  h(k, Math.round((e.clientX - r.left) * sx), Math.round(c.height - (e.clientY - r.top) * sy), b, d); }"
-            + "c.addEventListener('mousemove', function(e) { at(e, 0, 0, 0); });"
-            + "c.addEventListener('mousedown', function(e) { at(e, 1, e.button, 0); });"
-            + "window.addEventListener('mouseup', function(e) { at(e, 2, e.button, 0); });"
-            + "c.addEventListener('wheel', function(e) { e.preventDefault();"
-            + "  at(e, 3, 0, e.deltaY < 0 ? 120 : e.deltaY > 0 ? -120 : 0); }, {passive: false});"
-            + "c.addEventListener('contextmenu', function(e) { e.preventDefault(); });")
+    @JSBody(params = {"c", "h"}, script = """
+            function at(e, k, b, d) { var r = c.getBoundingClientRect();
+              var sx = c.width / Math.max(1, r.width), sy = c.height / Math.max(1, r.height);
+              h(k, Math.round((e.clientX - r.left) * sx), Math.round(c.height - (e.clientY - r.top) * sy), b, d); }
+            c.addEventListener('mousemove', function(e) { at(e, 0, 0, 0); });
+            c.addEventListener('mousedown', function(e) { at(e, 1, e.button, 0); });
+            window.addEventListener('mouseup', function(e) { at(e, 2, e.button, 0); });
+            c.addEventListener('wheel', function(e) { e.preventDefault();
+              at(e, 3, 0, e.deltaY < 0 ? 120 : e.deltaY > 0 ? -120 : 0); }, {passive: false});
+            c.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+            """)
     private static native void listen(JSObject canvas, Handler handler);
 
     @JSBody(params = {"c", "v"}, script = "c.style.cursor = v ? '' : 'none';")
