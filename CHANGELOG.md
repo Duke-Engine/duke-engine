@@ -3,6 +3,12 @@
 Versions are `major.minor.patch`. While the major is 0, a minor may break what came before — and
 when it does, this page says exactly what to change and how.
 
+## 0.10.1
+
+A thread that ever loaded through an asset manager no longer keeps it alive: the per-thread loaders and locators are
+kept by the manager now, not in ThreadLocals, so a dropped manager takes its cached models and their buffers with it.
+`Lettering` no longer keeps its asset manager in its own cache either. Nothing to change.
+
 ## 0.10.0
 
 The renderer is the engine's own: jMonkeyEngine 3.7.0's code now lives here as the `render-*` modules, published as
