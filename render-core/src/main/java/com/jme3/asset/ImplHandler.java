@@ -34,8 +34,11 @@ package com.jme3.asset;
 import com.jme3.asset.cache.AssetCache;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
@@ -76,8 +79,13 @@ final class ImplHandler {
         this.assetManager = assetManager;
     }
 
-    protected static class ImplThreadLocal<T> extends ThreadLocal<T> {
+    /**
+     * One instance per thread, kept by this handler rather than by the thread: a ThreadLocal's value (a loader holding
+     * its asset manager) kept the manager, and so the key, reachable from every long-lived thread that ever loaded.
+     */
+    protected static class ImplThreadLocal<T> {
 
+        private final Map<Thread, T> perThread = Collections.synchronizedMap(new WeakHashMap<>());
         private final Class<T> type;
         private final String path;
         private final String[] extensions;
@@ -112,7 +120,10 @@ final class ImplHandler {
             return type;
         }
 
-        @Override
+        public T get() {
+            return perThread.computeIfAbsent(Thread.currentThread(), _ -> initialValue());
+        }
+
         protected T initialValue() {
             try {
                 T obj = type.getDeclaredConstructor().newInstance();

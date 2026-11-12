@@ -12,6 +12,7 @@ import com.jme3.texture.Texture;
 import com.jme3.texture.Texture2D;
 import com.jme3.texture.image.ColorSpace;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -35,13 +36,14 @@ public final class Lettering {
     private static final Map<AssetManager, Map<String, java.util.Optional<Lettering>>> KEPT =
             new java.util.WeakHashMap<>();
 
-    private final AssetManager assets;
+    // Weak: KEPT is a WeakHashMap keyed by this manager, and a value holding its key strongly would keep both forever.
+    private final WeakReference<AssetManager> assets;
     private final Typeface face;
     private final Map<Integer, BitmapFont> bySize = new HashMap<>();
     private BitmapFontBaker.Kerning kerning;
 
     public Lettering(AssetManager assets, Typeface face) {
-        this.assets = assets;
+        this.assets = new WeakReference<>(assets);
         this.face = face;
     }
 
@@ -146,7 +148,7 @@ public final class Lettering {
         // Drawn one texel to a pixel, where the nearest texel is the texel itself wherever the line starts.
         texture.setMagFilter(Texture.MagFilter.Nearest);
         texture.setMinFilter(Texture.MinFilter.BilinearNoMipMaps);
-        var page = new Material(assets, "Common/MatDefs/Misc/Unshaded.j3md");
+        var page = new Material(assets.get(), "Common/MatDefs/Misc/Unshaded.j3md");
         page.setTexture("ColorMap", texture);
         page.setBoolean("VertexColor", true);
         page.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.Alpha);
