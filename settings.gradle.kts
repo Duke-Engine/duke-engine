@@ -1,6 +1,7 @@
 pluginManagement {
     repositories {
         gradlePluginPortal()
+        mavenCentral() // TeaVM's Gradle plugin, for the -Pweb modules
         // The Android Gradle Plugin, for client3d-android alone.
         google {
             content {
@@ -20,4 +21,9 @@ include("bom", "processor", "core", "combat", "rts", "rpg", "game", "game-swing"
 // so the desktop build needs neither.
 if (providers.gradleProperty("android").isPresent) {
     include("render-android", "client3d-android", "skirmish-android")
+}
+
+// The browser platform needs TeaVM: built only when asked, `./gradlew -Pweb ...`.
+if (providers.gradleProperty("web").isPresent) {
+    include("render-web-teavm", "render-web", "render-web-demo")
 }
