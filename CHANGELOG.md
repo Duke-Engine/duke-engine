@@ -3,7 +3,7 @@
 Versions are `major.minor.patch`. While the major is 0, a minor may break what came before — and
 when it does, this page says exactly what to change and how.
 
-## Unreleased
+## 0.10.0
 
 The renderer is the engine's own: jMonkeyEngine 3.7.0's code now lives here as the `render-*` modules, published as
 `uz.duke-engine:render-*`, and nothing draws differently yet. See `render-core/README.md`.
