@@ -828,6 +828,20 @@ final class DukeRtsApp extends SimpleApplication {
         sceneSlot.attach(layer, assetManager, cam, inputManager, renderManager);
     }
 
+    /** A room's probe placed — see {@link Duke3D#roomProbe}; none without the physically based look. */
+    void roomProbe(RoomProbe probe) {
+        if (physicalLook != null) {
+            probe.room = physicalLook.rooms().place(probe.centre, probe.halfExtents, probe.enclosed);
+        }
+    }
+
+    /** See {@link Duke3D#relightRoomProbes}. */
+    void relightRoomProbes() {
+        if (physicalLook != null) {
+            physicalLook.rooms().relight();
+        }
+    }
+
     /** The world's ground hidden — see {@link Duke3D#noGround}; rebuilds fill the same node, so it stays hidden. */
     void noGround() {
         terrainNode.setCullHint(Spatial.CullHint.Always);
@@ -2361,6 +2375,7 @@ final class DukeRtsApp extends SimpleApplication {
         light.step(tpf);
         if (physicalLook != null) {
             physicalLook.follow(light);
+            physicalLook.rooms().update();
         }
         fog.followTheLookUnderTheCamera(tpf);
         camera.focusOnOwnUnit(snapshot.units(), game.getLocalPlayerIndex());

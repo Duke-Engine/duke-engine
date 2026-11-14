@@ -17,6 +17,7 @@ import uz.dukeengine.render.HeightFogFilter;
 import uz.dukeengine.render.LocalShadowFilter;
 import uz.dukeengine.render.PictureChain;
 import uz.dukeengine.render.PictureSettings;
+import uz.dukeengine.render.RoomProbes;
 import uz.dukeengine.render.SkyProbe;
 import uz.dukeengine.render.TaaFilter;
 
@@ -41,12 +42,14 @@ final class PhysicalLook {
     private final LocalShadowFilter local;
     private final HeightFogFilter fog;
     private final TaaFilter taa;
+    private final RoomProbes rooms;
     private LightProbe probe;
 
     PhysicalLook(AssetManager assets, RenderManager renderManager, ViewPort view, Node root, SceneLight light, PictureSettings picture) {
         this.assets = assets;
         this.renderManager = renderManager;
         this.root = root;
+        this.rooms = new RoomProbes(assets, renderManager, root);
         this.atmosphere = picture.atmosphere() ? new AtmosphereSky(assets, renderManager, root) : null;
         var caps = renderManager.getRenderer().getCaps();
         if (picture.localShadows() > 0 && !LocalShadowFilter.supported(caps)) {
@@ -98,6 +101,9 @@ final class PhysicalLook {
             // What else lights a surface when a local light's shadow takes its own share away: the ambient and some of the sun.
             local.fill(light.ambientColour().add(light.sunColour().mult(0.5f)));
         }
+        // The rooms are baked at the next update, of the world built by then. Not as the sun moves through its hours: a bake
+        // leaves the sun out, and would cost a frame its 100 ms and more.
+        rooms.relight();
         if (atmosphere != null) {
             follow(light);
             return;
@@ -108,6 +114,11 @@ final class PhysicalLook {
         probe = SkyProbe.bake(assets, renderManager, light.sunDirection().negate(), light.sunColour(),
                 light.ambientColour());
         root.addLight(probe);
+    }
+
+    /** The rooms lit by probes of their own ({@link Duke3D#roomProbe}): placed, and baked at each frame's {@link RoomProbes#update}. */
+    RoomProbes rooms() {
+        return rooms;
     }
 
     /**

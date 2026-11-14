@@ -543,6 +543,26 @@ public final class Duke3D {
         return this;
     }
 
+    /**
+     * A room of the scene lit by a probe of its own, baked from its middle at the next frame: inside its walls a surface
+     * reflects the room and takes its diffuse light from it; outside, and a short way past its faces, the sky's probe lights
+     * as before. {@code centre} and {@code halfExtents} (its inner faces, along the world axes) are in the world's
+     * coordinates, as a {@link SceneLayer}'s are. {@code enclosed}: the room is baked without the sky's light (nor other
+     * rooms'), lit only by its own lamps and what glows in it; else as a covered place open to the sky. A new world bakes
+     * every room again; a lamp switched on or off does not, see {@link #relightRoomProbes}. From any thread. With
+     * {@link Visuals#physicallyBased} off it does nothing.
+     */
+    public RoomProbe roomProbe(com.jme3.math.Vector3f centre, com.jme3.math.Vector3f halfExtents, boolean enclosed) {
+        var probe = new RoomProbe(this, centre, halfExtents, enclosed);
+        later(client -> client.roomProbe(probe));
+        return probe;
+    }
+
+    /** Every {@link #roomProbe} baked again at the next frame: after the game switches its lamps on or off. From any thread. */
+    public void relightRoomProbes() {
+        later(DukeRtsApp::relightRoomProbes);
+    }
+
     /** No ground drawn for the world, for a game whose {@link #scene} lays its own floor. */
     public Duke3D noGround() {
         later(DukeRtsApp::noGround);
@@ -799,7 +819,7 @@ public final class Duke3D {
     }
 
     /** Do this on the client's own thread: at its next frame, or once it is launched. */
-    private void later(Consumer<DukeRtsApp> task) {
+    void later(Consumer<DukeRtsApp> task) {
         DukeRtsApp running;
         synchronized (waiting) {
             running = app;
