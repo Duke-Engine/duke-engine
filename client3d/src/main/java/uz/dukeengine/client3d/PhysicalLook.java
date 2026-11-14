@@ -101,9 +101,6 @@ final class PhysicalLook {
             // What else lights a surface when a local light's shadow takes its own share away: the ambient and some of the sun.
             local.fill(light.ambientColour().add(light.sunColour().mult(0.5f)));
         }
-        // The rooms are baked at the next update, of the world built by then. Not as the sun moves through its hours: a bake
-        // leaves the sun out, and would cost a frame its 100 ms and more.
-        rooms.relight();
         if (atmosphere != null) {
             follow(light);
             return;

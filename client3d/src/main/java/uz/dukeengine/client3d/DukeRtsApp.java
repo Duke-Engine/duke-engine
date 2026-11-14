@@ -1891,6 +1891,11 @@ final class DukeRtsApp extends SimpleApplication {
         if (light.adopt(sunlightOfTheGame()) && physicalLook != null) {
             physicalLook.bake(light);
         }
+        if (physicalLook != null) {
+            // Every new world, its sun the last one's or not: the rooms baked at the next update, of the world built by then.
+            // Not as the sun moves through its hours: a bake leaves the sun out, and costs a frame 150 ms and more.
+            physicalLook.rooms().relight();
+        }
         clearWhatIsBurning();
         ground.build();
         fog.newWorld(ground.builtFrom(), game.getMapRecord());
