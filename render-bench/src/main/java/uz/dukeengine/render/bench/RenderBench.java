@@ -5,6 +5,7 @@ import com.jme3.app.SimpleApplication;
 import com.jme3.app.state.ScreenshotAppState;
 import com.jme3.asset.plugins.FileLocator;
 import com.jme3.bounding.BoundingBox;
+import com.jme3.light.AmbientLight;
 import com.jme3.light.DirectionalLight;
 import com.jme3.light.LightProbe;
 import com.jme3.light.PointLight;
@@ -17,6 +18,7 @@ import com.jme3.math.Quaternion;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.jme3.post.FilterPostProcessor;
+import com.jme3.post.filters.BloomFilter;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.renderer.queue.RenderQueue.ShadowMode;
@@ -74,7 +76,7 @@ import uz.dukeengine.render.Water;
 
 /**
  * Draws one fixed scene, measures its frames, saves a picture and quits, so a change to the renderer can be seen and
- * priced. Args: scene (materials, materials-plus, bleed, interior, outdoor, night, buffers, water, furnace), what to leave out or add ("full", or joined by
+ * priced. Args: scene (workshop, materials, materials-plus, bleed, interior, outdoor, night, buffers, water, furnace), what to leave out or add ("full", or joined by
  * commas: room-probe (the interior's room, or a box over the balls of materials, as a box probe baked from its middle: parallax reflections of its walls, its own diffuse light) show-ssgi (the bounce of screen space global illumination alone, through the rest of the chain), no-ssgi, the scene bleed (a red wall and a white strip of floor before it) and show-probe-left (what the picture holds with the probes' specular taken out: 0 where SSR's probes are PBRLighting's), no-ao, no-bloom, no-aa, fxaa, taa (the edges' smoothing; else the default of FULL), no-pcss, no-contact, no-shadows, no-local-shadows, local-&lt;n&gt; (how many local lights have a shadow), lamp (one lamp over any scene); no-clusters (the spot and point lights a pass each, the fork's way, not from clusters in one), lights-&lt;n&gt; (n small coloured lamps going round: over the field in the night instead of its torches, through the room in the interior beside its lamps) and show-clusters (how many lights each cluster has, over the picture); feet, which looks at the outdoor units' feet from close by; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
  * show-depth, show-roughness, show-velocity, which show one instead of the picture; show-ao, which shows the ambient
  * occlusion alone, and ao-radius-&lt;m&gt;, which sets its reach in world units; show-bloom, which shows the bloom alone; auto-exposure, which lets the eye adapt, and walk, which (with it) goes from a
@@ -307,6 +309,13 @@ public final class RenderBench extends SimpleApplication {
                 forest(world);
                 town(world);
             }
+            case "workshop" -> {
+                // Indoors: no sun, the dim ambient DUKE-ROMCHI keeps (its Sunlight's 0.25 of 0xFFF4E6), the room lit by its lamps.
+                sunDirection.set(0f, -1f, 0f);
+                sun = ColorRGBA.Black;
+                ambient = new ColorRGBA(0.25f, 0.239f, 0.226f, 1f);
+                workshop(world);
+            }
             case "night" -> {
                 sunDirection.set(0.3f, -0.8f, 0.4f);
                 sun = new ColorRGBA(0.45f, 0.55f, 0.8f, 1f).mult(0.12f);
@@ -335,6 +344,10 @@ public final class RenderBench extends SimpleApplication {
             rootNode.addLight(new PointLight(new Vector3f(-3f, 6f, 7f), new ColorRGBA(1f, 0.7f, 0.4f, 1f).mult(14f), 22f));
         }
         world.setShadowMode(ShadowMode.CastAndReceive);
+        if (legacy()) {
+            legacy(world);
+            rootNode.addLight(new AmbientLight(ambient));
+        }
         rootNode.attachChild(world);
         sunAbove = sun;
         var toSun = sunDirection.negate();
@@ -353,10 +366,13 @@ public final class RenderBench extends SimpleApplication {
             rootNode.attachChild(sky);
         }
         ambientNow = ambient;
-        if (asked.contains("room-probe") && (scene.equals("interior") || scene.equals("materials"))) {
+        // The workshop has its room probe unless no-probe (then only the sky probe, what a game's PhysicalLook gives it today); legacy has none.
+        boolean workshopProbe = scene.equals("workshop") && !asked.contains("no-probe") && !legacy();
+        if (workshopProbe || asked.contains("room-probe") && (scene.equals("interior") || scene.equals("materials"))) {
             // The room's inside: its floor top, its ceiling underside and its walls' inner faces are the box's faces. Over the balls, a box
             // that some of them stand in, some out of and some on the edge of.
-            var room = scene.equals("interior") ? LocalProbes.box(new Vector3f(0f, 0.2f, 0f), new Vector3f(7f, 1.8f, 5f))
+            var room = workshopProbe ? LocalProbes.box(new Vector3f(0f, 2f, 0f), new Vector3f(5f, 2f, 3.5f))
+                    : scene.equals("interior") ? LocalProbes.box(new Vector3f(0f, 0.2f, 0f), new Vector3f(7f, 1.8f, 5f))
                     : LocalProbes.box(new Vector3f(0f, 0f, 0f), new Vector3f(6f, 4f, 3f));
             double ms = LocalProbes.bake(assetManager, renderManager, rootNode, room);
             rootNode.addLight(room);
@@ -795,6 +811,192 @@ public final class RenderBench extends SimpleApplication {
         cam.lookAt(new Vector3f(-0.2f, -0.55f, -1.6f), Vector3f.UNIT_Y);
     }
 
+    /** The word {@code legacy}: the picture DUKE-ROMCHI draws today, plain lit surfaces and no chain of the engine's. */
+    private boolean legacy() {
+        return asked.contains("legacy");
+    }
+
+    /**
+     * A closed workshop 10 by 7 metres and 4 high, lit by four ceiling panels (a point light under each) and a spot over the
+     * workstation: a concrete floor in 2 metre slabs, painted walls, a white ceiling. Across the middle a row of the industrial
+     * materials, a 0.6 metre box and a ball each, from the left: black paint, beige paint, chrome, aluminium, rubber, white PVC,
+     * galvanized steel, glass (alpha only). At the back the ROMCHI machines (with {@code -Dbench.models}). The views:
+     * {@code wide} (the default), {@code row} (the materials from 3.5 metres) and {@code close} (chrome and aluminium close up).
+     * Lamps are radiance in PBR and Phong's own units under {@code legacy}, DUKE-ROMCHI's 1.1.
+     */
+    private void workshop(Node world) {
+        float w = 5f, d = 3.5f, h = 4f, t = 0.2f;
+        var paint = surface(new ColorRGBA(0.55f, 0.6f, 0.56f, 1f), 0.6f, 0f);
+        var ceiling = surface(new ColorRGBA(0.85f, 0.85f, 0.83f, 1f), 0.9f, 0f);
+        world.attachChild(concreteFloor(2 * w, 2 * d));
+        wall(world, ceiling, 0f, h + t, 0f, w + t, t, d + t, 1f);
+        wall(world, paint, -w - t, h / 2f, 0f, t, h / 2f, d, 2f);
+        wall(world, paint, w + t, h / 2f, 0f, t, h / 2f, d, 2f);
+        wall(world, paint, 0f, h / 2f, -d - t, w + 2f * t, h / 2f, t, 2f);
+        wall(world, paint, 0f, h / 2f, d + t, w + 2f * t, h / 2f, t, 2f);
+
+        boolean legacy = legacy();
+        var panel = new Material(assetManager, "Common/MatDefs/Light/PBRLighting.j3md");
+        panel.setColor("BaseColor", ColorRGBA.White);
+        // shortcut: 1.5, not a real panel's brightness: the room probe's bake grows far faster than the panels (6 whites the room out); -Dbench.panel repeats it, upgrade with R1.
+        panel.setColor("Emissive", new ColorRGBA(1f, 0.96f, 0.85f, 1f).mult(Float.parseFloat(System.getProperty("bench.panel", "1.5"))));
+        panel.setFloat("EmissiveIntensity", 1f);
+        var lamp = new ColorRGBA(1f, 0.93f, 0.8f, 1f).mult(legacy ? 1.1f : 2f);
+        for (float x : new float[] {-2.5f, 2.5f}) {
+            for (float z : new float[] {-1.75f, 1.75f}) {
+                var box = wall(world, panel, x, h - 0.02f, z, 0.3f, 0.02f, 0.3f, 1f);
+                box.setName("lamp panel");
+                box.setShadowMode(ShadowMode.Off);
+                // A hand's breadth under the panel, as DUKE-ROMCHI hangs its lamps.
+                rootNode.addLight(new PointLight(new Vector3f(x, h - 0.19f, z), lamp, 6f));
+            }
+        }
+
+        // The row of materials, at z -0.3: a box and a ball beside it, a metre apart.
+        var galvanized = ball(new ColorRGBA(0.7f, 0.72f, 0.73f, 1f), 1f, 1f);
+        // Spangles: patches of crystal a little smoother or rougher than the rest (0.3 on the whole).
+        galvanized.setTexture("RoughnessMap", picture(Image.Format.RGB8, ColorSpace.Linear, (x, y) -> {
+            int v = Math.round((0.22f + 0.16f * hash(x / 12 + (y / 9) % 3, y / 12)) * 255f);
+            return new int[] {v, v, v};
+        }));
+        var glass = ball(new ColorRGBA(0.85f, 0.93f, 0.95f, 0.25f), 0f, 0.05f);
+        glass.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.Alpha);
+        var row = new Material[] {ball(new ColorRGBA(0.03f, 0.03f, 0.03f, 1f), 0f, 0.55f), ball(new ColorRGBA(0.62f, 0.55f, 0.42f, 1f), 0f, 0.38f),
+            ball(new ColorRGBA(0.62f, 0.62f, 0.64f, 1f), 1f, 0.08f), ball(new ColorRGBA(0.91f, 0.92f, 0.92f, 1f), 0.85f, 0.42f),
+            ball(new ColorRGBA(0.05f, 0.05f, 0.05f, 1f), 0f, 0.85f), ball(new ColorRGBA(0.85f, 0.85f, 0.82f, 1f), 0f, 0.35f),
+            galvanized, glass};
+        var names = new String[] {"black paint", "beige paint", "chrome", "aluminium", "rubber", "white pvc", "galvanized", "glass"};
+        var sphere = new Sphere(32, 32, 0.15f);
+        for (int i = 0; i < row.length; i++) {
+            float x = -3.7f + i * 1f;
+            var box = wall(world, row[i], x, 0.3f, -0.3f, 0.3f, 0.3f, 0.3f, 1f);
+            box.setName(names[i]);
+            var ball = new Geometry(names[i] + " ball", sphere);
+            ball.setMaterial(row[i]);
+            ball.setLocalTranslation(x + 0.47f, 0.15f, -0.3f);
+            world.attachChild(ball);
+            if (row[i] == glass) {
+                box.setQueueBucket(RenderQueue.Bucket.Transparent);
+                ball.setQueueBucket(RenderQueue.Bucket.Transparent);
+                box.setShadowMode(ShadowMode.Receive);
+                ball.setShadowMode(ShadowMode.Receive);
+            }
+        }
+
+        // The machines along the back wall, at their own size; the clamp on the table, the workstation under the spot.
+        place(world, "weld_machine", 0f, -3.6f, 0f, -2.6f, 0f);
+        var table = place(world, "metal_table", 0f, -0.6f, 0f, -2.4f, 0f);
+        place(world, "metal_saw", 0f, 2.8f, 0f, -2.5f, 0f);
+        world.updateGeometricState();
+        var top = (BoundingBox) table.getWorldBound();
+        place(world, "assembly_clamp", 0f, -0.6f, top.getCenter().y + top.getYExtent(), -2.4f, 0f);
+        world.updateGeometricState();
+        for (var name : new String[] {"weld_machine", "metal_table", "metal_saw", "assembly_clamp"}) {
+            var bound = (BoundingBox) world.getChild(name).getWorldBound();
+            System.out.printf(Locale.ROOT, "MODEL %s %.2f x %.2f x %.2f m%n", name, bound.getXExtent() * 2f, bound.getYExtent() * 2f, bound.getZExtent() * 2f);
+        }
+        var spot = new SpotLight(new Vector3f(-0.6f, 3.2f, -1.6f), new Vector3f(0f, -1f, -0.3f).normalizeLocal(),
+                new ColorRGBA(1f, 0.92f, 0.78f, 1f).mult(legacy ? 1.5f : 5f));
+        spot.setSpotRange(5f);
+        spot.setSpotInnerAngle(20f * FastMath.DEG_TO_RAD);
+        spot.setSpotOuterAngle(32f * FastMath.DEG_TO_RAD);
+        rootNode.addLight(spot);
+
+        if (asked.contains("row")) {
+            cam.setFrustumPerspective(70f, (float) cam.getWidth() / cam.getHeight(), 0.05f, 100f);
+            cam.setLocation(new Vector3f(0f, 1.5f, 3.2f));
+            cam.lookAt(new Vector3f(0f, 0.3f, -0.3f), Vector3f.UNIT_Y);
+        } else if (asked.contains("close")) {
+            cam.setFrustumPerspective(45f, (float) cam.getWidth() / cam.getHeight(), 0.05f, 100f);
+            cam.setLocation(new Vector3f(-1.0f, 1.0f, 1.0f));
+            cam.lookAt(new Vector3f(-0.95f, 0.3f, -0.3f), Vector3f.UNIT_Y);
+        } else {
+            cam.setFrustumPerspective(70f, (float) cam.getWidth() / cam.getHeight(), 0.05f, 100f);
+            cam.setLocation(new Vector3f(4.3f, 2.7f, 3.1f));
+            cam.lookAt(new Vector3f(-0.8f, 0.5f, -1.2f), Vector3f.UNIT_Y);
+        }
+    }
+
+    /** Concrete, {@code width} by {@code depth} round the origin: mottled, in 2 metre slabs with joints, its roughness 0.75 to 0.95. */
+    private Geometry concreteFloor(float width, float depth) {
+        var quad = new Quad(width, depth);
+        quad.scaleTextureCoordinates(new Vector2f(width / 2f, depth / 2f));
+        var floor = new Geometry("concrete floor", quad);
+        var m = surface(new ColorRGBA(0.45f, 0.44f, 0.42f, 1f), 1f, 0f);
+        m.setTexture("RoughnessMap", picture(Image.Format.RGB8, ColorSpace.Linear, (x, y) -> {
+            int v = Math.round((0.75f + 0.2f * smoothHash(x, y, 32)) * 255f);
+            return new int[] {v, v, v};
+        }));
+        m.setTexture("NormalMap", picture(Image.Format.RGB8, ColorSpace.Linear, (x, y) -> {
+            float dx = (concreteHeight(x + 1, y) - concreteHeight(x - 1, y)) * 2f;
+            float dy = (concreteHeight(x, y + 1) - concreteHeight(x, y - 1)) * 2f;
+            float length = FastMath.sqrt(dx * dx + dy * dy + 1f);
+            return new int[] {Math.round((-dx / length * 0.5f + 0.5f) * 255f), Math.round((dy / length * 0.5f + 0.5f) * 255f),
+                Math.round((1f / length * 0.5f + 0.5f) * 255f)};
+        }));
+        m.setFloat("NormalType", 1f);
+        floor.setMaterial(m);
+        MikktspaceTangentGenerator.generate(floor);
+        floor.rotate(-FastMath.HALF_PI, 0f, 0f);
+        floor.setLocalTranslation(-width / 2f, 0f, depth / 2f);
+        return floor;
+    }
+
+    /** A slab of the floor, 256 texels a side: fine grit, and a joint 2 texels wide at its edges; 0 to 1. */
+    private static float concreteHeight(int x, int y) {
+        x = Math.floorMod(x, 256);
+        y = Math.floorMod(y, 256);
+        if (Math.min(Math.min(x, 255 - x), Math.min(y, 255 - y)) < 2) {
+            return 0f;
+        }
+        return 0.6f + 0.25f * smoothHash(x, y, 4) + 0.15f * smoothHash(x, y, 16);
+    }
+
+    /** Value noise over cells {@code cell} texels wide, tiling in 256; 0 to 1. */
+    private static float smoothHash(int x, int y, int cell) {
+        int n = 256 / cell;
+        float fx = Math.floorMod(x, 256) / (float) cell;
+        float fy = Math.floorMod(y, 256) / (float) cell;
+        int ix = (int) fx;
+        int iy = (int) fy;
+        float top = FastMath.interpolateLinear(fx - ix, hash(ix, iy), hash((ix + 1) % n, iy));
+        float low = FastMath.interpolateLinear(fx - ix, hash(ix, (iy + 1) % n), hash((ix + 1) % n, (iy + 1) % n));
+        return FastMath.interpolateLinear(fy - iy, top, low);
+    }
+
+    /**
+     * Every PBR surface under {@code world} as DUKE-ROMCHI's {@code Models.lit} makes it (a copy, not a dependency): Phong with
+     * the base colour as diffuse and ambient, the colour map kept, the rest (metal, roughness, normals) gone. A lamp panel is unshaded with a glow, as its {@code Lamps} draws one.
+     */
+    private void legacy(Node world) {
+        world.depthFirstTraversal(s -> {
+            if (!(s instanceof Geometry g) || g.getMaterial() == null || !g.getMaterial().getMaterialDef().getAssetName().endsWith("PBRLighting.j3md")) {
+                return;
+            }
+            var pbr = g.getMaterial();
+            var colour = pbr.getParamValue("BaseColor") instanceof ColorRGBA c ? c.clone() : ColorRGBA.White.clone();
+            if ("lamp panel".equals(g.getName())) {
+                var glow = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+                glow.setColor("Color", new ColorRGBA(1f, 0.96f, 0.85f, 1f));
+                glow.setColor("GlowColor", new ColorRGBA(1f, 0.96f, 0.85f, 1f).mult(0.4f));
+                g.setMaterial(glow);
+                return;
+            }
+            var lit = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
+            lit.setBoolean("UseMaterialColors", true);
+            lit.setColor("Diffuse", colour);
+            lit.setColor("Ambient", colour);
+            if (pbr.getParamValue("BaseColorMap") instanceof Texture map) {
+                lit.setTexture("DiffuseMap", map);
+            }
+            if (colour.a < 1f) {
+                lit.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.Alpha);
+            }
+            lit.getAdditionalRenderState().setFaceCullMode(pbr.getAdditionalRenderState().getFaceCullMode());
+            g.setMaterial(lit);
+        });
+    }
+
     /** A field from high up: animated people and a few buildings. */
     private void outdoor(Node world) {
         wall(world, surface(new ColorRGBA(0.26f, 0.31f, 0.17f, 1f), floorRoughness(0.95f), 0f), 0f, -0.5f, 0f, 80f, 0.5f, 80f, 40f);
@@ -1155,13 +1357,14 @@ public final class RenderBench extends SimpleApplication {
         rootNode.addLight(flood);
     }
 
-    private void wall(Node to, Material m, float x, float y, float z, float hx, float hy, float hz, float tile) {
+    private Geometry wall(Node to, Material m, float x, float y, float z, float hx, float hy, float hz, float tile) {
         var box = new Box(hx, hy, hz);
         box.scaleTextureCoordinates(new Vector2f(tile, tile));
         var g = new Geometry("wall", box);
         g.setMaterial(m);
         g.setLocalTranslation(x, y, z);
         to.attachChild(g);
+        return g;
     }
 
     /** A model of the given longest size standing on {@code y}, or a grey box of that size when no models were given. */
@@ -1171,7 +1374,7 @@ public final class RenderBench extends SimpleApplication {
         holder.attachChild(model);
         var box = (BoundingBox) model.getWorldBound();
         float longest = Math.max(box.getYExtent(), Math.max(box.getXExtent(), box.getZExtent())) * 2f;
-        float scale = size / longest;
+        float scale = size > 0f ? size / longest : 1f; // 0: the model's own metres
         model.setLocalScale(model.getLocalScale().mult(scale));
         model.move(-box.getCenter().x * scale, -(box.getCenter().y - box.getYExtent()) * scale, -box.getCenter().z * scale);
         holder.setLocalTranslation(x, y, z);
@@ -1262,6 +1465,13 @@ public final class RenderBench extends SimpleApplication {
     }
 
     private void filters() {
+        if (legacy()) {
+            // DUKE-ROMCHI's chain: none of the engine's, only the old bloom of glowing objects (its lamp panels).
+            var post = new FilterPostProcessor(assetManager);
+            post.addFilter(new BloomFilter(BloomFilter.GlowMode.Objects));
+            viewPort.addProcessor(post);
+            return;
+        }
         if (picture.autoInstancing() && AutoInstancing.supported(renderer.getCaps())) {
             AutoInstancing.on(renderManager);
         }
@@ -1316,7 +1526,8 @@ public final class RenderBench extends SimpleApplication {
             viewPort.addProcessor(post);
             return;
         }
-        if (!asked.contains("no-shadows")) {
+        // Under the workshop's roof the sun is out: its shadow would only darken the whole picture.
+        if (!asked.contains("no-shadows") && !scene.equals("workshop")) {
             shadowLight.setDirection(sunDirection);
             var shadows = new SunShadowFilter(assetManager, shadowLight, picture, true, geometry -> true);
             shadowsFilter = shadows;
@@ -1502,7 +1713,7 @@ if (asked.contains("move-units")) {
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
-        line = line.stripTrailing() + String.format(Locale.ROOT, ";draws=%.0f;triangles=%.0f;submit=%.2f;gpu=%.2f%n", mean(calls), mean(drawnTriangles),
+        line = line.stripTrailing() + String.format(Locale.ROOT, ";best=%.2f;draws=%.0f;triangles=%.0f;submit=%.2f;gpu=%.2f%n", sorted.get(0) * 1000.0, mean(calls), mean(drawnTriangles),
                 submits.stream().mapToDouble(Double::doubleValue).average().orElse(Double.NaN),
                 gpus.stream().mapToDouble(Double::doubleValue).average().orElse(Double.NaN));
         System.out.print("RESULT " + line);
