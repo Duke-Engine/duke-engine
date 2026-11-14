@@ -62,7 +62,7 @@ import uz.dukeengine.render.ClusteredLights;
 import uz.dukeengine.render.GtaoFilter;
 import uz.dukeengine.render.HeightFogFilter;
 import uz.dukeengine.render.Lens;
-import uz.dukeengine.render.LocalProbes;
+import uz.dukeengine.render.RoomProbes;
 import uz.dukeengine.render.LocalShadowFilter;
 import uz.dukeengine.render.MipBloomFilter;
 import uz.dukeengine.render.PictureChain;
@@ -77,7 +77,7 @@ import uz.dukeengine.render.Water;
 /**
  * Draws one fixed scene, measures its frames, saves a picture and quits, so a change to the renderer can be seen and
  * priced. Args: scene (workshop, materials, materials-plus, bleed, interior, outdoor, night, buffers, water, furnace), what to leave out or add ("full", or joined by
- * commas: room-probe (the interior's room, or a box over the balls of materials, as a box probe baked from its middle: parallax reflections of its walls, its own diffuse light) show-ssgi (the bounce of screen space global illumination alone, through the rest of the chain), no-ssgi, the scene bleed (a red wall and a white strip of floor before it) and show-probe-left (what the picture holds with the probes' specular taken out: 0 where SSR's probes are PBRLighting's), no-ao, no-bloom, no-aa, fxaa, taa (the edges' smoothing; else the default of FULL), no-pcss, no-contact, no-shadows, no-local-shadows, local-&lt;n&gt; (how many local lights have a shadow), lamp (one lamp over any scene); no-clusters (the spot and point lights a pass each, the fork's way, not from clusters in one), lights-&lt;n&gt; (n small coloured lamps going round: over the field in the night instead of its torches, through the room in the interior beside its lamps) and show-clusters (how many lights each cluster has, over the picture); feet, which looks at the outdoor units' feet from close by; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
+ * commas: room-probe (the interior's room, or a box over the balls of materials, as a box probe baked from its middle: parallax reflections of its walls, its own diffuse light; the workshop has one unless no-probe), enclosed (that room baked without the sky's probe), relight (the room baked again five times in the warmup, each bake's milliseconds on a PROBE line; {@code -Dbench.panel=<n>} sets the workshop's panels' brightness) show-ssgi (the bounce of screen space global illumination alone, through the rest of the chain), no-ssgi, the scene bleed (a red wall and a white strip of floor before it) and show-probe-left (what the picture holds with the probes' specular taken out: 0 where SSR's probes are PBRLighting's), no-ao, no-bloom, no-aa, fxaa, taa (the edges' smoothing; else the default of FULL), no-pcss, no-contact, no-shadows, no-local-shadows, local-&lt;n&gt; (how many local lights have a shadow), lamp (one lamp over any scene); no-clusters (the spot and point lights a pass each, the fork's way, not from clusters in one), lights-&lt;n&gt; (n small coloured lamps going round: over the field in the night instead of its torches, through the room in the interior beside its lamps) and show-clusters (how many lights each cluster has, over the picture); feet, which looks at the outdoor units' feet from close by; buffers, which draws the scene buffers for nothing to read, to price them; show-normals,
  * show-depth, show-roughness, show-velocity, which show one instead of the picture; show-ao, which shows the ambient
  * occlusion alone, and ao-radius-&lt;m&gt;, which sets its reach in world units; show-bloom, which shows the bloom alone; auto-exposure, which lets the eye adapt, and walk, which (with it) goes from a
  * dark view to a bright one and back, logging what the eye holds (EYE lines) and shooting at the cuts; fog (height fog and the
@@ -143,6 +143,8 @@ public final class RenderBench extends SimpleApplication {
     private final List<Integer> calls = new ArrayList<>();
     private final List<Integer> drawnTriangles = new ArrayList<>();
     private OcclusionCulling occlusion;
+    private RoomProbes rooms;
+    private final List<Double> relights = new ArrayList<>();
 
     private RenderBench(String scene, String label, Path out) {
         this.scene = scene;
@@ -371,12 +373,18 @@ public final class RenderBench extends SimpleApplication {
         if (workshopProbe || asked.contains("room-probe") && (scene.equals("interior") || scene.equals("materials"))) {
             // The room's inside: its floor top, its ceiling underside and its walls' inner faces are the box's faces. Over the balls, a box
             // that some of them stand in, some out of and some on the edge of.
-            var room = workshopProbe ? LocalProbes.box(new Vector3f(0f, 2f, 0f), new Vector3f(5f, 2f, 3.5f))
-                    : scene.equals("interior") ? LocalProbes.box(new Vector3f(0f, 0.2f, 0f), new Vector3f(7f, 1.8f, 5f))
-                    : LocalProbes.box(new Vector3f(0f, 0f, 0f), new Vector3f(6f, 4f, 3f));
-            double ms = LocalProbes.bake(assetManager, renderManager, rootNode, room);
-            rootNode.addLight(room);
-            System.out.printf(Locale.ROOT, "PROBE room baked in %.1f ms%n", ms);
+            // enclosed: baked without the sky's probe, lit only by the room's own lamps and panels.
+            rooms = new RoomProbes(assetManager, renderManager, rootNode);
+            boolean enclosed = asked.contains("enclosed");
+            if (workshopProbe) {
+                rooms.place(new Vector3f(0f, 2f, 0f), new Vector3f(5f, 2f, 3.5f), enclosed);
+            } else if (scene.equals("interior")) {
+                rooms.place(new Vector3f(0f, 0.2f, 0f), new Vector3f(7f, 1.8f, 5f), enclosed);
+            } else {
+                rooms.place(new Vector3f(0f, 0f, 0f), new Vector3f(6f, 4f, 3f), enclosed);
+            }
+            double ms = rooms.update();
+            System.out.printf(Locale.ROOT, "PROBE room baked in %.1f ms; %s%n", ms, roomProbeLight());
         }
         if (asked.contains("sky-view") || asked.contains("shaft-view")) {
             lookAtTheSun(toSun, asked.contains("shaft-view") ? world : null);
@@ -838,8 +846,10 @@ public final class RenderBench extends SimpleApplication {
         boolean legacy = legacy();
         var panel = new Material(assetManager, "Common/MatDefs/Light/PBRLighting.j3md");
         panel.setColor("BaseColor", ColorRGBA.White);
-        // shortcut: 1.5, not a real panel's brightness: the room probe's bake grows far faster than the panels (6 whites the room out); -Dbench.panel repeats it, upgrade with R1.
-        panel.setColor("Emissive", new ColorRGBA(1f, 0.96f, 0.85f, 1f).mult(Float.parseFloat(System.getProperty("bench.panel", "1.5"))));
+        // -Dbench.panel scales the colour only: PBRLighting raises the emissive's alpha to EmissivePower (3), so ColorRGBA.mult,
+        // which scales the alpha too, made it grow as the 4th power. 5.0625 is the old default 1.5 to that power: the same picture.
+        float bright = Float.parseFloat(System.getProperty("bench.panel", "5.0625"));
+        panel.setColor("Emissive", new ColorRGBA(bright, 0.96f * bright, 0.85f * bright, 1f));
         panel.setFloat("EmissiveIntensity", 1f);
         var lamp = new ColorRGBA(1f, 0.93f, 0.8f, 1f).mult(legacy ? 1.1f : 2f);
         for (float x : new float[] {-2.5f, 2.5f}) {
@@ -1577,6 +1587,16 @@ public final class RenderBench extends SimpleApplication {
             walk(tpf);
             return;
         }
+        // relight: the rooms baked again five times in the warmup, as a game does when its lamps switch, outside the measured frames.
+        if (asked.contains("relight") && rooms != null && frame % 15 == 0 && frame >= 30 && frame <= 90) {
+            rooms.relight();
+            relights.add(rooms.update());
+            if (frame == 90) {
+                System.out.printf(Locale.ROOT, "PROBE relight %s ms (mean %.1f); %s%n", relights.stream()
+                        .map(ms -> String.format(Locale.ROOT, "%.1f", ms)).toList(),
+                        relights.stream().mapToDouble(Double::doubleValue).average().orElse(0), roomProbeLight());
+            }
+        }
         // By the frame, not the clock: the same frame of a run is the same picture, on any machine.
         // With fast, the same motion at up to 25 times the speed, to and fro so that nothing leaves the scene.
         float speed = asked.contains("fast") ? 25f * FastMath.sin(frame * 0.05f) : 1f;
@@ -1640,6 +1660,33 @@ if (asked.contains("move-units")) {
             renderer.startProfiling(timers[frame % timers.length]);
         }
         submitted = -System.nanoTime();
+    }
+
+    /**
+     * What the room's bake holds: the SH L0 term (the diffuse light's average) and the mean of the prefiltered cube's mip 0
+     * (what a mirror sees), both linear RGB. The probe is found on the root as the box one.
+     */
+    private String roomProbeLight() {
+        for (var light : rootNode.getLocalLightList()) {
+            if (light instanceof com.jme3.light.LightProbe probe && probe.getAreaType() == com.jme3.light.LightProbe.AreaType.OrientedBox) {
+                var image = probe.getPrefilteredEnvMap().getImage();
+                int pixels = image.getWidth() * image.getHeight();
+                double[] sum = new double[3];
+                for (int face = 0; face < image.getData().size(); face++) {
+                    // RGB16F, mip 0 first in each face's data.
+                    var data = image.getData(face).duplicate().order(java.nio.ByteOrder.nativeOrder());
+                    data.rewind();
+                    for (int i = 0; i < pixels * 3; i++) {
+                        sum[i % 3] += FastMath.convertHalfToFloat(data.getShort());
+                    }
+                }
+                double n = (double) pixels * image.getData().size();
+                var l0 = probe.getShCoeffs()[0];
+                return String.format(Locale.ROOT, "SH L0 %.3f %.3f %.3f, mip0 mean %.3f %.3f %.3f", l0.x, l0.y, l0.z,
+                        sum[0] / n, sum[1] / n, sum[2] / n);
+            }
+        }
+        return "no room probe";
     }
 
     /** After the frame is drawn: how long the commands took to give. */
