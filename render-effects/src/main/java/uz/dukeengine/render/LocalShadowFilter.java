@@ -24,6 +24,8 @@ import com.jme3.renderer.queue.GeometryList;
 import com.jme3.renderer.queue.OpaqueComparator;
 import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.scene.Geometry;
+import com.jme3.scene.Node;
+import com.jme3.scene.Spatial;
 import com.jme3.scene.instancing.InstancedGeometry;
 import com.jme3.shader.VarType;
 import com.jme3.shadow.ShadowUtil;
@@ -33,9 +35,11 @@ import com.jme3.texture.Image.Format;
 import com.jme3.texture.Texture;
 import com.jme3.texture.Texture2D;
 import com.jme3.util.TempVars;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.logging.Logger;
 
 /**
@@ -48,9 +52,8 @@ import java.util.logging.Logger;
  * <p>A light whose own state and whose casters (position, shape, and that nothing about them is animated) are as they were
  * keeps its maps from the last frame instead of drawing them again.
  *
- * <p>Only lights on the scene's root node are looked at, and only those with a radius (a spot's range): a light that
- * reaches everywhere has no map to draw. shortcut: a light further down the tree is not seen, hand the filter a lights
- * source when a game keeps its lights on moving nodes.
+ * <p>The lights held anywhere in the scene are looked at, a game's own node of them too, but only those with a radius (a
+ * spot's range): a light that reaches everywhere has no map to draw.
  */
 public final class LocalShadowFilter extends Filter {
 
@@ -184,13 +187,26 @@ public final class LocalShadowFilter extends Filter {
         }
     }
 
+    /** Every light held at {@code spatial} or anywhere under it, into {@code into}. */
+    static List<Light> lightsUnder(Spatial spatial, List<Light> into) {
+        for (var light : spatial.getLocalLightList()) {
+            into.add(light);
+        }
+        if (spatial instanceof Node node) {
+            for (var child : node.getChildren()) {
+                lightsUnder(child, into);
+            }
+        }
+        return into;
+    }
+
     @Override
     protected void preFrame(float tpf) {
         var view = viewPort.getCamera();
         worth.clear();
         var vars = TempVars.get();
         for (var scene : viewPort.getScenes()) {
-            for (var light : scene.getLocalLightList()) {
+            for (var light : lightsUnder(scene, new ArrayList<>())) {
                 float reach = reachOf(light);
                 float brightness = brightnessOf(light);
                 if (reach > 0f && brightness > 1e-3f && light.isEnabled() && light.intersectsFrustum(view, vars)) {
