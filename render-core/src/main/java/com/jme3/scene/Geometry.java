@@ -476,6 +476,10 @@ public class Geometry extends Spatial {
 
         assert (refreshFlags & (RF_BOUND | RF_TRANSFORM)) == 0;
 
+        // A ray that misses the bound misses the mesh: return before the mesh builds its tree, which costs a frame or more.
+        if (other instanceof com.jme3.math.Ray ray && worldBound != null && !worldBound.intersects(ray)) {
+            return 0;
+        }
         if (mesh != null) {
             // NOTE: BIHTree in mesh already checks collision with the
             // mesh's bound
