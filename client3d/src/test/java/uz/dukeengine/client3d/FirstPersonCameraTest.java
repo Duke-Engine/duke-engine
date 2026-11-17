@@ -140,4 +140,43 @@ class FirstPersonCameraTest {
 
         assertEquals(3f, to.x, 1e-5f);
     }
+
+    @Test
+    void aWalkGathersSpeedOverAQuarterSecondAndStopsQuicker() {
+        var camera = new FirstPersonCamera(ROOM);
+        float tpf = 1f / 60f;
+        camera.move(true, false, false, false, 0f, 0f, tpf);
+        assertEquals(FirstPersonCamera.ACCEL * tpf, camera.velocity().length(), 1e-4f, "one frame in, barely moving");
+        int frames = 1;
+        while (camera.velocity().length() < 3f - 1e-4f) {
+            camera.move(true, false, false, false, 0f, 0f, tpf);
+            frames++;
+        }
+        assertEquals(0.25f, frames * tpf, 1.5f * tpf, "full pace in a quarter second");
+        int stopping = 0;
+        while (camera.velocity().length() > 0f) {
+            camera.move(false, false, false, false, 0f, 0f, tpf);
+            stopping++;
+        }
+        assertEquals(3f / FirstPersonCamera.BRAKE, stopping * tpf, 1.5f * tpf, "stopped in a sixth of a second");
+    }
+
+    @Test
+    void paceTurnsTheSpeedTowardsTheWishByAtMostTheLimit() {
+        var back = FirstPersonCamera.pace(new Vector3f(3f, 0f, 0f), new Vector3f(-3f, 0f, 0f), 0.1f);
+        assertEquals(3f - FirstPersonCamera.ACCEL * 0.1f, back.x, 1e-5f);
+        assertEquals(new Vector3f(0f, 0f, 2f), FirstPersonCamera.pace(new Vector3f(0f, 0f, 1.9f), new Vector3f(0f, 0f, 2f), 0.1f));
+    }
+
+    @Test
+    void aWallOrASeatTakesTheSpeedAway() {
+        var camera = new FirstPersonCamera(BENCHED);
+        camera.moveTo(new Vector3f(0f, 1.65f, 0f), -FastMath.HALF_PI, 0f);
+        for (int i = 0; i < 60; i++) {
+            camera.move(true, false, false, false, 0f, 0f, 1f / 60f);
+        }
+        assertEquals(0f, camera.velocity().x, 1e-4f, "stood against the bench");
+        camera.moveTo(new Vector3f(-2f, 1.65f, 0f), 0f, 0f);
+        assertEquals(0f, camera.velocity().length());
+    }
 }

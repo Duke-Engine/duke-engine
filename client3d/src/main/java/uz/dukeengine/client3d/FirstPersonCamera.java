@@ -24,11 +24,17 @@ public final class FirstPersonCamera implements ControlScheme {
     /** Near enough for a bench at arm's length; the client's own near plane is for a camera far over the map. */
     private static final float NEAR = 0.05f;
     private static final float FAR = 200f;
+    /** How fast a walk gathers speed, m/s²: 3 m/s in a quarter second, so the first step is not a jump. */
+    public static final float ACCEL = 12f;
+    /** How fast it stops once the keys are let go, m/s²: a little quicker than it starts. */
+    public static final float BRAKE = 18f;
 
     private FirstPerson config;
     private Vector3f eye;
     private float yaw;
     private float pitch;
+    /** How fast the eye walks now, m/s along x and z. */
+    private final Vector3f velocity = new Vector3f();
     private boolean frozen;
     private Context context;
     private BitmapText crosshair;
@@ -38,6 +44,11 @@ public final class FirstPersonCamera implements ControlScheme {
         this.config = config;
         this.eye = new Vector3f((config.minX() + config.maxX()) / 2f, config.eyeHeight(),
                 (config.minZ() + config.maxZ()) / 2f);
+    }
+
+    /** How fast the eye walks now, m/s along x and z (y 0): a body's legs follow it. */
+    public Vector3f velocity() {
+        return velocity.clone();
     }
 
     public Vector3f eye() {
@@ -60,6 +71,9 @@ public final class FirstPersonCamera implements ControlScheme {
 
     public void setFrozen(boolean frozen) {
         this.frozen = frozen;
+        if (frozen) {
+            velocity.zero();
+        }
     }
 
     /** Walks round these footprints from now on in place of the ones it had: a door shut or opened, a thing moved. */
@@ -75,6 +89,7 @@ public final class FirstPersonCamera implements ControlScheme {
     /** Puts the eye at {@code eye} looking {@code yaw} across and {@code pitch} up: sitting down, a cut scene. */
     public void moveTo(Vector3f eye, float yaw, float pitch) {
         this.eye = eye.clone();
+        velocity.zero();
         this.yaw = yaw;
         this.pitch = clampPitch(pitch);
     }
@@ -93,6 +108,12 @@ public final class FirstPersonCamera implements ControlScheme {
     /** Where a walk of {@code tpf} seconds takes the eye, kept within the walls and off the blocked footprints. */
     public static Vector3f step(Vector3f eye, float yaw, boolean fwd, boolean back, boolean left, boolean right,
             float speed, float tpf, FirstPerson bounds) {
+        var w = wish(yaw, fwd, back, left, right, speed);
+        return step(eye, w.x * tpf, w.z * tpf, bounds);
+    }
+
+    /** The speed the held keys ask for, m/s along x and z: {@code speed} whichever way they point, none for none. */
+    static Vector3f wish(float yaw, boolean fwd, boolean back, boolean left, boolean right, float speed) {
         float sin = FastMath.sin(yaw);
         float cos = FastMath.cos(yaw);
         float x = 0f;
@@ -114,22 +135,38 @@ public final class FirstPersonCamera implements ControlScheme {
             z += sin;
         }
         float length = FastMath.sqrt(x * x + z * z);
-        float d = length == 0f ? 0f : speed * tpf / length;
+        float d = length == 0f ? 0f : speed / length;
+        return new Vector3f(x * d, 0f, z * d);
+    }
+
+    /** Where a walk of {@code dx}, {@code dz} metres takes the eye, kept within the walls and off the blocked footprints. */
+    public static Vector3f step(Vector3f eye, float dx, float dz, FirstPerson bounds) {
         // An axis at a time: a blocked x still lets z through, so a slanting walk slides along the footprint.
         float r = bounds.radius();
-        float toX = FastMath.clamp(eye.x + x * d, bounds.minX(), bounds.maxX());
+        float toX = FastMath.clamp(eye.x + dx, bounds.minX(), bounds.maxX());
         for (var f : bounds.blocked()) {
             if (f.acrossZ(eye.z, r)) {
                 toX = stop(eye.x, toX, f.minX() - r, f.maxX() + r);
             }
         }
-        float toZ = FastMath.clamp(eye.z + z * d, bounds.minZ(), bounds.maxZ());
+        float toZ = FastMath.clamp(eye.z + dz, bounds.minZ(), bounds.maxZ());
         for (var f : bounds.blocked()) {
             if (f.acrossX(toX, r)) {
                 toZ = stop(eye.z, toZ, f.minZ() - r, f.maxZ() + r);
             }
         }
         return new Vector3f(toX, eye.y, toZ);
+    }
+
+    /**
+     * The walking speed a frame of {@code tpf} seconds later: towards {@code wish} (m/s, x and z) by at most
+     * {@link #ACCEL} a second while a key is held, {@link #BRAKE} once none is. A turn is a change of speed like any other.
+     */
+    public static Vector3f pace(Vector3f velocity, Vector3f wish, float tpf) {
+        var change = wish.subtract(velocity);
+        float most = (wish.lengthSquared() > 0f ? ACCEL : BRAKE) * tpf;
+        float length = change.length();
+        return length <= most ? wish.clone() : velocity.add(change.multLocal(most / length));
     }
 
     /** A walk from {@code from} to {@code to} on one axis, stopped at the edge of {@code [min, max]} it would cross. */
@@ -191,7 +228,13 @@ public final class FirstPersonCamera implements ControlScheme {
         }
         yaw -= dx * config.sensitivity();
         pitch = clampPitch(pitch - dy * config.sensitivity());
-        eye = step(eye, yaw, fwd, back, left, right, config.speed(), tpf, config);
+        // The keys ask for a speed; the eye gathers to it and slows from it (pace), and a wall it meets stops it.
+        velocity.set(pace(velocity, wish(yaw, fwd, back, left, right, config.speed()), tpf));
+        var to = step(eye, velocity.x * tpf, velocity.z * tpf, config);
+        if (tpf > 0f) {
+            velocity.set((to.x - eye.x) / tpf, 0f, (to.z - eye.z) / tpf);
+        }
+        eye = to;
     }
 
     /** The window's camera put at the eye, and the cross in the middle of the window. */
