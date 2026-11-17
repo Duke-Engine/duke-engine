@@ -240,7 +240,8 @@ public final class Duke3D {
                 chosen.number("height", height > 0 ? height : 720));
         settings.setFullscreen(chosen.flag("fullscreen", false));
         settings.setSamples(chosen.number("samples", 0));
-        settings.setVSync(true);
+        // -Dduke.vsync=false: frames as fast as they draw, for a developer timing them.
+        settings.setVSync(!"false".equals(System.getProperty("duke.vsync")));
         client.setSettings(settings);
         client.setShowSettings(false);
         client.setDisplayStatView(false);
