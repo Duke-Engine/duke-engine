@@ -16,7 +16,7 @@ import java.util.logging.Logger;
 /**
  * Ground truth ambient occlusion (Jimenez et al. 2016) over a finished picture: how much of the sky a pixel sees, found
  * from the horizons its surroundings leave in a few directions, over the {@link SceneBuffers}' depth and normals instead
- * of a normal pass of its own. A second pass takes the directions of each 3x3 patch back together over what is one surface,
+ * of a normal pass of its own. A second pass takes the grain of each 5x5 patch back together over what is one surface,
  * and darkens the colour by that, lighter where the surface is, as the light bounces about in a crease.
  *
  * <p>Without scene buffers (a GPU that cannot draw them) the filter turns itself off.

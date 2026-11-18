@@ -46,15 +46,17 @@ void main() {
     float falloffMul = -1.0 / (m_Radius * FALLOFF);
     float falloffAdd = 1.0 / FALLOFF;
 
-    // The nine pixels of a 3x3 patch hold nine of the half turn's eighteen directions (a slice more of each, half a turn
-    // on) and nine offsets along the steps: the patch averaged in the next pass has all of them.
-    ivec2 cell = ivec2(centre) % 3;
-    int index = (cell.x + 3 * cell.y + m_Frame) % 9;
-    float stepJitter = (float((index * 7) % 9) + 0.5) / 9.0;
+    // Interleaved gradient noise (Jimenez 2014) for the direction and the offset along the steps, turned each TAA frame:
+    // a fixed handful of offsets made every far sample cross an edge at the same place for a whole patch, so a deep crease
+    // came out in square steps; noise that moves on each frame leaves a grain the next pass and TAA take away.
+    // The second number must not be the first plus a constant (the noise is linear in the pixel), as in Ssgi.frag.
+    vec2 turned = gl_FragCoord.xy + 5.588238 * float(m_Frame);
+    float turn = fract(52.9829189 * fract(dot(turned, vec2(0.06711056, 0.00583715))));
+    float stepJitter = fract(52.9829189 * fract(dot(turned.yx + vec2(47.0, 17.0), vec2(0.06711056, 0.00583715))));
 
     float visibility = 0.0;
     for (int slice = 0; slice < SLICES; slice++) {
-        float phi = PI * (float((index * 4) % 9 + 9 * slice) + 0.5) / 18.0;
+        float phi = PI * (turn + float(slice)) / float(SLICES);
         vec2 direction = vec2(cos(phi), sin(phi));
         vec3 plane = vec3(direction, 0.0);
         vec3 across = plane - dot(plane, toEye) * toEye;
