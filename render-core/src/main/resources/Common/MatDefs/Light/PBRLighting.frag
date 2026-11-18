@@ -27,6 +27,9 @@ uniform vec4 g_AmbientLightColor;
 #ifdef SCENE_AMBIENT
   uniform vec4 m_SceneAmbient;
 #endif
+#ifdef PROBE_LIGHT
+  uniform vec4 m_ProbeLight;
+#endif
 
 uniform float m_Roughness;
 uniform float m_Metallic;
@@ -438,7 +441,13 @@ void main(){
             #endif
         #endif
 
-        #ifdef USE_AMBIENT_LIGHT
+        #ifdef PROBE_LIGHT
+            // Later passes have a black ambient: the probes are drawn on the first only.
+            vec3 probeLight = m_ProbeLight.rgb * (g_AmbientLightColor.rgb == vec3(0.0) ? 0.0 : 1.0);
+            color1.rgb *= probeLight;
+            color2.rgb *= probeLight;
+            color3.rgb *= probeLight;
+        #elif defined(USE_AMBIENT_LIGHT)
             color1.rgb *= g_AmbientLightColor.rgb;
             color2.rgb *= g_AmbientLightColor.rgb;
             color3.rgb *= g_AmbientLightColor.rgb;

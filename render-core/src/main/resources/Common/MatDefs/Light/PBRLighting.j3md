@@ -17,6 +17,9 @@ MaterialDef PBR Lighting {
         Color Ambient
         // The ambient the probe already stands for: only the ambient lights above it are added, a thing's tint.
         Color SceneAmbient
+        // How bright the light probes are, in place of the ambient light: a probe baked from the very lights that light
+        // the thing (a room's lamps) is all of their bounce at 1 and dims with them, not with a fill light.
+        Color ProbeLight
         // The emissive color of the object
         Color Emissive        
         // the emissive power
@@ -179,6 +182,7 @@ MaterialDef PBR Lighting {
             BASECOLORMAP : BaseColorMap            
             AMBIENT : Ambient
             SCENE_AMBIENT : SceneAmbient
+            PROBE_LIGHT : ProbeLight
             NORMALMAP : NormalMap
             NORMALSCALE : NormalScale
             METALLICMAP : MetallicMap
