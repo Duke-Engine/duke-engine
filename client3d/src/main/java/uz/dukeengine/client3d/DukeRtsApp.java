@@ -527,6 +527,11 @@ final class DukeRtsApp extends SimpleApplication {
     @Override
     public void simpleInitApp() {
         flyCam.setEnabled(false);
+        var gpuStats = GpuStats.asked();
+        if (gpuStats != null) {
+            gpuStats.setRenderer(renderer);
+            setAppProfiler(gpuStats);
+        }
         if (listener == null) {
             listener = new com.jme3.audio.Listener(); // no audio (a browser): one that reaches no renderer
         }
