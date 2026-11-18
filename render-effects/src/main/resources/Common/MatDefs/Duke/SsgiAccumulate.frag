@@ -8,10 +8,11 @@ uniform int m_Frame;
 
 varying vec2 texCoord;
 
-// The share of the sum that this frame's rays are, once there is a history to trust: the picture is the last twenty frames' or so.
-const float NEW = 0.08;
+// The share of the sum that this frame's rays are, once there is a history to trust: the picture is the last fifty frames' or so.
+// Two rays a pixel are few: at 0.08 a face lit mostly by bounced light crawled with their noise from frame to frame.
+const float NEW = 0.02;
 // How many standard deviations of this frame's 3x3 the history may be off the mean of it before it is pulled in.
-const float GAMMA = 1.5;
+const float GAMMA = 3.0;
 // How far apart in depth, as a share of it, the history and the pixel can be and be the same surface.
 const float SAME_SURFACE = 0.05;
 
