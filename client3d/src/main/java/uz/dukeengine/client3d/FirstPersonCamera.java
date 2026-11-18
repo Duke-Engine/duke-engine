@@ -36,6 +36,7 @@ public final class FirstPersonCamera implements ControlScheme {
     /** How fast the eye walks now, m/s along x and z. */
     private final Vector3f velocity = new Vector3f();
     private boolean frozen;
+    private boolean running;
     private Context context;
     private BitmapText crosshair;
 
@@ -74,6 +75,11 @@ public final class FirstPersonCamera implements ControlScheme {
         if (frozen) {
             velocity.zero();
         }
+    }
+
+    /** Runs ({@link FirstPerson#run}) from now on in place of walking, or walks again: the game's own run key. */
+    public void setRunning(boolean running) {
+        this.running = running;
     }
 
     /** Walks round these footprints from now on in place of the ones it had: a door shut or opened, a thing moved. */
@@ -229,7 +235,7 @@ public final class FirstPersonCamera implements ControlScheme {
         yaw -= dx * config.sensitivity();
         pitch = clampPitch(pitch - dy * config.sensitivity());
         // The keys ask for a speed; the eye gathers to it and slows from it (pace), and a wall it meets stops it.
-        velocity.set(pace(velocity, wish(yaw, fwd, back, left, right, config.speed()), tpf));
+        velocity.set(pace(velocity, wish(yaw, fwd, back, left, right, running ? config.run() : config.speed()), tpf));
         var to = step(eye, velocity.x * tpf, velocity.z * tpf, config);
         if (tpf > 0f) {
             velocity.set((to.x - eye.x) / tpf, 0f, (to.z - eye.z) / tpf);

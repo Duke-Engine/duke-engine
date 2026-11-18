@@ -129,7 +129,18 @@ class FirstPersonCameraTest {
 
         camera.setBlocked(List.of());
         camera.move(true, false, false, false, 0f, 0f, 1f);
-        assertEquals(3.7f, camera.eye().x, 1e-5f);
+        assertEquals(2.1f, camera.eye().x, 1e-5f);
+    }
+
+    @Test
+    void itWalksAPersonsPaceAndRunsWhileTheGameSaysSo() {
+        var camera = new FirstPersonCamera(ROOM);
+        // Half seconds: long enough to reach either pace, short enough to stay off the wall 3 m ahead.
+        camera.move(true, false, false, false, 0f, 0f, 0.5f);
+        assertEquals(1.4f, camera.velocity().length(), 1e-4f, "a walk");
+        camera.setRunning(true);
+        camera.move(true, false, false, false, 0f, 0f, 0.5f);
+        assertEquals(3f, camera.velocity().length(), 1e-4f, "a run");
     }
 
     @Test
@@ -144,6 +155,7 @@ class FirstPersonCameraTest {
     @Test
     void aWalkGathersSpeedOverAQuarterSecondAndStopsQuicker() {
         var camera = new FirstPersonCamera(ROOM);
+        camera.setRunning(true);
         float tpf = 1f / 60f;
         camera.move(true, false, false, false, 0f, 0f, tpf);
         assertEquals(FirstPersonCamera.ACCEL * tpf, camera.velocity().length(), 1e-4f, "one frame in, barely moving");

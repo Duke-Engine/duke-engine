@@ -7,27 +7,28 @@ import java.util.List;
  *
  * @param eyeHeight   how high the eye stands over the floor
  * @param speed       how fast it walks, a second
+ * @param run         how fast it runs, a second, while the game says so ({@link FirstPersonCamera#setRunning})
  * @param sensitivity how far the view turns for each pixel the held mouse moves, in radians
  * @param reach       how far away a thing may be and still be pointed at
  * @param minX        the walls it walks within, on the floor's x and z
  * @param radius      how near it comes to a blocked footprint
  * @param blocked     what stands on the floor and is not walked through: benches, machines
  */
-public record FirstPerson(float eyeHeight, float speed, float sensitivity, float reach, float minX, float minZ,
-        float maxX, float maxZ, float radius, List<Footprint> blocked) {
+public record FirstPerson(float eyeHeight, float speed, float run, float sensitivity, float reach, float minX,
+        float minZ, float maxX, float maxZ, float radius, List<Footprint> blocked) {
 
     public FirstPerson {
         blocked = List.copyOf(blocked);
     }
 
-    /** A person of the usual height, pace and reach, walking within these walls. */
+    /** A person of the usual height, pace and reach, walking within these walls: 1.4 m/s a walk, 3 m/s a run. */
     public static FirstPerson within(float minX, float minZ, float maxX, float maxZ) {
-        return new FirstPerson(1.65f, 3f, 0.0025f, 2.5f, minX, minZ, maxX, maxZ, 0.3f, List.of());
+        return new FirstPerson(1.65f, 1.4f, 3f, 0.0025f, 2.5f, minX, minZ, maxX, maxZ, 0.3f, List.of());
     }
 
     /** The same person, kept off these footprints too. */
     public FirstPerson blocking(List<Footprint> footprints) {
-        return new FirstPerson(eyeHeight, speed, sensitivity, reach, minX, minZ, maxX, maxZ, radius, footprints);
+        return new FirstPerson(eyeHeight, speed, run, sensitivity, reach, minX, minZ, maxX, maxZ, radius, footprints);
     }
 
     /** A rectangle on the floor's x and z. */
