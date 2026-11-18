@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /** Which local lights have a shadow, and that none of them gains or loses it in one frame. */
@@ -135,5 +136,23 @@ class LocalShadowBudgetTest {
         budget.update(worth, FRAME);
         assertTrue(weightOf(budget, a) > 0.9f, "one frame later it is still nearly all there");
         assertEquals(1f, weightOf(budget, b));
+    }
+
+    @Test
+    void aLightOutOfTheViewGivesUpItsSlotAtOnceAndComesBackWhole() {
+        var budget = new LocalShadowBudget(1, LocalShadowBudget.FADE);
+        var rack = new Object();
+        var other = new Object();
+        run(budget, new HashMap<Object, Float>(Map.of(rack, 2f)), 30);
+        // Turned away: the rack's light is behind, another is in the view.
+        budget.update(Map.of(other, 1f), Set.of(rack), FRAME);
+        assertEquals(0f, weightOf(budget, rack), "its shadow is off the screen, so it goes at once");
+        for (int i = 0; i < 30; i++) {
+            budget.update(Map.of(other, 1f), Set.of(rack), FRAME);
+        }
+        // Looked back: the other is behind now.
+        budget.update(Map.of(rack, 2f), Set.of(other), FRAME);
+        assertEquals(1f, weightOf(budget, rack), "all of it on the first frame it is seen again");
+        assertEquals(0f, weightOf(budget, other));
     }
 }

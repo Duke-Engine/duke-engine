@@ -2,15 +2,20 @@ package uz.dukeengine.render;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Which of a scene's local lights have shadows this frame. There are only so many slots; each frame the lights that matter
  * most are asked for, but a light holds its slot until something clearly beats it ({@link #HOLD}), and gains or loses its
  * shadow over {@link #FADE} seconds rather than at once, so a shadow never pops when the camera moves and two lights of
  * equal worth do not trade places every frame. A light leaving keeps its slot until it has faded out: a slot is never
- * handed on while its old shadow is still visible, and no more than the slots' number of lights ever has one.
+ * handed on while its old shadow is still visible, and no more than the slots' number of lights ever has one. Only a light
+ * out of the view, whose shadow cannot be seen, changes at once: it gives up its slot, and on coming back into the view it
+ * has all its shadow from the first frame, so turning away and back does not show it filling in. One that comes back to
+ * find the slots taken by lights still in the view waits and fades in as any other.
  *
  * <p>Plain logic, no graphics: {@link LocalShadowFilter} reads the result.
  */
@@ -29,6 +34,8 @@ final class LocalShadowBudget {
 
     private final Slot[] slots;
     private final float fade;
+    /** The lights that were out of the view last frame. */
+    private final Set<Object> unseenBefore = new HashSet<>();
 
     LocalShadowBudget(int slots, float fade) {
         this.slots = new Slot[slots];
@@ -58,6 +65,15 @@ final class LocalShadowBudget {
      * a light not in it, or worth nothing, is not wanted.
      */
     void update(Map<?, Float> worth, float tpf) {
+        update(worth, Set.of(), tpf);
+    }
+
+    /**
+     * One frame on, as {@link #update(Map, float)}, knowing which lights are out of the view: all they light is off the
+     * screen, so their shadows are not seen to change. One of them gives up its slot at once, and one that comes back into
+     * the view has all its shadow on the first frame it is seen; turning away and back shows it whole, not filling in.
+     */
+    void update(Map<?, Float> worth, Set<?> unseen, float tpf) {
         var wanted = new ArrayList<Object>();
         worth.entrySet().stream().filter(entry -> entry.getValue() > 0f)
                 .sorted(Comparator.comparingDouble((Map.Entry<?, Float> entry) -> -weighed(entry.getKey(), entry.getValue())))
@@ -65,6 +81,11 @@ final class LocalShadowBudget {
         float step = tpf / fade;
         for (var slot : slots) {
             if (slot.light == null) {
+                continue;
+            }
+            if (unseen.contains(slot.light)) {
+                slot.light = null;
+                slot.weight = 0f;
                 continue;
             }
             if (wanted.remove(slot.light)) {
@@ -81,11 +102,13 @@ final class LocalShadowBudget {
             for (var slot : slots) {
                 if (slot.light == null) {
                     slot.light = light;
-                    slot.weight = Math.min(1f, step);
+                    slot.weight = unseenBefore.contains(light) ? 1f : Math.min(1f, step);
                     break;
                 }
             }
         }
+        unseenBefore.clear();
+        unseenBefore.addAll(unseen);
     }
 
     private float weighed(Object light, float worth) {

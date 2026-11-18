@@ -3,11 +3,12 @@ MaterialDef SsgiAccumulate {
 
     MaterialParameters {
         Int Frame
-        Int BoundDrawBuffer
         // This frame's rays (RGBA16F, half resolution, a the view depth of the pixel, 0 where there is no surface), what was summed last frame, and
         // SceneBuffers' motion, which says where the pixel was.
         Texture2D Raw
         Texture2D History
+        // How many frames that sum holds (R16F).
+        Texture2D HistoryCount
         Texture2D Velocity
     }
 
@@ -19,7 +20,6 @@ MaterialDef SsgiAccumulate {
         }
 
         Defines {
-            BOUND_DRAW_BUFFER : BoundDrawBuffer
         }
     }
 }

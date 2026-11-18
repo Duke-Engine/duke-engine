@@ -9,7 +9,9 @@ import com.jme3.renderer.RenderManager;
 import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.texture.Image.Format;
+import com.jme3.texture.FrameBuffer.FrameBufferTarget;
 import com.jme3.texture.Texture;
+import com.jme3.texture.Texture2D;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
@@ -20,10 +22,15 @@ import java.util.logging.Logger;
  * frame into the hemisphere about its normal (cosine weighted, so that the average of what they find is the irradiance),
  * marched over the depth buffer; what a ray finds is the lit picture's own colour there, this frame's, as the filter
  * receives it. The rays of the last frames are summed (found again where {@link SceneBuffers#velocity} says the pixel was,
- * clipped to what this frame's 3x3 holds), smoothed over what is one surface, brought up to full resolution by depth and
+ * clipped to what this frame's 5x5 holds), smoothed over what is one surface, brought up to full resolution by depth and
  * normal, and added times the surface's diffuse colour from {@link SceneBuffers#albedo}. A ray that misses brings nothing:
  * the sky's light is the probe's, and what stands in its way is darkened by {@link GtaoFilter}, which comes before this,
  * so that the bounce is not darkened by the occlusion it is the other half of.
+ *
+ * <p>A second target beside each sum holds how many frames it is of: a surface new to the view starts from its 5x5's mean,
+ * not its own two rays, and is an even mean of the frames it has (smoothed wider while they are few) until it holds fifty,
+ * so what comes back into view is near its settled light on its first frame and only grows less noisy, not crawling
+ * for a second.
  *
  * <p>Without scene buffers (a GPU that cannot draw them) the filter turns itself off.
  *
@@ -47,6 +54,8 @@ public final class SsgiFilter extends Filter {
     private Pass trace;
     private Pass blur;
     private final Pass[] sums = new Pass[2];
+    /** How many frames each sum holds, its second target. */
+    private final Texture2D[] counts = new Texture2D[2];
     private Material traceMaterial;
     private Material blurMaterial;
     private List<Pass> drawing = List.of();
@@ -118,9 +127,17 @@ public final class SsgiFilter extends Filter {
             accumulate[i].setTexture("Velocity", buffers.velocity());
             sums[i] = new Pass("SSGI sum " + i);
             sums[i].init(renderer, lowW, lowH, Format.RGBA16F, Format.Depth, 1, accumulate[i]);
+            counts[i] = new Texture2D(lowW, lowH, Format.R16F);
+            counts[i].setMinFilter(Texture.MinFilter.BilinearNoMipMaps);
+            counts[i].setMagFilter(Texture.MagFilter.Bilinear);
+            var target = sums[i].getRenderFrameBuffer();
+            target.setMultiTarget(true);
+            target.addColorTarget(FrameBufferTarget.newTarget(counts[i]));
         }
         accumulate[0].setTexture("History", sums[1].getRenderedTexture());
         accumulate[1].setTexture("History", sums[0].getRenderedTexture());
+        accumulate[0].setTexture("HistoryCount", counts[1]);
+        accumulate[1].setTexture("HistoryCount", counts[0]);
 
         blurMaterial = new Material(manager, "Common/MatDefs/Duke/SsgiBlur.j3md");
         blurMaterial.setTexture("Surface", buffers.normalRoughness());
@@ -165,6 +182,7 @@ public final class SsgiFilter extends Filter {
         int now = frame & 1;
         sums[now].getPassMaterial().setInt("Frame", frame);
         blurMaterial.setTexture("In", sums[now].getRenderedTexture());
+        blurMaterial.setTexture("Count", counts[now]);
         drawing = List.of(trace, sums[now], blur);
     }
 

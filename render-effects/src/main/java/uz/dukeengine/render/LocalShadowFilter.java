@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -87,6 +88,7 @@ public final class LocalShadowFilter extends Filter {
     private final GeometryList casters = new GeometryList(new OpaqueComparator());
     private final RenderState drawing = new RenderState();
     private final HashMap<Object, Float> worth = new HashMap<>();
+    private final HashSet<Object> unseen = new HashSet<>();
     private final Vector3f[] axes = {Vector3f.UNIT_X, Vector3f.UNIT_X.negate(), Vector3f.UNIT_Y, Vector3f.UNIT_Y.negate(),
         Vector3f.UNIT_Z, Vector3f.UNIT_Z.negate()};
     private final Matrix4f bias = new Matrix4f(0.5f, 0f, 0f, 0.5f, 0f, 0.5f, 0f, 0.5f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 1f);
@@ -204,18 +206,24 @@ public final class LocalShadowFilter extends Filter {
     protected void preFrame(float tpf) {
         var view = viewPort.getCamera();
         worth.clear();
+        unseen.clear();
         var vars = TempVars.get();
         for (var scene : viewPort.getScenes()) {
             for (var light : lightsUnder(scene, new ArrayList<>())) {
                 float reach = reachOf(light);
                 float brightness = brightnessOf(light);
-                if (reach > 0f && brightness > 1e-3f && light.isEnabled() && light.intersectsFrustum(view, vars)) {
+                if (reach <= 0f || brightness <= 1e-3f || !light.isEnabled()) {
+                    continue;
+                }
+                if (light.intersectsFrustum(view, vars)) {
                     worth.put(light, LocalShadowBudget.worth(brightness, reach, view.getLocation().distance(positionOf(light))));
+                } else {
+                    unseen.add(light);
                 }
             }
         }
         vars.release();
-        budget.update(worth, tpf);
+        budget.update(worth, unseen, tpf);
 
         var position = new Vector4f[slots];
         var aim = new Vector4f[slots];

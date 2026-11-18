@@ -2,11 +2,14 @@
 
 uniform sampler2D m_In;
 uniform sampler2D m_Surface;
+uniform sampler2D m_Count;
 
 varying vec2 texCoord;
 
 // How far apart in depth, as a share of it, two pixels can be and be one surface.
 const float SAME_SURFACE = 0.05;
+// Frames a sum must hold to be smoothed over the 5x5 alone: one younger is smoothed over twice the reach, its taps two apart.
+const float SETTLED = 16.0;
 
 void main() {
     ivec2 cell = ivec2(gl_FragCoord.xy);
@@ -17,12 +20,13 @@ void main() {
     }
     ivec2 limit = textureSize(m_In, 0) - 1;
     vec3 normal = texelFetch(m_Surface, cell * 2, 0).xyz;
+    int step = texelFetch(m_Count, cell, 0).r < SETTLED ? 2 : 1;
     vec3 sum = vec3(0.0);
     float total = 0.0;
     // 5x5, weighed by nearness, by depth and by the normal: light does not run over an edge.
     for (int y = -2; y <= 2; y++) {
         for (int x = -2; x <= 2; x++) {
-            ivec2 at = clamp(cell + ivec2(x, y), ivec2(0), limit);
+            ivec2 at = clamp(cell + ivec2(x, y) * step, ivec2(0), limit);
             vec4 tap = texelFetch(m_In, at, 0);
             if (tap.a <= 0.0) {
                 continue;
