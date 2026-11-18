@@ -101,6 +101,25 @@ public class AWTLoader implements AssetLoader {
         }
     }
 
+    /** A {@code TYPE_INT_ARGB} image's pixels as RGBA8 bytes, the same the per-pixel path below writes. */
+    static ByteBuffer rgba(BufferedImage img, boolean flipY) {
+        int width = img.getWidth();
+        int height = img.getHeight();
+        ByteBuffer data = BufferUtils.createByteBuffer(width * height * 4);
+        // Big-endian ints: 0xRRGGBBAA lands as the bytes R, G, B, A whatever the buffer's own order.
+        var out = data.duplicate().order(java.nio.ByteOrder.BIG_ENDIAN).asIntBuffer();
+        int[] row = new int[width];
+        var raster = img.getRaster();
+        for (int y = 0; y < height; y++) {
+            raster.getDataElements(0, flipY ? height - y - 1 : y, width, 1, row);
+            for (int x = 0; x < width; x++) {
+                row[x] = row[x] << 8 | row[x] >>> 24;
+            }
+            out.put(row);
+        }
+        return data;
+    }
+
     public Image load(BufferedImage img, boolean flipY){
         int width = img.getWidth();
         int height = img.getHeight();
@@ -129,6 +148,9 @@ public class AWTLoader implements AssetLoader {
                 ByteBuffer data3 = BufferUtils.createByteBuffer(img.getWidth()*img.getHeight());
                 data3.put(dataBuf3);
                 return new Image(Format.Luminance8, width, height, data3, null, com.jme3.texture.image.ColorSpace.sRGB);
+            case BufferedImage.TYPE_INT_ARGB: // what a game draws into itself: read by rows, not by getRGB per pixel
+                return new Image(Format.RGBA8, width, height, rgba(img, flipY), null,
+                        com.jme3.texture.image.ColorSpace.sRGB);
             default:
                 break;
         }
