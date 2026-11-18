@@ -100,6 +100,11 @@ public final class FirstPersonCamera implements ControlScheme {
         this.pitch = clampPitch(pitch);
     }
 
+    /** Puts the eye at {@code eye} and keeps its walk going: a game's own nudge each frame (a lean, a tremble), not a jump. */
+    public void nudge(Vector3f eye) {
+        this.eye = eye.clone();
+    }
+
     /** The nearest thing under the cross, within reach. */
     public Optional<Geometry> pointed(Node under) {
         var hits = new CollisionResults();

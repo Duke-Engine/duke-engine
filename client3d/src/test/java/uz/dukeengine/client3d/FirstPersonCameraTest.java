@@ -191,4 +191,15 @@ class FirstPersonCameraTest {
         camera.moveTo(new Vector3f(-2f, 1.65f, 0f), 0f, 0f);
         assertEquals(0f, camera.velocity().length());
     }
+
+    @Test
+    void aNudgeEachFrameStillLetsTheWalkGatherToFullPace() {
+        var camera = new FirstPersonCamera(ROOM);
+        camera.setRunning(true);
+        for (int i = 0; i < 30; i++) {
+            camera.move(true, false, false, false, 0f, 0f, 1f / 60f);
+            camera.nudge(camera.eye().add(0.001f, 0f, 0f));
+        }
+        assertEquals(3f, camera.velocity().length(), 1e-4f);
+    }
 }
