@@ -107,7 +107,9 @@ void main() {
     // Off the surface a little, farther where depth is coarser, so that it does not find itself.
     vec3 origin = position + normal * (0.01 - position.z * 0.004);
     vec2 where = vec2(pixel);
-    vec2 offset = vec2(ssgiNoise(where), ssgiNoise(where + vec2(47.0, 17.0)));
+    // The second number must not be the first plus a constant: the noise is linear in the pixel, so v = u + c in every
+    // pixel, all of them sample one diagonal line of directions a frame, and the error moves over the screen together.
+    vec2 offset = vec2(ssgiNoise(where), ssgiNoise(where.yx + vec2(47.0, 17.0)));
     vec3 light = vec3(0.0);
     for (int ray = 0; ray < RAYS; ray++) {
         int number = m_Frame * RAYS + ray + 1;
