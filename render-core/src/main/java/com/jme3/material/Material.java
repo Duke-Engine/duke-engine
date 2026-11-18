@@ -965,6 +965,9 @@ public class Material implements CloneableSmartAsset, Cloneable, Savable {
         SafeArrayList<MatParamOverride> overrides = geometry.getWorldMatParamOverrides();
 
         Shader shader = technique.makeCurrent(renderManager, overrides, null, null, rendererCaps);
+        // As render does: else the uniforms the last material preloaded on this shader still count as this one's, and its
+        // textures are skipped, left to upload in the middle of play.
+        clearUniformsSetByCurrent(shader);
         updateShaderMaterialParameters(renderer, shader, overrides, null);
         renderManager.getRenderer().setShader(shader);
     }
