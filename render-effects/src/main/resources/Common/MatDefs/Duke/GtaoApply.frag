@@ -32,13 +32,13 @@ void main() {
         #endif
         return;
     }
-    // The first pass left nine different directions in every 3x3 patch: this takes them back together, over what is
-    // the same surface and only that.
+    // The first pass left a grain of directions and offsets, a new one each TAA frame: a 5x5 patch takes it back
+    // together, over what is the same surface and only that.
     vec2 texel = 1.0 / vec2(textureSize(m_Occlusion, 0));
     float sum = 0.0;
     float total = 0.0;
-    for (int y = -1; y <= 1; y++) {
-        for (int x = -1; x <= 1; x++) {
+    for (int y = -2; y <= 2; y++) {
+        for (int x = -2; x <= 2; x++) {
             vec2 tap = texture2D(m_Occlusion, texCoord + vec2(x, y) * texel).rg;
             float weight = tap.g > 0.0 ? max(0.0, 1.0 - abs(tap.g - centre.g) / (SAME_SURFACE * centre.g)) : 0.0;
             sum += tap.r * weight;
